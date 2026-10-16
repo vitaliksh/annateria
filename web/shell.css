@@ -1,4 +1,4 @@
-/* Application shell: top bar, scrolling workspace, status bar. The third grid row is reserved for the future AI dock. */
+/* Application shell: top bar, scrolling workspace, the assistant dock (assistant.css), status bar. */
 
 body {
   overflow: hidden;
@@ -6,7 +6,7 @@ body {
 
 .app-shell {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   height: 100vh;
   height: 100dvh;
 }

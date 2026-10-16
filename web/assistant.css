@@ -1,0 +1,161 @@
+/* Assistant dock: the row between the workspace and the status bar. The bar is always visible, the body opens above it. */
+.app-shell > .assistant {
+  grid-column: 2;
+  display: grid;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.assistant-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 44px;
+  padding: var(--s1) var(--s4);
+}
+
+.assistant-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-strong);
+}
+
+.assistant-title:hover {
+  background: var(--surface-muted);
+  border-color: transparent;
+}
+
+.assistant .icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.assistant-progress {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: min(46vh, 440px);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.assistant-body[hidden] {
+  display: none;
+}
+
+.assistant-feed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  overflow-y: auto;
+}
+
+.assistant-message {
+  max-width: min(78ch, 100%);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.assistant-message[data-kind="user"] {
+  align-self: flex-start;
+  background: var(--accent-soft);
+  color: var(--text-strong);
+}
+
+.assistant-message[data-kind="note"] {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.assistant-message[data-kind="error"] {
+  background: var(--error-soft);
+  color: var(--error);
+}
+
+.assistant-card {
+  display: grid;
+  gap: var(--s2);
+  max-width: min(78ch, 100%);
+  padding: var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.assistant-card[data-kind="question"] {
+  border-color: var(--accent-border);
+}
+
+.assistant-card[data-state="cancelled"] {
+  opacity: .65;
+}
+
+.assistant-card p {
+  margin: 0;
+}
+
+.card-text {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.card-options,
+.card-other {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.card-other input {
+  flex: 1;
+  min-width: 12ch;
+}
+
+.card-changes {
+  display: grid;
+  gap: var(--s1);
+  margin: 0;
+  padding-inline-start: var(--s5);
+}
+
+.assistant-form {
+  display: flex;
+  gap: var(--s2);
+  padding: var(--s2) var(--s4) var(--s3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.assistant-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+button.link {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  text-decoration: underline;
+}

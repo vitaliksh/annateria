@@ -15,9 +15,10 @@ works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
 **Done:** step **4.1 Tool contract**: `docs/AGENT_TOOLS.md` is **approved** (16 October 2026, all ten recommendations of its section 10 taken). It is the
 specification for 4.2 onwards; a change to it needs the owner's approval.
 
-**Done:** steps **4.2 Orchestrator loop** and **4.2b Remaining tools** (`web/agent/`, see "Agent core" below): nine of the fourteen tools. **Next:** **4.3 Assistant
-panel** (with the first real Gemini run, which checks the points marked unverified below), then 4.4 live rows (`add_rows`, `move_file_to_declaration`). Phase 3 (model bake-off)
-is in the backlog. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
+**Done:** steps **4.2 Orchestrator loop**, **4.2b Remaining tools** and **4.3 Assistant panel** (see "Agent core" below). **Next, for the owner:** the first real run: on the
+published page enter the access code, put a few files into "תיבת קלט", open the dock and press "עבד חדשים"; report what the dock shows (it checks the points marked
+unverified in "Gemini function calling"). **Next step:** 4.4 live rows (`add_rows`, `move_file_to_declaration`, the apply button of proposals). Phase 3 is in the backlog.
+The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (not blocking): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
 project; give Anna her access code if not done; tell me the Cloudflare plan (Free or Paid) so it can be recorded.
@@ -53,7 +54,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 596 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 613 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -79,7 +80,7 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
 - **Agent (phase 4):** `web/agent/`: `run.js` (the loop, `createContext`), `registry.js` (closed list of tools, dispatch, result envelope), `schema.js` (argument check and
   the Gemini declaration from one schema), `handles.js`, `limits.js`, `run-log.js`, `gemini.js` (the model of the loop over `model-client.js`), `services.js` (the only way for
   a tool to reach data), `tools/` (nine so far: `list_inbox`, `read_document`, `extract_document`, `find_client`, `get_client_context`, `query_rows`, `facts_for`, `ask_user`, `propose_change`),
-  `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `fact-record.js`, `prompts.js`, `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
+  `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `web/assistant-ui.js` (the dock), `web/assistant-flow.js` (runs the agent for the dock), `assistant.css`, `fact-record.js`, `prompts.js`, `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
 - **Inbox:** `inbox-store.js` (originals dropped by the user, `inbox/index.json`, SHA-256 dedup against the inbox and all declaration
   images; the Windows file-name rules and the accepted file types live here), `inbox-ui.js` + `inbox.css` (`#inbox-dialog`: drop target, picker,
   client choice, result lines; opened by `#open-inbox`). The backup already copies `inbox/` with the rest of the root.
@@ -120,6 +121,7 @@ Phase 1 is mostly new code: `web/access.js`, `web/access-ui.js`, `web/model-clie
 ## Changes to inherited code (phase 2)
 
 - 2.1: `web/package.json` (check list) and `web/test/memory-binary-directory.mjs` (additive `removeEntry`). No production module changed.
+- 4.3: `web/app.js` (two imports, `assistantFlow`, `runAssistant`, `setupAssistant` after the AI check), `web/index.html` (the `#assistant` section, `assistant.css`), `web/shell.css` (a fourth grid row), `web/package.json`.
 - 4.2b: `web/intake-facts.js` (`intakeFacts` takes an optional `targetMonth`; no caller passes it yet except `facts_for`).
 - 4.2: `web/intake-facts.js` (`nameTokens` is now exported, nothing else changed), `web/package.json` (check list). The rest is new files under `web/agent/`.
 - 2.4: `web/index.html` (help dialog, guide button), `web/inbox-ui.js` (the button handler), `web/inbox.css`.
@@ -199,12 +201,19 @@ made**, and no code in `app.js` starts it. Decisions on the way:
   action verb; `services` has five operations and none that closes, deletes or writes; tool files import only the error class and pure helpers; only `services.js` reaches
   the stores; no `fetch`, DOM or file API in the agent), `agent-run.test.mjs` (the loop), `agent-tools.test.mjs`, `agent-core.test.mjs`, `agent-gemini.test.mjs`.
 
+### What 4.3 added
+
+- **The dock** is the only UI of the agent. `setupAssistant({ root, onCommand })` draws and reports clicks; `app.js` decides what a click does. One run at a time; stop aborts through an `AbortController` (a question card that is open then closes without an answer). Every text of the agent is put in with `textContent`.
+- **A run** = `buildMessage` (date, what the user has open, for a typed request the last answer) + `ORCHESTRATOR_PROMPT` + the nine tools. The run log is written to `common/agent-runs/<id>.json` after every run (a failure to write is a note in the dock, not an error). Quick buttons send fixed English requests (`QUICK_MESSAGES`); the model answers in Hebrew.
+- **What a run needs:** the data root, and the access code (the model client asks for it; without it the run fails with the login message). Without `ANNATERIA_API` the dock says the AI is not configured.
+- **Known limits:** no row is written (4.4); proposals cannot be applied from the card (4.4); no memory between runs beyond the last answer; the prompt is a stand-in (phase 5).
+
 ### What 4.2b added
 
 - **Facts by reference.** `extract_document` validates the answer of the model against `RECORD_SCHEMA`, cleans it (`normalizeRecord`: dates through `dateKey`, ids to digits, amounts to cents, free text to one line of at most 120 characters, the issues `amounts_mismatch`, `bad_vat_id`, `no_date`, `foreign_currency` added by code) and freezes it; handles are `F1.1`. A record that does not validate is skipped and counted; if none validates the call fails. A second call returns the stored facts; `model: strong` once, only while no row was made from them (`run.factsUsed`, filled by `add_rows` in 4.4).
 - **`facts_for` is the one place of the rules.** It builds the fact as a row of the draft-table format and calls `intakeFacts`, `pcnReview`, `isHomeUtility`; the duplicate search covers all declarations, the open table as on screen (`getLiveTable`) and `run.addedEntries` (rows made earlier in the run, filled by `add_rows` in 4.4). The model gives only a month when the user asked for one.
 - **Where the browser comes in.** `adapters/documents.js` loads pdf.js (`loadPdfJs` of `pdf-import.js`) and SheetJS on demand; `adapters/extraction.js` builds one `generateContent` request (instruction `EXTRACTION_PROMPT`, JSON response schema, temperature 0, the file as `inlineData`, at most 14 MiB; a bigger photo is shrunk by canvas, a bigger PDF or HEIC is refused). Both take their libraries as arguments, so the tests run in Node. The workbook reader insists on a ZIP or OLE signature because SheetJS parses any bytes as text.
-- **To wire in 4.3:** `createServices({ getDataRoot, getClients, getLiveTable, builtInChart, reserved, extraction })` with `extraction = createExtractionAdapter({ client: modelClient, readText })`; the loop with `createGeminiModel({ client: modelClient, model: MODELS.orchestrator })`.
+- **Wired in 4.3** (kept here as the recipe): `createServices({ getDataRoot, getClients, getLiveTable, builtInChart, reserved, extraction })` with `extraction = createExtractionAdapter({ client: modelClient, readText })`; the loop with `createGeminiModel({ client: modelClient, model: MODELS.orchestrator })`.
 
 ### Gemini function calling (read 16 October 2026)
 

@@ -48,12 +48,13 @@ export function createContext({ services, ui = {}, signal = new AbortController(
 
 // model: { step({ system, contents, tools, signal }) -> { parts, finishReason?, blockReason?, usage?, model? } }
 // registry: createRegistry(...). services: the only way for a tool to reach data (services.js). ui: { ask(card, { signal }),
-// propose(proposal) } supplied by the panel. onEvent receives every log entry as it happens (the progress line).
+// propose(proposal) } supplied by the panel. onEvent receives every log entry when it is written; onProgress({ type: "turn" | "call", ... })
+// is told when a model turn or a tool call starts (the progress line of the panel).
 // Resolves with { status, text?, error?, reason?, turns, toolCalls, questions, runId, log };
 // status: completed | cancelled | limit_reached | failed | blocked.
 export async function runAgent({
   model, system, registry, message, services, ui = {}, signal = new AbortController().signal, limits = LIMITS,
-  now = () => new Date().toISOString(), clock = () => Date.now(), sleep = defaultSleep, runId = crypto.randomUUID(), onEvent,
+  now = () => new Date().toISOString(), clock = () => Date.now(), sleep = defaultSleep, runId = crypto.randomUUID(), onEvent, onProgress,
 }) {
   const log = createRunLog({ runId, now, onEvent });
   const ctx = createContext({ services, ui, signal, limits, now, log, runId });
@@ -64,6 +65,7 @@ export async function runAgent({
   let turns = 0;
   let refusals = 0;
   let malformed = 0;
+  const progress = (event) => { try { onProgress?.(event); } catch { /* a faulty listener must not stop the run */ } };
   const finish = (status, extra = {}) => {
     log.add({ kind: "end", status, turns, toolCalls: run.toolCalls, ...extra });
     return { status, turns, toolCalls: run.toolCalls, questions: run.questions, runId, log, ...extra };
@@ -85,6 +87,7 @@ export async function runAgent({
   let queue = Promise.resolve();
   async function callTool(call) {
     const started = clock();
+    progress({ type: "call", name: call.name });
     const envelope = await (registry.isExclusive(call.name) ? (queue = queue.then(() => registry.dispatch(call, ctx))) : registry.dispatch(call, ctx));
     log.add({ kind: "tool", name: call.name, args: shorten(call.args ?? {}), ok: envelope.ok, error: envelope.error?.code, result: shorten(envelope), ms: clock() - started });
     return { functionResponse: { ...(call.id ? { id: call.id } : {}), name: call.name, response: envelope } };
@@ -95,6 +98,7 @@ export async function runAgent({
     if (turns >= limits.turns) return finish("limit_reached", { reason: "turns" });
     if (clock() > deadline) return finish("limit_reached", { reason: "time" });
     turns += 1;
+    progress({ type: "turn", turn: turns });
 
     let reply;
     try {

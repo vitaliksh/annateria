@@ -28,6 +28,8 @@ import { setupAccess } from "./access-ui.js";
 import { checkModelConnection, createModelClient } from "./model-client.js";
 import { setupTransfer } from "./transfer-ui.js";
 import { setupInbox } from "./inbox-ui.js";
+import { progressLabel, setupAssistant } from "./assistant-ui.js";
+import { buildMessage, createAssistantFlow, resultNote } from "./assistant-flow.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
 import { isHomeUtility } from "./home-utilities.js";
@@ -595,6 +597,57 @@ document.querySelector("#check-model").addEventListener("click", async () => {
   result.textContent = "בודק…";
   const checked = await checkModelConnection(modelClient);
   result.textContent = checked.message;
+});
+// The assistant dock (step 4.3): "עבד חדשים", "מה נשאר?" and typed requests start one run of the agent (web/agent/); the report
+// button opens the existing reports. One run at a time; the stop button aborts it.
+const assistantFlow = createAssistantFlow({
+  modelClient,
+  getDataRoot: () => dataRoot,
+  getClients: () => workspaceControls?.getClients().active ?? [],
+  getLiveTable: () =>
+    committedWorkspace && currentDeclaration
+      ? { clientId: committedWorkspace.config.clientId, month: currentDeclaration.month, rows: [...records.querySelectorAll("tr[data-document-id]")].map(rowSnapshot) }
+      : null,
+  builtInChart: () => Object.fromEntries(Object.entries(builtInMapping).map(([code, name]) => [code, { name, type: "expense" }])),
+  reserved: () => ({ ...builtInMapping, ...customMapping }),
+});
+let assistantRun = null;
+let assistantLastAnswer = "";
+async function runAssistant(kind, text) {
+  if (!api) return assistant.addMessage("error", "החיבור לשרת ה‑AI אינו מוגדר.");
+  if (!dataRoot) return assistant.addMessage("error", "יש לבחור תחילה תיקיית נתונים.");
+  const controller = new AbortController();
+  const counts = {};
+  assistantRun = controller;
+  assistant.setBusy(true);
+  try {
+    const result = await assistantFlow.run({
+      message: buildMessage({
+        kind, text, today: new Date().toISOString().slice(0, 10), previous: assistantLastAnswer,
+        active: committedWorkspace ? { clientName: committedWorkspace.config.clientName, month: currentDeclaration?.month ?? null } : null,
+      }),
+      ui: assistant.ui,
+      signal: controller.signal,
+      onProgress: (event) => assistant.setProgress(progressLabel(event, counts)),
+    });
+    const note = resultNote(result);
+    assistant.addMessage(note.kind, note.text);
+    if (result.status === "completed") assistantLastAnswer = result.text;
+    if (result.logError) assistant.addMessage("note", `לא ניתן לשמור את יומן הריצה: ${result.logError}`);
+  } catch (error) {
+    assistant.addMessage("error", `העוזר נעצר: ${error.message}`);
+  } finally {
+    assistantRun = null;
+    assistant.setBusy(false);
+  }
+}
+const assistant = setupAssistant({
+  root: document.querySelector("#assistant"),
+  onCommand: (command) => {
+    if (command.type === "cancel") assistantRun?.abort();
+    else if (command.type === "report") reports.open();
+    else runAssistant(command.type, command.text);
+  },
 });
 async function saveCurrentDraft() {
   if (!currentDeclaration || currentDeclaration.status !== "open" || !currentDeclarationDirectory) return;

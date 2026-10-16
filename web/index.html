@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="clients.css">
   <link rel="stylesheet" href="backup.css">
   <link rel="stylesheet" href="inbox.css">
+  <link rel="stylesheet" href="assistant.css">
   <link rel="stylesheet" href="sidebar.css">
   <link rel="stylesheet" href="shell.css">
   <script src="config.js" defer></script>
@@ -70,6 +71,21 @@
       </section>
       </div>
     </main>
+    <section id="assistant" class="assistant" aria-label="עוזר" data-open="false">
+      <div class="assistant-bar">
+        <button id="assistant-toggle" type="button" class="assistant-title" aria-expanded="false" aria-controls="assistant-body"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><strong>עוזר</strong></button>
+        <span id="assistant-progress" class="assistant-progress" role="status"></span>
+        <span class="topbar-spacer"></span>
+        <button id="assistant-cancel" type="button" class="secondary small" hidden>עצור</button>
+        <button id="assistant-process" type="button" class="small">עבד חדשים</button>
+        <button id="assistant-left" type="button" class="secondary small">מה נשאר?</button>
+        <button id="assistant-report" type="button" class="secondary small">דוח</button>
+      </div>
+      <div id="assistant-body" class="assistant-body" hidden>
+        <div id="assistant-feed" class="assistant-feed" aria-live="polite"></div>
+        <form id="assistant-form" class="assistant-form"><input id="assistant-input" type="text" maxlength="500" placeholder="שאלה או בקשה…" autocomplete="off" aria-label="שאלה או בקשה לעוזר"><button id="assistant-send" type="submit">שליחה</button></form>
+      </div>
+    </section>
     <footer class="statusbar"><p id="upload-requirements" class="upload-requirements" role="status"></p><p id="status" role="alert"></p></footer>
   </div>
   <div id="report-print" aria-hidden="true"></div>
