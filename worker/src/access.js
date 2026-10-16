@@ -93,7 +93,13 @@ export async function checkCode(code, entries) {
 }
 
 async function hmacKey(secret, usages) {
-  const raw = fromBase64url(secret ?? "");
+  // A secret piped in by PowerShell arrives with a line break at its end.
+  let raw;
+  try {
+    raw = fromBase64url(String(secret ?? "").trim());
+  } catch {
+    throw new AccessConfigError("TOKEN_SIGNING_KEY is not base64url.");
+  }
   if (raw.length < MIN_KEY_BYTES) throw new AccessConfigError("TOKEN_SIGNING_KEY must hold at least 32 random bytes.");
   return crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, usages);
 }

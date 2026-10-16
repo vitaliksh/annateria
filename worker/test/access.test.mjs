@@ -85,6 +85,20 @@ test("a forged token is refused: other key, altered payload, altered signature, 
   for (const candidate of forged) assert.equal(await verifyToken(candidate, KEY, NOW + 1000), null, String(candidate));
 });
 
+test("secrets piped in with a line break at the end still work", async () => {
+  const { token } = await signToken("anna", `${KEY}
+`, NOW);
+  assert.deepEqual(await verifyToken(token, `${KEY}
+`, NOW + 1000), { user: "anna", expiresAt: NOW + TOKEN_TTL_MS });
+  const entries = parseAccessCodes(`${JSON.stringify({ anna: await hashCode("ANNA22", { iterations: 1000 }) })}
+`);
+  assert.equal(await checkCode("ANNA22", entries), "anna");
+});
+
+test("a signing key that is not base64url is a configuration error", async () => {
+  await assert.rejects(signToken("anna", "not base64 !!!", NOW), AccessConfigError);
+});
+
 test("a signing key shorter than 32 bytes is a configuration error", async () => {
   await assert.rejects(signToken("anna", base64url(new Uint8Array(8)), NOW), AccessConfigError);
   await assert.rejects(verifyToken("v1.a.b", "", NOW), AccessConfigError);

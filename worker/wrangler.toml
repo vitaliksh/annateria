@@ -17,4 +17,4 @@ new_sqlite_classes = ["AuthGuard"]
 # final GitHub Pages URL before deploying.
 [vars]
 ALLOWED_ORIGINS = "http://127.0.0.1:8000,http://localhost:8000,http://127.0.0.1:8010,http://localhost:8010,https://vitaliksh.github.io"
-BACKEND_VERSION = "2026.10.16.1"
+BACKEND_VERSION = "2026.10.16.2"

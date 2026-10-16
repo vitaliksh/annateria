@@ -102,6 +102,13 @@ test("only POST from an allowed origin; missing Gemini key or broken signing key
   assert.equal(calls.length, 0);
 });
 
+test("a Gemini key stored with a line break at its end is sent without it", async () => {
+  const calls = stubGemini(gemini());
+  await ask(valid(), { environment: env({ GEMINI_API_KEY: `${GEMINI_KEY}
+` }) });
+  assert.equal(calls[0].init.headers["x-goog-api-key"], GEMINI_KEY);
+});
+
 test("a request outside the allow-list is 400 and Gemini is not called", async () => {
   const calls = stubGemini(gemini());
   const bad = [

@@ -131,7 +131,7 @@ async function modelCall(request, env, headers) {
   try {
     upstream = await fetch(url, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY.trim() },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(stream ? GEMINI_STREAM_TIMEOUT_MS : GEMINI_TIMEOUT_MS),
     });
