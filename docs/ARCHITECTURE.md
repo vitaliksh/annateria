@@ -15,7 +15,7 @@ What exists today is marked **now**; everything else is planned in `WORK_PLAN.md
 GitHub Pages: web/            (Ctrl+F5 updates UI, skills and prompts)
  ├─ journal, clients, reports        (now, ported from ocr)
  ├─ intake: drop zone → inbox/       (now: dialog "תיבת קלט", no AI)
- ├─ assistant panel: orchestrator → tools (JS) → data root   (loop and 4 tools in web/agent/, panel 4.3)
+ ├─ assistant panel: orchestrator → tools (JS) → data root   (loop and 9 tools in web/agent/, panel 4.3)
  └─ skills/*/SKILL.md                (phase 5)
         │  6-character access code → short-lived token, kept in page memory only
 Cloudflare Worker: worker/    stateless Gemini proxy

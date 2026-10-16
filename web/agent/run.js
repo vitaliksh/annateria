@@ -5,6 +5,7 @@ import { ToolError } from "./errors.js";
 import { createHandles } from "./handles.js";
 import { LIMITS } from "./limits.js";
 import { createRunLog, shorten } from "./run-log.js";
+import { createSemaphore } from "./semaphore.js";
 
 const RETRY_CODES = new Set(["busy", "unavailable", "network"]);
 const REFUSAL_REASONS = new Set(["SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "IMAGE_SAFETY", "RECITATION"]);
@@ -15,9 +16,16 @@ const isAbort = (error) => error?.name === "AbortError";
 // What a tool receives: the handle table, the services, the user interface of the panel, the abort signal, the counters of the
 // run and the two guards every write goes through.
 export function createContext({ services, ui = {}, signal = new AbortController().signal, limits = LIMITS, now = () => new Date().toISOString(), log = null, runId = crypto.randomUUID() }) {
-  const run = { id: runId, asked: new Map(), questions: 0, copies: new Set(), fileStatus: new Map(), toolCalls: 0 };
+  // fileStatus: file handle -> waiting | extracted | filed. extractions: file handle -> { tries, records } (the fact store).
+  // addedEntries and factsUsed are filled by add_rows (4.4): rows made in this run are seen by the duplicate search, and facts
+  // that already became a row cannot be extracted again.
+  const run = {
+    id: runId, asked: new Map(), questions: 0, copies: new Set(), fileStatus: new Map(), toolCalls: 0,
+    extractions: new Map(), extractCount: 0, extractSlots: createSemaphore(limits.parallelExtractions ?? LIMITS.parallelExtractions), addedEntries: [], factsUsed: new Set(),
+  };
   return {
     handles: createHandles(), services, ui, signal, run, limits, log,
+    today: () => new Date(now()),
     // The table is copied once per run and declaration before the agent first writes to it; no copy, no write.
     async ensureCopy(clientId, month) {
       const key = `${clientId}|${month}`;

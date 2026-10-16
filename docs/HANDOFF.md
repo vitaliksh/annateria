@@ -15,8 +15,9 @@ works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
 **Done:** step **4.1 Tool contract**: `docs/AGENT_TOOLS.md` is **approved** (16 October 2026, all ten recommendations of its section 10 taken). It is the
 specification for 4.2 onwards; a change to it needs the owner's approval.
 
-**Done:** step **4.2 Orchestrator loop** (`web/agent/`, see "Agent core" below). **Next:** **4.2b Remaining tools** (extraction, facts, client context, row query),
-then 4.3 the panel. Phase 3 (model bake-off) is in the backlog. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
+**Done:** steps **4.2 Orchestrator loop** and **4.2b Remaining tools** (`web/agent/`, see "Agent core" below): nine of the fourteen tools. **Next:** **4.3 Assistant
+panel** (with the first real Gemini run, which checks the points marked unverified below), then 4.4 live rows (`add_rows`, `move_file_to_declaration`). Phase 3 (model bake-off)
+is in the backlog. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (not blocking): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
 project; give Anna her access code if not done; tell me the Cloudflare plan (Free or Paid) so it can be recorded.
@@ -52,7 +53,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 551 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 596 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -77,7 +78,8 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   (leftover of the ocr bookkeeper agent, no UI wired since 0.3).
 - **Agent (phase 4):** `web/agent/`: `run.js` (the loop, `createContext`), `registry.js` (closed list of tools, dispatch, result envelope), `schema.js` (argument check and
   the Gemini declaration from one schema), `handles.js`, `limits.js`, `run-log.js`, `gemini.js` (the model of the loop over `model-client.js`), `services.js` (the only way for
-  a tool to reach data), `tools/` (`list_inbox`, `find_client`, `ask_user`, `propose_change` so far). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
+  a tool to reach data), `tools/` (nine so far: `list_inbox`, `read_document`, `extract_document`, `find_client`, `get_client_context`, `query_rows`, `facts_for`, `ask_user`, `propose_change`),
+  `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `fact-record.js`, `prompts.js`, `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
 - **Inbox:** `inbox-store.js` (originals dropped by the user, `inbox/index.json`, SHA-256 dedup against the inbox and all declaration
   images; the Windows file-name rules and the accepted file types live here), `inbox-ui.js` + `inbox.css` (`#inbox-dialog`: drop target, picker,
   client choice, result lines; opened by `#open-inbox`). The backup already copies `inbox/` with the rest of the root.
@@ -118,6 +120,7 @@ Phase 1 is mostly new code: `web/access.js`, `web/access-ui.js`, `web/model-clie
 ## Changes to inherited code (phase 2)
 
 - 2.1: `web/package.json` (check list) and `web/test/memory-binary-directory.mjs` (additive `removeEntry`). No production module changed.
+- 4.2b: `web/intake-facts.js` (`intakeFacts` takes an optional `targetMonth`; no caller passes it yet except `facts_for`).
 - 4.2: `web/intake-facts.js` (`nameTokens` is now exported, nothing else changed), `web/package.json` (check list). The rest is new files under `web/agent/`.
 - 2.4: `web/index.html` (help dialog, guide button), `web/inbox-ui.js` (the button handler), `web/inbox.css`.
 - 2.3: `web/sidebar-clients.js` (optional `inboxCounts`), `web/workspace.js` (optional `getInboxCounts`; returns `renderSidebar`), `web/app.js`
@@ -195,6 +198,13 @@ made**, and no code in `app.js` starts it. Decisions on the way:
 - The tests that keep the contract: `test/agent-boundary.test.mjs` (the tool list equals the headings of the document: built plus `PENDING_TOOLS`; no tool name starting with an
   action verb; `services` has five operations and none that closes, deletes or writes; tool files import only the error class and pure helpers; only `services.js` reaches
   the stores; no `fetch`, DOM or file API in the agent), `agent-run.test.mjs` (the loop), `agent-tools.test.mjs`, `agent-core.test.mjs`, `agent-gemini.test.mjs`.
+
+### What 4.2b added
+
+- **Facts by reference.** `extract_document` validates the answer of the model against `RECORD_SCHEMA`, cleans it (`normalizeRecord`: dates through `dateKey`, ids to digits, amounts to cents, free text to one line of at most 120 characters, the issues `amounts_mismatch`, `bad_vat_id`, `no_date`, `foreign_currency` added by code) and freezes it; handles are `F1.1`. A record that does not validate is skipped and counted; if none validates the call fails. A second call returns the stored facts; `model: strong` once, only while no row was made from them (`run.factsUsed`, filled by `add_rows` in 4.4).
+- **`facts_for` is the one place of the rules.** It builds the fact as a row of the draft-table format and calls `intakeFacts`, `pcnReview`, `isHomeUtility`; the duplicate search covers all declarations, the open table as on screen (`getLiveTable`) and `run.addedEntries` (rows made earlier in the run, filled by `add_rows` in 4.4). The model gives only a month when the user asked for one.
+- **Where the browser comes in.** `adapters/documents.js` loads pdf.js (`loadPdfJs` of `pdf-import.js`) and SheetJS on demand; `adapters/extraction.js` builds one `generateContent` request (instruction `EXTRACTION_PROMPT`, JSON response schema, temperature 0, the file as `inlineData`, at most 14 MiB; a bigger photo is shrunk by canvas, a bigger PDF or HEIC is refused). Both take their libraries as arguments, so the tests run in Node. The workbook reader insists on a ZIP or OLE signature because SheetJS parses any bytes as text.
+- **To wire in 4.3:** `createServices({ getDataRoot, getClients, getLiveTable, builtInChart, reserved, extraction })` with `extraction = createExtractionAdapter({ client: modelClient, readText })`; the loop with `createGeminiModel({ client: modelClient, model: MODELS.orchestrator })`.
 
 ### Gemini function calling (read 16 October 2026)
 

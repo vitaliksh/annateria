@@ -1,0 +1,188 @@
+// get_client_context, query_rows and read_document (docs/AGENT_TOOLS.md, 5.1) on real stores in memory.
+import test from "node:test";
+import assert from "node:assert/strict";
+import * as XLSX from "xlsx";
+import { createDocumentReader } from "../agent/adapters/documents.js";
+import { addToInbox } from "../inbox-store.js";
+import { readRules } from "../rules-store.js";
+import { file, tableRow, toolContext } from "./agent-fixtures.mjs";
+import { binaryDirectory, putFile } from "./memory-binary-directory.mjs";
+
+test("get_client_context: profile, declarations with their state, the last locked month, the client's own chart", async () => {
+  const { dispatch, client } = await toolContext();
+  const result = await dispatch("get_client_context", { client: await client("Levi") });
+  assert.equal(result.ok, true);
+  assert.deepEqual([result.name, result.activity, result.kind, result.pcn_required, result.vat_id, result.vat_period], ["Levi Plumbing Ltd", "plumbing", "office", false, "514123456", "monthly"]);
+  assert.deepEqual(result.declarations, [{ month: "2026-01", status: "locked", rows: 1 }, { month: "2026-02", status: "open", rows: 2 }]);
+  assert.equal(result.locked_through, "2026-01");
+  assert.deepEqual(result.chart, [{ code: "202", name: "משרדיות", type: "expense" }, { code: "206", name: "ביטוח עסק", type: "outsideVatBase" }]);
+  assert.deepEqual([result.chart_source, result.rules, result.rules_truncated], ["client", "", false]);
+});
+
+test("get_client_context: a home client with nothing yet, a PCN client, and clients without an own chart use the built-in one", async () => {
+  const { dispatch, client } = await toolContext();
+  const cohen = await dispatch("get_client_context", { client: await client("Cohen") });
+  assert.deepEqual([cohen.kind, cohen.declarations, cohen.locked_through, cohen.chart, cohen.chart_source], ["home", [], null, [], "built-in"]);
+  assert.equal((await dispatch("get_client_context", { client: await client("Pcn") })).pcn_required, true);
+  assert.equal((await dispatch("get_client_context", { client: "C99" })).error.code, "not_found");
+});
+
+test("get_client_context: rules.md is returned; a long one keeps its newest lines", async () => {
+  const { w, dispatch, client } = await toolContext();
+  await w.putFile("clients/Levi/rules.md", "- fuel is an expense\n");
+  assert.equal((await dispatch("get_client_context", { client: await client("Levi") })).rules, "- fuel is an expense\n");
+  const lines = Array.from({ length: 600 }, (_, index) => `- rule number ${index + 1} of this client`);
+  await w.putFile("clients/Levi/rules.md", lines.join("\n"));
+  const long = await dispatch("get_client_context", { client: await client("Levi") });
+  assert.equal(long.rules_truncated, true);
+  assert.ok(long.rules.length <= 8000);
+  assert.ok(long.rules.endsWith("- rule number 600 of this client"));
+  assert.equal(long.rules.includes("rule number 1 of"), false);
+});
+
+test("readRules: a missing file is empty text", async () => {
+  assert.equal(await readRules(binaryDirectory()), "");
+  const directory = binaryDirectory();
+  await putFile(directory, "rules.md", "- a rule");
+  assert.equal(await readRules(directory), "- a rule");
+});
+
+test("query_rows: every row of every month with the facts of the table, flags and handles", async () => {
+  const { ctx, dispatch, client } = await toolContext();
+  const result = await dispatch("query_rows", { client: await client("Levi") });
+  assert.equal(result.total, 4);
+  const byId = Object.fromEntries(result.rows.map((row) => [row.row, row]));
+  assert.equal(result.rows.length, 4);
+  const [old, paper, insurance, copy] = result.rows;
+  assert.deepEqual([old.month, old.position, old.date], ["2026-01", 1, "2026-01-10"]);
+  assert.deepEqual([paper.month, paper.position, paper.supplier, paper.supplier_vat_id, paper.document_number, paper.net, paper.vat, paper.total, paper.account, paper.flags], ["2026-02", 1, "Paper Shop", "512345679", "INV-1001", 100, 18, 118, "202", []]);
+  assert.deepEqual([insurance.flags, insurance.agent_reason, insurance.status], [["review", "agent"], "ביטוח עסק", "נדרש עיון"]);
+  assert.deepEqual([copy.flags, copy.position, "agent_reason" in copy], [["review", "duplicate", "excluded"], 3, false]);
+  assert.equal(Object.keys(byId).length, 4, "four different handles");
+  assert.deepEqual(ctx.handles.get("R", paper.row), { clientId: "id-Levi", month: "2026-02", documentId: "d-1" });
+});
+
+test("query_rows: month, text, supplier, dates, allocation, account and flag filters", async () => {
+  const { dispatch, client } = await toolContext();
+  const levi = await client("Levi");
+  const ids = async (args) => (await dispatch("query_rows", { client: levi, ...args })).rows.map((row) => `${row.month}#${row.position}`);
+  assert.deepEqual(await ids({ month: "2026-02" }), ["2026-02#1", "2026-02#2", "2026-02#3"]);
+  assert.deepEqual(await ids({ where: { text: "INSURANCE" } }), ["2026-02#2"]);
+  assert.deepEqual(await ids({ where: { text: "INV-1001" } }), ["2026-02#1"], "the full reference of a row");
+  assert.deepEqual(await ids({ where: { text: "1001" } }), ["2026-02#1", "2026-02#3"]);
+  assert.deepEqual(await ids({ where: { supplier: "paper" } }), ["2026-01#1", "2026-02#1", "2026-02#3"]);
+  assert.deepEqual(await ids({ where: { date_from: "2026-02-01", date_to: "2026-02-14" } }), ["2026-02#1", "2026-02#3"]);
+  assert.deepEqual(await ids({ where: { has_allocation: true } }), []);
+  assert.equal((await ids({ where: { has_allocation: false } })).length, 4);
+  assert.deepEqual(await ids({ where: { account: "206" } }), ["2026-02#2"]);
+  assert.deepEqual(await ids({ where: { flag: "duplicate" } }), ["2026-02#3"]);
+  assert.deepEqual(await ids({ where: { flag: "agent" } }), ["2026-02#2"]);
+  assert.deepEqual(await ids({ where: { flag: "excluded", supplier: "paper" } }), ["2026-02#3"]);
+});
+
+test("query_rows: a row with an allocation number matches has_allocation, a PCN client shows the rows still to be approved", async () => {
+  const { w, dispatch, client } = await toolContext();
+  const { directory, declaration } = await (async () => {
+    const found = w.levi.declarations.find((item) => item.declaration.month === "2026-02");
+    return { directory: found.directory, declaration: found.declaration };
+  })();
+  const { saveDraft } = await import("../declaration-store.js");
+  await saveDraft(directory, declaration, [tableRow("a-1", ["01/02/2026", "202", "x", "S", "1", "1", "123456789", "1", "1", "0"])]);
+  assert.deepEqual((await dispatch("query_rows", { client: await client("Levi"), month: "2026-02", where: { has_allocation: true } })).rows.map((row) => row.allocation_number), ["123456789"]);
+  const pcn = await dispatch("query_rows", { client: await client("Pcn"), where: { flag: "pcn_pending" } });
+  assert.deepEqual(pcn.rows.map((row) => [row.supplier, row.flags]), [["Big Supplier", ["pcn_pending"]]]);
+  assert.deepEqual((await dispatch("query_rows", { client: await client("Levi"), where: { flag: "pcn_pending" } })).rows, []);
+});
+
+test("query_rows: pages, bad input and a missing month", async () => {
+  const { dispatch, client } = await toolContext();
+  const levi = await client("Levi");
+  const first = await dispatch("query_rows", { client: levi, limit: 3 });
+  assert.deepEqual([first.rows.length, first.total, first.next], [3, 4, "3"]);
+  const second = await dispatch("query_rows", { client: levi, limit: 3, next: first.next });
+  assert.deepEqual([second.rows.length, second.next], [1, undefined]);
+  assert.equal((await dispatch("query_rows", { client: levi, month: "2026-09" })).error.code, "not_found");
+  assert.equal((await dispatch("query_rows", { client: levi, month: "2026-9" })).error.code, "invalid_argument");
+  assert.equal((await dispatch("query_rows", { client: levi, where: { date_from: "tomorrow" } })).error.code, "invalid_argument");
+  assert.equal((await dispatch("query_rows", { client: levi, where: { flag: "weird" } })).error.code, "invalid_argument");
+});
+
+test("query_rows reads the open table as it is on screen, not as it was saved", async () => {
+  let live = null;
+  const { dispatch, client } = await toolContext({ liveTable: () => live });
+  live = { clientId: "id-Levi", month: "2026-02", rows: [tableRow("d-1", ["14/02/2026", "202", "paper", "Typed On Screen", "512345679", "1001", "", "118", "100", "18"])] };
+  const result = await dispatch("query_rows", { client: await client("Levi"), month: "2026-02" });
+  assert.deepEqual(result.rows.map((row) => row.supplier), ["Typed On Screen"]);
+  assert.equal((await dispatch("query_rows", { client: await client("Levi") })).total, 2, "one row of 01/2026 and the one on screen");
+});
+
+// --- read_document ---
+
+const pdfLibrary = (pages, { fail = false } = {}) => async () => ({
+  getDocument: () => ({
+    promise: fail ? Promise.reject(new Error("broken pdf")) : Promise.resolve({
+      numPages: pages.length,
+      getPage: async (number) => ({ getTextContent: async () => ({ items: [{ str: pages[number - 1], hasEOL: false }] }) }),
+      destroy: async () => {},
+    }),
+  }),
+});
+
+async function documentTools(options) {
+  const documents = createDocumentReader({ imageSize: async () => ({ width: 3000, height: 2000 }), ...options });
+  return toolContext({ documents });
+}
+
+test("read_document: a photo gives its size and nothing else, never the image", async () => {
+  const { dispatch, files } = await documentTools();
+  const result = await dispatch("read_document", { file: (await files())["photo.jpg"] });
+  assert.deepEqual(result, { ok: true, file: (await files())["photo.jpg"], kind: "image", width: 3000, height: 2000 });
+  const unknown = await documentTools({ imageSize: async () => { throw new Error("cannot decode heic"); } });
+  assert.deepEqual((await unknown.dispatch("read_document", { file: (await unknown.files())["photo.jpg"] })).kind, "image");
+});
+
+test("read_document: a PDF gives its pages and the text layer, all pages or one", async () => {
+  const { dispatch, files } = await documentTools({ loadPdf: pdfLibrary(["First page text", "Second page text", "Third page text"]) });
+  const handle = (await files())["policy.pdf"];
+  const all = await dispatch("read_document", { file: handle });
+  assert.equal(all.pages, 3);
+  assert.match(all.text, /--- page 1 ---\nFirst page text\n--- page 2 ---\nSecond page text/);
+  assert.deepEqual((await dispatch("read_document", { file: handle, page: 2 })).text, "Second page text");
+  assert.equal((await dispatch("read_document", { file: handle, page: 4 })).error.code, "invalid_argument");
+});
+
+test("read_document: a text longer than max_chars is cut and marked; a scan without a text layer has no text", async () => {
+  const long = await documentTools({ loadPdf: pdfLibrary(["x".repeat(900)]) });
+  const cut = await long.dispatch("read_document", { file: (await long.files())["policy.pdf"], max_chars: 300 });
+  assert.deepEqual([cut.text.length, cut.truncated], [300, true]);
+  const scan = await documentTools({ loadPdf: pdfLibrary(["", "  "]) });
+  const result = await scan.dispatch("read_document", { file: (await scan.files())["policy.pdf"] });
+  assert.deepEqual([result.pages, "text" in result], [2, false]);
+});
+
+test("read_document: a workbook gives sheet names, row counts and the first rows; a CSV too", async () => {
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["date", "sum"], ["2026-02-01", 100], ["2026-02-02", 250]]), "Journal");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["empty"]]), "Notes");
+  const bytes = new Uint8Array(XLSX.write(workbook, { type: "array", bookType: "xlsx" }));
+  const { w, dispatch, files } = await documentTools({ loadXlsx: async () => XLSX });
+  await addToInbox(w.root, [file("real.xlsx", bytes), file("rows.csv", "a,b\n1,2\n3,4\n")], { folder: "Levi" });
+  const handles = await files();
+  const sheet = await dispatch("read_document", { file: handles["real.xlsx"] });
+  assert.deepEqual(sheet.sheets.map((item) => [item.name, item.rows]), [["Journal", 3], ["Notes", 1]]);
+  assert.match(sheet.sheets[0].text, /date,sum\n2026-02-01,100\n2026-02-02,250/);
+  const csv = await dispatch("read_document", { file: handles["rows.csv"] });
+  assert.deepEqual(csv.sheets, [{ name: "csv", rows: 3, text: "a,b\n1,2\n3,4" }]);
+  const broken = await dispatch("read_document", { file: handles["journal.xlsx"] });
+  assert.equal(broken.error.code, "unavailable", "bytes that are not a workbook");
+});
+
+test("read_document: a page of something that is not a PDF, an unreadable PDF and an unknown handle are errors; other files only get a kind", async () => {
+  const { w, dispatch, files } = await documentTools({ loadPdf: pdfLibrary([], { fail: true }) });
+  await addToInbox(w.root, [file("notes.txt", "hello")], { folder: "Levi" });
+  const handles = await files();
+  assert.equal((await dispatch("read_document", { file: handles["photo.jpg"], page: 1 })).error.code, "invalid_argument");
+  assert.equal((await dispatch("read_document", { file: handles["policy.pdf"] })).error.code, "unavailable");
+  assert.deepEqual(await dispatch("read_document", { file: handles["notes.txt"] }), { ok: true, file: handles["notes.txt"], kind: "other" });
+  assert.equal((await dispatch("read_document", { file: "F99" })).error.code, "not_found");
+});

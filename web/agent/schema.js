@@ -7,6 +7,7 @@ const isObject = (value) => value !== null && typeof value === "object" && !Arra
 class Invalid extends Error {}
 
 function check(schema, value, path) {
+  if (value === null && schema.nullable) return null;
   switch (schema.type) {
     case "object": {
       if (!isObject(value)) throw new Invalid(`${path} must be an object.`);
@@ -61,7 +62,7 @@ export function validate(schema, value, path = "arguments") {
 
 export function toGeminiSchema(schema) {
   const out = { type: GEMINI_TYPES[schema.type] };
-  for (const key of ["description", "enum", "required", "minItems", "maxItems", "minLength", "maxLength", "minimum", "maximum"]) {
+  for (const key of ["description", "nullable", "enum", "required", "minItems", "maxItems", "minLength", "maxLength", "minimum", "maximum"]) {
     if (schema[key] !== undefined) out[key] = schema[key];
   }
   if (schema.properties) out.properties = Object.fromEntries(Object.entries(schema.properties).map(([key, item]) => [key, toGeminiSchema(item)]));

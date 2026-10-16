@@ -1,12 +1,7 @@
 // list_inbox (docs/AGENT_TOOLS.md, 5.1): what is waiting in inbox/. Registers a handle F<n> for every file it shows.
-const KIND_BY_EXTENSION = { jpg: "image", jpeg: "image", png: "image", webp: "image", heic: "image", heif: "image", pdf: "pdf", xlsx: "spreadsheet", xls: "spreadsheet", csv: "spreadsheet" };
-const PAGE_BYTES = 15000;
+import { kindOf } from "../kinds.js";
 
-export function kindOf(entry) {
-  if (entry.type.startsWith("image/")) return "image";
-  if (entry.type === "application/pdf") return "pdf";
-  return KIND_BY_EXTENSION[entry.storedName.split(".").pop().toLowerCase()] ?? "other";
-}
+const PAGE_BYTES = 15000;
 
 export default {
   name: "list_inbox",
@@ -24,7 +19,7 @@ export default {
   async run(args, ctx) {
     const index = await ctx.services.inbox.readIndex();
     const all = index.files.map((entry) => {
-      const handle = ctx.handles.create("F", entry.hash, { hash: entry.hash, name: entry.name, folder: entry.folder, storedName: entry.storedName });
+      const handle = ctx.handles.create("F", entry.hash, entry);
       return { entry, handle, status: ctx.run.fileStatus.get(handle) ?? "waiting" };
     });
     const counts = { total: all.length, waiting: all.filter((item) => item.status === "waiting").length, byFolder: {} };

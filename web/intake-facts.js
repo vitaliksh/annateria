@@ -174,15 +174,16 @@ export function findDuplicates(entries, candidate, { fromMonth = null } = {}) {
 // --- everything about one row ---------------------------------------------------------------------------------------
 
 // candidate: { row (draft-table format), month (the declaration it sits in), position, periodFrom, periodTo }.
-// context: { entries, lockedThrough, today }.
+// context: { entries, lockedThrough, today, targetMonth }. targetMonth forces the month (the user asked for it): the year gate, the
+// deduction window and the exclusion are then judged for that month and monthReason is "override".
 // exclude is what the code itself applies: "previous-year" or "duplicate" (strong or likely); a possible duplicate, a
 // document of a future year, a missing date and a late VAT deduction only warn.
-export function intakeFacts(candidate, { entries = [], lockedThrough = null, today = new Date() } = {}) {
+export function intakeFacts(candidate, { entries = [], lockedThrough = null, today = new Date(), targetMonth: forcedMonth = null } = {}) {
   const values = candidate.row.values ?? [];
   const { periodFrom = "", periodTo = "" } = candidate;
   const { receivedAt } = candidate.row;
   const where = intakeMonth({ date: values[DATE], periodFrom, periodTo, receivedAt, lockedThrough, today });
-  const targetMonth = where.month ?? candidate.month;
+  const targetMonth = forcedMonth ?? where.month ?? candidate.month;
   const year = yearGate({ docMonth: where.docMonth, periodFrom, periodTo, targetMonth });
   const own = entryFromRow(candidate.row, { month: candidate.month, position: candidate.position });
   // The search starts at the earliest of the document month, the target month and the month the row sits in now:
@@ -196,7 +197,7 @@ export function intakeFacts(candidate, { entries = [], lockedThrough = null, tod
   return {
     targetMonth,
     docMonth: where.docMonth,
-    monthReason: where.reason,
+    monthReason: forcedMonth ? "override" : where.reason,
     year,
     duplicates,
     deduction: period || !where.docMonth ? "ok" : deductionStatus(where.docMonth, targetMonth),

@@ -53,7 +53,7 @@ export default {
   async run(args, ctx) {
     if (typeof ctx.ui.propose !== "function") throw new ToolError("unavailable", "There is no panel to show the proposal.");
     const client = ctx.handles.get("C", args.client);
-    const chart = await ctx.services.clients.chart(client.clientId);
+    const { accounts: chart } = await ctx.services.clients.chart(client.clientId);
     const seen = new Set();
     const changes = [];
     for (const [index, change] of args.changes.entries()) {

@@ -24,7 +24,7 @@ test("happy path: the model calls a tool, gets its result, then answers", async 
   assert.deepEqual([result.status, result.text, result.turns, result.toolCalls], ["completed", "There are 3 files.", 2, 1]);
   const [first, second] = model.requests;
   assert.deepEqual(first.contents, [{ role: "user", parts: [{ text: "process" }] }]);
-  assert.deepEqual(first.tools.map((tool) => tool.name).sort(), ["ask_user", "find_client", "list_inbox", "propose_change"]);
+  assert.deepEqual(first.tools.map((tool) => tool.name).sort(), ["ask_user", "extract_document", "facts_for", "find_client", "get_client_context", "list_inbox", "propose_change", "query_rows", "read_document"]);
   assert.equal(second.system, "system");
   assert.equal(second.contents.length, 3);
   assert.deepEqual(second.contents[1].parts, [say("looking"), call("list_inbox", {}, { id: "c1", signature: "SIG-1" })], "the model's parts come back unchanged, signature included");
