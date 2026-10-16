@@ -25,7 +25,7 @@ test("one step is one generateContent request with the system text, the history,
   assert.deepEqual(request.contents, [{ role: "user", parts: [{ text: "go" }] }]);
   assert.equal(request.tools[0].functionDeclarations.length, tools.length);
   assert.deepEqual(request.toolConfig, { functionCallingConfig: { mode: "AUTO" } });
-  assert.equal(request.generationConfig.maxOutputTokens, 8192);
+  assert.equal(request.generationConfig.maxOutputTokens, 16384);
   assert.equal(signal, controller.signal);
   assert.deepEqual(result, { parts: [{ text: "hi" }], finishReason: "STOP", blockReason: undefined, usage: { totalTokenCount: 12 }, model: "gemini-3.8-flash" });
 });

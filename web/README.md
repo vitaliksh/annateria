@@ -5,10 +5,13 @@ clients, monthly declarations (locked or open), the journal and reports in a loc
 Access API. The interface is ANNATERIA: a docked sidebar, a clients start screen and client cards, a journal with a
 column chooser, reports as a page, and one dialog template.
 
-Status (step 0.3 of [`../docs/WORK_PLAN.md`](../docs/WORK_PLAN.md)): the transports inherited from ocr (Telegram upload
-sessions, QR codes, passkey / Windows Hello, the Rivhit TXT export) are removed, so for now the app has **no AI and no
-photo intake**; documents arrive through the Excel import and the income-report PDF import. The inbox and the in-app
-assistant come in phases 2-4. The key to Gemini will live only in the Worker (`../worker`).
+Status (see [`../docs/WORK_PLAN.md`](../docs/WORK_PLAN.md)): the transports inherited from ocr (Telegram upload sessions,
+QR codes, passkey / Windows Hello, the Rivhit TXT export) are removed. Files arrive without AI: the **inbox**
+(`תיבת קלט`: drop target and picker, `inbox/` in the data folder, de-duplicated by SHA-256) plus the Excel import and the
+income-report PDF import. The **assistant dock** (`עוזר`, `assistant-ui.js`, `web/agent/`) reads the inbox with Gemini through
+the Worker (`../worker`, which alone holds the key), checks documents with the rules of the software and answers questions
+about the tables; it does not write rows yet (step 4.4). The models are chosen in the settings. Specification of the agent:
+[`../docs/AGENT_TOOLS.md`](../docs/AGENT_TOOLS.md).
 
 ## Excel migration and reports
 
@@ -36,8 +39,8 @@ From the repository root:
 py -m http.server 8000 --directory web
 ```
 
-The Worker URL goes into `config.js` (`window.ANNATERIA_API`, empty until step 1.4); the page then shows the Worker version
-from `/health`.
+The Worker URL is in `config.js` (`window.ANNATERIA_API`); the page shows the Worker version from `/health`. A page served from
+`127.0.0.1` cannot call the Worker (it answers only the published origin), so the assistant is tried on the published page.
 
 ## Checks
 

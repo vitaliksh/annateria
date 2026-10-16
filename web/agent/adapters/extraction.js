@@ -10,7 +10,8 @@ export const SHRINKABLE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 // The Worker takes 20 MiB per request and base64 adds a third.
 export const MAX_INLINE_BYTES = 14 * 1024 * 1024;
 export const EXTRACTION_TEMPERATURE = 0;
-const MAX_OUTPUT_TOKENS = 16384;
+// Thinking counts against the limit; a PDF of many pages answers with many records. 32,768 is the most the Worker allows.
+const MAX_OUTPUT_TOKENS = 32768;
 const MAX_TEXT_LAYER = 12000;
 
 export const RESPONSE_SCHEMA = toGeminiSchema({ type: "object", required: ["documents"], properties: { documents: { type: "array", items: RECORD_SCHEMA } } });

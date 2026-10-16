@@ -19,7 +19,7 @@ specification for 4.2 onwards; a change to it needs the owner's approval.
 the same with files: put a few documents into "תיבת קלט" and press "עבד חדשים", which is the first run of the vision call (`extract_document`). **Next step:** 4.4 live rows (`add_rows`,
 `move_file_to_declaration`, the apply button of proposals). Phase 3 is in the backlog. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
-**Open items for the owner** (not blocking): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
+**Open items for the owner** (the Cloudflare plan now matters: see "General check of 16 October"): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
 project; give Anna her access code if not done; tell me the Cloudflare plan (Free or Paid) so it can be recorded.
 
 **Rules of the house** are in `AGENTS.md` (Russian; answer the owner in Russian, "ты", Vitalik; code, comments and commits in English).
@@ -53,7 +53,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 617 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 626 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -79,7 +79,7 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
 - **Agent (phase 4):** `web/agent/`: `run.js` (the loop, `createContext`), `registry.js` (closed list of tools, dispatch, result envelope), `schema.js` (argument check and
   the Gemini declaration from one schema), `handles.js`, `limits.js`, `run-log.js`, `gemini.js` (the model of the loop over `model-client.js`), `services.js` (the only way for
   a tool to reach data), `tools/` (nine so far: `list_inbox`, `read_document`, `extract_document`, `find_client`, `get_client_context`, `query_rows`, `facts_for`, `ask_user`, `propose_change`),
-  `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `web/assistant-ui.js` (the dock), `web/assistant-flow.js` (runs the agent for the dock), `assistant.css`, `fact-record.js`, `prompts.js`, `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
+  `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `web/assistant-ui.js` (the dock), `web/assistant-flow.js` (runs the agent for the dock), `assistant.css`, `web/model-settings-ui.js` (the model selects of the settings), `fact-record.js`, `prompts.js`, `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
 - **Inbox:** `inbox-store.js` (originals dropped by the user, `inbox/index.json`, SHA-256 dedup against the inbox and all declaration
   images; the Windows file-name rules and the accepted file types live here), `inbox-ui.js` + `inbox.css` (`#inbox-dialog`: drop target, picker,
   client choice, result lines; opened by `#open-inbox`). The backup already copies `inbox/` with the rest of the root.
@@ -120,6 +120,7 @@ Phase 1 is mostly new code: `web/access.js`, `web/access-ui.js`, `web/model-clie
 ## Changes to inherited code (phase 2)
 
 - 2.1: `web/package.json` (check list) and `web/test/memory-binary-directory.mjs` (additive `removeEntry`). No production module changed.
+- Model choice: `web/ui-settings.js` (`models`, the overrides), `web/index.html` (three selects in the settings dialog), `web/app.js` (`modelSettings`; the connection check and the flow use it), `web/package.json`.
 - 4.3: `web/app.js` (two imports, `assistantFlow`, `runAssistant`, `setupAssistant` after the AI check), `web/index.html` (the `#assistant` section, `assistant.css`), `web/shell.css` (a fourth grid row), `web/package.json`.
 - 4.2b: `web/intake-facts.js` (`intakeFacts` takes an optional `targetMonth`; no caller passes it yet except `facts_for`).
 - 4.2: `web/intake-facts.js` (`nameTokens` is now exported, nothing else changed), `web/package.json` (check list). The rest is new files under `web/agent/`.
@@ -199,6 +200,16 @@ made**, and no code in `app.js` starts it. Decisions on the way:
 - The tests that keep the contract: `test/agent-boundary.test.mjs` (the tool list equals the headings of the document: built plus `PENDING_TOOLS`; no tool name starting with an
   action verb; `services` has five operations and none that closes, deletes or writes; tool files import only the error class and pure helpers; only `services.js` reaches
   the stores; no `fetch`, DOM or file API in the agent), `agent-run.test.mjs` (the loop), `agent-tools.test.mjs`, `agent-core.test.mjs`, `agent-gemini.test.mjs`.
+
+### General check of 16 October 2026 (before the first PDFs)
+
+- **Tests:** web 626, Worker 54, `npm run check` green. No Telegram, passkey, WebAuthn or Rivhit-export code left (`git grep`); `web/README.md` was stale (said there was no AI) and is rewritten.
+- **Checked in a real browser on synthetic files, nothing sent to Gemini:** pdf.js loads from the CDN and `read_document` gets the text layer of a two-page PDF and one page of it; a page out of range gives `page_out_of_range`; the extraction request for a PDF carries the text layer and `inlineData`; a 42.5 MiB PNG goes through `browserShrink` to a 6.3 MiB JPEG of 3000 px in about 2 s and the request stays at 8.4 MiB. **Not checked:** HEIC (no sample, Chrome on Windows may not decode it; then the photo goes as it is if it is under 14 MiB), a PDF over 14 MiB (refused, no page splitting yet), the vision call itself.
+- **Risk, Worker CPU:** `/v1/model` reads the whole body, parses it, validates it and sends it on. Measured in Node on the owner's PC: `JSON.parse` of a body with base64 inline data costs about 1 ms per MB (6 MB: 6.5 ms; 18 MB: 18.7 ms); the rest of the path is of the same order, so two to three ms per MB is my estimate. Cloudflare gives the **Free plan 10 ms of CPU per request** (docs read for step 1.1, see below; not re-read today); then a photo or PDF above about 3 MB base64 (2.3 MB file) can end with a Cloudflare error that the page sees as a network error ("אין חיבור לשרת"). The plan of the account is not recorded: **the owner should say whether it is Free or Paid** (Paid: 30 s by default). If it is Free, the choices are the Paid plan, a smaller image before sending (`browserShrink` could be applied from a lower limit; the owner said image quality matters), or a Worker that does not parse the body (it cannot then validate it).
+- **Output limit:** the thinking of the model counts against `maxOutputTokens`; raised to 16,384 (assistant) and 32,768 (extraction, the most the Worker allows). Thinking is also most of the cost of a run; a lower thinking level for extraction would cut it, but the parameter was not verified, so it is not used.
+- **Style:** about 320 lines of the new modules (agent, inbox, assistant) are longer than the ~120 characters of `AGENTS.md`, mostly comments, prompts and tool descriptions. A formatting-only commit would fix it; proposed to the owner, not done.
+- **Run logs hold data:** `common/agent-runs/*.json` keep the arguments and a shortened result of every tool call (supplier names, amounts). They are local, in the backup, and must be treated like the rest of the data root; nothing deletes them.
+- **PDF through the dock:** put the PDF in `תיבת קלט`, press "עבד חדשים". The old **דוח הכנסות (PDF)** import (menu "הוספת מסמכים") is another feature and does not use the agent.
 
 ### First real run (16 October 2026)
 

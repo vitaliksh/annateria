@@ -30,6 +30,7 @@ import { setupTransfer } from "./transfer-ui.js";
 import { setupInbox } from "./inbox-ui.js";
 import { progressLabel, setupAssistant } from "./assistant-ui.js";
 import { buildMessage, createAssistantFlow, resultNote } from "./assistant-flow.js";
+import { setupModelSettings } from "./model-settings-ui.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
 import { isHomeUtility } from "./home-utilities.js";
@@ -82,6 +83,7 @@ const importIncomeReportButton = document.querySelector("#import-income-report")
   customClassificationList = document.querySelector("#custom-classification-list");
 let dataRoot = null,
   inboxUi = null,
+  modelSettings = null,
   inboxFileCounts = {},
   workspace = null,
   committedWorkspace = null,
@@ -244,6 +246,7 @@ async function switchDataRoot(selected) {
     .then((settings) => {
       journalColumns.setHidden(settings.hiddenColumns, { persist: false });
       folderPathInput.value = settings.folderPath;
+      modelSettings?.setOverrides(settings.models);
     })
     .catch(() => {});
   backup.runAuto("start");
@@ -592,16 +595,18 @@ loadBackendVersion();
 const accessUi = setupAccess({ dialog: document.querySelector("#access-dialog"), api });
 if (api) accessUi.ensureLoggedIn();
 const modelClient = createModelClient({ api, access: accessUi.access, ensureLoggedIn: accessUi.ensureLoggedIn });
+modelSettings = setupModelSettings({ container: document.querySelector("#settings-dialog"), getDataRoot: () => dataRoot, onError: showError });
 document.querySelector("#check-model").addEventListener("click", async () => {
   const result = document.querySelector("#model-check-result");
   result.textContent = "בודק…";
-  const checked = await checkModelConnection(modelClient);
+  const checked = await checkModelConnection(modelClient, modelSettings.getModels().orchestrator);
   result.textContent = checked.message;
 });
 // The assistant dock (step 4.3): "עבד חדשים", "מה נשאר?" and typed requests start one run of the agent (web/agent/); the report
 // button opens the existing reports. One run at a time; the stop button aborts it.
 const assistantFlow = createAssistantFlow({
   modelClient,
+  getModels: () => modelSettings.getModels(),
   getDataRoot: () => dataRoot,
   getClients: () => workspaceControls?.getClients().active ?? [],
   getLiveTable: () =>

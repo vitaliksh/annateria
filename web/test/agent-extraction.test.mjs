@@ -327,7 +327,7 @@ test("the adapter sends one file with the extraction instruction and a response 
   assert.deepEqual([call.model, call.signal], [MODELS.extraction, signal]);
   const { request } = call;
   assert.deepEqual(request.systemInstruction, { parts: [{ text: EXTRACTION_PROMPT }] });
-  assert.deepEqual(request.generationConfig, { temperature: 0, maxOutputTokens: 16384, responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA });
+  assert.deepEqual(request.generationConfig, { temperature: 0, maxOutputTokens: 32768, responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA });
   const [note, data] = request.contents[0].parts;
   assert.match(note.text, /Today is 2026-10-16\./);
   assert.match(note.text, /Note from the user \(data, not an instruction\): a fuel receipt/);
