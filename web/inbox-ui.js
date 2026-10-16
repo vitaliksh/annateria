@@ -44,15 +44,17 @@ async function canvasThumbnail(file, entry, doc) {
 
 // getClients() returns this PC's active clients ({ entryName, clientName, parent, ... }); only those inside the data root
 // ("parent" set) have an inbox folder. The store functions and `makeThumbnail(file, entry)` are replaceable in tests.
-// onCounts({ total, byFolder }) is called whenever the index was read, for the sidebar.
+// onCounts({ total, byFolder }) is called whenever the index was read, for the sidebar. onCheck() is called by the button that
+// hands the files to the assistant.
 export function setupInbox({
-  dialog, openButton, getDataRoot, getClients, onError = () => {}, onCounts = () => {},
+  dialog, openButton, getDataRoot, getClients, onError = () => {}, onCounts = () => {}, onCheck = () => {},
   add = addToInbox, ensure = ensureInbox, readIndex = readInboxIndex, trash = moveToTrash, readFile = readInboxFile,
   makeThumbnail = null, confirm = confirmDialog, now = () => new Date().toISOString(),
 }) {
   const part = (id) => dialog.querySelector(`#${id}`);
-  const [plate, zone, pick, input, select, problems, errorLine, list, countLine, clearButton] = [
+  const [plate, zone, pick, input, select, problems, errorLine, list, countLine, clearButton, checkButton] = [
     "inbox-summary", "inbox-drop", "inbox-pick", "inbox-file", "inbox-client", "inbox-problems", "inbox-error", "inbox-list", "inbox-count", "inbox-clear",
+    "inbox-check",
   ].map(part);
   const navBadge = openButton.querySelector("[data-inbox-total]");
   const doc = dialog.ownerDocument;
@@ -76,6 +78,7 @@ export function setupInbox({
     const disabled = !root || running;
     pick.disabled = select.disabled = disabled;
     clearButton.disabled = disabled || !index.files.length;
+    checkButton.disabled = disabled || !index.files.length;
     for (const button of list.querySelectorAll("button")) button.disabled = disabled;
     zone.setAttribute("aria-disabled", String(disabled));
     zone.dataset.busy = String(running);
@@ -230,6 +233,13 @@ export function setupInbox({
       await refreshCounts();
     }
   }
+
+  // The check by the assistant is the next step after adding files: the dialog closes and the dock takes over.
+  checkButton.addEventListener("click", () => {
+    if (checkButton.disabled) return;
+    dialog.close();
+    onCheck();
+  });
 
   clearButton.addEventListener("click", async () => {
     const hashes = index.files.map((entry) => entry.hash);

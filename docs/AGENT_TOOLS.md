@@ -29,7 +29,7 @@ the test that proves it (the tests are written in 4.2 and later and are part of 
 
 ## 2. The run
 
-**Start.** The button "עבד חדשים", or a free request typed in the panel. One run handles one request. The code builds the
+**Start.** The button "בדוק מסמכים חדשים", or a free request typed in the panel. One run handles one request. The code builds the
 first message: today's date, the waiting files by folder (counts), the user's text if any.
 
 **Roles.** Two model roles, both through the Worker (`POST /v1/model`, `web/model-client.js`):

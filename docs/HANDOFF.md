@@ -16,7 +16,7 @@ works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
 specification for 4.2 onwards; a change to it needs the owner's approval.
 
 **Done:** steps **4.2 Orchestrator loop**, **4.2b Remaining tools** and **4.3 Assistant panel**; the first real run of the dock worked (see "First real run" below). **Next, for the owner:**
-the same with files: put a few documents into "תיבת קלט" and press "עבד חדשים", which is the first run of the vision call (`extract_document`). **Next step:** 4.4 live rows (`add_rows`,
+the same with files: put a few documents into "תיבת קלט" and press "בדוק מסמכים חדשים", which is the first run of the vision call (`extract_document`). **Next step:** 4.4 live rows (`add_rows`,
 `move_file_to_declaration`, the apply button of proposals). Phase 3 is in the backlog. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (the Cloudflare plan now matters: see "General check of 16 October"): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
@@ -53,7 +53,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 626 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 630 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -205,11 +205,12 @@ made**, and no code in `app.js` starts it. Decisions on the way:
 
 - **Tests:** web 626, Worker 54, `npm run check` green. No Telegram, passkey, WebAuthn or Rivhit-export code left (`git grep`); `web/README.md` was stale (said there was no AI) and is rewritten.
 - **Checked in a real browser on synthetic files, nothing sent to Gemini:** pdf.js loads from the CDN and `read_document` gets the text layer of a two-page PDF and one page of it; a page out of range gives `page_out_of_range`; the extraction request for a PDF carries the text layer and `inlineData`; a 42.5 MiB PNG goes through `browserShrink` to a 6.3 MiB JPEG of 3000 px in about 2 s and the request stays at 8.4 MiB. **Not checked:** HEIC (no sample, Chrome on Windows may not decode it; then the photo goes as it is if it is under 14 MiB), a PDF over 14 MiB (refused, no page splitting yet), the vision call itself.
-- **Risk, Worker CPU:** `/v1/model` reads the whole body, parses it, validates it and sends it on. Measured in Node on the owner's PC: `JSON.parse` of a body with base64 inline data costs about 1 ms per MB (6 MB: 6.5 ms; 18 MB: 18.7 ms); the rest of the path is of the same order, so two to three ms per MB is my estimate. Cloudflare gives the **Free plan 10 ms of CPU per request** (docs read for step 1.1, see below; not re-read today); then a photo or PDF above about 3 MB base64 (2.3 MB file) can end with a Cloudflare error that the page sees as a network error ("אין חיבור לשרת"). The plan of the account is not recorded: **the owner should say whether it is Free or Paid** (Paid: 30 s by default). If it is Free, the choices are the Paid plan, a smaller image before sending (`browserShrink` could be applied from a lower limit; the owner said image quality matters), or a Worker that does not parse the body (it cannot then validate it).
+- **Measured on the Free plan (second real run):** a request with a 718 KB PDF (0.96 MB body) used 41 and 34 ms of CPU and still answered 200; ordinary requests 1 to 4 ms. About 40 ms per MB, so the estimate below is too low, and the Free limit of 10 ms is not enforced as a hard cut, at least not at this size. Larger files not tried yet. `wrangler tail annateria --format json` shows `cpuTime`, `wallTime`, `outcome` and redacts the authorization header; its events also carry the IP address and the city of the caller, so only a summary should be kept (a script that prints just time, outcome, path and size was used).
+- **Risk, Worker CPU (the estimate made before the measurement):** `/v1/model` reads the whole body, parses it, validates it and sends it on. Measured in Node on the owner's PC: `JSON.parse` of a body with base64 inline data costs about 1 ms per MB (6 MB: 6.5 ms; 18 MB: 18.7 ms); the rest of the path is of the same order, so two to three ms per MB is my estimate. Cloudflare gives the **Free plan 10 ms of CPU per request** (docs read for step 1.1, see below; not re-read today); then a photo or PDF above about 3 MB base64 (2.3 MB file) can end with a Cloudflare error that the page sees as a network error ("אין חיבור לשרת"). The plan of the account is not recorded: **the owner should say whether it is Free or Paid** (Paid: 30 s by default). If it is Free, the choices are the Paid plan, a smaller image before sending (`browserShrink` could be applied from a lower limit; the owner said image quality matters), or a Worker that does not parse the body (it cannot then validate it).
 - **Output limit:** the thinking of the model counts against `maxOutputTokens`; raised to 16,384 (assistant) and 32,768 (extraction, the most the Worker allows). Thinking is also most of the cost of a run; a lower thinking level for extraction would cut it, but the parameter was not verified, so it is not used.
 - **Style:** about 320 lines of the new modules (agent, inbox, assistant) are longer than the ~120 characters of `AGENTS.md`, mostly comments, prompts and tool descriptions. A formatting-only commit would fix it; proposed to the owner, not done.
 - **Run logs hold data:** `common/agent-runs/*.json` keep the arguments and a shortened result of every tool call (supplier names, amounts). They are local, in the backup, and must be treated like the rest of the data root; nothing deletes them.
-- **PDF through the dock:** put the PDF in `תיבת קלט`, press "עבד חדשים". The old **דוח הכנסות (PDF)** import (menu "הוספת מסמכים") is another feature and does not use the agent.
+- **PDF through the dock:** put the PDF in `תיבת קלט`, press "בדוק מסמכים חדשים". The old **דוח הכנסות (PDF)** import (menu "הוספת מסמכים") is another feature and does not use the agent.
 
 ### First real run (16 October 2026)
 

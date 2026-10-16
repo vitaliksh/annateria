@@ -22,7 +22,7 @@ export const FIELD_LABELS = {
   expense_recognized_percent: "% מוכר כהוצאה", include: "לייצוא", month: "חודש",
 };
 
-export const COMMAND_LABELS = { process: "עבד חדשים", left: "מה נשאר?" };
+export const COMMAND_LABELS = { process: "בדוק מסמכים חדשים", left: "מה נשאר?" };
 
 // The line of the progress bar for a progress event of the loop; `counts` keeps how many documents were read in this run.
 export function progressLabel(event, counts) {
@@ -154,8 +154,15 @@ export function setupAssistant({ root, onCommand }) {
   }
 
   toggle.addEventListener("click", () => open(body.hidden));
-  processButton.addEventListener("click", () => { if (busy) return; addMessage("user", COMMAND_LABELS.process); onCommand({ type: "process" }); });
-  leftButton.addEventListener("click", () => { if (busy) return; addMessage("user", COMMAND_LABELS.left); onCommand({ type: "left" }); });
+  // The two quick requests, from the buttons of the dock or from elsewhere (the inbox dialog). False when a run is on.
+  function start(type) {
+    if (busy) return false;
+    addMessage("user", COMMAND_LABELS[type]);
+    onCommand({ type });
+    return true;
+  }
+  processButton.addEventListener("click", () => start("process"));
+  leftButton.addEventListener("click", () => start("left"));
   reportButton.addEventListener("click", () => onCommand({ type: "report" }));
   cancelButton.addEventListener("click", () => onCommand({ type: "cancel" }));
   form.addEventListener("submit", (event) => {
@@ -168,5 +175,5 @@ export function setupAssistant({ root, onCommand }) {
   });
 
   open(false);
-  return { open, setBusy, addMessage, setProgress: (text) => { progress.textContent = text; }, ui: { ask, propose }, isBusy: () => busy };
+  return { open, setBusy, addMessage, trigger: start, setProgress: (text) => { progress.textContent = text; }, ui: { ask, propose }, isBusy: () => busy };
 }

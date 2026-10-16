@@ -77,7 +77,7 @@
         <span id="assistant-progress" class="assistant-progress" role="status"></span>
         <span class="topbar-spacer"></span>
         <button id="assistant-cancel" type="button" class="secondary small" hidden>עצור</button>
-        <button id="assistant-process" type="button" class="small">עבד חדשים</button>
+        <button id="assistant-process" type="button" class="small" title="קורא את הקבצים בתיבת הקלט, בודק אותם ומציג סיכום. עדיין לא מוסיף שורות לטבלה.">בדוק מסמכים חדשים</button>
         <button id="assistant-left" type="button" class="secondary small">מה נשאר?</button>
         <button id="assistant-report" type="button" class="secondary small">דוח</button>
       </div>
@@ -122,7 +122,7 @@
     <header><h2 id="inbox-title">תיבת קלט</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header>
     <div class="inbox-body">
       <p id="inbox-summary" class="plate" role="status"></p>
-      <label>שיוך ללקוח <select id="inbox-client"></select></label>
+      <label>שיוך ללקוח, לקבצים שמוסיפים עכשיו <select id="inbox-client"></select></label>
       <div id="inbox-drop" class="inbox-drop" role="button" tabindex="0" aria-describedby="inbox-hint">
         <strong>גרור לכאן</strong>
         <span id="inbox-hint" class="muted">JPG, PNG, WebP, HEIC, PDF, XLSX, XLS, CSV</span>
@@ -136,7 +136,7 @@
       </section>
     </div>
     <p id="inbox-error" role="alert"></p>
-    <div class="dialog-actions"><button id="inbox-guide" type="button" class="secondary">איך מעבירים מהטלפון?</button><span></span><button value="cancel" formnovalidate class="secondary">סגור</button></div></form></dialog>
+    <div class="dialog-actions"><button id="inbox-check" type="button" disabled>בדוק עם העוזר</button><button id="inbox-guide" type="button" class="secondary">איך מעבירים מהטלפון?</button><span></span><button value="cancel" formnovalidate class="secondary">סגור</button></div></form></dialog>
   <dialog id="phone-guide-dialog" class="workspace-dialog" aria-labelledby="phone-guide-title"><form method="dialog">
     <header><h2 id="phone-guide-title">איך מעבירים מסמכים מהטלפון?</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header>
     <div class="guide-body">

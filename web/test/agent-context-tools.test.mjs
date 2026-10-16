@@ -244,6 +244,8 @@ test("the instruction tells the model what the user can and cannot do: no handle
   assert.match(ORCHESTRATOR_PROMPT, /recognized_total/);
   assert.match(ORCHESTRATOR_PROMPT, /zero_amount/);
   assert.match(ORCHESTRATOR_PROMPT, /Do not assume the gender/);
+  assert.ok(ORCHESTRATOR_PROMPT.includes("Always ask through ask_user (buttons): never end your answer with a question in plain text"));
+  assert.match(ORCHESTRATOR_PROMPT, /offer as buttons the client the user has open/);
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /\b(she|her)\b/);
   assert.match(proposeChange.description, /cannot be applied/);
   assert.doesNotMatch(proposeChange.description, /until the user clicks apply/);

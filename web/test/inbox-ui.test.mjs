@@ -310,3 +310,24 @@ test("the phone guide has the three routes and opens from the inbox dialog", () 
     assert.ok(text.includes(needle), needle);
   }
 });
+
+test("the button that hands the files to the assistant is on only when something waits; it closes the dialog and starts the check", async () => {
+  let checks = 0;
+  const ui = setup({ onCheck: () => { checks += 1; } });
+  await ui.inbox.open();
+  assert.equal(ui.q("#inbox-check").disabled, true, "nothing in the inbox yet");
+  ui.q("#inbox-check").click();
+  assert.equal(checks, 0);
+  await ui.pickFiles([file("a.pdf", "alpha")]);
+  assert.equal(ui.q("#inbox-check").disabled, false);
+  assert.equal(ui.dialog.open, true);
+  ui.dialog.close = () => { ui.dialog.open = false; };
+  ui.q("#inbox-check").click();
+  assert.deepEqual([checks, ui.dialog.open], [1, false]);
+  const none = setup({ withRoot: false, onCheck: () => { checks += 1; } });
+  assert.equal(none.q("#inbox-check").disabled, true, "no data root");
+});
+
+test("the select says it is for the files that are added now", () => {
+  assert.match(html, /<label>שיוך ללקוח, לקבצים שמוסיפים עכשיו <select id="inbox-client">/);
+});

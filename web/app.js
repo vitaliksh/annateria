@@ -569,6 +569,7 @@ inboxUi = setupInbox({
   openButton: document.querySelector("#open-inbox"),
   getDataRoot: () => dataRoot,
   getClients: () => workspaceControls?.getClients().active ?? [],
+  onCheck: () => assistant.trigger("process"),
   onCounts: ({ byFolder }) => {
     inboxFileCounts = byFolder;
     workspaceControls?.renderSidebar?.();
@@ -602,7 +603,7 @@ document.querySelector("#check-model").addEventListener("click", async () => {
   const checked = await checkModelConnection(modelClient, modelSettings.getModels().orchestrator);
   result.textContent = checked.message;
 });
-// The assistant dock (step 4.3): "עבד חדשים", "מה נשאר?" and typed requests start one run of the agent (web/agent/); the report
+// The assistant dock (step 4.3): "בדוק מסמכים חדשים", "מה נשאר?" and typed requests start one run of the agent (web/agent/); the report
 // button opens the existing reports. One run at a time; the stop button aborts it.
 const assistantFlow = createAssistantFlow({
   modelClient,

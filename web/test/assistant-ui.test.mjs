@@ -44,7 +44,7 @@ test("the two quick buttons show what was asked and start a run; the report butt
   click("#assistant-left");
   click("#assistant-report");
   assert.deepEqual(commands, [{ type: "process" }, { type: "left" }, { type: "report" }]);
-  assert.deepEqual(messages(), [["user", "עבד חדשים"], ["user", "מה נשאר?"]]);
+  assert.deepEqual(messages(), [["user", "בדוק מסמכים חדשים"], ["user", "מה נשאר?"]]);
 });
 
 test("a typed line is trimmed, shown, cleared from the field and sent; an empty one is ignored", () => {
@@ -182,4 +182,19 @@ test("the progress line names what the agent is doing and counts the documents r
   assert.equal(progressLabel({ type: "call", name: "something_new" }, counts), "עובד…");
   for (const name of ["list_inbox", "read_document", "extract_document", "find_client", "get_client_context", "query_rows", "facts_for", "ask_user", "propose_change"]) assert.ok(TOOL_LABELS[name], name);
   for (const field of ["date", "supplier_name", "purpose", "supplier_vat_id", "document_number", "allocation_number", "net", "vat", "total", "account", "vat_recognized_percent", "expense_recognized_percent", "include", "month"]) assert.ok(FIELD_LABELS[field], field);
+});
+
+test("a quick request can also be started from elsewhere: it shows the same line, and does nothing while a run is on", () => {
+  const { assistant, commands, messages } = setup();
+  assert.equal(assistant.trigger("process"), true);
+  assistant.setBusy(true);
+  assert.equal(assistant.trigger("left"), false);
+  assert.deepEqual(commands, [{ type: "process" }]);
+  assert.deepEqual(messages(), [["user", "בדוק מסמכים חדשים"]]);
+});
+
+test("the button of the dock says what it does and what it does not do", () => {
+  const { q } = setup();
+  assert.equal(q("#assistant-process").textContent, "בדוק מסמכים חדשים");
+  assert.match(q("#assistant-process").title, /בודק אותם ומציג סיכום.*לא מוסיף שורות/);
 });
