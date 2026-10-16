@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status: **plan agreed 16 October 2026; steps 0.1–0.3 done.** This file is the single source of truth for what is
+Status: **plan agreed 16 October 2026; steps 0.1–0.5 done.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -84,10 +84,10 @@ Goal: a working copy of the ocr web app in this repository, published, with the 
   area. Keep every module the journal and reports depend on.
   *Done when:* tests green (new count recorded), no reference to Telegram, `X-Upload-Token`, WebAuthn or
   `rivhit-export` left (`git grep` shows nothing), journal opens an existing ocr data root unchanged.
-- [ ] **0.4 Publish.** GitHub repository, Pages workflow for `web/`, version marker in the page.
+- [x] **0.4 Publish.** GitHub repository, Pages workflow for `web/`, version marker in the page.
   *Done when:* the owner opens the published page, picks a **copy** of a real ocr data root, sees the clients,
   a month and a report identical to ocr.
-- [ ] **0.5 Docs.** `README.md`, `docs/ARCHITECTURE.md` (from the "Target architecture" above),
+- [x] **0.5 Docs.** `README.md`, `docs/ARCHITECTURE.md` (from the "Target architecture" above),
   `docs/HANDOFF.md` started (repository map, how to run checks, deployed versions).
 
 ## Phase 1 — Worker: access code and model proxy
@@ -241,3 +241,5 @@ model behind the same proxy.
 | 2026-10-16 | 0.3 left on purpose for later phases: `bookkeeper-flow.js` (+tests), `applyBookkeeperPlan` / `applyBookkeeperRecheck`, `addPendingRecord`, `applyRecord`, `restoreRow` (rows still carry the `processing` flag); `pdf-import.js` (`renderPdfPages`), `pdf-report.js` and `createDraftExportDirectory` (now unused: legacy PDF export); `.retry` CSS. Decide in phase 4 which are reused and delete the rest then. The old bookkeeper prompt and schema (ocr `cloudflare-worker/src/bookkeeper.js`, `index.js`) stay in the ocr repository as input for the phase 5 skills. |
 | 2026-10-16 | 0.4: Pages workflow `.github/workflows/deploy-web.yml` runs `npm test` and `npm run check` in `web/` (Node 24), then publishes `web/`. The version marker in `index.html` is the token `BUILD_ID`, replaced at deploy by `YYYY.MM.DD · <short SHA>` (a local file shows the raw token). Fixed while there: `index.html` had the element `id="backend-version"` twice (inherited from ocr). The repository must be public for Pages on a free plan; it holds no client data (`.gitignore` blocks documents). |
 | 2026-10-16 | 0.3 regression found on the published page: opening a month failed with "pcnJournal is not defined". Cause: while cutting the bookkeeper block I also deleted `let pcnJournal = null;`; in a browser module the undeclared assignment throws, while jsdom silently creates a global, so the tests stayed green. Fix: the declaration is back, and `test/app-harness.mjs` now fails `loadApp` if app.js leaves any undeclared global on `window` (verified: 33 app tests fail without the fix). Also removed the now unused `tableRows`. Lesson: a green jsdom run does not replace opening a month in the browser. |
+| 2026-10-16 | 0.4 confirmed by the owner on the published page https://vitaliksh.github.io/annateria/ with a copy of a real ocr data root: months open, data equal to ocr. Deploys run through `deploy-web.yml` on every push to `main` that touches `web/`. |
+| 2026-10-16 | 0.5: `README.md`, `docs/ARCHITECTURE.md` and `docs/HANDOFF.md` written. Phase 0 is complete. |
