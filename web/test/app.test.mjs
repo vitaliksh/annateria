@@ -236,15 +236,6 @@ test("the waiting state, the period and the full reference survive a save and re
   assert.equal(rows().at(-1).dataset.processing ?? "", "");
 });
 
-test("a row waiting for the agent cannot be edited until it has run, and the fields open afterwards", async () => {
-  const { app, window } = await loadApp();
-  const row = await addRecord(app);
-  await new Promise((resolve) => window.setTimeout(resolve, 20));
-  assert.equal(row.cells[3].contentEditable, "false");
-  row.dataset.processing = "";
-  await new Promise((resolve) => window.setTimeout(resolve, 20));
-  assert.equal(row.cells[3].contentEditable, "true");
-});
 
 test("a plan sets the account of the client, keeps the recognition rules, explains itself and excludes a duplicate", async () => {
   const { app } = await loadApp();
@@ -364,8 +355,3 @@ test("a partial recognition is written under the VAT amount, a full one is not",
   assert.equal(plain.cells[10].dataset.recognised, undefined);
 });
 
-test("the bookkeeper button sits in the top bar with the other journal actions, not in the heading of the table", async () => {
-  const { document } = await loadApp();
-  assert.ok(document.querySelector(".topbar #run-bookkeeper.journal-only"));
-  assert.equal(document.querySelector(".journal-heading #run-bookkeeper"), null);
-});

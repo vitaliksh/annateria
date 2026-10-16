@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status: **plan agreed 16 October 2026; steps 0.1–0.2 done.** This file is the single source of truth for what is
+Status: **plan agreed 16 October 2026; steps 0.1–0.3 done.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -80,7 +80,7 @@ Goal: a working copy of the ocr web app in this repository, published, with the 
   between the two apps. Decide: new database names (clean separation) or deliberate sharing (the recovery key
   and the data-root handle carry over). Record in the decision log.
   *Done when:* the decision is recorded and applied in `workspace.js` / `backup-handles.js` with a test.
-- [ ] **0.3 Remove Telegram, QR, passkey and Rivhit export** from `web/` and `worker/`, in separate commits per
+- [x] **0.3 Remove Telegram, QR, passkey and Rivhit export** from `web/` and `worker/`, in separate commits per
   area. Keep every module the journal and reports depend on.
   *Done when:* tests green (new count recorded), no reference to Telegram, `X-Upload-Token`, WebAuthn or
   `rivhit-export` left (`git grep` shows nothing), journal opens an existing ocr data root unchanged.
@@ -237,3 +237,5 @@ model behind the same proxy.
 | 2026-10-16 | Only the paid Gemini tier for client documents. |
 | 2026-10-16 | 0.1: copied only git-tracked files of `ocr/telegram-web` → `web/` and `ocr/cloudflare-worker` → `worker/` (ocr commit `457491e`); baseline in ocr and here: web 455 tests, worker 41. `.gitignore` rewritten (ocr ignored every `*.json`); packages keep their ocr names until 0.3. `npm ci` blocks esbuild/workerd postinstall scripts (npm warns) — tests and checks pass anyway. |
 | 2026-10-16 | 0.2: **separate storage from ocr.** IndexedDB is now `annateria-workspaces-v1` (was `rivhit-local-workspaces-v1`), defined once as `DATABASE_NAME` in `backup-handles.js` and imported by `workspace.js` (changed existing code: that one constant and an import). Consequences: after the first open, Anna/Vitalik pick the data root again (no auto-open of the ocr folder, so the two apps never write one folder by accident) and enter the recovery code again (the backup key is derived from the paper code, so nothing is lost). The on-disk format names `annateria-backup`, `annateria-key/index/snapshot/transfer` are untouched (ocr compatibility). localStorage keys `annateria-column-widths-v2` and `annateria-sidebar-v1` are the same in ocr and here, so these two UI preferences are shared; harmless, revisit if layouts diverge. The passkey localStorage key goes away in 0.3. Test: `web/test/storage-names.test.mjs` (web now 457 tests). |
+| 2026-10-16 | 0.3: removed in three commits (Rivhit export; passkey / DeviceRegistry; Telegram, QR, upload sessions, R2 and all client calls to Gemini). Owner chose "remove everything": the Worker answers `/health` only until 1.1/1.2 (every old Gemini route was gated by a session or passkey, so without the gate it would have been an open key proxy; a test asserts those routes are 404), and the app has **no AI and no photo intake** until phases 2–4. Web 441 → 423 tests, Worker 41 → 5. Changed existing code: `app.js`, `workspace.js`, `workspace-core.js`, `index.html`, `shell.css`, `dialogs.css`, `config.js` (global renamed `ANNATERIA_API`, empty until 1.4), `bookkeeper-ui.js` and its test deleted. Worker renamed `annateria` (new deployment in 1.4; the ocr Worker is untouched). |
+| 2026-10-16 | 0.3 left on purpose for later phases: `bookkeeper-flow.js` (+tests), `applyBookkeeperPlan` / `applyBookkeeperRecheck`, `addPendingRecord`, `applyRecord`, `restoreRow` (rows still carry the `processing` flag); `pdf-import.js` (`renderPdfPages`), `pdf-report.js` and `createDraftExportDirectory` (now unused: legacy PDF export); `.retry` CSS. Decide in phase 4 which are reused and delete the rest then. The old bookkeeper prompt and schema (ocr `cloudflare-worker/src/bookkeeper.js`, `index.js`) stay in the ocr repository as input for the phase 5 skills. |

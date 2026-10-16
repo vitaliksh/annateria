@@ -1,5 +1,5 @@
 {
-  "name": "rivhit-telegram-transfer-worker",
+  "name": "annateria-worker",
   "private": true,
   "type": "module",
   "scripts": {

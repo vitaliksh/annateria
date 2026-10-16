@@ -1,5 +1,5 @@
 import { setupWorkspaceControls } from "./workspace.js";
-import { pdfSourceFileName, renderPdfPages, validatePdfFile } from "./pdf-import.js";
+import { pdfSourceFileName, validatePdfFile } from "./pdf-import.js";
 import {
   finalizeDeclaration,
   reopenLockedDeclaration,
@@ -25,7 +25,6 @@ import { setupExcelImport } from "./excel-import-ui.js";
 import { setupReports } from "./reports-ui.js";
 import { setupBackup } from "./backup-ui.js";
 import { setupTransfer } from "./transfer-ui.js";
-import { setupBookkeeper } from "./bookkeeper-ui.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
 import { isHomeUtility } from "./home-utilities.js";
@@ -45,21 +44,12 @@ const journalColumns = setupJournalColumns({
     if (dataRoot) saveUiSettings(dataRoot, { hiddenColumns }).catch((error) => showError(`לא ניתן לשמור את בחירת העמודות: ${error.message}`));
   },
 });
-const api = (window.TELEGRAM_TRANSFER_API || "").replace(/\/$/, ""),
+const api = (window.ANNATERIA_API || "").replace(/\/$/, ""),
   builtInMapping = { ...(window.RIVHIT_MAPPING || {}) };
-const inactive = document.querySelector("#inactive"),
-  active = document.querySelector("#active"),
-  start = document.querySelector("#start"),
-  finish = document.querySelector("#finish"),
-  importPdf = document.querySelector("#import-pdf"),
-  importPdfMenu = document.querySelector("#import-pdf-menu"),
-  importIncomeReportButton = document.querySelector("#import-income-report"),
-  stop = document.querySelector("#stop-processing"),
+const importIncomeReportButton = document.querySelector("#import-income-report"),
   status = document.querySelector("#status"),
-  connection = document.querySelector("#connection"),
   records = document.querySelector("#records"),
   count = document.querySelector("#count"),
-  telegramLink = document.querySelector("#telegram-link"),
   emptyRow = document.querySelector("#empty-row"),
   photoWindow = document.querySelector("#photo-window"),
   dialogImage = document.querySelector("#dialog-image"),
@@ -67,7 +57,6 @@ const inactive = document.querySelector("#inactive"),
   photoViewport = document.querySelector("#photo-viewport"),
   businessActivity = document.querySelector("#business-activity"),
   businessKind = document.querySelector("#business-kind"),
-  model = document.querySelector("#model"),
   workspaceSummary = document.querySelector("#workspace-summary"),
   currentClient = document.querySelector("#current-client"),
   journalTitle = document.querySelector("#journal-title"),
@@ -77,9 +66,6 @@ const inactive = document.querySelector("#inactive"),
   reopenDeclarationButton = document.querySelector("#reopen-declaration"),
   declarationBadge = document.querySelector("#declaration-badge"),
   openPackage = document.querySelector("#open-package"),
-  uploadModeDialog = document.querySelector("#upload-mode-dialog"),
-  addToExisting = document.querySelector("#add-to-existing"),
-  startNewTable = document.querySelector("#start-new-table"),
   uploadRequirements = document.querySelector("#upload-requirements"),
   customClassificationDialog = document.querySelector("#custom-classification-dialog"),
   customClassificationCode = document.querySelector("#custom-classification-code"),
@@ -94,16 +80,8 @@ let dataRoot = null,
   committedWorkspace = null,
   currentDeclaration = null,
   currentDeclarationDirectory = null,
-  session = null,
-  telegramConnected = false,
-  streamAbort = null,
-  received = new Set(),
   recordCount = 0,
   imageCount = 0,
-  pendingRecognitions = 0,
-  recognitionQueue = Promise.resolve(),
-  activeRecognitionController = null,
-  stopRequested = false,
   drag = null,
   resize = null,
   imageDrag = null,
@@ -153,8 +131,6 @@ function showExportResult({ title, message, error = false }) {
 function updateStartAvailability() {
   const open = currentDeclaration?.status === "open";
   const actions = declarationActions({ dataRoot, declaration: currentDeclaration, workspaceCommitted: committedWorkspace });
-  start.disabled = !actions.canStart;
-  importPdfMenu.disabled = !actions.canStart;
   importIncomeReportButton.disabled = !actions.canStart;
   closeDeclarationButton.disabled = !actions.canClose;
   declarationBadge.hidden = !currentDeclaration;
@@ -188,7 +164,6 @@ async function activateDeclaration(selected) {
   records.replaceChildren();
   recordCount = 0;
   imageCount = 0;
-  received = new Set();
   newCustomCodes = new Set(
     Object.entries(customMappingMetadata)
       .filter(([, metadata]) => Date.parse(metadata.createdAt) >= Date.parse(currentDeclaration.createdAt))
@@ -272,7 +247,6 @@ async function switchDataRoot(selected) {
   currentDeclarationDirectory = null;
   recordCount = 0;
   imageCount = 0;
-  received = new Set();
   newCustomCodes = new Set();
   records.replaceChildren(emptyRow);
   currentClient.textContent = "לא נבחרה הצהרה";
@@ -489,7 +463,6 @@ const rowsMove = setupRowsMove({
       : null,
   // The table is read from its file, so it must be saved first and must not change while the dialog is open.
   beforeOpen: async () => {
-    if (pendingRecognitions) return `ממתינים לסיום עיבוד של ${pendingRecognitions} תמונות לפני פיזור השורות.`;
     await saveCurrentDraft();
     return null;
   },
@@ -509,28 +482,6 @@ const rowsMove = setupRowsMove({
   },
   onError: showError,
 });
-// The bookkeeper agent: rows with fresh OCR wait for the button "עיבוד חשבונאי" (bookkeeper-ui.js, bookkeeper-flow.js).
-let bookkeeper = null;
-let pcnJournal = null;
-async function callBookkeeper(body) {
-  const send = (path, authorization) =>
-    fetch(apiUrl(path), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...authorization,
-        "X-Gemini-Model": model.value,
-        "X-Form-6111-Mapping": encodeURIComponent(JSON.stringify(classificationMappingsForAgent())),
-        "X-Custom-Rivhit-Codes": encodeURIComponent(JSON.stringify(customClassificationCodesForAgent())),
-      },
-      body: JSON.stringify(body),
-    });
-  if (!session) throw new Error("אין חיבור פעיל לעיבוד חשבונאי.");
-  const response = await send(`/v1/sessions/${session.sessionId}/bookkeeper`, { "X-Upload-Token": session.clientToken });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "העיבוד החשבונאי נכשל.");
-  return result;
-}
 // Writes what the agent and the intake rules decided into the row. The recognition percentages stay with applyBusinessRule.
 function applyBookkeeperPlan(row, plan) {
   if (plan.rivhitCode && rivhitMapping[plan.rivhitCode]) {
@@ -560,41 +511,6 @@ function applyBookkeeperRecheck(row, facts) {
   queueDraftSave();
 }
 const tableRows = () => [...records.querySelectorAll("tr[data-document-id]")];
-bookkeeper = setupBookkeeper({
-  records,
-  button: document.querySelector("#run-bookkeeper"),
-  plate: document.querySelector("#bookkeeper-plate"),
-  isTableLocked: () => tableLocked,
-  getContext: () =>
-    committedWorkspace && currentDeclaration?.status === "open"
-      ? {
-          client: committedWorkspace,
-          month: currentDeclaration.month,
-          reserved: builtInMapping,
-          snapshots: () => tableRows().map(rowSnapshot),
-          call: callBookkeeper,
-          // The table is read from its file for the copy, so it is saved first; images still being read must finish.
-          beforeRun: async () => {
-            if (pendingRecognitions) return `ממתינים לסיום עיבוד של ${pendingRecognitions} תמונות לפני העיבוד החשבונאי.`;
-            await saveCurrentDraft();
-            return null;
-          },
-          onChange: queueDraftSave,
-        }
-      : null,
-  applyPlan: applyBookkeeperPlan,
-  applyRecheck: applyBookkeeperRecheck,
-  afterRun: (plans) => {
-    if (plans.some((plan) => plan.facts.moves)) offerDistribution();
-  },
-  confirmAll: (count) =>
-    confirmDialog(
-      `לעבד מחדש ${count} שורות פעילות? הסוכן יקבע מחדש את קוד המיון ואת סימון הייצוא שלהן; שינויים ידניים בהם יוחלפו. ` +
-        "העתק של הטבלה נשמר לפני העיבוד.",
-      { title: "עיבוד חשבונאי", confirmLabel: "עיבוד" },
-    ),
-});
-document.querySelector("#run-bookkeeper-all").addEventListener("click", () => bookkeeper.runAll());
 // Clients with a PCN duty: yellow rows and a tick for invoices above the allocation ceiling (pcn-review.js).
 pcnJournal = setupPcnReview({
   records,
@@ -652,16 +568,6 @@ const reports = setupReports({
 });
 updateStartAvailability();
 loadBackendVersion();
-function reset() {
-  streamAbort?.abort();
-  streamAbort = null;
-  session = null;
-  telegramConnected = false;
-  received = new Set();
-  active.hidden = true;
-  inactive.hidden = false;
-  updateStartAvailability();
-}
 async function saveCurrentDraft() {
   if (!currentDeclaration || currentDeclaration.status !== "open" || !currentDeclarationDirectory) return;
   clearTimeout(draftSaveTimer);
@@ -728,8 +634,6 @@ function setTableLocked(locked) {
   records.classList.toggle("table-locked", locked);
   for (const cell of records.querySelectorAll(".editable")) cell.contentEditable = locked ? "false" : "true";
   for (const control of records.querySelectorAll("select,input,.delete,.retry,.field-swap")) control.disabled = locked;
-  bookkeeper?.syncAll();
-  bookkeeper?.refresh();
   pcnJournal?.refresh();
 }
 function refreshRows() {
@@ -832,16 +736,6 @@ function classificationSelect(code = "") {
   });
   wrap.append(search, select);
   return wrap;
-}
-function classificationMappingsForAgent() {
-  return Object.fromEntries(
-    Object.entries(form6111Mappings)
-      .map(([form6111, rivhitCode]) => [form6111, [rivhitCode, rivhitMapping[rivhitCode]]])
-      .filter(([, [, label]]) => Boolean(label)),
-  );
-}
-function customClassificationCodesForAgent() {
-  return { ...customMapping };
 }
 async function saveClassificationOverride(row, rivhitCode) {
   const form6111 = row.dataset.form6111Code;
@@ -969,10 +863,6 @@ function applyBusinessRules() {
   for (const row of records.querySelectorAll("tr[data-document-id]")) applyBusinessRule(row);
 }
 businessKind.addEventListener("change", applyBusinessRules);
-function updateProcessingControls() {
-  stop.hidden = !pendingRecognitions;
-  stop.disabled = !pendingRecognitions;
-}
 function updateImageTransform() {
   dialogImage.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
 }
@@ -1059,204 +949,7 @@ function openPhoto(imageUrl, imageIndex) {
   imagePopup.focus();
 }
 
-async function startUpload() {
-  if (!currentDeclaration || currentDeclaration.status !== "open") return showError("יש לבחור תחילה הצהרה פתוחה.");
-  if (!api) return showError("הפרסום עדיין לא הוגדר.");
-  start.disabled = true;
-  status.textContent = "";
-  try {
-    const response = await fetch(apiUrl("/v1/sessions"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ purpose: "upload" }),
-      }),
-      data = await response.json();
-    if (!response.ok) throw new Error(data.error || "לא ניתן היה ליצור חיבור העלאה.");
-    session = data;
-    telegramConnected = false;
-    inactive.hidden = true;
-    active.hidden = false;
-    telegramLink.href = data.telegramUrl;
-    new QRious({ element: document.querySelector("#qr"), value: data.telegramUrl, size: 260, level: "M" });
-    openEvents();
-  } catch (error) {
-    showError(error.message);
-    updateStartAvailability();
-  }
-}
-start.addEventListener("click", () => {
-  if (tableLocked) {
-    uploadModeDialog.showModal();
-    return;
-  }
-  startUpload();
-});
-addToExisting.addEventListener("click", () => {
-  setTableLocked(false);
-  uploadModeDialog.close();
-  startUpload();
-});
-startNewTable.addEventListener("click", () => {
-  uploadModeDialog.close();
-  showError("בהצהרה חודשית אין טבלה חדשה: בחר הצהרה אחרת בסביבות העבודה.");
-});
-finish.addEventListener("click", async () => {
-  if (!session) return;
-  if (pendingRecognitions) return showError(`ממתינים לסיום עיבוד של ${pendingRecognitions} תמונות לפני סגירת ההעלאה.`);
-  const closingSession = session,
-    controller = new AbortController(),
-    timeout = setTimeout(() => controller.abort(), 10000);
-  finish.disabled = true;
-  try {
-    const response = await fetch(apiUrl(`/v1/sessions/${closingSession.sessionId}/finish`), {
-      method: "POST",
-      headers: { "X-Upload-Token": closingSession.clientToken },
-      signal: controller.signal,
-    });
-    if (!response.ok) throw new Error();
-  } catch {
-    showError("לא ניתן לאשר את סיום החיבור. הגישה מ‑Telegram תפקע אוטומטית.");
-  } finally {
-    clearTimeout(timeout);
-    reset();
-  }
-  offerDistribution();
-});
-stop.addEventListener("click", () => {
-  stopRequested = true;
-  activeRecognitionController?.abort();
-  status.textContent = "העיבוד נעצר. אפשר להפעיל מחדש שורה בודדת.";
-});
-
-async function openEvents() {
-  streamAbort = new AbortController();
-  try {
-    const response = await fetch(apiUrl(`/v1/sessions/${session.sessionId}/events`), {
-      headers: { "X-Upload-Token": session.clientToken },
-      signal: streamAbort.signal,
-    });
-    if (!response.ok) throw new Error(response.status === 401 ? "תוקף החיבור פג." : "חיבור האינטרנט נותק.");
-    const reader = response.body.getReader(),
-      decoder = new TextDecoder();
-    let pending = "";
-    while (session && !streamAbort.signal.aborted) {
-      const { value, done } = await reader.read();
-      if (done) throw new Error("חיבור האינטרנט נותק.");
-      pending += decoder.decode(value, { stream: true });
-      const messages = pending.split("\n\n");
-      pending = messages.pop();
-      for (const message of messages) consumeEvent(message);
-    }
-  } catch (error) {
-    if (!streamAbort?.signal.aborted) showError(error.message);
-  }
-}
-function consumeEvent(message) {
-  const type = message.match(/^event: (.+)$/m)?.[1],
-    text = message.match(/^data: (.+)$/m)?.[1];
-  if (!type || !text) return;
-  const data = JSON.parse(text);
-  if (type === "ready") {
-    telegramConnected = Boolean(data.connected);
-    connection.textContent = data.connected
-      ? "Telegram מחובר. אפשר לשלוח תמונות או לבחור PDF מהמחשב."
-      : "ממתין לחיבור Telegram…";
-    data.documents.forEach((item) => receiveDocument(item.documentId, item.receivedAt));
-  }
-  if (type === "connected") {
-    telegramConnected = true;
-    connection.textContent = "Telegram מחובר. אפשר לשלוח תמונות או לבחור PDF מהמחשב.";
-  }
-  if (type === "document") receiveDocument(data.documentId, data.receivedAt);
-  if (type === "finished") reset();
-}
-async function receiveDocument(documentId, receivedAt) {
-  if (!session || received.has(documentId)) return;
-  received.add(documentId);
-  const imageIndex = ++imageCount;
-  try {
-    const response = await fetch(apiUrl(`/v1/sessions/${session.sessionId}/documents/${documentId}`), {
-      headers: { "X-Upload-Token": session.clientToken },
-    });
-    if (!response.ok) throw new Error("הורדת התמונה נכשלה.");
-    const downloaded = await response.blob(),
-      blob = new Blob([downloaded], { type: downloaded.type === "image/png" ? "image/png" : "image/jpeg" }),
-      extension = blob.type === "image/png" ? "png" : "jpg",
-      imageFile = `${String(imageIndex).padStart(3, "0")}.${extension}`,
-      imageUrl = URL.createObjectURL(blob);
-    await saveSourceImage(currentDeclarationDirectory, imageFile, blob);
-    const row = addPendingRecord(imageUrl, receivedAt, documentId, imageIndex, null, blob);
-    row.dataset.imageFile = imageFile;
-    queueDraftSave();
-    row.runRecognition = (onlyThis = false) =>
-      enqueueRecognition(row, blob, imageUrl, receivedAt, documentId, imageIndex, true, onlyThis);
-    enqueueRecognition(row, blob, imageUrl, receivedAt, documentId, imageIndex);
-    const ack = await fetch(apiUrl(`/v1/sessions/${session.sessionId}/documents/${documentId}/ack`), {
-      method: "POST",
-      headers: { "X-Upload-Token": session.clientToken },
-    });
-    if (!ack.ok) throw new Error("אישור קבלת התמונה נכשל; ייתכן שהיא תישלח שוב.");
-  } catch (error) {
-    received.delete(documentId);
-    showError(error.message);
-  }
-}
-async function choosePdfFile() {
-  if (!session || !telegramConnected || !currentDeclarationDirectory || currentDeclaration?.status !== "open")
-    return showError("יש לסרוק תחילה את קוד Telegram ולבחור הצהרה פתוחה.");
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = "application/pdf,.pdf";
-  input.addEventListener(
-    "change",
-    async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      try {
-        validatePdfFile(file);
-        await importPdfFile(file);
-      } catch (error) {
-        showError(error.message);
-      }
-    },
-    { once: true },
-  );
-  input.click();
-}
-async function importPdfFile(file) {
-  const sourceId = crypto.randomUUID(),
-    receivedAt = new Date().toISOString();
-  importPdf.disabled = true;
-  stopRequested = false;
-  try {
-    // The periodic income report has a text layer that is read exactly; its pages must not go through Gemini.
-    const incomeReport = await readIncomeReportFile(file).catch(() => null);
-    if (incomeReport) return await importIncomeReportFile(file, incomeReport);
-    await saveSourceImage(currentDeclarationDirectory, pdfSourceFileName(new Date(), sourceId), file);
-    await renderPdfPages(file, {
-      shouldStop: () => stopRequested,
-      onPage: async ({ pageNumber, pageCount, image }) => {
-        status.textContent = `מייבא PDF: עמוד ${pageNumber} מתוך ${pageCount}…`;
-        const imageIndex = ++imageCount,
-          documentId = `pdf-${sourceId}-${pageNumber}`,
-          imageFile = `${String(imageIndex).padStart(3, "0")}.jpg`,
-          imageUrl = URL.createObjectURL(image);
-        await saveSourceImage(currentDeclarationDirectory, imageFile, image);
-        const row = addPendingRecord(imageUrl, receivedAt, documentId, imageIndex, null, image);
-        row.dataset.imageFile = imageFile;
-        row.runRecognition = (onlyThis = false) =>
-          enqueueRecognition(row, image, imageUrl, receivedAt, documentId, imageIndex, true, onlyThis);
-        await enqueueRecognition(row, image, imageUrl, receivedAt, documentId, imageIndex);
-      },
-    });
-    status.textContent = stopRequested ? "ייבוא ה‑PDF נעצר. העמודים שכבר נוספו נשמרו בטיוטה." : "ייבוא ה‑PDF הושלם.";
-    offerDistribution();
-  } finally {
-    importPdf.disabled = false;
-    queueDraftSave();
-  }
-}
-// Adds the rows of a periodic income report read from its text layer (no Telegram session and no Gemini needed).
+// Adds the rows of a periodic income report read from its text layer.
 async function importIncomeReportFile(file, report = null) {
   if (!currentDeclarationDirectory || currentDeclaration?.status !== "open") throw new Error("יש לבחור הצהרה פתוחה.");
   report ??= await readIncomeReportFile(file);
@@ -1292,13 +985,6 @@ function chooseIncomeReport() {
   input.click();
 }
 importIncomeReportButton.addEventListener("click", chooseIncomeReport);
-importPdf.addEventListener("click", choosePdfFile);
-// A PDF is processed through a connected Telegram session: with no session the menu item starts one and asks for the code.
-importPdfMenu.addEventListener("click", () => {
-  if (session && telegramConnected) return choosePdfFile();
-  if (!session) start.click();
-  status.textContent = "סרוק את קוד ה‑QR ב‑Telegram כדי להפעיל ייבוא PDF.";
-});
 function addPendingRecord(imageUrl, receivedAt, documentId, imageIndex, insertAfter = null, imageBlob = null) {
   emptyRow?.remove();
   recordCount += 1;
@@ -1359,117 +1045,6 @@ function addPendingRecord(imageUrl, receivedAt, documentId, imageIndex, insertAf
   else records.append(row);
   refreshRows();
   return row;
-}
-function enqueueRecognition(
-  row,
-  blob,
-  imageUrl,
-  receivedAt,
-  documentId,
-  imageIndex,
-  restart = false,
-  onlyThis = false,
-) {
-  if (restart) stopRequested = false;
-  pendingRecognitions += 1;
-  updateProcessingControls();
-  recognitionQueue = recognitionQueue
-    .then(() => recognize(row, blob, imageUrl, receivedAt, documentId, imageIndex, onlyThis))
-    .catch(() => {})
-    .finally(() => {
-      pendingRecognitions -= 1;
-      updateProcessingControls();
-    });
-  return recognitionQueue;
-}
-function recordTarget(row) {
-  return {
-    date: row.cells[2].textContent,
-    classification: row.cells[1].textContent,
-    purpose: row.cells[3].textContent,
-    supplier: row.cells[4].textContent,
-    reference: row.cells[6].textContent,
-    gross: row.cells[8].textContent,
-    net: row.cells[9].textContent,
-    vat: row.cells[10].textContent,
-  };
-}
-async function recognize(row, blob, imageUrl, receivedAt, documentId, imageIndex, onlyThis = false) {
-  if (stopRequested) {
-    setStatus(row, "בוטל", "review");
-    row.cells[14].textContent = "העיבוד נעצר על ידי המשתמש.";
-    addRerunButton(row, "עבד", false);
-    return;
-  }
-  const activity = businessActivity.value.trim();
-  if (!activity) {
-    setStatus(row, "חסרה פעילות העסק", "error");
-    row.cells[14].textContent = "יש למלא את סוג פעילות העסק ואז להפעיל מחדש.";
-    return;
-  }
-  if (!session) {
-    setStatus(row, "לא עובד", "error");
-    row.cells[14].textContent = "סשן ההעלאה נסגר לפני העיבוד.";
-    return;
-  }
-  const controller = new AbortController();
-  activeRecognitionController = controller;
-  setStatus(row, "מעבד…", "processing");
-  row.cells[3].textContent = "Gemini מעבד את התמונה…";
-  row.cells[14].textContent = "ממתין להחלטת הסוכן…";
-  try {
-    const headers = {
-      "Content-Type": blob.type || "image/jpeg",
-      "X-Upload-Token": session.clientToken,
-      "X-Business-Activity": encodeURIComponent(activity),
-      "X-Gemini-Model": model.value,
-      "X-Form-6111-Mapping": encodeURIComponent(JSON.stringify(classificationMappingsForAgent())),
-      "X-Custom-Rivhit-Codes": encodeURIComponent(JSON.stringify(customClassificationCodesForAgent())),
-    };
-    if (onlyThis) headers["X-Target-Record"] = encodeURIComponent(JSON.stringify(recordTarget(row)));
-    const response = await fetch(apiUrl(`/v1/sessions/${session.sessionId}/recognize`), {
-        method: "POST",
-        signal: controller.signal,
-        headers,
-        body: blob,
-      }),
-      result = await response.json();
-    if (!response.ok) throw new Error(result.error || "העיבוד נכשל.");
-    await applyRecord(row, result.records[0]);
-    if (!onlyThis)
-      for (const record of result.records.slice(1)) {
-        const lastForImage = [...records.querySelectorAll("tr")]
-          .filter((candidate) => candidate.dataset.documentId === documentId)
-          .at(-1);
-        const extra = addPendingRecord(imageUrl, receivedAt, documentId, imageIndex, lastForImage, blob);
-        extra.dataset.imageFile = row.dataset.imageFile || "";
-        extra.runRecognition = (single = false) =>
-          enqueueRecognition(extra, blob, imageUrl, receivedAt, documentId, imageIndex, true, single);
-        await applyRecord(extra, record);
-      }
-  } catch (error) {
-    if (controller.signal.aborted) {
-      setStatus(row, "בוטל", "review");
-      row.cells[3].textContent = "—";
-      row.cells[14].textContent = "העיבוד נעצר על ידי המשתמש.";
-      addRerunButton(row, "עבד", false);
-    } else {
-      setStatus(row, "שגיאה בעיבוד", "error");
-      row.cells[3].textContent = "—";
-      row.cells[14].textContent = error.message;
-      addRerunButton(row, "נסה שוב");
-    }
-  } finally {
-    if (activeRecognitionController === controller) activeRecognitionController = null;
-  }
-}
-function addRerunButton(row, label = "עבד מחדש", onlyThis = true) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "retry";
-  button.textContent = label;
-  button.addEventListener("click", () => row.runRecognition?.(onlyThis));
-  row.cells[16].append(document.createElement("br"), button);
 }
 async function ensureIncomeClassification() {
   const existing = Object.entries(rivhitMapping).find(([, label]) => label === "הכנסות")?.[0];
@@ -1625,20 +1200,6 @@ function restoreRow(saved, blob) {
     saved.active && !row.highlights.length ? "review" : saved.statusClass || (saved.active ? "ready" : "review"),
   );
   updateDuplicateState(row);
-  row.runRecognition = (onlyThis = true) => {
-    if (!blob) return showError("לשורה שיובאה מ-Excel אין תמונה לעיבוד מחדש.");
-    if (!session) return showError("יש להתחיל העלאת תמונות כדי לעבד מחדש שורה מהארכיון.");
-    enqueueRecognition(
-      row,
-      blob,
-      imageUrl,
-      saved.receivedAt || Date.now(),
-      saved.documentId || "saved",
-      saved.imageIndex || 0,
-      true,
-      onlyThis,
-    );
-  };
 }
 records.addEventListener("input", (event) => {
   const cell = event.target.closest?.("td"),
@@ -1676,7 +1237,6 @@ closeDeclarationButton.addEventListener("click", async () => {
       .map((row, index) => ({ ...snapshots[index], imageBlob: row.documentImage }))
       .filter((row) => row.active);
   if (!reportRows.length) return showError("יש לסמן לפחות שורה פעילה לפני נעילת ההצהרה.");
-  if (bookkeeper?.waitingCount()) return showError('יש שורות שממתינות לעיבוד חשבונאי. יש להפעיל "עיבוד חשבונאי" לפני הנעילה.');
   const pcnProblem = pcnJournal?.lockProblem();
   if (pcnProblem) return showError(pcnProblem);
   const closeMessage = "לנעול את ההצהרה? הטבלה תינעל והשורות יצטרפו להיסטוריה. אפשר לפתוח מחדש עם ציון סיבה.";
@@ -1752,8 +1312,7 @@ openPackage?.addEventListener("click", async () => {
       cache = new Map();
     records.replaceChildren();
     recordCount = 0;
-    received = new Set();
-    imageCount = Math.max(0, ...manifest.rows.map((row) => Number(row.imageIndex) || 0));
+      imageCount = Math.max(0, ...manifest.rows.map((row) => Number(row.imageIndex) || 0));
     for (const saved of manifest.rows) {
       const fileName = String(saved.image?.file || "")
         .split("/")

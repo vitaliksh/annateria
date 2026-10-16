@@ -1,9 +1,9 @@
-> Inherited from `vitaliksh/ocr` (copied 16 October 2026). Content is unchanged; `telegram-web/` in this text means `web/` here.
-> Parts about Telegram, QR, passkey and Rivhit export are obsolete (removed in step 0.3).
+> Inherited from `vitaliksh/ocr` (copied 16 October 2026). Content is unchanged except that paths `telegram-web/` now read `web/`.
+> Parts about upload sessions, QR, passkey and the Rivhit export describe code that step 0.3 removed.
 
 # Reports computed from the app's own data
 
-Implemented in `telegram-web/reports.js` (pure functions). Layout is the Rivhit one; the figures were checked
+Implemented in `web/reports.js` (pure functions). Layout is the Rivhit one; the figures were checked
 against the four Rivhit PDFs of the migrated client on 2 October 2026 (real data, local only, never committed).
 
 ## Inputs

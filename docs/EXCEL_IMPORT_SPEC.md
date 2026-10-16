@@ -1,12 +1,12 @@
-> Inherited from `vitaliksh/ocr` (copied 16 October 2026). Content is unchanged; `telegram-web/` in this text means `web/` here.
-> Parts about Telegram, QR, passkey and Rivhit export are obsolete (removed in step 0.3).
+> Inherited from `vitaliksh/ocr` (copied 16 October 2026). Content is unchanged except that paths `telegram-web/` now read `web/`.
+> Parts about upload sessions, QR, passkey and the Rivhit export describe code that step 0.3 removed.
 
 # Rivhit journal Excel import contract
 
 One-time migration input: Rivhit's printed journal "ספר תקבולים תשלומים – יומן קליטה" saved as `.xlsx`, one file per
 declaration month. This is the format of the six sample files (months 1, 2, 4, 5, 6, 8 of 2026; 220 rows), checked
 against the real files on 2 October 2026. The files hold real client data: never copy names, IDs or amounts into code,
-tests or docs. Tests use synthetic grids from `telegram-web/test/excel-journal-fixture.mjs`.
+tests or docs. Tests use synthetic grids from `web/test/excel-journal-fixture.mjs`.
 
 ## Reading the workbook
 
@@ -14,7 +14,7 @@ tests or docs. Tests use synthetic grids from `telegram-web/test/excel-journal-f
   `גיליון2`; if it is missing, take the only sheet that has cells; otherwise reject the file.
 - All cells are text, except the date column, which is a real Excel date (serial number, e.g. `46023` = 2026-01-01).
   The reader adapter converts it to `YYYY-MM-DD`; the parser accepts either a serial number or an ISO string.
-- `telegram-web/excel-journal-reader.js` does this: it checks the ZIP signature (SheetJS otherwise parses any bytes as
+- `web/excel-journal-reader.js` does this: it checks the ZIP signature (SheetJS otherwise parses any bytes as
   text), anchors the range at `A1` and keeps dates as serial numbers.
 - The reader returns a grid `rows[rowIndex][colIndex]` (0-based) with empty cells as `""`. The parser never touches
   the xlsx library.
@@ -145,7 +145,7 @@ name and tax ID, classification code. Amounts are already recognised: imported r
 expense 100 % and VAT 100 %, and the business rules (`applyBusinessRule`, codes 806/807/812, home-utility 25 %) are
 not run on them.
 
-## Parser output (`telegram-web/excel-journal.js`)
+## Parser output (`web/excel-journal.js`)
 
 `parseJournalGrid(rows)` returns `{ declarationMonth, rows, footer, errors, warnings }`. A row is
 `{ status, vat, net, gross, reference1, reference2, details, classificationName, line, date, kind, sourceRow }` with

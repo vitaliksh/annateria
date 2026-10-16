@@ -162,61 +162,6 @@ body {
   box-shadow: 0 1px 2px var(--shadow-color-sm);
 }
 
-.upload-strip {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--s4) var(--s5);
-  align-items: center;
-}
-
-.upload-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s3);
-}
-
-.upload-heading h2 {
-  margin: 0;
-  font-size: var(--fs-lg);
-}
-
-.upload-heading p {
-  margin: 2px 0 0;
-  color: var(--text-muted);
-}
-
-.upload-actions {
-  display: inline-flex;
-  gap: var(--s2);
-}
-
-.upload-strip .qr-panel {
-  margin: 0;
-  gap: var(--s4);
-}
-
-.qr-panel {
-  display: flex;
-  align-items: center;
-}
-
-.qr-panel p {
-  max-width: 320px;
-  margin: 0;
-  color: var(--text-muted);
-}
-
-#qr {
-  display: block;
-  width: 132px;
-  height: 132px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-}
-
 .journal-heading {
   display: flex;
   align-items: baseline;

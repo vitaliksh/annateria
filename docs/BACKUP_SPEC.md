@@ -1,10 +1,10 @@
-> Inherited from `vitaliksh/ocr` (copied 16 October 2026). Content is unchanged; `telegram-web/` in this text means `web/` here.
-> Parts about Telegram, QR, passkey and Rivhit export are obsolete (removed in step 0.3).
+> Inherited from `vitaliksh/ocr` (copied 16 October 2026). Content is unchanged except that paths `telegram-web/` now read `web/`.
+> Parts about upload sessions, QR, passkey and the Rivhit export describe code that step 0.3 removed.
 
 # Backup store — format and decisions
 
 **Status (4 October 2026): built, pushed and partly verified by Vitalik; the rollout on the real PC is the only required step left.**
-Modules (all in `telegram-web/`): `backup-store.js` (format, no DOM), `backup-state.js`, `backup-handles.js`, `backup-ui.js` (the
+Modules (all in `web/`): `backup-store.js` (format, no DOM), `backup-state.js`, `backup-handles.js`, `backup-ui.js` (the
 dialog "גיבוי"), `transfer-store.js` and `transfer-ui.js` (the file "העברה לקובץ"); 279 frontend tests in total. The owner's approval
 and the product-boundary exception are in `AGENTS.md` and `HANDOFF.md`.
 
