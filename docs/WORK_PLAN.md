@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status: **plan agreed 16 October 2026; steps 0.1–0.5 and 1.1 done, 1.2 built (real call pending).** This file is the single source of truth for what is
+Status: **plan agreed 16 October 2026; phases 0 and 1 done (steps 0.1–1.4).** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -100,14 +100,14 @@ Goal: the browser can call Gemini through the Worker after Anna types her code; 
   options: Rate Limiting binding, Durable Object or KV). Login screen in `web/` (Hebrew).
   *Done when:* Worker tests cover right code, wrong code, lock-out, expired and forged token; a reload of the page
   asks for the code again.
-- [ ] **1.2 Constrained Gemini proxy.** *(built 16 Oct, tested with a stub; ticks when the real call works after 1.4)* `POST /v1/model` forwards a `generateContent` request: model from an
+- [x] **1.2 Constrained Gemini proxy.** `POST /v1/model` forwards a `generateContent` request: model from an
   allow-list, size limit, token limit, streaming for long answers, no logging of bodies, no storage. Prompts and
   skills come from the browser (so they update with Ctrl+F5, not with `wrangler deploy`).
   *Done when:* Worker tests with a stubbed Gemini; one real call from the published page with the owner's key;
   limits verified against the current Cloudflare and Gemini documentation (sources in `HANDOFF.md`).
-- [ ] **1.3 Paid tier check.** Confirm the production key's project has billing enabled (the unpaid tier may use
+- [x] **1.3 Paid tier check.** Confirm the production key's project has billing enabled (the unpaid tier may use
   data to improve Google products). Record the date and the source in `HANDOFF.md`.
-- [ ] **1.4 Deploy** a new Worker, record version in `worker/DEPLOYMENT.md`, `config.js` points to it.
+- [x] **1.4 Deploy** a new Worker, record version in `worker/DEPLOYMENT.md`, `config.js` points to it.
 
 ## Phase 2 — Intake (no AI)
 
@@ -245,3 +245,4 @@ model behind the same proxy.
 | 2026-10-16 | 0.5: `README.md`, `docs/ARCHITECTURE.md` and `docs/HANDOFF.md` written. Phase 0 is complete. |
 | 2026-10-16 | 1.1: `POST /v1/auth` built. Code = 6 characters of a 32-letter alphabet (30 bits), hashes PBKDF2-SHA256 (20,000 iterations, stored per entry) in the secret `ACCESS_CODES`; token = HMAC-signed, 12 h, stateless, in page memory only. Lock-out in one SQLite Durable Object (the Rate Limiting binding is eventually consistent per location, checked against the docs): 5 attempts / 15 min per address then 15 min lock, 20 attempts / hour for all; attempts counted at start, refunded on success; fails closed (503). A guessing storm can lock the real users for up to an hour: accepted. The login dialog (`#access-dialog`) opens on page load when `ANNATERIA_API` is set and can be closed: the journal works without it. `requireUser()` is the gate every 1.2 route must call first. Codes are made by `worker/scripts/access-codes.mjs` (output outside the repository). Tests: web 423 → 432, Worker 5 → 30. Not verified: a real deployment (see HANDOFF). |
 | 2026-10-16 | 1.2: `POST /v1/model` built on `requireUser()`. Body `{ model, stream?, request }`; strict allow-list in `worker/src/model.js` (models, fields, part types, function tools only, inline MIME types, output tokens default 8192 / max 32768, 20 MiB), snake_case accepted and rewritten to camelCase, duplicate spellings refused. Streaming = pass-through of the `alt=sse` body. Generic error messages, only the status is logged, no retries in the Worker. Page side: `web/model-client.js` and a settings button for a one-call check. Gemini ids and limits re-checked in the docs (sources in HANDOFF; the docs contradict themselves on the inline limit, 20 MB used). Tests: web 432 → 442, Worker 30 → 51. Open: the real call (needs 1.4), `ALLOWED_MODELS` is a starting set until phase 3. |
+| 2026-10-16 | 1.4: Worker `annateria` deployed to `https://annateria.vitaliksh.workers.dev` (version `8d2350b4`, backend `2026.10.16.2`, source `215cdab`, tag `cloudflare-production-2026-10-16`), `config.js` points to it. Found while preparing the secrets: PowerShell appends a line break to piped values, which made a signing key invalid; secrets are now trimmed (tests added) and the Worker was redeployed before the owner set them. 1.2 and 1.3 closed by the owner's acceptance test on the published page (login with the real code, "בדיקת חיבור ל‑AI" answered by Gemini). 1.3: Google project "OCR project", Tier 1, seen by the owner in AI Studio on 16 Oct 2026 (see HANDOFF). The PBKDF2 hypothesis of 1.1 held in practice: login with 20,000 iterations and two hashes worked on the owner's account (plan not recorded; no CPU figure was measured). |

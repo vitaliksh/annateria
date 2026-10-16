@@ -8,10 +8,10 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 | What | Where | Version / how to check |
 | --- | --- | --- |
 | Web app | <https://vitaliksh.github.io/annateria/> (GitHub Pages, workflow `deploy-web.yml`, every push to `main` touching `web/`) | Build marker at the bottom of the sidebar: `YYYY.MM.DD · <short commit>`. After a deploy press Ctrl+F5 and compare it with `git rev-parse --short HEAD` |
-| Worker | **Not deployed.** `worker/wrangler.toml` names it `annateria`; step 1.4 deploys it and records version and URL in `worker/DEPLOYMENT.md` | `GET /health` once deployed |
+| Worker | `https://annateria.vitaliksh.workers.dev`, version `2026.10.16.2` (Cloudflare `8d2350b4`), record in `worker/DEPLOYMENT.md` | `GET /health` answers `BACKEND_VERSION` |
 | Predecessor | ocr: `https://vitaliksh.github.io/ocr/` and the Worker `rivhit-telegram-transfer` | Not touched from this repository |
 
-`web/config.js` sets `window.ANNATERIA_API` (empty until step 1.4); the sidebar then shows the Worker version.
+`web/config.js` sets `window.ANNATERIA_API` to the Worker URL; the sidebar shows the Worker version, and the login dialog opens on page load.
 
 ## How to run the checks
 
@@ -103,12 +103,23 @@ iterations in a new `ACCESS_CODES` (the count is stored per entry, no code chang
 - Not found in the docs I read: the exact limit of the request body on the Workers side (Cloudflare documents a body limit per plan; not checked) and
   the paid-tier data-use terms (that is step 1.3).
 
+## Paid tier of Gemini (step 1.3)
+
+- Date: 16 October 2026. Seen by the owner in Google AI Studio, page "Gemini API Spend": project **OCR project**
+  (`gen-lang-client-0360506095`) shows the badge **Tier 1**. The key of this project is the one stored as `GEMINI_API_KEY`.
+  The project "Default Gemini Project" is marked with a warning and "Work" is another work; neither is used.
+- Why it matters: the Gemini API terms (<https://ai.google.dev/gemini-api/terms>, read 16 Oct 2026) say that for Unpaid Services Google
+  uses prompts and answers to improve its products and "human reviewers may read, annotate, and process" them, and that for Paid Services it
+  does not use them for that and only logs them for a limited time to detect abuse. Grounding with Google Search is stored for 30 days (not used here).
+- The statement "Tier 1 means billing is enabled" is my reading of the badge, not a line quoted from Google. Open item: the owner sets a spend cap
+  ("Set spend cap") and uses a separate key for this project, so that its cost is visible on its own.
+- Prices on 16 Oct 2026 (<https://ai.google.dev/gemini-api/docs/pricing>, page dated 15 Oct): see the decision log of phase 3 when models are chosen.
+
 ## Not verified yet
 
 - Anything beyond opening a month and comparing data with ocr (owner check of 16 October 2026). The rest of the UI
   (Excel import, reports PDF, backup, transfer) was not clicked through after the 0.3 removals.
-- **Step 1.2 "done when" is only half met:** the Worker is tested against a stubbed Gemini; the real call from the published page with the
-  owner's key needs the deployed Worker (step 1.4) and `GEMINI_API_KEY`. Streaming and the timeouts (120 s / 300 s) were never run for real.
-- The Worker has never been deployed from this repository: the login was tested against the Worker code in node
-  (30 tests) and the dialog in jsdom, never against Cloudflare. Real CPU time of PBKDF2 and the Durable Object are unmeasured.
+- Streaming (`stream: true`) and the timeouts (120 s / 300 s) have never run against the real Gemini; only the non-streaming call was tried by the owner.
+- The lock-out was tested in node only, not by typing wrong codes five times in a browser. The CPU time of PBKDF2 was not measured (the login simply worked).
+- The Cloudflare plan of the account (Free or Paid) is not recorded.
 - The `deploy-web.yml` test job passed once on GitHub (Node 24); no other CI exists.
