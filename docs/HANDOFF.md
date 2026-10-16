@@ -12,8 +12,10 @@ works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
 **Done since:** phase 2 is complete: **2.1 Inbox model**, **2.2 Drop zone and picker**, **2.3 Inbox view** (all accepted by the owner) and
 **2.4 Phone guide** (`web/inbox-store.js`, `web/inbox-ui.js`, the help dialog in `index.html`). 2.4 still needs the owner's read-through on a real phone.
 
-**Next:** phase 3 (model bake-off, outside the repository; needs the owner's real documents and an answer key) or phase 4 (agent core, which starts
-with the tool contract `docs/AGENT_TOOLS.md`). The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
+**In progress:** step **4.1 Tool contract**: `docs/AGENT_TOOLS.md` is drafted (14 tools, the run, limits, enforcement tests, 10 questions for the
+owner in its section 10). No code until the owner approves it; then tick 4.1 in `WORK_PLAN.md` and start 4.2 (orchestrator loop with a scripted fake model).
+Phase 3 (model bake-off, outside the repository; needs the owner's real documents and an answer key) can run in parallel.
+The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (not blocking): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
 project; give Anna her access code if not done; tell me the Cloudflare plan (Free or Paid) so it can be recorded.
