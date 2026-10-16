@@ -32,6 +32,8 @@ export async function loadApp({ businessKind = "" } = {}) {
   window.fetch = async () => ({ ok: false, status: 503, json: async () => ({}) });
   window.URL.createObjectURL = () => "blob:test";
   window.eval(readFileSync(join(root, "config.js"), "utf8"));
+  // The tests never talk to the real Worker (and jsdom has no modal dialogs for the login): no Worker is configured.
+  window.ANNATERIA_API = "";
   window.eval(readFileSync(join(root, "rivhit-mapping.js"), "utf8"));
   const globalsBefore = new Set(Object.getOwnPropertyNames(window));
   window.eval(await bundleApp());

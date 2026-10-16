@@ -1,2 +1,2 @@
-// Public deployment setting only. This is deliberately not a secret. Set to the Worker URL when step 1.4 deploys it.
-window.ANNATERIA_API = "";
+// Public deployment setting only. This is deliberately not a secret: the URL of the Worker (worker/DEPLOYMENT.md).
+window.ANNATERIA_API = "https://annateria.vitaliksh.workers.dev";
