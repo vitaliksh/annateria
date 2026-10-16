@@ -510,7 +510,7 @@ function applyBookkeeperRecheck(row, facts) {
   }
   queueDraftSave();
 }
-const tableRows = () => [...records.querySelectorAll("tr[data-document-id]")];
+let pcnJournal = null;
 // Clients with a PCN duty: yellow rows and a tick for invoices above the allocation ceiling (pcn-review.js).
 pcnJournal = setupPcnReview({
   records,

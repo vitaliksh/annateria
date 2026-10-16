@@ -33,7 +33,12 @@ export async function loadApp({ businessKind = "" } = {}) {
   window.URL.createObjectURL = () => "blob:test";
   window.eval(readFileSync(join(root, "config.js"), "utf8"));
   window.eval(readFileSync(join(root, "rivhit-mapping.js"), "utf8"));
+  const globalsBefore = new Set(Object.getOwnPropertyNames(window));
   window.eval(await bundleApp());
+  // app.js runs as an ES module (strict mode) in a browser, where assigning to an undeclared variable throws. jsdom lets
+  // it through and creates a global, so a forgotten `let` shows up here as a new window property.
+  const leaked = Object.getOwnPropertyNames(window).filter((name) => !globalsBefore.has(name) && name !== "__app");
+  if (leaked.length) throw new Error(`app.js created undeclared globals: ${leaked.join(", ")}`);
   if (businessKind) window.document.querySelector("#business-kind").value = businessKind;
   return { window, document: window.document, app: window.__app, rows: () => [...window.document.querySelectorAll("#records tr[data-document-id]")] };
 }
