@@ -9,8 +9,10 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 Worker tag is `cloudflare-production-2026-10-16`. The owner accepted the published page: months open and match ocr, the access code
 works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
 
-**Next:** phase 2 (intake without AI), first step **2.1 Inbox model** (`inbox/<client>/`, `inbox/_unsorted/`, `inbox/index.json` with
-SHA-256, dedup, unit tests). Phase 3 (model bake-off, outside the repository) can run in parallel; it needs the owner's real documents and
+**Done since:** step **2.1 Inbox model** (`web/inbox-store.js`: `addToInbox`, `ensureInbox`, `readInboxIndex`; no UI, not wired into `app.js`).
+
+**Next:** phase 2, step **2.2 Drop zone and picker** (UI that calls `addToInbox`; type filter and the "N files, M duplicates skipped" line;
+the client folders for `ensureInbox` come from the loaded clients' directory names). Phase 3 (model bake-off, outside the repository) can run in parallel; it needs the owner's real documents and
 an answer key. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (not blocking): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
@@ -47,7 +49,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 442 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 462 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -70,6 +72,8 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   `pcn-review.js` / `pcn-review-ui.js` (clients with a PCN duty).
 - **Intake rules as code:** `intake-facts.js`, `intake-index.js` (year, period, duplicates), `bookkeeper-flow.js`
   (leftover of the ocr bookkeeper agent, no UI wired since 0.3).
+- **Inbox:** `inbox-store.js` (originals dropped by the user, `inbox/index.json`, SHA-256 dedup against the inbox and all declaration
+  images; the Windows file-name rules live here). Phase 2 builds the UI on it. The backup already copies `inbox/` with the rest of the root.
 - **Classification:** `rivhit-mapping.js` (Form 6111 map), `custom-rivhit-mapping.js`, `chart-of-accounts.js`,
   `ledger-*.js` (read the classification ledger, fix codes, reconcile with declarations).
 - **Imports:** `excel-journal*.js`, `excel-import*.js` (Rivhit journal `.xlsx`), `income-report.js` (income-report PDF),
@@ -103,6 +107,10 @@ Listed because `AGENTS.md` asks for it; details in the decision log.
 Phase 1 is mostly new code: `web/access.js`, `web/access-ui.js`, `web/model-client.js`, `worker/src/*`. It touched inherited files as follows:
 `web/app.js` (imports, the login on load, the model client, the settings button), `web/index.html` (`#access-dialog`, the check button),
 `web/config.js` (the Worker URL), `web/package.json` (check list), and the test harness (`ANNATERIA_API` set to empty, the leaked-globals check).
+
+## Changes to inherited code (phase 2)
+
+- 2.1: `web/package.json` (check list) and `web/test/memory-binary-directory.mjs` (additive `removeEntry`). No production module changed.
 
 ## Dead code kept on purpose (decide in phase 4)
 

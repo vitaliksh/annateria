@@ -44,6 +44,9 @@ export function binaryDirectory(name = "root", state = { failures: [] }) {
       }
       return fileHandle(child);
     },
+    async removeEntry(child) {
+      if (!children.delete(child)) throw notFound();
+    },
     async *entries() {
       for (const [childName, child] of children) yield [childName, child.kind === "file" ? fileHandle(childName) : child];
     },
