@@ -1,9 +1,6 @@
 import { setupWorkspaceControls } from "./workspace.js";
-import { writeFile } from "./document-package.js";
-import { buildClassificationCodesReport, buildPdfReport } from "./pdf-report.js";
 import { pdfSourceFileName, renderPdfPages, validatePdfFile } from "./pdf-import.js";
 import {
-  createDraftExportDirectory,
   finalizeDeclaration,
   reopenLockedDeclaration,
   loadDeclaration,
@@ -11,7 +8,6 @@ import {
   saveDraft,
   saveSourceImage,
 } from "./declaration-store.js";
-import { buildRivhitImport, draftExportManifest, validateRivhitImport } from "./rivhit-export.js";
 import { chartForClient, readChartOfAccounts, readClientChart } from "./chart-of-accounts.js";
 import { setupLedgerCheck } from "./ledger-check-ui.js";
 import { setupRowsMove } from "./rows-move-ui.js";
@@ -77,7 +73,6 @@ const inactive = document.querySelector("#inactive"),
   journalTitle = document.querySelector("#journal-title"),
   backendVersion = document.querySelector("#backend-version"),
   dataRootTitle = document.querySelector("#data-root-title"),
-  createPdf = document.querySelector("#create-pdf"),
   closeDeclarationButton = document.querySelector("#close-declaration"),
   reopenDeclarationButton = document.querySelector("#reopen-declaration"),
   declarationBadge = document.querySelector("#declaration-badge"),
@@ -101,15 +96,12 @@ const inactive = document.querySelector("#inactive"),
   saveCustomClassification = document.querySelector("#save-custom-classification"),
   manageClassifications = document.querySelector("#manage-classifications"),
   classificationManagementDialog = document.querySelector("#classification-management-dialog"),
-  customClassificationList = document.querySelector("#custom-classification-list"),
-  exportValidationDialog = document.querySelector("#export-validation-dialog"),
-  exportValidationList = document.querySelector("#export-validation-list");
+  customClassificationList = document.querySelector("#custom-classification-list");
 let dataRoot = null,
   workspace = null,
   committedWorkspace = null,
   currentDeclaration = null,
   currentDeclarationDirectory = null,
-  canonicalTemplate = null,
   session = null,
   telegramConnected = false,
   streamAbort = null,
@@ -161,85 +153,14 @@ function showError(message) {
   status.dataset.nextKind = "error";
   status.textContent = message;
 }
-function showExportValidation(issues) {
-  exportValidationList.replaceChildren(
-    ...issues.map((issue) => {
-      const item = document.createElement("li");
-      item.textContent = issue.message;
-      return item;
-    }),
-  );
-  status.textContent = "נמצאו שגיאות בטבלה; הייצוא לא נוצר.";
-  exportValidationDialog.showModal();
-}
-async function copyExportPath(path, button) {
-  try {
-    await navigator.clipboard.writeText(path);
-  } catch {
-    const input = document.createElement("textarea");
-    input.value = path;
-    input.style.position = "fixed";
-    input.style.opacity = "0";
-    document.body.append(input);
-    input.select();
-    document.execCommand("copy");
-    input.remove();
-  }
-  const previous = button.textContent;
-  button.textContent = "הועתק";
-  window.setTimeout(() => {
-    button.textContent = previous;
-  }, 1400);
-}
-function exportPaths(exportName) {
-  const base = [
-    dataRoot?.name,
-    "clients",
-    committedWorkspace?.directory?.name,
-    "declarations",
-    currentDeclaration?.month,
-    "exports",
-    exportName,
-  ]
-    .filter(Boolean)
-    .join("\\");
-  return { pdf: `${base}\\invoices.pdf`, txt: `${base}\\import.txt` };
-}
-function showExportResult({ title, message, exportName = "", error = false }) {
+function showExportResult({ title, message, error = false }) {
   const dialog = document.querySelector("#export-result-dialog"),
     heading = document.querySelector("#export-result-title"),
-    body = document.querySelector("#export-result-message"),
-    paths = document.querySelector("#export-result-paths");
+    body = document.querySelector("#export-result-message");
   heading.textContent = title;
   body.textContent = message;
   body.className = error ? "export-result-error" : "export-result-success";
-  paths.hidden = error;
-  if (!error) {
-    const values = exportPaths(exportName),
-      pdf = document.querySelector("#export-pdf-path"),
-      txt = document.querySelector("#export-txt-path"),
-      copyPdf = document.querySelector("#copy-export-pdf-path"),
-      copyTxt = document.querySelector("#copy-export-txt-path");
-    pdf.textContent = values.pdf;
-    txt.textContent = values.txt;
-    copyPdf.onclick = () => copyExportPath(values.pdf, copyPdf);
-    copyTxt.onclick = () => copyExportPath(values.txt, copyTxt);
-  }
   dialog.showModal();
-}
-async function validateExport(snapshots) {
-  const templateText = new TextDecoder("windows-1255").decode(await (await canonicalTemplate.getFile()).arrayBuffer()),
-    issues = validateRivhitImport({
-      templateText,
-      rows: snapshots,
-      mapping: rivhitMapping,
-      declarationMonth: currentDeclaration?.month,
-    });
-  if (issues.length) {
-    showExportValidation(issues);
-    return null;
-  }
-  return templateText;
 }
 const passkeyStorageKey = "rivhit-passkey-credential-id-v1";
 function passkeyCredentialId() {
@@ -294,9 +215,6 @@ function credentialJson(credential) {
     authenticatorAttachment: credential.authenticatorAttachment || undefined,
   };
 }
-function hasCanonicalTemplate() {
-  return workspaceControls?.hasCanonicalTemplate?.() || Boolean(canonicalTemplate);
-}
 function updateStartAvailability() {
   const open = currentDeclaration?.status === "open";
   const actions = declarationActions({ dataRoot, declaration: currentDeclaration, workspaceCommitted: committedWorkspace });
@@ -304,7 +222,6 @@ function updateStartAvailability() {
   importPdfMenu.disabled = !actions.canStart;
   importIncomeReportButton.disabled = !actions.canStart;
   closeDeclarationButton.disabled = !actions.canClose;
-  createPdf.disabled = !actions.canClose;
   declarationBadge.hidden = !currentDeclaration;
   declarationBadge.textContent = actions.open ? "פתוחה" : "נעולה";
   declarationBadge.dataset.state = actions.open ? "open" : "locked";
@@ -418,7 +335,6 @@ async function switchDataRoot(selected) {
   committedWorkspace = null;
   currentDeclaration = null;
   currentDeclarationDirectory = null;
-  canonicalTemplate = null;
   recordCount = 0;
   imageCount = 0;
   received = new Set();
@@ -484,7 +400,6 @@ const workspaceControls = setupWorkspaceControls({
   archivedToggle: document.querySelector("#toggle-archived-clients"),
   dataRootButton: document.querySelector("#select-data-root"),
   dataRootSummary: document.querySelector("#data-root-summary"),
-  templateButton: document.querySelector("#select-template"),
   creationPanel: document.querySelector("#new-client-form"),
   createButton: document.querySelector("#create-client"),
   deleteButton: document.querySelector("#delete-client"),
@@ -521,7 +436,6 @@ const workspaceControls = setupWorkspaceControls({
     hint: document.querySelector("#client-tax-hint"),
   },
   summary: workspaceSummary,
-  templateSummary: document.querySelector("#template-summary"),
   onDataRoot: switchDataRoot,
   onDeclaration: activateDeclaration,
   onUpdated: updateWorkspace,
@@ -529,10 +443,6 @@ const workspaceControls = setupWorkspaceControls({
     clearActiveClient(selected.config.clientId);
   },
   onDeclarationRemoved: clearActiveDeclaration,
-  onTemplate: (selected) => {
-    canonicalTemplate = selected;
-    updateStartAvailability();
-  },
   onDeleted: clearActiveClient,
   onError: showError,
 });
@@ -1989,69 +1899,6 @@ records.addEventListener("change", (event) => {
   if (row && (column === 8 || column === 9 || column === 10)) manualAmountChanged(row, column);
   if (row && column === 6) updateDuplicateState(row);
   queueDraftSave();
-});
-createPdf.addEventListener("click", async () => {
-  if (
-    !committedWorkspace ||
-    !currentDeclaration ||
-    currentDeclaration.status !== "open" ||
-    !currentDeclarationDirectory
-  )
-    return showError("יש לבחור הצהרה פתוחה לפני הייצוא.");
-  const allRows = [...records.querySelectorAll("tr[data-document-id]")];
-  if (!allRows.length) return showError("אין שורות לייצוא.");
-  const snapshots = allRows.map((row, index) => ({ ...rowSnapshot(row), tableRow: index + 1 })),
-    reportRows = allRows
-      .map((row, index) => ({ ...snapshots[index], imageBlob: row.documentImage }))
-      .filter((row) => row.active);
-  if (!reportRows.length) return showError("יש לסמן לפחות שורה פעילה לייצוא.");
-  const missingImage = reportRows.find((row) => !row.imageBlob);
-  if (missingImage) return showError("לא נמצאה תמונה מקורית לאחת השורות הפעילות.");
-  createPdf.disabled = true;
-  status.textContent = "יוצר ייצוא טיוטה…";
-  try {
-    const templateText = await validateExport(snapshots);
-    if (!templateText) return;
-    await saveCurrentDraft();
-    const createdAt = new Date(),
-      importText = buildRivhitImport({
-        templateText,
-        rows: snapshots,
-        mapping: rivhitMapping,
-        declarationMonth: currentDeclaration.month,
-      }),
-      pdf = await buildPdfReport({ clientName: committedWorkspace.config.clientName, createdAt, rows: reportRows }),
-      classificationsPdf = await buildClassificationCodesReport({
-        clientName: committedWorkspace.config.clientName,
-        createdAt,
-        rows: snapshots,
-        mapping: rivhitMapping,
-        newCodes: newCustomCodes,
-      }),
-      { directory, name } = await createDraftExportDirectory(currentDeclarationDirectory, createdAt),
-      manifest = draftExportManifest({
-        declaration: currentDeclaration,
-        client: committedWorkspace.config,
-        createdAt,
-        rows: snapshots,
-      });
-    await Promise.all([
-      writeFile(directory, "invoices.pdf", pdf),
-      writeFile(directory, "classification-codes.pdf", classificationsPdf),
-      writeFile(directory, "import.txt", importText),
-      writeFile(directory, "manifest.json", JSON.stringify(manifest, null, 2)),
-    ]);
-    status.textContent = `ייצוא טיוטה נשמר: ${name}`;
-    showExportResult({ title: "הייצוא הושלם", message: "קובצי PDF ו-TXT נשמרו בהצלחה.", exportName: name });
-  } catch (error) {
-    if (error.name !== "AbortError") {
-      const message = `לא ניתן ליצור ייצוא טיוטה: ${error.message}`;
-      showError(message);
-      showExportResult({ title: "הייצוא נכשל", message, error: true });
-    }
-  } finally {
-    createPdf.disabled = false;
-  }
 });
 closeDeclarationButton.addEventListener("click", async () => {
   if (

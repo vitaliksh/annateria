@@ -182,28 +182,6 @@
   font-weight: 600;
 }
 
-.export-path-note {
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
-}
-
-.export-path-row {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
-  gap: var(--s2);
-  align-items: center;
-}
-
-.export-path-row code {
-  direction: ltr;
-  text-align: left;
-  overflow-wrap: anywhere;
-  padding: var(--s2);
-  background: var(--surface-muted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-
 .folder-path {
   width: 100%;
 }

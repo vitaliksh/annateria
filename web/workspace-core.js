@@ -1,17 +1,3 @@
-export const RIVHIT_COLUMN_COUNT = 186;
-
-export function firstNonEmptyLine(text) {
-  return String(text ?? "").replace(/^\uFEFF/, "").split(/\r?\n/).find((line) => line.trim() !== "") ?? null;
-}
-
-export function validateRivhitTemplateText(text) {
-  const line = firstNonEmptyLine(text);
-  if (line === null) return { valid: false, error: "התבנית ריקה." };
-  const columns = line.split("\t").length;
-  if (columns !== RIVHIT_COLUMN_COUNT) return { valid: false, error: `בשורה הלא-ריקה הראשונה יש ${columns} עמודות; נדרשות ${RIVHIT_COLUMN_COUNT}.`, columns };
-  return { valid: true, columns };
-}
-
 // How often the client files its VAT return and its advances: every month or every two months.
 export const REPORT_PERIODS = ["monthly", "bimonthly"];
 

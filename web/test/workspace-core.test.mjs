@@ -1,18 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { REPORT_PERIODS, RIVHIT_COLUMN_COUNT, firstNonEmptyLine, normalizeClientTaxProfile, normalizeWorkspaceConfig, taxIdProblem, validateRivhitTemplateText } from "../workspace-core.js";
-
-test("выбирает первую непустую строку и убирает BOM", () => {
-  assert.equal(firstNonEmptyLine("\uFEFF\r\n\r\nодин\tдва\r\n"), "один\tдва");
-});
-test("принимает шаблон с 186 колонками", () => {
-  assert.deepEqual(validateRivhitTemplateText(Array(RIVHIT_COLUMN_COUNT).fill("x").join("\t")), { valid: true, columns: 186 });
-});
-test("отклоняет пустой и шаблон с неверным количеством колонок", () => {
-  assert.equal(validateRivhitTemplateText(" \r\n").valid, false);
-  const result = validateRivhitTemplateText("a\tb");
-  assert.equal(result.valid, false); assert.equal(result.columns, 2);
-});
+import { REPORT_PERIODS, normalizeClientTaxProfile, normalizeWorkspaceConfig, taxIdProblem } from "../workspace-core.js";
 
 test("нормализует корректную конфигурацию клиента", () => {
   const result = normalizeWorkspaceConfig({ clientId: "id", clientName: " Клиент ", businessActivity: " Спорт ", businessKind: "home" });
