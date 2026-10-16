@@ -3,6 +3,37 @@
 Facts a new developer or agent needs that the code does not say. Keep it true: update it in the commit that changes
 the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must not be broken are in `../AGENTS.md`.
 
+## Start here (state at the end of 16 October 2026)
+
+**Done:** phases 0 and 1 (steps 0.1–1.4), all committed and pushed to `main`; the last commit before this note is `e57b5e4`; the
+Worker tag is `cloudflare-production-2026-10-16`. The owner accepted the published page: months open and match ocr, the access code
+works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
+
+**Next:** phase 2 (intake without AI), first step **2.1 Inbox model** (`inbox/<client>/`, `inbox/_unsorted/`, `inbox/index.json` with
+SHA-256, dedup, unit tests). Phase 3 (model bake-off, outside the repository) can run in parallel; it needs the owner's real documents and
+an answer key. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
+
+**Open items for the owner** (not blocking): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
+project; give Anna her access code if not done; tell me the Cloudflare plan (Free or Paid) so it can be recorded.
+
+**Rules of the house** are in `AGENTS.md` (Russian; answer the owner in Russian, "ты", Vitalik; code, comments and commits in English).
+Commit messages end with the `Co-Authored-By` line given by the session. One step = one commit; tests, docs and the plan checkboxes in the
+same commit. A push to `main` publishes GitHub Pages when `web/` changed, so push only what is tested.
+
+### Working notes (things that cost time in this project)
+
+- **Secrets never pass through the chat or the agent.** The owner sets Worker secrets in his own terminal (`worker/README.md`). Do not read
+  `worker/.dev.vars`. `gh` is not installed; the owner creates GitHub repositories and Cloudflare things by hand; `npx wrangler deploy` works
+  (logged in as the owner).
+- **jsdom is not a browser.** It lets `pcnJournal = ...` (undeclared) pass, has no modal `<dialog>`, and `"use strict"` does not help there. The
+  harness (`web/test/app-harness.mjs`) therefore fails on undeclared globals and sets `ANNATERIA_API = ""`. After a removal or refactor in
+  `app.js`, open a month in a browser on the published page: 0.3 broke this once.
+- **Editing big files:** the repository is checked out with CRLF (Git autocrlf warnings are normal). Scripts that replace text should
+  normalise `
+` first. Long here-documents with apostrophes or backticks sometimes break the shell tool; write such files with the file tool.
+- **A check that finds nothing is not a proof**: when removing code, grep for every removed identifier and also for removed `let` / `const`.
+- Cloudflare, Gemini, browser APIs and laws change: check the official docs and put source and date in this file (sections below).
+
 ## Deployed versions
 
 | What | Where | Version / how to check |
@@ -17,7 +48,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 ```powershell
 cd web;    npm ci; npm test; npm run check   # node --test, 442 tests; check = node --check on every module
-cd worker; npm ci; npm test; npm run check   # 51 tests; check = wrangler deploy --dry-run
+cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
 `npm ci` warns that `esbuild` / `workerd` install scripts are blocked; tests and checks work anyway. The app tests load the
@@ -67,6 +98,12 @@ Listed because `AGENTS.md` asks for it; details in the decision log.
 - 0.4: build marker token in `index.html`; removed a duplicated `id="backend-version"`.
 - 0.3 follow-up: restored `let pcnJournal` (see the decision log).
 
+## Changes to inherited code (phase 1)
+
+Phase 1 is mostly new code: `web/access.js`, `web/access-ui.js`, `web/model-client.js`, `worker/src/*`. It touched inherited files as follows:
+`web/app.js` (imports, the login on load, the model client, the settings button), `web/index.html` (`#access-dialog`, the check button),
+`web/config.js` (the Worker URL), `web/package.json` (check list), and the test harness (`ANNATERIA_API` set to empty, the leaked-globals check).
+
 ## Dead code kept on purpose (decide in phase 4)
 
 `bookkeeper-flow.js` and `applyBookkeeperPlan` / `applyBookkeeperRecheck` in `app.js` (the row `processing` flag still
@@ -100,6 +137,12 @@ iterations in a new `ACCESS_CODES` (the count is stored per entry, no code chang
 - Inline data limits **disagree between pages**: "20MB total request size" on the image-understanding page, "100 MB per request, 50 MB for PDFs" on
   the file-input page. The Worker uses the smaller one (20 MiB). A phone photo can be bigger: the page must shrink it first (phase 2/4).
 - Images: PNG, JPEG, WEBP, HEIC, HEIF; up to 3,600 per request. PDF: up to 50 MB / 1,000 pages, 258 tokens a page.
+- Prices on 16 October 2026 (<https://ai.google.dev/gemini-api/docs/pricing>, dated 15 Oct), paid tier, USD per 1M tokens, input / output:
+  `gemini-3.5-flash-lite` 0.30 / 2.50; `gemini-3.6-flash` and `gemini-3.8-flash` 0.75 / 3.75 until 31 Dec 2026, then 1.50 / 7.50;
+  `gemini-3.1-pro-preview` 2.00 / 12.00; `gemini-4-argon` 2.00 / 10.00 until 30 Nov 2026, then 4.00 / 20.00. Batch is half. Output includes thinking.
+  A rough estimate (4k tokens in, 0.5k out) is 0.25 cent a document with Flash-Lite, 0.5 cent with Flash, about 1.3 cents with Pro or Argon, so price is
+  not the deciding factor; accuracy is. Provisional view before phase 3 (not measured): documents and assistant on `gemini-3.8-flash`, a Pro/Argon
+  model as the fallback for hard documents, Flash-Lite for small jobs.
 - Not found in the docs I read: the exact limit of the request body on the Workers side (Cloudflare documents a body limit per plan; not checked) and
   the paid-tier data-use terms (that is step 1.3).
 

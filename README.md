@@ -10,9 +10,11 @@ the sidebar is `date · short commit`).
 
 ## Status
 
-Phase 0 (baseline) is done: the code of the ocr project is copied, its Telegram, QR, passkey and Rivhit-export parts are
-removed, the page is published. For now the app has **no AI and no photo intake**; rows come from the Excel import and the
-income-report PDF import. What is next and why: [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
+Phases 0 and 1 are done: the code of the ocr project is copied and cleaned, the page is published, and the Worker is
+deployed with the access code (`/v1/auth`) and the Gemini proxy (`/v1/model`). The login dialog and the settings button
+"בדיקת חיבור ל‑AI" work on the published page. The app still has **no photo intake and no assistant**; rows come from the
+Excel import and the income-report PDF import. Next: phase 2 (inbox) and phase 3 (model choice). Where to start:
+[`docs/HANDOFF.md`](docs/HANDOFF.md), section "Start here"; the plan: [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
 
 ## Layout
 
@@ -28,7 +30,7 @@ income-report PDF import. What is next and why: [`docs/WORK_PLAN.md`](docs/WORK_
 ```powershell
 py -m http.server 8000 --directory web      # open http://127.0.0.1:8000, pick a COPY of a data folder
 cd web;    npm ci; npm test; npm run check  # 442 tests
-cd worker; npm ci; npm test; npm run check  # 51 tests (check = wrangler dry run)
+cd worker; npm ci; npm test; npm run check  # 54 tests (check = wrangler dry run)
 ```
 
 ## For developers and AI agents
