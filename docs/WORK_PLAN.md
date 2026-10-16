@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status: **plan agreed 16 October 2026; step 0.1 done.** This file is the single source of truth for what is
+Status: **plan agreed 16 October 2026; steps 0.1–0.2 done.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -75,7 +75,7 @@ Goal: a working copy of the ocr web app in this repository, published, with the 
   real data). Copy `.gitignore` and adapt paths. Copy the specs that stay valid (`REPORTS_SPEC.md`,
   `BACKUP_SPEC.md`, `EXCEL_IMPORT_SPEC.md`) into `docs/` with a "inherited from ocr" note.
   *Done when:* `npm test` and `npm run check` are green in `web/` and `worker/` exactly as in ocr (same test count).
-- [ ] **0.2 Decide origin and storage names.** GitHub Pages of `vitaliksh/annateria` is served from the same
+- [x] **0.2 Decide origin and storage names.** GitHub Pages of `vitaliksh/annateria` is served from the same
   origin `vitaliksh.github.io` as ocr, so IndexedDB, localStorage and folder-permission handles are **shared**
   between the two apps. Decide: new database names (clean separation) or deliberate sharing (the recovery key
   and the data-root handle carry over). Record in the decision log.
@@ -236,3 +236,4 @@ model behind the same proxy.
 | 2026-10-16 | Sync: local data root per PC; encrypted write-once store in a shared Drive folder; fast-forward only; baton. |
 | 2026-10-16 | Only the paid Gemini tier for client documents. |
 | 2026-10-16 | 0.1: copied only git-tracked files of `ocr/telegram-web` → `web/` and `ocr/cloudflare-worker` → `worker/` (ocr commit `457491e`); baseline in ocr and here: web 455 tests, worker 41. `.gitignore` rewritten (ocr ignored every `*.json`); packages keep their ocr names until 0.3. `npm ci` blocks esbuild/workerd postinstall scripts (npm warns) — tests and checks pass anyway. |
+| 2026-10-16 | 0.2: **separate storage from ocr.** IndexedDB is now `annateria-workspaces-v1` (was `rivhit-local-workspaces-v1`), defined once as `DATABASE_NAME` in `backup-handles.js` and imported by `workspace.js` (changed existing code: that one constant and an import). Consequences: after the first open, Anna/Vitalik pick the data root again (no auto-open of the ocr folder, so the two apps never write one folder by accident) and enter the recovery code again (the backup key is derived from the paper code, so nothing is lost). The on-disk format names `annateria-backup`, `annateria-key/index/snapshot/transfer` are untouched (ocr compatibility). localStorage keys `annateria-column-widths-v2` and `annateria-sidebar-v1` are the same in ocr and here, so these two UI preferences are shared; harmless, revisit if layouts diverge. The passkey localStorage key goes away in 0.3. Test: `web/test/storage-names.test.mjs` (web now 457 tests). |

@@ -1,6 +1,7 @@
 // Folder handles of the backup destinations and the non-extractable backup key live in the browser's IndexedDB (a handle or a
 // CryptoKey cannot be written to a file). Same database as the workspace handles, other keys; per PC, never the source of truth.
-const DATABASE = "rivhit-local-workspaces-v1";
+// Own database name: the ocr app on the same origin uses another one, so handles and keys are not shared (WORK_PLAN 0.2).
+export const DATABASE_NAME = "annateria-workspaces-v1";
 const STORE = "settings";
 
 export const BACKUP_FOLDER_KEYS = { cloud: "backup-folder-cloud", usb: "backup-folder-usb" };
@@ -8,7 +9,7 @@ export const BACKUP_KEY_NAME = "backup-key";
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DATABASE, 1);
+    const request = indexedDB.open(DATABASE_NAME, 1);
     request.onupgradeneeded = () => request.result.createObjectStore(STORE);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);

@@ -5,8 +5,9 @@ import { declarationMonth } from "./declaration-core.js";
 import { confirmDialog, dialogResult } from "./confirm-dialog.js";
 import { MONTH_FORMAT_ERROR, formatMonth, parseMonthText } from "./month-format.js";
 import { renderSidebarClients } from "./sidebar-clients.js";
+import { DATABASE_NAME } from "./backup-handles.js";
 
-const configName = "workspace.json", databaseName = "rivhit-local-workspaces-v1", templateName = "PKUDA_AI_TEST.TXT", decoder = new TextDecoder("windows-1255");
+const configName = "workspace.json", databaseName = DATABASE_NAME, templateName = "PKUDA_AI_TEST.TXT", decoder = new TextDecoder("windows-1255");
 function openDatabase() { return new Promise((resolve, reject) => { const request = indexedDB.open(databaseName, 1); request.onupgradeneeded = () => request.result.createObjectStore("settings"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); }
 async function setting(key, value) { const database = await openDatabase(); return new Promise((resolve, reject) => { const transaction = database.transaction("settings", value === undefined ? "readonly" : "readwrite"), request = value === undefined ? transaction.objectStore("settings").get(key) : transaction.objectStore("settings").put(value, key); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }).finally(() => database.close()); }
 async function validateTemplateFile(file) { const result = validateRivhitTemplateText(decoder.decode(await file.arrayBuffer())); if (!result.valid) throw new Error(result.error); }
