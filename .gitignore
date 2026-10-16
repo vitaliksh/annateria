@@ -1,0 +1,22 @@
+node_modules/
+.wrangler/
+.env
+.dev.vars
+*.pid
+
+# Real client documents and data never go into this repository (AGENTS.md, privacy).
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.heic
+*.heif
+*.pdf
+*.xlsx
+*.xls
+*.csv
+inbox/
+clients/
+processed_documents/
+tmp/

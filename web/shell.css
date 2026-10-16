@@ -1,0 +1,275 @@
+/* Application shell: top bar, scrolling workspace, status bar. The third grid row is reserved for the future AI dock. */
+
+body {
+  overflow: hidden;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Top bar. The wordmark is last in the flow, which puts it in the top-left corner of the right-to-left page. */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 56px;
+  padding: 0 var(--s4);
+  padding-inline-end: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.wordmark {
+  order: 99;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0 var(--s5);
+  border-inline-start: 1px solid var(--border);
+  background: var(--surface-muted);
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+  color: var(--text-strong);
+}
+
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  padding-inline-start: var(--s3);
+  border-inline-start: 1px solid var(--border);
+}
+
+.crumb strong {
+  overflow: hidden;
+  font-weight: 600;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-spacer {
+  flex: 1;
+}
+
+/* Menus: <details class="menu"> with a button-like summary and a floating panel */
+.menu {
+  position: relative;
+}
+
+.menu > summary {
+  list-style: none;
+  user-select: none;
+}
+
+.menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu > summary.secondary {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.menu > summary.secondary:hover {
+  background: var(--surface-muted);
+}
+
+.menu-panel {
+  position: absolute;
+  z-index: 40;
+  inset-inline-end: 0;
+  top: calc(100% + 6px);
+  display: grid;
+  gap: 2px;
+  min-width: 230px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.menu-panel button {
+  justify-content: flex-start;
+  width: 100%;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+  text-align: start;
+}
+
+.menu-panel button:hover {
+  background: var(--surface-muted);
+  border-color: transparent;
+}
+
+.menu-panel button:disabled {
+  background: transparent;
+}
+
+.menu-panel hr {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.menu-panel #inactive {
+  display: contents;
+}
+
+.menu-panel #inactive[hidden] {
+  display: none;
+}
+
+.menu-note {
+  margin: 0;
+  padding: 2px 10px 4px;
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+}
+
+/* Workspace: the only scrolling region of the page */
+.workspace {
+  overflow: auto;
+  padding: 0 var(--s5);
+}
+
+/* The top spacing belongs to the children: a sticky table header sticks to the padding edge of the scroller, so
+   padding on the scroller itself would leave a gap above it. */
+.workspace > * {
+  padding-top: var(--s4);
+  padding-bottom: var(--s5);
+}
+
+.card {
+  margin: 0 0 var(--s4);
+  padding: var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 1px 2px var(--shadow-color-sm);
+}
+
+.upload-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s4) var(--s5);
+  align-items: center;
+}
+
+.upload-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.upload-heading h2 {
+  margin: 0;
+  font-size: var(--fs-lg);
+}
+
+.upload-heading p {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+}
+
+.upload-actions {
+  display: inline-flex;
+  gap: var(--s2);
+}
+
+.upload-strip .qr-panel {
+  margin: 0;
+  gap: var(--s4);
+}
+
+.qr-panel {
+  display: flex;
+  align-items: center;
+}
+
+.qr-panel p {
+  max-width: 320px;
+  margin: 0;
+  color: var(--text-muted);
+}
+
+#qr {
+  display: block;
+  width: 132px;
+  height: 132px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.journal-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+}
+
+.journal-heading p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+/* Status bar */
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  min-height: 34px;
+  padding: 6px var(--s4);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+}
+
+.statusbar p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-requirements {
+  color: var(--text-muted);
+}
+
+#status {
+  color: var(--text);
+}
+
+#status[data-kind="error"] {
+  color: var(--error);
+  font-weight: 600;
+}
+
+#status:not(:empty)::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-inline-end: var(--s2);
+  border-radius: 50%;
+  background: var(--info);
+}
+
+#status[data-kind="error"]::before {
+  background: var(--error);
+}

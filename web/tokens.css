@@ -1,0 +1,111 @@
+/* Design tokens. Every colour, font, radius, spacing and shadow used by the other stylesheets comes from here. */
+
+@font-face {
+  font-family: "Heebo Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("fonts/heebo-hebrew-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0307-0308, U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F;
+}
+
+@font-face {
+  font-family: "Heebo Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("fonts/heebo-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Frank Ruhl Libre Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 900;
+  src: url("fonts/frank-ruhl-libre-hebrew-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0307-0308, U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F;
+}
+
+@font-face {
+  font-family: "Frank Ruhl Libre Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 900;
+  src: url("fonts/frank-ruhl-libre-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  /* Type */
+  --font-ui: "Heebo Variable", Heebo, "Segoe UI", system-ui, Arial, sans-serif;
+  --font-display: "Frank Ruhl Libre Variable", "Frank Ruhl Libre", Georgia, serif;
+  --fs-xs: .75rem;
+  --fs-sm: .8125rem;
+  --fs-md: .9375rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.5rem;
+
+  /* Spacing (4px grid) */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+
+  /* Shape */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+
+  /* Neutrals (warm) */
+  --white: #fff;
+  --bg: #faf9f5;
+  --surface: #fff;
+  --surface-muted: #f5f4ee;
+  --surface-hover: #eeece3;
+  --border-subtle: #ece9de;
+  --border: #e0ddd0;
+  --border-strong: #c9c5b4;
+  --text-strong: #141413;
+  --text: #3d3929;
+  --text-muted: #6b6759;
+  --text-faint: #8d8979;
+  --ink: #3d3929;
+  --ink-deep: #1a1a18;
+
+  /* Accent (terracotta): primary buttons and active items only */
+  --accent: #b5542f;
+  --accent-hover: #9c4627;
+  --accent-soft: #f9ece6;
+  --accent-border: #e8c3b3;
+
+  /* Status colours: never the accent */
+  --success: #2f6b4a;
+  --success-soft: #e7f3ec;
+  --success-border: #b9d9c6;
+  --warning: #8a5a00;
+  --warning-soft: #fdf3dc;
+  --warning-border: #ecd197;
+  --error: #b3261e;
+  --error-soft: #fcebea;
+  --error-border: #efb8b4;
+  --pcn-row: #fff6bf;
+  --pcn-row-border: #e3c94a;
+  --info: #3f5f78;
+  --info-soft: #e9eff4;
+  --info-border: #c3d2de;
+
+  /* Layout */
+  --sidebar-w: 280px;
+  --sidebar-w-collapsed: 60px;
+
+  /* Elevation */
+  --scrim: rgba(20, 20, 19, .42);
+  --shadow-color-sm: rgba(20, 20, 19, .07);
+  --shadow: 0 4px 16px rgba(20, 20, 19, .1);
+  --shadow-lg: 0 18px 50px rgba(20, 20, 19, .24);
+  --shadow-drawer: -12px 0 42px rgba(20, 20, 19, .18);
+  --focus-ring: 0 0 0 3px rgba(181, 84, 47, .28);
+}

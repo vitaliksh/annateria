@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ANNATERIA</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="photo.css">
+  <link rel="stylesheet" href="dialogs.css">
+  <link rel="stylesheet" href="journal.css">
+  <link rel="stylesheet" href="reports.css">
+  <link rel="stylesheet" href="clients.css">
+  <link rel="stylesheet" href="backup.css">
+  <link rel="stylesheet" href="sidebar.css">
+  <link rel="stylesheet" href="shell.css">
+  <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js" defer></script>
+  <script src="config.js" defer></script>
+  <script src="rivhit-mapping.js" defer></script>
+  <script type="module" src="app.js"></script>
+  <script type="module" src="shell.js"></script>
+  <script type="module" src="sidebar.js"></script>
+  <script type="module" src="ui-polish.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="workspaces-drawer" class="sidebar" aria-label="ניווט">
+      <div class="sidebar-body">
+        <nav class="sidebar-nav" aria-label="ניווט ראשי"><button id="nav-clients" type="button" class="nav-item"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.4 3-5 6-5s5.4 1.6 6 5M16 5.5a3 3 0 0 1 0 5.6M18 14.4c1.7.7 2.7 2.2 3 4.6"/></svg><span class="label">כל הלקוחות</span></button><button id="nav-reports" type="button" class="nav-item" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span class="label">דוחות</span></button></nav>
+        <section class="clients-section" aria-labelledby="clients-title">
+          <div class="tree-section-heading"><h3 id="clients-title">לקוחות</h3><button id="show-new-client" type="button" class="tree-add"><span aria-hidden="true">+</span> לקוח חדש</button></div>
+          <p id="workspace-summary" class="workspace-summary" role="status"></p>
+          <div id="client-list" class="client-list" aria-label="רשימת לקוחות"></div>
+          <button id="toggle-archived-clients" type="button" class="archived-toggle secondary" hidden>ארכיון</button>
+        </section>
+      </div>
+      <footer class="sidebar-footer">
+        <button id="open-transfer" type="button" class="nav-item"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg><span class="label">העברה לקובץ</span></button>
+        <button id="open-backup" type="button" class="nav-item" data-level="warning"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg><span class="label">גיבוי</span></button>
+        <button id="open-settings" type="button" class="nav-item"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg><span class="label">הגדרות</span></button>
+        <div class="sidebar-versions"><p class="app-version drawer-version" aria-label="גרסת ממשק">גרסת ממשק: 2026.10.12.2 · 19:10 IDT</p><p id="backend-version" class="app-version drawer-version" aria-label="גרסת שרת">גרסת שרת: נבדקת…</p><p id="backend-version" class="app-version drawer-version" aria-label="גרסת שרת">גרסת שרת: נבדקת…</p></div>
+      </footer>
+      <div id="sidebar-resizer" class="sidebar-resizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב החלונית" tabindex="0"></div>
+    </aside>
+    <header class="topbar">
+      <button id="open-workspaces-drawer" type="button" class="icon-button" aria-label="הצגה והסתרה של החלונית" aria-controls="workspaces-drawer" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <h1 class="wordmark" dir="ltr">ANNATERIA</h1>
+      <div class="crumb"><nav id="breadcrumb" aria-label="ניווט"></nav><strong id="current-client" class="sr-only">לא נבחר לקוח</strong><span id="declaration-badge" class="badge" hidden></span></div>
+      <button id="stop-processing" type="button" class="stop" hidden>עצור עיבוד</button>
+      <span class="topbar-spacer"></span>
+      <button id="run-bookkeeper" type="button" class="journal-only" hidden>עיבוד חשבונאי</button>
+      <button id="open-reports" type="button" class="secondary journal-only">דוחות</button>
+      <details class="menu journal-only" id="add-documents-menu"><summary class="button">+ הוספת מסמכים</summary><div class="menu-panel"><div id="inactive"><p class="menu-note">מ‑Telegram</p><button id="start" type="button" disabled>העלאה מ‑Telegram (קוד QR)</button></div><p class="menu-note">מהמחשב</p><button id="import-pdf-menu" type="button" disabled>קובץ PDF…</button><button id="import-income-report" type="button" disabled>דוח הכנסות (PDF)…</button><button id="import-excel" type="button">ייבוא מ‑Excel…</button><button id="check-ledger" type="button">בדיקה מול כרטסת…</button></div></details>
+      <details class="menu journal-only" id="more-menu"><summary class="button secondary" aria-label="פעולות נוספות">⋯</summary><div class="menu-panel"><button id="close-declaration" type="button">נעילת הצהרה</button><button id="reopen-declaration" type="button" hidden>פתיחה מחדש</button><button id="move-rows" type="button">פיזור שורות לחודשים…</button><button id="run-bookkeeper-all" type="button">עיבוד חשבונאי לכל השורות…</button><hr><button id="export-declaration" type="button">ייצוא הצהרה לקובץ…</button><hr><button id="create-pdf" type="button">ייצוא Rivhit (ישן)</button></div></details>
+    </header>
+    <main class="workspace">
+      <section id="clients-view" class="view" aria-label="לקוחות"></section>
+      <section id="client-view" class="view" aria-label="כרטיס לקוח" hidden></section>
+      <section id="reports-view" class="view" aria-label="דוחות" hidden>
+        <div class="view-head"><h2>דוחות</h2></div>
+        <div class="card reports-card">
+          <div class="reports-controls"><label>דוח <select id="reports-kind"><option value="vat">דוח מס ערך מוסף</option><option value="advances">דוח מקדמות ע״פ מחזור</option><option value="profitLoss">דוח רווח והפסד</option><option value="ledger">כרטסת קודי מיון</option></select></label><label>מתקופה <input id="reports-from" type="text" class="month-field" inputmode="numeric" maxlength="7" placeholder="MM/YYYY" dir="ltr" autocomplete="off"></label><label>עד תקופה <input id="reports-to" type="text" class="month-field" inputmode="numeric" maxlength="7" placeholder="MM/YYYY" dir="ltr" autocomplete="off"></label><label>דיווח מע״מ <select id="reports-vat-period" disabled title="נקבע בפרטי הלקוח"><option value="monthly">חד‑חודשי</option><option value="bimonthly">דו‑חודשי</option></select></label><label>דיווח מקדמות <select id="reports-advances-period" disabled title="נקבע בפרטי הלקוח"><option value="monthly">חד‑חודשי</option><option value="bimonthly">דו‑חודשי</option></select></label><label>אחוז מקדמות <input id="reports-advance-percent" type="number" min="0" max="100" step="0.01"></label></div>
+          <div class="reports-actions"><button id="reports-show" type="button">הצגה והדפסה</button><button id="reports-save-all" type="button" class="secondary">שמירת כל המסמכים</button><p id="reports-error" role="alert"></p><p id="reports-status" role="status"></p></div>
+        </div>
+        <div id="reports-preview" class="card"></div>
+      </section>
+      <div id="journal-view" hidden>
+      <section id="active" class="card upload-strip" hidden>
+        <div class="upload-heading"><div><h2>העלאת מסמכים פעילה</h2><p id="connection" role="status">ממתין לחיבור Telegram…</p></div><span class="upload-actions"><button id="import-pdf" type="button" class="secondary">בחירת PDF מהמחשב</button><button id="finish" type="button" class="secondary">סיים העלאה</button></span></div>
+        <div class="qr-panel"><canvas id="qr" width="260" height="260" aria-label="קוד QR לחיבור Telegram"></canvas><p>סרוק את הקוד ב‑Telegram או <a id="telegram-link" target="_blank" rel="noopener">פתח Telegram</a>.</p></div>
+      </section>
+      <section class="journal card" aria-labelledby="journal-title">
+        <div class="journal-heading"><h2 id="journal-title" class="sr-only">לקוח והצהרה לא נבחרו</h2><p id="count">שורות ביומן: 0</p><span class="topbar-spacer"></span><details class="menu" id="filter-menu"><summary class="button secondary">סינון</summary><div class="menu-panel filter-panel" role="menu"></div></details><details class="menu" id="columns-menu"><summary class="button secondary">עמודות</summary><div class="menu-panel columns-panel"></div></details></div>
+        <p id="bookkeeper-plate" class="plate bookkeeper-plate" role="status" hidden></p>
+        <p id="pcn-plate" class="plate pcn-plate" role="status" hidden></p>
+        <div class="table-wrap"><table id="journal-table"><thead><tr><th data-col="index">#</th><th data-col="code">קוד מיון</th><th data-col="date">תאריך</th><th data-col="details">פרטים</th><th data-col="supplier">ספק</th><th data-col="supplierId">ע.מ./ת.ז</th><th data-col="reference">אסמכתא</th><th data-col="allocation">מספר הקצאה</th><th data-col="gross">כולל מע״מ</th><th data-col="net">ללא מע״מ</th><th data-col="vat">מע״מ</th><th data-col="vatPercent">% מוכר מע״מ</th><th data-col="expensePercent">% מוכר כהוצאה</th><th data-col="image">תמונה</th><th data-col="agent">החלטת הסוכן</th><th data-col="confidence">ביטחון</th><th data-col="status">סטטוס</th><th data-col="export">לייצוא</th><th data-col="delete">מחק</th></tr></thead><tbody id="records"><tr id="empty-row"><td colspan="19" class="empty">עדיין לא התקבלו מסמכים. <button type="button" class="secondary small" data-open-menu="add-documents-menu">הוספת מסמכים</button></td></tr></tbody></table></div><div id="journal-summary" class="summary-bar" role="status" hidden></div>
+      </section>
+      </div>
+    </main>
+    <footer class="statusbar"><p id="upload-requirements" class="upload-requirements" role="status"></p><p id="status" role="alert"></p></footer>
+  </div>
+  <div id="report-print" aria-hidden="true"></div>
+  <dialog id="confirm-dialog" class="workspace-dialog" aria-labelledby="confirm-dialog-title"><form method="dialog"><header><h2 id="confirm-dialog-title">אישור</h2><button value="cancel" aria-label="סגור" class="dialog-close">×</button></header><p id="confirm-dialog-message"></p><div class="dialog-actions"><button id="confirm-dialog-accept" type="button">אישור</button><span></span><button value="cancel" class="secondary">ביטול</button></div></form></dialog>
+  <dialog id="reopen-dialog" class="workspace-dialog" aria-labelledby="reopen-title"><form method="dialog"><header><h2 id="reopen-title">פתיחה מחדש של הצהרה</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header><p>ההצהרה תיפתח לעריכה והשורות שלה יוסרו מההיסטוריה עד לנעילה הבאה. הסיבה נשמרת ביומן ההצהרה.</p><label>סיבה <input id="reopen-reason" maxlength="300" autocomplete="off"></label><p id="reopen-error" role="alert"></p><div class="dialog-actions"><button id="reopen-confirm" type="button">פתיחה מחדש</button><span></span><button value="cancel" formnovalidate class="secondary">ביטול</button></div></form></dialog>
+  <dialog id="new-declaration-dialog" class="workspace-dialog" aria-labelledby="new-declaration-title"><form method="dialog"><header><h2 id="new-declaration-title">הצהרה חדשה</h2><button value="cancel" aria-label="סגור" class="dialog-close">×</button></header><div class="month-picker"><label>חודש <select id="new-declaration-month-name"><option value="01">ינואר</option><option value="02">פברואר</option><option value="03">מרץ</option><option value="04">אפריל</option><option value="05">מאי</option><option value="06">יוני</option><option value="07">יולי</option><option value="08">אוגוסט</option><option value="09">ספטמבר</option><option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option></select></label><label>שנה <select id="new-declaration-year"></select></label><input id="new-declaration-month" type="hidden"></div><p id="new-declaration-error" role="alert"></p><div class="dialog-actions"><button id="new-declaration-create" type="button">יצירה</button><span></span><button value="cancel" class="secondary">ביטול</button></div></form></dialog>
+  <dialog id="excel-import-dialog" class="workspace-dialog wizard-dialog" data-step="file" aria-labelledby="excel-import-title"><form method="dialog"><header><h2 id="excel-import-title">ייבוא יומן מ‑Excel</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header>
+    <ol class="stepper" aria-label="שלבי הייבוא"><li data-step-name="file">קובץ</li><li data-step-name="check">בדיקה</li><li data-step-name="month">הצהרה</li><li data-step-name="done">סיום</li></ol>
+    <div class="wizard-body">
+      <section data-panel="file"><p>קובץ ‎.xlsx של «ספר תקבולים תשלומים – יומן קליטה» מ‑Rivhit. השורות ייכנסו להצהרה של הלקוח שנבחר, לחודש שייבחר בשלב ההצהרה.</p><p id="excel-import-client" class="muted"></p><label>קובץ Excel <input id="excel-import-file" type="file" accept=".xlsx"></label><p id="excel-import-codes" class="muted" role="status"></p><button id="excel-import-codes-open" type="button" class="secondary">טעינת כרטסת קודי מיון של הלקוח…</button></section>
+      <div id="excel-import-details" hidden>
+        <section data-panel="check"><p id="excel-import-summary" class="summary-line"></p><ul id="excel-import-problems" class="problem-list"></ul><div id="excel-import-unknown" hidden><p id="excel-import-unknown-text">לשמות הבאים אין קוד מיון. יש להגדיר קוד וסוג לכל שם:</p><div id="excel-import-unknown-list"></div></div><ul id="excel-import-warnings" class="problem-list"></ul></section>
+        <section data-panel="month"><label>חודש הצהרה <input id="excel-import-month" type="text" class="month-field" inputmode="numeric" maxlength="7" placeholder="MM/YYYY" dir="ltr" autocomplete="off" required></label><p id="excel-import-target" role="status"></p><label id="excel-import-replace-label" class="check-line" hidden><input id="excel-import-replace" type="checkbox"> <span id="excel-import-replace-text"></span></label><label class="check-line"><input id="excel-import-close" type="checkbox"> לנעול את ההצהרה מיד אחרי הייבוא (לחודשים ישנים)</label></section>
+      </div>
+      <section data-panel="done"><p id="excel-import-result" class="plate plate-success" role="status"></p></section>
+    </div>
+    <p id="excel-import-error" role="alert"></p>
+    <div class="dialog-actions"><button id="excel-import-next" type="button" data-for="check">הבא</button><button id="excel-import-run" type="button" data-for="month" disabled>ייבוא</button><button id="excel-import-back" type="button" class="secondary" data-for="check month">חזרה</button><span></span><button value="cancel" formnovalidate class="secondary" data-for="file check month">ביטול</button><button value="cancel" formnovalidate data-for="done">סגירה</button></div></form></dialog>
+  <dialog id="upload-mode-dialog" class="workspace-dialog"><form method="dialog"><header><h2>טעינת תמונות לחבילה שנפתחה</h2><button value="cancel" aria-label="סגור" class="dialog-close">×</button></header><p>הטבלה שנפתחה נשמרת נעולה. האם להוסיף תמונות ורשומות לחבילה הקיימת, או להתחיל טבלה חדשה?</p><div class="dialog-actions"><button id="add-to-existing" type="button">הוספה לטבלה הקיימת</button><button id="start-new-table" type="button" class="secondary">טבלה חדשה</button><span></span><button value="cancel" class="secondary">ביטול</button></div></form></dialog>
+  <dialog id="passkey-enrollment-dialog" class="workspace-dialog" aria-labelledby="passkey-enrollment-title"><form method="dialog"><header><h2 id="passkey-enrollment-title">חיבור המחשב לשיפור AI</h2><button id="cancel-passkey-enrollment" value="cancel" aria-label="ביטול" class="dialog-close">×</button></header><p>זהו חיבור חד־פעמי למחשב זה. סרוק את הקוד ב‑Telegram, ואז לחץ על הכפתור כדי לאשר ב‑Windows Hello. בהמשך שיפור לפי היסטוריה יבקש רק Windows Hello.</p><div class="qr-panel"><canvas id="passkey-qr" width="260" height="260" aria-label="קוד QR לחיבור חד־פעמי של Telegram"></canvas><p><a id="passkey-telegram-link" target="_blank" rel="noopener">פתיחת Telegram</a></p></div><p id="passkey-enrollment-status" role="status">ממתין לחיבור Telegram…</p><div class="dialog-actions"><button id="continue-passkey-enrollment" type="button" class="secondary" disabled>המשך ל‑Windows Hello</button><span></span><button id="cancel-passkey-enrollment-action" value="cancel" class="secondary">ביטול</button></div></form></dialog>
+  <dialog id="ledger-codes-dialog" class="workspace-dialog wizard-dialog" aria-labelledby="ledger-codes-title"><form method="dialog"><header><h2 id="ledger-codes-title">קודי מיון של הלקוח</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header>
+    <div class="wizard-body"><p>«כרטסת קודי מיון» (‎.pdf או ‎.xlsx) מ‑Rivhit של הלקוח. הקודים והשמות שבה יהפכו לקודי המיון של הלקוח הזה בלבד.</p><p id="ledger-codes-client" class="muted"></p><label>קובץ כרטסת <input id="ledger-codes-file" type="file" accept=".pdf,.xlsx"></label>
+      <div id="ledger-codes-details" hidden><p id="ledger-codes-summary" class="summary-line"></p><ul id="ledger-codes-notes" class="problem-list"></ul><div id="ledger-codes-list"></div></div><p id="ledger-codes-error" role="alert"></p></div>
+    <div class="dialog-actions"><button id="ledger-codes-save" type="button" disabled>שמירה</button><span></span><button value="cancel" formnovalidate class="secondary">סגירה</button></div></form></dialog>
+  <dialog id="ledger-check-dialog" class="workspace-dialog wizard-dialog" aria-labelledby="ledger-check-title"><form method="dialog"><header><h2 id="ledger-check-title">בדיקה מול כרטסת</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header>
+    <div class="wizard-body"><p>«כרטסת קודי מיון» (‎.pdf או ‎.xlsx) מ‑Rivhit של הלקוח מכילה את כל הפעולות. הבדיקה משווה אותה להצהרות של הלקוח ומציעה להוסיף פעולות שחסרות ביומנים.</p><p id="ledger-check-client" class="muted"></p><label>קובץ כרטסת <input id="ledger-check-file" type="file" accept=".pdf,.xlsx"></label>
+      <div id="ledger-check-details" hidden><p id="ledger-check-summary" class="summary-line"></p><div id="ledger-check-list" class="ledger-missing-list"></div><div id="ledger-check-extra" hidden><p>שורות בהצהרות שאין להן התאמה בכרטסת (לא ישונו):</p><ul id="ledger-check-extra-list" class="problem-list"></ul></div></div><p id="ledger-check-error" role="alert"></p></div>
+    <div class="dialog-actions"><button id="ledger-check-add" type="button" disabled>הוספה</button><span></span><button value="cancel" formnovalidate class="secondary">סגירה</button></div></form></dialog>
+  <dialog id="rows-move-dialog" class="workspace-dialog wizard-dialog" aria-labelledby="rows-move-title"><form method="dialog"><header><h2 id="rows-move-title">פיזור שורות לחודשים</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header>
+    <div class="wizard-body"><p>לכל שורה מוצע החודש של תאריך המסמך, ולא לפני החודש הראשון שאחרי חודש שננעל (הוגש). שורות שנבחר להן חודש אחר יועברו לשם יחד עם התמונות; ההצהרה החסרה תיווצר.</p><p id="rows-move-client" class="muted"></p><p id="rows-move-summary" class="summary-line"></p><div id="rows-move-list" class="rows-move-list"></div>
+      <details id="rows-move-rest" hidden><summary id="rows-move-rest-title"></summary><div id="rows-move-rest-list" class="rows-move-list"></div></details><p id="rows-move-error" role="alert"></p></div>
+    <div class="dialog-actions"><button id="rows-move-run" type="button" disabled>העברה</button><span></span><button value="cancel" formnovalidate class="secondary">סגירה</button></div></form></dialog>
+  <dialog id="new-client-dialog" class="workspace-dialog" aria-labelledby="new-client-title"><form method="dialog"><header><h2 id="new-client-title">לקוח חדש</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header><div id="new-client-form" class="new-client-form"><label>שם הלקוח <input id="new-client-name" maxlength="120"></label><label>סוג פעילות העסק <input id="new-client-activity" maxlength="500"></label><label>סוג העסק <select id="new-client-kind"><option value="home">עסק בבית פרטי</option><option value="office">עסק במשרד</option></select></label><label>דיווח מע״מ <select id="new-client-vat-period"><option value="monthly">חד‑חודשי</option><option value="bimonthly">דו‑חודשי</option></select></label><label>דיווח מקדמות <select id="new-client-advances-period"><option value="monthly">חד‑חודשי</option><option value="bimonthly">דו‑חודשי</option></select></label><label>מספר עוסק מורשה <input id="new-client-vat-id" inputmode="numeric" maxlength="20" dir="ltr" autocomplete="off"></label><label>מספר מס הכנסה <input id="new-client-income-tax-id" inputmode="numeric" maxlength="20" dir="ltr" autocomplete="off"></label><label>אחוז מקדמות <input id="new-client-advance-percent" inputmode="decimal" maxlength="6" dir="ltr" autocomplete="off"></label><label><input id="new-client-pcn" type="checkbox"> חייב ביצירת קובץ PCN</label><p id="new-client-tax-hint" class="field-hint" role="status" hidden></p><label>חודש הצהרה ראשונה <input id="new-client-month" type="text" class="month-field" inputmode="numeric" maxlength="7" placeholder="MM/YYYY" dir="ltr" autocomplete="off"></label></div><p id="new-client-error" role="alert"></p><div class="dialog-actions"><button id="create-client" type="button">יצירת לקוח</button><span></span><button value="cancel" formnovalidate class="secondary">ביטול</button></div></form></dialog>
+  <dialog id="settings-dialog" class="workspace-dialog" aria-labelledby="settings-title"><form method="dialog"><header><h2 id="settings-title">הגדרות</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header><div class="application-settings-content"><section class="data-root-setting" aria-label="תיקיית נתונים"><h3>תיקיית נתונים</h3><p id="data-root-summary">טרם נבחרה תיקיית נתונים.</p><button id="select-data-root" type="button" class="secondary">בחירת תיקיית נתונים</button><label class="folder-path">נתיב מלא (להצגה בלבד) <input id="data-root-path" dir="ltr" maxlength="260" autocomplete="off" placeholder="D:\ANNATERIA"></label><p class="muted">הדפדפן אינו חושף את הנתיב המלא של התיקייה, לכן יש לרשום אותו כאן ידנית; הוא נשמר בתיקיית הנתונים. להעתקת הנתיב: בסייר הקבצים לבחור את התיקייה וללחוץ Ctrl+Shift+C.</p><p id="data-root-title" class="sr-only">תיקיית נתונים לא נבחרה</p></section><label for="model">מודל Gemini <select id="model"><option value="gemini-3.5-flash-lite" selected>gemini-3.5-flash-lite</option><option value="gemini-3.6-flash">gemini-3.6-flash</option><option value="gemini-3.5-flash">gemini-3.5-flash</option><option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option></select></label><div class="template-setting"><button id="select-template" type="button" class="secondary">בחירת תבנית Rivhit כללית</button><p id="template-summary">תבנית Rivhit כללית טרם נבחרה.</p></div><div class="template-setting"><button id="manage-classifications" type="button" class="secondary">ניהול קודי מיון</button></div><div class="template-setting"><button id="register-passkey" type="button" class="secondary">חיבור המחשב לשיפור AI</button><p id="passkey-summary">המחשב טרם חובר. נדרש חיבור Telegram חד־פעמי בלבד.</p></div></div><div class="dialog-actions"><span></span><button value="cancel" formnovalidate class="secondary">סגור</button></div></form></dialog>
+  <dialog id="backup-dialog" class="workspace-dialog" aria-labelledby="backup-title"><form method="dialog">
+    <header><h2 id="backup-title">גיבוי</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header>
+    <div class="backup-body">
+      <p id="backup-summary" class="plate" role="status"></p>
+      <section class="backup-slot" data-slot="cloud" aria-label="Google Drive">
+        <h3>Google Drive</h3>
+        <p class="muted">תיקייה שנמצאת בתוך Google Drive למחשב. הגיבוי מוצפן, והסנכרון נעשה על ידי Google Drive.</p>
+        <p data-role="folder"></p><p data-role="state"></p>
+        <div class="backup-actions"><button type="button" class="secondary" data-action="choose">בחירת תיקייה</button><button type="button" data-action="run">גיבוי עכשיו</button><button type="button" class="secondary" data-action="verify">בדיקת תקינות</button></div>
+      </section>
+      <section class="backup-slot" data-slot="usb" aria-label="כונן נייד">
+        <h3>כונן נייד (USB)</h3>
+        <p class="muted">גיבוי ידני פעם בחודש. אחרי הגיבוי מוציאים את הכונן מהמחשב.</p>
+        <p data-role="folder"></p><p data-role="state"></p>
+        <div class="backup-actions"><button type="button" class="secondary" data-action="choose">בחירת תיקייה</button><button type="button" data-action="run">גיבוי עכשיו</button><button type="button" class="secondary" data-action="verify">בדיקת תקינות</button></div>
+      </section>
+      <label class="check-line"><input id="backup-images" type="checkbox"> לכלול תמונות מקור וייצואים ישנים (כבד; בנייר יש עותק)</label>
+      <section aria-label="קוד שחזור">
+        <h3>קוד שחזור</h3>
+        <p id="backup-key-state"></p>
+        <div id="backup-code-box" hidden>
+          <p class="muted">רשום את הקוד ושמור אותו במקום בטוח (נייר בכספת). הוא מוצג פעם אחת בלבד, ובלעדיו אי אפשר לשחזר גיבוי.</p>
+          <output id="backup-code" dir="ltr"></output>
+          <label class="check-line"><input id="backup-code-saved" type="checkbox"> רשמתי ושמרתי את הקוד</label>
+          <button id="backup-code-confirm" type="button" disabled>שמירת הקוד במחשב</button>
+        </div>
+        <button id="backup-create-key" type="button" class="secondary">יצירת קוד שחזור</button>
+        <div id="backup-enter-box">
+          <label><span id="backup-enter-label">כבר יש לך קוד שחזור (למשל מהמחשב השני)?</span> <input id="backup-enter-code" dir="ltr" autocomplete="off"></label>
+          <button id="backup-use-code" type="button" class="secondary">שימוש בקוד</button>
+        </div>
+      </section>
+      <section aria-label="שחזור">
+        <h3>שחזור מגיבוי</h3>
+        <p class="muted">בחר את התיקייה שבה נשמר הגיבוי: זו התיקייה שמכילה את annateria-backup, או annateria-backup עצמה.</p>
+        <button id="backup-restore-choose" type="button" class="secondary">בחירת תיקיית גיבוי…</button>
+        <div id="backup-restore-details" hidden>
+          <label>גיבוי <select id="backup-restore-snapshot"></select></label>
+          <label>קוד שחזור (אם אינו שמור במחשב זה) <input id="backup-restore-code" dir="ltr" autocomplete="off"></label>
+          <button id="backup-restore-run" type="button">בחירת תיקיית יעד ריקה ושחזור</button>
+        </div>
+      </section>
+    </div>
+    <p id="backup-error" role="alert"></p>
+    <div class="dialog-actions"><span></span><button value="cancel" formnovalidate class="secondary">סגור</button></div></form></dialog>
+  <dialog id="transfer-dialog" class="workspace-dialog" aria-labelledby="transfer-title"><form method="dialog">
+    <header><h2 id="transfer-title">העברה בין מחשבים</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header>
+    <div class="transfer-body">
+      <p id="transfer-summary" class="plate" role="status"></p>
+      <section aria-label="ייצוא">
+        <h3>ייצוא לקובץ</h3>
+        <label>לקוח <select id="transfer-export-client"></select></label>
+        <label>חודש <select id="transfer-export-month"></select></label>
+        <label class="check-line"><input id="transfer-images" type="checkbox"> לכלול תמונות</label>
+        <p id="transfer-size"></p>
+        <button id="transfer-export" type="button">שמירה לקובץ…</button>
+      </section>
+      <section aria-label="ייבוא">
+        <h3>ייבוא מקובץ</h3>
+        <button id="transfer-open" type="button" class="secondary">בחירת קובץ…</button>
+        <div id="transfer-details" hidden>
+          <p id="transfer-info"></p>
+          <label>ייבוא ללקוח <select id="transfer-client"></select></label>
+          <p id="transfer-target"></p>
+          <button id="transfer-import" type="button">ייבוא</button>
+        </div>
+      </section>
+    </div>
+    <p id="transfer-error" role="alert"></p>
+    <div class="dialog-actions"><span></span><button value="cancel" formnovalidate class="secondary">סגור</button></div></form></dialog>
+  <dialog id="client-menu" class="workspace-dialog" aria-labelledby="client-menu-name"><form method="dialog"><header><h2 id="client-menu-name"></h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header><label>סוג פעילות העסק <input id="business-activity" maxlength="500" required></label><label>סוג העסק <select id="business-kind"><option value="home">עסק בבית פרטי</option><option value="office">עסק במשרד</option></select></label><label>דיווח מע״מ <select id="client-vat-period"><option value="monthly">חד‑חודשי</option><option value="bimonthly">דו‑חודשי</option></select></label><label>דיווח מקדמות <select id="client-advances-period"><option value="monthly">חד‑חודשי</option><option value="bimonthly">דו‑חודשי</option></select></label><label>מספר עוסק מורשה <input id="client-vat-id" inputmode="numeric" maxlength="20" dir="ltr" autocomplete="off"></label><label>מספר מס הכנסה <input id="client-income-tax-id" inputmode="numeric" maxlength="20" dir="ltr" autocomplete="off"></label><label>אחוז מקדמות <input id="client-advance-percent" inputmode="decimal" maxlength="6" dir="ltr" autocomplete="off"></label><label><input id="client-pcn" type="checkbox"> חייב ביצירת קובץ PCN</label><p id="client-tax-hint" class="field-hint" role="status" hidden></p><button id="save-client-settings" type="button" class="secondary">שמירת פרטי לקוח</button><div class="client-menu-actions"><button id="export-client" type="button" class="secondary">ייצוא לקוח לקובץ…</button><button id="archive-client" type="button" class="secondary">ארכוב לקוח</button><button id="restore-client" type="button" class="secondary" hidden>שחזור לקוח</button><button id="delete-client" type="button" class="delete">מחיקה לצמיתות</button></div></form></dialog>
+  <dialog id="custom-classification-dialog" class="workspace-dialog" aria-labelledby="custom-classification-title"><form method="dialog"><header><h2 id="custom-classification-title">הוספת קוד מיון חדש</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header><p>יש למלא את שני השדות כדי לשמור את הקוד.</p><label>קוד מיון <input id="custom-classification-code" inputmode="numeric" pattern="[0-9]{3}" maxlength="3" required></label><label>שם הקוד <input id="custom-classification-name" maxlength="120" required></label><p id="custom-classification-error" role="alert"></p><div class="dialog-actions"><button id="save-custom-classification" type="button">שמירה</button><span></span><button value="cancel" formnovalidate class="secondary">ביטול</button></div></form></dialog>
+  <dialog id="classification-management-dialog" class="workspace-dialog" aria-labelledby="classification-management-title"><form method="dialog"><header><h2 id="classification-management-title">ניהול קודי מיון</h2><button value="cancel" aria-label="סגור" class="dialog-close">×</button></header><p>אפשר למחוק רק קוד מותאם אישית שאינו בשימוש בטבלה הנוכחית.</p><div id="custom-classification-list"></div><div class="dialog-actions"><span></span><button value="cancel" class="secondary">סגור</button></div></form></dialog>
+  <dialog id="export-validation-dialog" class="workspace-dialog" aria-labelledby="export-validation-title"><form method="dialog"><header><h2 id="export-validation-title">לא ניתן ליצור ייצוא</h2><button value="cancel" aria-label="סגור" class="dialog-close">×</button></header><p>יש לתקן את השורות הבאות לפני הייצוא:</p><ul id="export-validation-list"></ul><div class="dialog-actions"><span></span><button value="cancel" class="secondary">סגור</button></div></form></dialog>
+  <dialog id="export-result-dialog" class="workspace-dialog export-result-dialog" aria-labelledby="export-result-title"><form method="dialog"><header><h2 id="export-result-title">תוצאת הייצוא</h2><button value="cancel" aria-label="סגור" class="dialog-close">×</button></header><p id="export-result-message" role="status"></p><div id="export-result-paths"><p class="export-path-note">הנתיבים מוצגים ביחס לתיקיית הנתונים שנבחרה. מטעמי אבטחה הדפדפן אינו חושף את אות הכונן.</p><div class="export-path-row"><span>PDF</span><code id="export-pdf-path" dir="ltr"></code><button id="copy-export-pdf-path" type="button" class="secondary">העתקת נתיב</button></div><div class="export-path-row"><span>TXT</span><code id="export-txt-path" dir="ltr"></code><button id="copy-export-txt-path" type="button" class="secondary">העתקת נתיב</button></div></div><div class="dialog-actions"><span></span><button value="cancel" class="secondary">סגור</button></div></form></dialog>
+  <section id="photo-window" class="photo-window" hidden aria-label="תמונת מסמך"><header><strong id="photo-title">תמונת מסמך</strong><span class="window-controls"><button id="close-photo" type="button" aria-label="סגור">×</button><span class="zoom-controls"><button id="zoom-out" type="button" aria-label="הקטן">−</button><button id="zoom-in" type="button" aria-label="הגדל">+</button></span></span></header><div id="photo-viewport"><img id="dialog-image" alt="תמונת מסמך" draggable="false"></div></section>
+</body>
+</html>

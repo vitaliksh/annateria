@@ -1,0 +1,91 @@
+/* Backup dialog and the status dot on its sidebar item. */
+#open-backup::after {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-inline-start: auto;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+#open-backup[data-level="ok"]::after {
+  background: var(--success);
+}
+
+#open-backup[data-level="warning"]::after {
+  background: var(--warning);
+}
+
+#open-backup[data-level="error"]::after {
+  background: var(--error);
+}
+
+.app-shell[data-sidebar="collapsed"] #open-backup::after {
+  display: none;
+}
+
+.backup-body,
+.transfer-body {
+  display: grid;
+  gap: var(--s3);
+}
+
+/* The result plate stays visible while the long dialog is scrolled */
+#backup-summary,
+#transfer-summary {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+}
+
+.backup-body h3,
+.transfer-body h3 {
+  margin: 0 0 var(--s1);
+}
+
+.backup-body p,
+.transfer-body p {
+  margin: 0;
+}
+
+.backup-slot {
+  display: grid;
+  gap: var(--s1);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.backup-slot [data-state="stale"] {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+#backup-code {
+  display: block;
+  padding: var(--s3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  word-break: break-all;
+  user-select: all;
+}
+
+#transfer-summary,
+#transfer-info {
+  white-space: pre-line;
+}
+
+#transfer-size[data-state="large"] {
+  color: var(--warning);
+  font-weight: 600;
+}

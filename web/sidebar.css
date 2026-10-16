@@ -1,0 +1,349 @@
+/* Docked sidebar: client list, navigation, folder and settings. Collapses to an icon rail; the width is draggable. */
+
+.app-shell {
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+}
+
+.app-shell > .topbar,
+.app-shell > .workspace,
+.app-shell > .statusbar {
+  grid-column: 2;
+}
+
+.app-shell[data-sidebar="collapsed"] {
+  --sidebar-w: var(--sidebar-w-collapsed);
+}
+
+.sidebar {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border-inline-end: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.sidebar .icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sidebar-body {
+  flex: 1;
+  min-height: 0;
+  padding: var(--s3) var(--s2);
+  overflow: auto;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--s3);
+  width: 100%;
+  padding: 8px var(--s3);
+  border-color: transparent;
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.nav-item:hover {
+  background: var(--surface-muted);
+  border-color: transparent;
+  color: var(--text-strong);
+}
+
+body[data-view="clients"] #nav-clients {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.tree-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--s4);
+  padding: 0 var(--s3) var(--s1);
+}
+
+.tree-section-heading h3 {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  letter-spacing: .06em;
+}
+
+.tree-add {
+  padding: 2px 8px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--fs-sm);
+}
+
+.tree-add:hover {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.workspace-summary {
+  margin: 0 var(--s3) var(--s2);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.workspace-summary:empty {
+  display: none;
+}
+
+/* Client list */
+.client-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.client-choice {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  gap: var(--s2);
+  padding: 6px var(--s2);
+  border-color: transparent;
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.client-choice:hover {
+  background: var(--surface-muted);
+  border-color: transparent;
+}
+
+.client-choice.active-client {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+  font-weight: 650;
+}
+
+.avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.client-choice .label,
+.declaration-choice .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-overflow {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.client-overflow:hover {
+  background: var(--surface-hover);
+  border-color: transparent;
+  color: var(--text-strong);
+}
+
+.declaration-list {
+  display: grid;
+  gap: 1px;
+  margin: 2px 22px 6px 0;
+  padding-inline-start: var(--s2);
+  border-inline-start: 1px solid var(--border);
+}
+
+.declaration-choice,
+.new-declaration {
+  justify-content: space-between;
+  padding: 5px var(--s2);
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.declaration-choice:hover,
+.new-declaration:hover {
+  background: var(--surface-muted);
+  border-color: transparent;
+  color: var(--text-strong);
+}
+
+.declaration-choice.active-declaration {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.new-declaration {
+  justify-content: flex-start;
+  color: var(--accent);
+}
+
+.state-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.state-dot[data-state="open"] {
+  background: var(--success);
+}
+
+.state-dot[data-state="locked"] {
+  background: var(--info);
+}
+
+.clients-empty {
+  margin: var(--s3);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.archived-toggle {
+  margin: var(--s2) var(--s3);
+  padding: 3px 10px;
+  font-size: var(--fs-sm);
+}
+
+/* Footer */
+.sidebar-footer {
+  display: grid;
+  gap: var(--s1);
+  padding: var(--s2);
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-versions {
+  padding: 0 var(--s3);
+}
+
+.app-version {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+
+/* Resize handle on the inner edge */
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  inset-inline-end: 0;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer:focus-visible,
+.sidebar-resizer.dragging {
+  outline: none;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* Collapsed: icon rail */
+.app-shell[data-sidebar="collapsed"] .sidebar .label,
+.app-shell[data-sidebar="collapsed"] .sidebar .clients-section,
+.app-shell[data-sidebar="collapsed"] .sidebar .sidebar-versions,
+.app-shell[data-sidebar="collapsed"] .sidebar-resizer {
+  display: none;
+}
+
+.app-shell[data-sidebar="collapsed"] .nav-item {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+/* Settings dialog */
+.application-settings-content label {
+  margin: 0 0 var(--s2);
+}
+
+.application-settings-content .template-setting {
+  margin-top: var(--s4);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.application-settings-content .template-setting p {
+  margin: var(--s2) 0 0;
+  color: var(--text-muted);
+}
+
+.application-settings-content .workspace-ready {
+  color: var(--success);
+}
+
+.workspace-ready {
+  color: var(--success);
+}
+
+/* Data folder block inside the settings dialog */
+.data-root-setting {
+  display: grid;
+  gap: var(--s2);
+  justify-items: start;
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.data-root-setting h3 {
+  margin: 0;
+}
+
+.data-root-setting p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.data-root-setting .workspace-ready {
+  color: var(--success);
+}
+
+body[data-view="reports"] #nav-reports {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.nav-item:disabled {
+  opacity: .45;
+}

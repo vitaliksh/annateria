@@ -1,0 +1,15 @@
+{
+  "name": "rivhit-telegram-transfer-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "@simplewebauthn/server": "^14.0.1"
+  }
+}

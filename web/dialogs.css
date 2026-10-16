@@ -1,0 +1,382 @@
+/* One dialog template for every <dialog class="workspace-dialog">: quiet header with a close icon, labels above fields,
+   a footer with the primary action first, and a reserved line for results so a dialog keeps its size when a button is
+   pressed. The Excel import wizard adds a stepper and a fixed height on top (.wizard-dialog). */
+
+.workspace-dialog {
+  width: min(520px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+
+.workspace-dialog::backdrop {
+  background: var(--scrim);
+}
+
+.workspace-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s5);
+}
+
+.workspace-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.workspace-dialog h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: var(--fs-lg);
+}
+
+.workspace-dialog p {
+  margin: 0;
+}
+
+.dialog-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.dialog-close:hover {
+  border-color: transparent;
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+/* Fields: label above the control */
+.workspace-dialog label {
+  display: grid;
+  gap: var(--s1);
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.workspace-dialog label.check-line,
+.workspace-dialog label:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-weight: 400;
+}
+
+.workspace-dialog input:not([type="checkbox"]),
+.workspace-dialog select,
+.workspace-dialog textarea {
+  width: 100%;
+  min-width: 0;
+  font-weight: 400;
+}
+
+.month-field {
+  width: 9em !important;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+
+.month-picker {
+  display: flex;
+  gap: var(--s3);
+}
+
+.month-picker label {
+  flex: 1;
+}
+
+/* Results next to the buttons: a reserved line, coloured when it has a message */
+.workspace-dialog [role="alert"] {
+  min-height: 2.6rem;
+  margin: 0;
+}
+
+.workspace-dialog [role="alert"]:not(:empty) {
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-sm);
+  background: var(--error-soft);
+  color: var(--error);
+  font-weight: 600;
+}
+
+.workspace-dialog [role="alert"]:empty {
+  visibility: hidden;
+}
+
+.workspace-ready {
+  color: var(--success) !important;
+  font-weight: 600;
+}
+
+/* Footer: primary action first, cancel next to it, destructive actions at the far end */
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s2);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.dialog-actions span {
+  display: none;
+}
+
+.dialog-actions .delete {
+  margin-inline-start: auto;
+}
+
+/* Specific dialogs */
+.field-hint {
+  margin: 0;
+  color: var(--warning);
+  font-size: var(--fs-sm);
+}
+
+.new-client-form {
+  display: grid;
+  gap: var(--s3);
+}
+
+.client-menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s2);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.client-menu-actions .delete {
+  margin-inline-start: auto;
+}
+
+#confirm-dialog-message {
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
+.export-result-success {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.export-result-error {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.export-path-note {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.export-path-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: var(--s2);
+  align-items: center;
+}
+
+.export-path-row code {
+  direction: ltr;
+  text-align: left;
+  overflow-wrap: anywhere;
+  padding: var(--s2);
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.folder-path {
+  width: 100%;
+}
+
+/* Excel import wizard */
+.wizard-dialog {
+  width: min(660px, calc(100vw - 32px));
+  height: min(760px, calc(100vh - 48px));
+  height: min(760px, calc(100dvh - 48px));
+}
+
+.wizard-dialog form {
+  height: 100%;
+}
+
+.wizard-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.wizard-body [data-panel] {
+  display: none;
+  gap: var(--s3);
+}
+
+.wizard-dialog[data-step="file"] [data-panel="file"],
+.wizard-dialog[data-step="check"] [data-panel="check"],
+.wizard-dialog[data-step="month"] [data-panel="month"],
+.wizard-dialog[data-step="done"] [data-panel="done"] {
+  display: grid;
+  align-content: start;
+}
+
+.wizard-dialog .dialog-actions [data-for] {
+  display: none;
+}
+
+.wizard-dialog[data-step="file"] .dialog-actions [data-for~="file"],
+.wizard-dialog[data-step="check"] .dialog-actions [data-for~="check"],
+.wizard-dialog[data-step="month"] .dialog-actions [data-for~="month"],
+.wizard-dialog[data-step="done"] .dialog-actions [data-for~="done"] {
+  display: inline-flex;
+}
+
+.stepper {
+  display: flex;
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.stepper li {
+  flex: 1;
+  padding: var(--s2) var(--s3);
+  border-bottom: 3px solid var(--border);
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  counter-increment: step;
+}
+
+.stepper li::before {
+  content: counter(step) ". ";
+}
+
+.stepper li[data-state="current"] {
+  border-bottom-color: var(--accent);
+  color: var(--text-strong);
+}
+
+.stepper li[data-state="done"] {
+  border-bottom-color: var(--success);
+  color: var(--success);
+}
+
+.summary-line {
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
+.problem-list {
+  display: grid;
+  gap: var(--s1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.problem-list li {
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.problem-list li.problem-error {
+  border-color: var(--error-border);
+  background: var(--error-soft);
+  color: var(--error);
+  font-weight: 600;
+}
+
+.ledger-missing-list {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+.workspace-dialog label.ledger-missing {
+  align-items: flex-start;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.rows-move-list {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+.move-line {
+  display: grid;
+  grid-template-columns: 10em minmax(0, 1fr);
+  gap: var(--s1) var(--s3);
+  align-items: center;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.move-line[data-moving="true"] {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.move-line .move-note {
+  grid-column: 2;
+  color: var(--warning);
+}
+
+.move-line .move-note:empty {
+  display: none;
+}
+
+.unknown-account.suggested {
+  padding: var(--s1) var(--s2);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+}
+
+#excel-import-warnings:not(:empty) {
+  margin-top: var(--s3);
+}
+
+.unknown-account {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5em minmax(0, 1fr);
+  gap: var(--s2);
+  align-items: center;
+  margin-top: var(--s2);
+}
+
+#excel-import-target {
+  min-height: 1.4em;
+}
+
+#excel-import-target.target-warning {
+  color: var(--error);
+  font-weight: 600;
+}
