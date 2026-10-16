@@ -23,7 +23,7 @@ Cloudflare Worker: worker/    stateless Gemini proxy
 Data root (local folder, never inside a synced folder)
  ├─ common/                    chart-of-accounts.json, custom-rivhit-mapping.json, classification-codes.json,
  │                             ui-settings.json, backup-state.json
- ├─ inbox/<client>/, inbox/_unsorted/   (2.1 inbox-store.js, 2.2 inbox-ui.js dialog) + inbox/index.json
+ ├─ inbox/<client>/, inbox/_unsorted/   (2.1 inbox-store.js, 2.2-2.3 inbox-ui.js dialog) + inbox/index.json + inbox/_trash/
  │                             (SHA-256, original name, size, type, source date, added-at; written locally, never write-once)
  └─ clients/<client>/          workspace.json, history.jsonl, report-settings.json, reports/ (PDFs), rules.md (planned)
        declarations/YYYY-MM/   declaration.json, draft-table.json (+ draft-table.before-<action>-<time>.json copies), images/

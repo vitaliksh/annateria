@@ -26,7 +26,7 @@
   <div class="app-shell">
     <aside id="workspaces-drawer" class="sidebar" aria-label="ניווט">
       <div class="sidebar-body">
-        <nav class="sidebar-nav" aria-label="ניווט ראשי"><button id="nav-clients" type="button" class="nav-item"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.4 3-5 6-5s5.4 1.6 6 5M16 5.5a3 3 0 0 1 0 5.6M18 14.4c1.7.7 2.7 2.2 3 4.6"/></svg><span class="label">כל הלקוחות</span></button><button id="nav-reports" type="button" class="nav-item" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span class="label">דוחות</span></button><button id="open-inbox" type="button" class="nav-item"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13l2.5-7h11L20 13v5H4zM4 13h5l1 2h4l1-2h5"/></svg><span class="label">תיבת קלט</span></button></nav>
+        <nav class="sidebar-nav" aria-label="ניווט ראשי"><button id="nav-clients" type="button" class="nav-item"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.4 3-5 6-5s5.4 1.6 6 5M16 5.5a3 3 0 0 1 0 5.6M18 14.4c1.7.7 2.7 2.2 3 4.6"/></svg><span class="label">כל הלקוחות</span></button><button id="nav-reports" type="button" class="nav-item" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span class="label">דוחות</span></button><button id="open-inbox" type="button" class="nav-item"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13l2.5-7h11L20 13v5H4zM4 13h5l1 2h4l1-2h5"/></svg><span class="label">תיבת קלט</span><span class="inbox-count" data-inbox-total hidden></span></button></nav>
         <section class="clients-section" aria-labelledby="clients-title">
           <div class="tree-section-heading"><h3 id="clients-title">לקוחות</h3><button id="show-new-client" type="button" class="tree-add"><span aria-hidden="true">+</span> לקוח חדש</button></div>
           <p id="workspace-summary" class="workspace-summary" role="status"></p>
@@ -114,6 +114,10 @@
       </div>
       <input id="inbox-file" type="file" multiple hidden>
       <ul id="inbox-problems" class="problem-list" hidden></ul>
+      <section class="inbox-waiting" aria-labelledby="inbox-count">
+        <div class="inbox-waiting-head"><h3 id="inbox-count">התיבה ריקה</h3><button id="inbox-clear" type="button" class="secondary small" disabled>נקה תיבה</button></div>
+        <div id="inbox-list" class="inbox-list"></div>
+      </section>
     </div>
     <p id="inbox-error" role="alert"></p>
     <div class="dialog-actions"><span></span><button value="cancel" formnovalidate class="secondary">סגור</button></div></form></dialog>

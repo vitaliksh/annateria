@@ -49,3 +49,98 @@
 .inbox-drop[data-busy="true"] {
   cursor: progress;
 }
+
+/* What waits in the inbox: counts in the sidebar, the list in the dialog. */
+.inbox-count {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-inline-start: auto;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.inbox-count[hidden] {
+  display: none;
+}
+
+.app-shell[data-sidebar="collapsed"] .inbox-count {
+  display: none;
+}
+
+.inbox-waiting-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.inbox-waiting-head h3,
+.inbox-list h4 {
+  margin: 0;
+}
+
+.inbox-list {
+  display: grid;
+  gap: var(--s2);
+  max-height: 40vh;
+  margin-top: var(--s2);
+  overflow-y: auto;
+}
+
+.inbox-list h4 {
+  padding-top: var(--s2);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.inbox-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.inbox-thumb {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  direction: ltr;
+}
+
+.inbox-thumb canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.inbox-item-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.inbox-item-text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}

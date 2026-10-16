@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { UNSORTED, addToInbox, declarationImageHashes, ensureInbox, isInboxFolder, readInboxIndex, refusalReason, safeFileName, sha256Hex } from "../inbox-store.js";
+import { UNSORTED, addToInbox, declarationImageHashes, ensureInbox, inboxCounts, isInboxFolder, moveToTrash, readInboxFile, readInboxIndex, refusalReason, safeFileName, sha256Hex } from "../inbox-store.js";
 import { binaryDirectory, listPaths, putFile, readFileBytes } from "./memory-binary-directory.mjs";
 
 const bytesOf = (text) => new TextEncoder().encode(text);
@@ -211,4 +211,97 @@ test("a nameless file gets a usable name", async () => {
   const result = await addToInbox(root, [fileOf("", "bytes")], { now: NOW });
   assert.equal(result.added[0].storedName, "file");
   assert.equal((await readInboxIndex(root)).files.length, 1);
+});
+
+async function filled() {
+  const root = binaryDirectory();
+  await addToInbox(root, [fileOf("a.pdf", "alpha"), fileOf("b.jpg", "bravo")], { folder: "Levi", now: NOW });
+  await addToInbox(root, [fileOf("c.png", "charlie")], { now: NOW });
+  return { root, files: (await readInboxIndex(root)).files };
+}
+
+test("inboxCounts counts files per folder and ignores the trash", async () => {
+  const { root, files } = await filled();
+  assert.deepEqual(inboxCounts(await readInboxIndex(root)), { total: 3, byFolder: { Levi: 2, _unsorted: 1 } });
+  await moveToTrash(root, [files[0].hash]);
+  assert.deepEqual(inboxCounts(await readInboxIndex(root)), { total: 2, byFolder: { Levi: 1, _unsorted: 1 } });
+  assert.deepEqual(inboxCounts({ files: [] }), { total: 0, byFolder: {} });
+});
+
+test("readInboxFile returns the stored bytes", async () => {
+  const { root, files } = await filled();
+  const file = await readInboxFile(root, files[0]);
+  assert.equal(new TextDecoder().decode(await file.arrayBuffer()), "alpha");
+});
+
+test("moveToTrash moves the bytes to _trash, keeps a record and leaves nothing behind", async () => {
+  const { root, files } = await filled();
+  const result = await moveToTrash(root, [files[0].hash, files[2].hash], { now: "2026-10-18T10:00:00.000Z" });
+  assert.deepEqual(result.moved.map((entry) => entry.name), ["a.pdf", "c.png"]);
+  assert.deepEqual([result.missing.length, result.failed.length], [0, 0]);
+  assert.deepEqual(await listPaths(root), ["inbox/Levi/b.jpg", "inbox/_trash/a.pdf", "inbox/_trash/c.png", "inbox/index.json"]);
+  assert.equal(new TextDecoder().decode(await readFileBytes(root, "inbox/_trash/a.pdf")), "alpha");
+  const index = await readInboxIndex(root);
+  assert.deepEqual(index.files.map((entry) => entry.name), ["b.jpg"]);
+  assert.deepEqual(index.trashed.map((entry) => [entry.name, entry.trashedName, entry.trashedAt, entry.hash]), [
+    ["a.pdf", "a.pdf", "2026-10-18T10:00:00.000Z", sha("alpha")],
+    ["c.png", "c.png", "2026-10-18T10:00:00.000Z", sha("charlie")],
+  ]);
+});
+
+test("after the trash the same bytes can be added again; the trash keeps both copies under different names", async () => {
+  const { root, files } = await filled();
+  await moveToTrash(root, [files[0].hash]);
+  const again = await addToInbox(root, [fileOf("a.pdf", "alpha")], { folder: "Levi", now: NOW });
+  assert.equal(again.added.length, 1);
+  await moveToTrash(root, [again.added[0].hash]);
+  assert.deepEqual((await listPaths(root)).filter((path) => path.startsWith("inbox/_trash/")), ["inbox/_trash/a (2).pdf", "inbox/_trash/a.pdf"]);
+  assert.equal((await readInboxIndex(root)).trashed.length, 2);
+});
+
+test("a later add keeps the trash records in the index", async () => {
+  const { root, files } = await filled();
+  await moveToTrash(root, [files[0].hash]);
+  await addToInbox(root, [fileOf("d.pdf", "delta")], { now: NOW });
+  assert.equal((await readInboxIndex(root)).trashed.length, 1);
+});
+
+test("a file that is no longer on disk is only dropped from the index; unknown and repeated hashes are harmless", async () => {
+  const { root, files } = await filled();
+  const levi = await (await root.getDirectoryHandle("inbox")).getDirectoryHandle("Levi");
+  await levi.removeEntry("a.pdf");
+  const result = await moveToTrash(root, [files[0].hash, files[0].hash, sha("never stored")]);
+  assert.deepEqual(result.missing.map((entry) => entry.name), ["a.pdf"]);
+  assert.deepEqual([result.moved.length, result.failed.length], [0, 0]);
+  const index = await readInboxIndex(root);
+  assert.deepEqual(index.files.map((entry) => entry.name), ["b.jpg", "c.png"]);
+  assert.equal(index.trashed, undefined);
+});
+
+test("when the index cannot be written the file stays where it is and the trash copy is taken back", async () => {
+  const { root, files } = await filled();
+  root.state.failures.push({ match: /^index\.json$/, name: "NotAllowedError", times: 1 });
+  const result = await moveToTrash(root, files.map((entry) => entry.hash));
+  assert.deepEqual(result.failed.map((item) => item.name), ["a.pdf"]);
+  assert.deepEqual(result.moved.map((entry) => entry.name), ["b.jpg", "c.png"]);
+  assert.deepEqual(await listPaths(root), ["inbox/Levi/a.pdf", "inbox/_trash/b.jpg", "inbox/_trash/c.png", "inbox/index.json"]);
+  assert.deepEqual((await readInboxIndex(root)).files.map((entry) => entry.name), ["a.pdf"]);
+});
+
+test("when the original cannot be removed the failure is reported and the index stays consistent", async () => {
+  const { root, files } = await filled();
+  const levi = await (await root.getDirectoryHandle("inbox")).getDirectoryHandle("Levi");
+  levi.removeEntry = async () => { throw Object.assign(new Error("locked"), { name: "InvalidModificationError" }); };
+  const result = await moveToTrash(root, [files[0].hash]);
+  assert.deepEqual([result.moved.length, result.failed.length], [0, 1]);
+  assert.match(result.failed[0].error, /לא הוסר/);
+  assert.deepEqual((await readInboxIndex(root)).files.map((entry) => entry.name), ["b.jpg", "c.png"]);
+  assert.equal((await readInboxIndex(root)).trashed.length, 1);
+  assert.equal((await listPaths(root)).includes("inbox/Levi/a.pdf"), true);
+});
+
+test("a damaged trash record stops the read", async () => {
+  const root = binaryDirectory();
+  await putFile(root, "inbox/index.json", JSON.stringify({ schemaVersion: 1, files: [], trashed: [{ name: "x" }] }));
+  await assert.rejects(() => readInboxIndex(root), /אינו תקין/);
 });

@@ -93,3 +93,13 @@ test("archived clients get no new-declaration button and an empty list explains 
   renderSidebarClients(container, { clients: [], archivedMode: true, activeClientId: null, activeDeclarationId: null, expandedClientId: null }, handlers);
   assert.match(container.textContent, /אין לקוחות בארכיון/);
 });
+
+test("a client with files in the inbox shows their number next to the name", () => {
+  const container = root(), handlers = { onClient() {}, onMenu() {}, onDeclaration() {}, onNewDeclaration() {} };
+  const clients = [{ ...client("Alpha"), entryName: "Alpha dir" }, { ...client("Beta"), entryName: "Beta dir" }];
+  renderSidebarClients(container, { clients, archivedMode: false, activeClientId: null, activeDeclarationId: null, expandedClientId: null, inboxCounts: { "Alpha dir": 4, "Beta dir": 0, "Other": 9 } }, handlers);
+  const badges = [...container.querySelectorAll(".client-item")].map((item) => item.querySelector(".inbox-count")?.textContent ?? null);
+  assert.deepEqual(badges, ["4", null]);
+  renderSidebarClients(container, { clients, archivedMode: false, activeClientId: null, activeDeclarationId: null, expandedClientId: null }, handlers);
+  assert.equal(container.querySelector(".inbox-count"), null);
+});

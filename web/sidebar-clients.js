@@ -17,7 +17,8 @@ function actionButton(root, className, label, onClick) {
 }
 
 // handlers: { onClient(client), onMenu(client), onDeclaration(client, month), onNewDeclaration(client) }
-export function renderSidebarClients(root, { clients, archivedMode, activeClientId, activeDeclarationId, expandedClientId }, handlers) {
+// inboxCounts: files waiting in inbox/<client folder>/ by folder name; a client with files shows the number.
+export function renderSidebarClients(root, { clients, archivedMode, activeClientId, activeDeclarationId, expandedClientId, inboxCounts = {} }, handlers) {
   root.replaceChildren();
   for (const client of clients) {
     const expanded = client.id === expandedClientId;
@@ -28,6 +29,12 @@ export function renderSidebarClients(root, { clients, archivedMode, activeClient
     choose.setAttribute("aria-expanded", String(expanded));
     choose.title = client.clientName;
     choose.append(node(root, "span", "avatar", [...client.clientName][0] || "?"), node(root, "span", "label", client.clientName));
+    const waiting = inboxCounts[client.entryName] ?? 0;
+    if (waiting > 0) {
+      const badge = node(root, "span", "inbox-count", String(waiting));
+      badge.title = `קבצים בתיבת הקלט: ${waiting}`;
+      choose.append(badge);
+    }
     const menu = actionButton(root, "client-overflow", "⋯", () => handlers.onMenu(client));
     menu.setAttribute("aria-label", `פעולות עבור ${client.clientName}`);
     row.append(choose, menu);

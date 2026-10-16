@@ -79,6 +79,8 @@ const importIncomeReportButton = document.querySelector("#import-income-report")
   classificationManagementDialog = document.querySelector("#classification-management-dialog"),
   customClassificationList = document.querySelector("#custom-classification-list");
 let dataRoot = null,
+  inboxUi = null,
+  inboxFileCounts = {},
   workspace = null,
   committedWorkspace = null,
   currentDeclaration = null,
@@ -234,6 +236,7 @@ function clearActiveDeclaration(declarationId) {
 async function switchDataRoot(selected) {
   await saveCurrentDraft();
   dataRoot = selected;
+  inboxUi?.refreshCounts();
   folderPathInput.value = "";
   readUiSettings(selected)
     .then((settings) => {
@@ -302,6 +305,7 @@ const backup = setupBackup({
   onError: showError,
 });
 const workspaceControls = setupWorkspaceControls({
+  getInboxCounts: () => inboxFileCounts,
   onClientsChanged: () => clientsHome.refresh(),
   onClientOpen: (clientId) => clientsHome.openClient(clientId),
   newClientDialog: document.querySelector("#new-client-dialog"),
@@ -555,11 +559,15 @@ const transfer = setupTransfer({
     else clientsHome.openClient(clientId);
   },
 });
-setupInbox({
+inboxUi = setupInbox({
   dialog: document.querySelector("#inbox-dialog"),
   openButton: document.querySelector("#open-inbox"),
   getDataRoot: () => dataRoot,
   getClients: () => workspaceControls?.getClients().active ?? [],
+  onCounts: ({ byFolder }) => {
+    inboxFileCounts = byFolder;
+    workspaceControls?.renderSidebar?.();
+  },
   onError: showError,
 });
 document.querySelector("#export-declaration").addEventListener("click", () => {

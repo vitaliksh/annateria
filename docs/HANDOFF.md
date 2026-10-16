@@ -9,11 +9,11 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 Worker tag is `cloudflare-production-2026-10-16`. The owner accepted the published page: months open and match ocr, the access code
 works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
 
-**Done since:** steps **2.1 Inbox model** (`web/inbox-store.js`) and **2.2 Drop zone and picker** (`web/inbox-ui.js`, sidebar item "תיבת קלט"). 2.2 still needs the owner's manual drag test (see the decision log).
+**Done since:** steps **2.1 Inbox model**, **2.2 Drop zone and picker** (accepted by the owner) and **2.3 Inbox view** (`web/inbox-store.js`,
+`web/inbox-ui.js`: list, remove one file, "נקה תיבה" to `inbox/_trash/`, counts in the sidebar). 2.3 still needs the owner's look on the published page.
 
-**Next:** the owner's manual check of 2.2 on the published page (drag from Explorer / WhatsApp Desktop / Gmail, a HEIC and a PDF arrive with
-equal hash), then step **2.3 Inbox view** (counts per client, list with thumbnails, delete to `inbox/_trash/`). Phase 3 (model bake-off, outside the repository) can run in parallel; it needs the owner's real documents and
-an answer key. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
+**Next:** step **2.4 Phone guide for Anna** (Hebrew help page), which closes phase 2. Phase 3 (model bake-off, outside the repository) can run in
+parallel; it needs the owner's real documents and an answer key. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (not blocking): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
 project; give Anna her access code if not done; tell me the Cloudflare plan (Free or Paid) so it can be recorded.
@@ -49,7 +49,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 475 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 494 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -112,6 +112,8 @@ Phase 1 is mostly new code: `web/access.js`, `web/access-ui.js`, `web/model-clie
 ## Changes to inherited code (phase 2)
 
 - 2.1: `web/package.json` (check list) and `web/test/memory-binary-directory.mjs` (additive `removeEntry`). No production module changed.
+- 2.3: `web/sidebar-clients.js` (optional `inboxCounts`), `web/workspace.js` (optional `getInboxCounts`; returns `renderSidebar`), `web/app.js`
+  (`inboxUi`, `inboxFileCounts`, `onCounts`, a refresh in `switchDataRoot`), `web/index.html` (list, count line, clear button, nav badge).
 - 2.2: `web/app.js` (one import and one `setupInbox(...)` call next to `setupTransfer`), `web/index.html` (sidebar item `#open-inbox`, `#inbox-dialog`,
   `inbox.css` link), `web/package.json` (check list).
 

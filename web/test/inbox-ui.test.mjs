@@ -172,3 +172,123 @@ test("filesFromDrop falls back to dataTransfer.files when there are no items", (
   assert.deepEqual(filesFromDrop({ files: [a] }), { files: [a], refused: [] });
   assert.deepEqual(filesFromDrop(null), { files: [], refused: [] });
 });
+
+const items = (ui) => [...ui.q("#inbox-list").children].map((node) => (node.tagName === "H4" ? node.textContent : node.querySelector("strong").textContent));
+const fill = async (ui) => {
+  await ui.inbox.open();
+  ui.q("#inbox-client").value = "Levi";
+  await ui.pickFiles([file("inv-1.pdf", "one"), file("photo.jpg", "two")]);
+  ui.q("#inbox-client").value = "";
+  await ui.pickFiles([file("loose.png", "three")]);
+};
+
+test("the page has the list, the count line and the clear button", () => {
+  for (const id of ["inbox-list", "inbox-count", "inbox-clear"]) assert.ok(html.includes(`id="${id}"`), id);
+  assert.ok(html.includes("data-inbox-total"));
+});
+
+test("the list shows unassigned files first, then each client, with counts, sizes and the date", async () => {
+  const counts = [];
+  const ui = setup({ onCounts: (value) => counts.push(value) });
+  await fill(ui);
+  assert.deepEqual(items(ui), ["ללא שיוך (1)", "loose.png", "Levi Ltd (2)", "inv-1.pdf", "photo.jpg"]);
+  assert.equal(ui.q("#inbox-count").textContent, "בתיבה: 3 קבצים");
+  assert.match(ui.q(".inbox-item .muted").textContent, /^1 KB · 2026-10-01$/);
+  assert.equal(ui.q(".inbox-thumb").textContent, "PNG");
+  assert.deepEqual(counts.at(-1), { total: 3, byFolder: { Levi: 2, _unsorted: 1 } });
+  const badge = ui.window.document.querySelector("[data-inbox-total]");
+  assert.equal(badge.hidden, false);
+  assert.equal(badge.textContent, "3");
+});
+
+test("refreshCounts reads an existing inbox without opening the dialog; an empty inbox hides the badge", async () => {
+  const ui = setup();
+  assert.equal(await ui.inbox.refreshCounts(), true);
+  assert.equal(ui.window.document.querySelector("[data-inbox-total]").hidden, true);
+  assert.equal(ui.q("#inbox-count").textContent, "התיבה ריקה");
+  assert.equal(ui.q("#inbox-clear").disabled, true);
+  assert.equal(ui.dialog.open, false);
+});
+
+test("removing one file moves it to _trash and updates the list and the counts", async () => {
+  const counts = [];
+  const ui = setup({ onCounts: (value) => counts.push(value) });
+  await fill(ui);
+  ui.q(".inbox-item[data-hash] .inbox-remove").click();
+  await settle();
+  assert.equal(ui.plate(), "הועבר לפח: loose.png");
+  assert.deepEqual(items(ui), ["Levi Ltd (2)", "inv-1.pdf", "photo.jpg"]);
+  assert.deepEqual(await listPaths(ui.root), ["inbox/Levi/inv-1.pdf", "inbox/Levi/photo.jpg", "inbox/_trash/loose.png", "inbox/index.json"]);
+  assert.deepEqual(counts.at(-1), { total: 2, byFolder: { Levi: 2 } });
+  assert.equal(ui.window.document.querySelector("[data-inbox-total]").textContent, "2");
+});
+
+test("clear all asks first; declining changes nothing, accepting moves everything to _trash", async () => {
+  const asked = [];
+  let answer = false;
+  const ui = setup({ confirm: async (question, options) => { asked.push([question, options.confirmLabel]); return answer; } });
+  await fill(ui);
+  ui.q("#inbox-clear").click();
+  await settle();
+  assert.match(asked[0][0], /3 קבצים.*inbox\/_trash ולא יימחקו/);
+  assert.equal(asked[0][1], "העברה לפח");
+  assert.equal(ui.q("#inbox-count").textContent, "בתיבה: 3 קבצים");
+  answer = true;
+  ui.q("#inbox-clear").click();
+  await settle();
+  assert.equal(ui.plate(), "הועברו לפח: 3");
+  assert.equal(ui.q("#inbox-count").textContent, "התיבה ריקה");
+  assert.equal(ui.q("#inbox-clear").disabled, true);
+  assert.deepEqual((await listPaths(ui.root)).filter((path) => !path.startsWith("inbox/_trash/")), ["inbox/index.json"]);
+  assert.equal((await listPaths(ui.root)).filter((path) => path.startsWith("inbox/_trash/")).length, 3);
+  await ui.pickFiles([file("inv-1.pdf", "one")]);
+  assert.match(ui.plate(), /נוסף קובץ אחד/, "the same file can be added again after the clean-up");
+});
+
+test("problems of the move are listed and the files that stayed remain in the list", async () => {
+  const ui = setup({ trash: async (root, hashes) => ({ moved: [], missing: [], failed: hashes.map((hash) => ({ name: "x", error: "נעול" })) }) });
+  await fill(ui);
+  ui.q(".inbox-remove").click();
+  await settle();
+  assert.equal(ui.plate(), "לא הועברו קבצים");
+  assert.equal(ui.q("#inbox-summary").className, "plate plate-warning");
+  assert.deepEqual(ui.lines(), ["x: נעול"]);
+  assert.equal(ui.q("#inbox-count").textContent, "בתיבה: 3 קבצים");
+});
+
+test("thumbnails are made for photos only; a failure or a missing preview keeps the extension label", async () => {
+  const made = [];
+  const ui = setup({
+    makeThumbnail: async (stored, entry) => {
+      made.push(entry.name);
+      if (entry.name === "bad.png") throw new Error("cannot decode");
+      const canvas = ui.window.document.createElement("canvas");
+      canvas.dataset.for = entry.name;
+      return canvas;
+    },
+  });
+  await ui.inbox.open();
+  await ui.pickFiles([file("ok.jpg", "1"), file("bad.png", "2"), file("doc.pdf", "3"), file("sheet.xlsx", "4")]);
+  await settle();
+  assert.deepEqual(made.sort(), ["bad.png", "ok.jpg"]);
+  const label = (name) => [...ui.dialog.querySelectorAll(".inbox-item")].find((node) => node.querySelector("strong").textContent === name).querySelector(".inbox-thumb");
+  assert.equal(label("ok.jpg").querySelector("canvas").dataset.for, "ok.jpg");
+  assert.equal(label("bad.png").textContent, "PNG");
+  assert.equal(label("doc.pdf").textContent, "PDF");
+  assert.equal(label("sheet.xlsx").textContent, "XLSX");
+});
+
+test("an unreadable index is reported and the list stays empty", async () => {
+  const ui = setup();
+  await putFile(ui.root, "inbox/index.json", "{ broken");
+  await ui.inbox.open();
+  assert.equal(ui.errors.length, 1);
+  assert.match(ui.errors[0], /אינו תקין/);
+  assert.equal(ui.q("#inbox-count").textContent, "התיבה ריקה");
+});
+
+test("buttons of the list are disabled without a data root", async () => {
+  const ui = setup({ withRoot: false });
+  assert.equal(await ui.inbox.refreshCounts(), true);
+  assert.equal(ui.q("#inbox-clear").disabled, true);
+});

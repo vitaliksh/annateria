@@ -78,6 +78,12 @@ function checkEntry(entry) {
     && (entry.sourceDate === null || text(entry.sourceDate)) && text(entry.addedAt);
 }
 
+// `trashed` (optional) records what moved to inbox/_trash/: the entry as it was, plus trashedName and trashedAt.
+function checkTrashed(trashed) {
+  const text = (value) => typeof value === "string" && value !== "";
+  return trashed === undefined || (Array.isArray(trashed) && trashed.every((entry) => checkEntry(entry) && text(entry.trashedName) && text(entry.trashedAt)));
+}
+
 // Missing index = empty. An unreadable or newer index is an error: replacing it would lose the hashes.
 export async function readInboxIndex(dataRoot) {
   let text;
@@ -91,7 +97,7 @@ export async function readInboxIndex(dataRoot) {
   let parsed;
   try { parsed = JSON.parse(text); } catch { throw new Error("קובץ האינדקס של תיבת הקלט אינו תקין (inbox/index.json)."); }
   if (parsed?.schemaVersion > INDEX_VERSION) throw new Error("אינדקס תיבת הקלט נוצר בגרסה חדשה יותר של התוכנה.");
-  if (parsed?.schemaVersion !== INDEX_VERSION || !Array.isArray(parsed.files) || !parsed.files.every(checkEntry)) {
+  if (parsed?.schemaVersion !== INDEX_VERSION || !Array.isArray(parsed.files) || !parsed.files.every(checkEntry) || !checkTrashed(parsed.trashed)) {
     throw new Error("קובץ האינדקס של תיבת הקלט אינו תקין (inbox/index.json).");
   }
   return parsed;
@@ -189,6 +195,70 @@ export async function addToInbox(dataRoot, files, { folder = UNSORTED, now = new
       result.added.push(entry);
     } catch (error) {
       result.failed.push({ name, error: error.message });
+    }
+  }
+  return result;
+}
+
+// Files waiting per folder: { total, byFolder: { <folder>: n } }. The trash is not counted.
+export function inboxCounts(index) {
+  const byFolder = {};
+  for (const entry of index.files) byFolder[entry.folder] = (byFolder[entry.folder] ?? 0) + 1;
+  return { total: index.files.length, byFolder };
+}
+
+// The stored file of an index entry (a File), for thumbnails and, later, for reading by the assistant.
+export async function readInboxFile(dataRoot, entry) {
+  const inbox = await dataRoot.getDirectoryHandle(INBOX_NAME), directory = await inbox.getDirectoryHandle(entry.folder);
+  return (await directory.getFileHandle(entry.storedName)).getFile();
+}
+
+const isMissing = (error) => error?.name === "NotFoundError";
+
+// Moves the files with these hashes to inbox/_trash/ and drops them from the index (so the same bytes can be added again);
+// the record stays in index.trashed. Nothing is deleted for good: a file is removed from its folder only after the copy in the
+// trash was read back and the index was written. Returns
+//   moved:   the entries that were moved,
+//   missing: entries whose file was no longer on disk (they are only dropped from the index),
+//   failed:  { name, error } for files that stay where they are (or, when the original could not be removed, are in both places).
+export async function moveToTrash(dataRoot, hashes, { now = new Date().toISOString() } = {}) {
+  const inbox = await inboxDirectory(dataRoot), trash = await inbox.getDirectoryHandle(TRASH, { create: true });
+  const index = await readInboxIndex(dataRoot), taken = await directoryNames(trash);
+  const result = { moved: [], missing: [], failed: [] };
+  for (const hash of new Set(hashes)) {
+    const entry = index.files.find((item) => item.hash === hash);
+    if (!entry) continue;
+    const before = { files: index.files, trashed: index.trashed };
+    let directory = null, trashedName = null;
+    try {
+      let bytes = null;
+      try {
+        directory = await inbox.getDirectoryHandle(entry.folder);
+        bytes = new Uint8Array(await (await (await directory.getFileHandle(entry.storedName)).getFile()).arrayBuffer());
+      } catch (error) {
+        if (!isMissing(error)) throw error;
+      }
+      index.files = index.files.filter((item) => item !== entry);
+      if (bytes) {
+        trashedName = uniqueName(safeFileName(entry.storedName), taken);
+        await storeFile(trash, trashedName, bytes);
+        index.trashed = [...(index.trashed ?? []), { ...entry, trashedName, trashedAt: now }];
+      }
+      await writeInboxIndex(inbox, index);
+      if (!bytes) { result.missing.push(entry); continue; }
+      taken.add(trashedName.toLowerCase());
+      result.moved.push(entry);
+    } catch (error) {
+      Object.assign(index, before);
+      if (trashedName) await trash.removeEntry?.(trashedName).catch(() => {});
+      result.failed.push({ name: entry.name, error: error.message });
+      continue;
+    }
+    try {
+      await directory.removeEntry(entry.storedName);
+    } catch (error) {
+      result.moved.pop();
+      result.failed.push({ name: entry.name, error: "הועתק לפח, אך הקובץ המקורי לא הוסר מהתיקייה." });
     }
   }
   return result;
