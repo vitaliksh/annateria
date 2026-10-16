@@ -8,8 +8,5 @@
   },
   "devDependencies": {
     "wrangler": "^4.0.0"
-  },
-  "dependencies": {
-    "@simplewebauthn/server": "^14.0.1"
   }
 }

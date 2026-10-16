@@ -6,7 +6,6 @@ import {
   normalizeBookkeeperAnswer,
   parseBookkeeperInput,
 } from "./bookkeeper.js";
-import * as webauthn from "@simplewebauthn/server";
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
 const MAX_SESSION_MS = 4 * 60 * 60 * 1000;
@@ -18,9 +17,6 @@ const GEMINI_MODELS = new Set([
   "gemini-3.5-flash-lite",
 ]);
 const encoder = new TextEncoder();
-const PASSKEY_TTL_MS = 5 * 60 * 1000;
-const PASSKEY_RP_ID = "vitaliksh.github.io";
-const PASSKEY_ORIGIN = "https://vitaliksh.github.io";
 
 const GEMINI_SCHEMA = {
   type: "OBJECT",
@@ -130,7 +126,7 @@ function cors(request, env) {
         "access-control-allow-origin": origin,
         vary: "Origin",
         "access-control-allow-headers":
-          "content-type, x-upload-token, x-business-activity, x-gemini-model, x-form-6111-mapping, x-custom-rivhit-codes, x-target-record, x-passkey-credential-id, x-passkey-token",
+          "content-type, x-upload-token, x-business-activity, x-gemini-model, x-form-6111-mapping, x-custom-rivhit-codes, x-target-record",
         "access-control-allow-methods": "GET, POST, OPTIONS",
       }
     : {};
@@ -457,20 +453,6 @@ async function bookkeeperProcess(request, env) {
 function sessionStub(env, sessionId) {
   return env.UPLOAD_SESSION.get(env.UPLOAD_SESSION.idFromName(sessionId));
 }
-function deviceRegistry(env) {
-  return env.DEVICE_REGISTRY.get(env.DEVICE_REGISTRY.idFromName("passkeys"));
-}
-async function passkeyAuthorized(request, env) {
-  const credentialId = request.headers.get("X-Passkey-Credential-Id"),
-    token = request.headers.get("X-Passkey-Token");
-  if (!credentialId || !token) return null;
-  const response = await deviceRegistry(env).fetch("https://passkeys/authorize", {
-    method: "POST",
-    body: JSON.stringify({ credentialId, token }),
-  });
-  return response.ok ? response : null;
-}
-
 async function telegramApi(env, method, body) {
   const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, {
     method: "POST",
@@ -530,9 +512,7 @@ async function webhook(request, env) {
       });
       const result = await response.json();
       const messageText =
-        result.purpose === "passkey-enrollment"
-          ? "Connected. Complete Windows Hello on your PC; do not send a photo."
-          : "Connected. Send document photos now. For the best quality send each photo as a File (attach, File).";
+        "Connected. Send document photos now. For the best quality send each photo as a File (attach, File).";
       await telegramApi(env, "sendMessage", {
         chat_id: chatId,
         text: result.ok ? messageText : "No active upload session. Start a new upload session from the PC.",
@@ -595,16 +575,11 @@ export default {
     const rejected = clientRequest(request, env);
     if (rejected) return rejected;
     if (url.pathname === "/v1/sessions" && request.method === "POST") {
-      let purpose = "upload";
-      try {
-        const requested = (await request.json())?.purpose;
-        purpose = requested === "passkey-enrollment" ? requested : "upload";
-      } catch {}
       const sessionId = randomToken();
       const clientToken = randomToken();
       const response = await sessionStub(env, sessionId).fetch("https://session/create", {
         method: "POST",
-        body: JSON.stringify({ sessionId, clientToken, purpose, now: Date.now() }),
+        body: JSON.stringify({ sessionId, clientToken, purpose: "upload", now: Date.now() }),
       });
       if (!response.ok) return response;
       return json(
@@ -635,8 +610,7 @@ export default {
       for (const [key, value] of Object.entries(cors(request, env))) headers.set(key, value);
       return new Response(result.body, { status: result.status, headers });
     }
-    // The same agent, authorised by the Telegram session like the recognition route: no Windows Hello prompt, so the
-    // browser can run it by itself right after the recognition.
+    // The same agent, authorised by the Telegram session like the recognition route.
     const bookkeeperSession = url.pathname.match(/^\/v1\/sessions\/([A-Za-z0-9_-]{30,})\/bookkeeper$/);
     if (bookkeeperSession) {
       if (request.method !== "POST") return json({ error: "Method not allowed." }, 405, cors(request, env));
@@ -653,50 +627,6 @@ export default {
         headers = new Headers(result.headers);
       for (const [key, value] of Object.entries(cors(request, env))) headers.set(key, value);
       return new Response(result.body, { status: result.status, headers });
-    }
-    if (url.pathname === "/v1/bookkeeper/process") {
-      if (request.method !== "POST") return json({ error: "Method not allowed." }, 405, cors(request, env));
-      const authorization = await passkeyAuthorized(request, env);
-      if (!authorization) return json({ error: "Windows Hello authorization is required." }, 401, cors(request, env));
-      const result = await bookkeeperProcess(request, env),
-        headers = new Headers(result.headers);
-      for (const [key, value] of Object.entries(cors(request, env))) headers.set(key, value);
-      return new Response(result.body, { status: result.status, headers });
-    }
-    const registrationMatch = url.pathname.match(
-      /^\/v1\/sessions\/([A-Za-z0-9_-]{30,})\/passkeys\/(registration-options|register)$/,
-    );
-    if (registrationMatch) {
-      if (request.method !== "POST") return json({ error: "Method not allowed." }, 405, cors(request, env));
-      const authorization = await sessionStub(env, registrationMatch[1]).fetch("https://session/client/ai-authorize", {
-        method: "POST",
-        headers: { "X-Upload-Token": request.headers.get("X-Upload-Token") || "" },
-      });
-      if (!authorization.ok) {
-        const headers = new Headers(authorization.headers);
-        for (const [key, value] of Object.entries(cors(request, env))) headers.set(key, value);
-        return new Response(authorization.body, { status: authorization.status, headers });
-      }
-      const endpoint = registrationMatch[2] === "registration-options" ? "begin-registration" : "finish-registration";
-      const body = registrationMatch[2] === "register" ? await request.text() : "";
-      const upstream = await deviceRegistry(env).fetch(`https://passkeys/${endpoint}`, { method: "POST", body });
-      const headers = new Headers(upstream.headers);
-      for (const [key, value] of Object.entries(cors(request, env))) headers.set(key, value);
-      return new Response(upstream.body, { status: upstream.status, headers });
-    }
-    if (
-      url.pathname === "/v1/passkeys/authentication-options" ||
-      url.pathname === "/v1/passkeys/authentication-verify"
-    ) {
-      if (request.method !== "POST") return json({ error: "Method not allowed." }, 405, cors(request, env));
-      const endpoint = url.pathname.endsWith("options") ? "begin-authentication" : "finish-authentication";
-      const upstream = await deviceRegistry(env).fetch(`https://passkeys/${endpoint}`, {
-        method: "POST",
-        body: await request.text(),
-      });
-      const headers = new Headers(upstream.headers);
-      for (const [key, value] of Object.entries(cors(request, env))) headers.set(key, value);
-      return new Response(upstream.body, { status: upstream.status, headers });
     }
     const match = url.pathname.match(
       /^\/v1\/sessions\/([A-Za-z0-9_-]{30,})\/(events|finish|documents\/([0-9a-f-]{36})(?:\/ack)?)$/,
@@ -930,121 +860,5 @@ export class UploadSession {
   async alarm() {
     const session = await this.state.storage.get("session");
     if (session && Date.now() >= session.expiresAt) await this.destroy(session);
-  }
-}
-
-export class DeviceRegistry {
-  // The optional third argument is a test seam. Cloudflare constructs Durable
-  // Objects with the first two arguments, so production always uses the real
-  // SimpleWebAuthn implementation.
-  constructor(state, env, webauthnApi = webauthn) {
-    this.state = state;
-    this.webauthn = webauthnApi;
-  }
-  async fetch(request) {
-    // Calls to a Durable Object use https://passkeys/<action>: "passkeys" is
-    // the hostname, not part of pathname. Accept the prefixed form as well
-    // so internal routing cannot turn begin-registration into an unknown action.
-    const action = new URL(request.url).pathname.replace(/^\/(?:passkeys\/)?/, "");
-    if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
-    try {
-      if (action === "begin-registration") return await this.beginRegistration();
-      const input = await request.json();
-      if (action === "finish-registration") return await this.finishRegistration(input);
-      if (action === "begin-authentication") return await this.beginAuthentication(input);
-      if (action === "finish-authentication") return await this.finishAuthentication(input);
-      if (action === "authorize") return await this.authorize(input);
-      return json({ error: "Not found." }, 404);
-    } catch {
-      console.error("Passkey verification failed.");
-      return json({ error: "Windows Hello verification failed." }, 400);
-    }
-  }
-  async beginRegistration() {
-    const options = await this.webauthn.generateRegistrationOptions({
-      rpName: "Rivhit document journal",
-      rpID: PASSKEY_RP_ID,
-      userName: `rivhit-${randomToken().slice(0, 12)}`,
-      attestationType: "none",
-      authenticatorSelection: {
-        authenticatorAttachment: "platform",
-        residentKey: "preferred",
-        userVerification: "required",
-      },
-    });
-    await this.state.storage.put("registration", {
-      challenge: options.challenge,
-      expiresAt: Date.now() + PASSKEY_TTL_MS,
-    });
-    return json(options);
-  }
-  async finishRegistration(response) {
-    const pending = await this.state.storage.get("registration");
-    if (!pending || Date.now() >= pending.expiresAt)
-      return json({ error: "Windows Hello setup expired. Start it again." }, 401);
-    const verification = await this.webauthn.verifyRegistrationResponse({
-      response,
-      expectedChallenge: pending.challenge,
-      expectedOrigin: PASSKEY_ORIGIN,
-      expectedRPID: PASSKEY_RP_ID,
-      requireUserVerification: true,
-    });
-    if (!verification.verified || !verification.registrationInfo)
-      return json({ error: "Windows Hello setup was not verified." }, 400);
-    const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
-    await this.state.storage.put(`credential:${credential.id}`, {
-      id: credential.id,
-      publicKey: credential.publicKey,
-      counter: credential.counter,
-      transports: credential.transports || [],
-      deviceType: credentialDeviceType,
-      backedUp: credentialBackedUp,
-      createdAt: Date.now(),
-    });
-    await this.state.storage.delete("registration");
-    return json({ ok: true, credentialId: credential.id });
-  }
-  async beginAuthentication({ credentialId }) {
-    if (typeof credentialId !== "string" || credentialId.length < 16)
-      return json({ error: "Windows Hello is not configured on this browser." }, 400);
-    const credential = await this.state.storage.get(`credential:${credentialId}`);
-    if (!credential) return json({ error: "This Windows Hello credential is no longer registered." }, 404);
-    const options = await this.webauthn.generateAuthenticationOptions({
-      rpID: PASSKEY_RP_ID,
-      userVerification: "required",
-      allowCredentials: [{ id: credential.id, transports: credential.transports }],
-    });
-    await this.state.storage.put(`authentication:${credential.id}`, {
-      challenge: options.challenge,
-      expiresAt: Date.now() + PASSKEY_TTL_MS,
-    });
-    return json(options);
-  }
-  async finishAuthentication({ credentialId, response }) {
-    const credential = await this.state.storage.get(`credential:${credentialId}`),
-      pending = await this.state.storage.get(`authentication:${credentialId}`);
-    if (!credential || !pending || Date.now() >= pending.expiresAt)
-      return json({ error: "Windows Hello request expired. Try again." }, 401);
-    const verification = await this.webauthn.verifyAuthenticationResponse({
-      response,
-      expectedChallenge: pending.challenge,
-      expectedOrigin: PASSKEY_ORIGIN,
-      expectedRPID: PASSKEY_RP_ID,
-      credential,
-      requireUserVerification: true,
-    });
-    if (!verification.verified) return json({ error: "Windows Hello was not verified." }, 403);
-    credential.counter = verification.authenticationInfo.newCounter;
-    const token = randomToken();
-    await this.state.storage.put(`credential:${credentialId}`, credential);
-    await this.state.storage.put(`token:${credentialId}`, { token, expiresAt: Date.now() + PASSKEY_TTL_MS });
-    await this.state.storage.delete(`authentication:${credentialId}`);
-    return json({ ok: true, token, expiresAt: Date.now() + PASSKEY_TTL_MS });
-  }
-  async authorize({ credentialId, token }) {
-    const grant = await this.state.storage.get(`token:${credentialId}`);
-    if (!grant || Date.now() >= grant.expiresAt || !timingSafeEqual(token, grant.token))
-      return json({ error: "Windows Hello authorization expired." }, 401);
-    return json({ ok: true });
   }
 }

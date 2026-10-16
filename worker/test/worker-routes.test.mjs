@@ -21,7 +21,6 @@ function makeEnv(overrides = {}) {
     BOT_USERNAME: "TestBot",
     GEMINI_API_KEY: "test-gemini-key",
     UPLOAD_SESSION: stub(async () => new Response("{}", { status: 200 })),
-    DEVICE_REGISTRY: stub(async () => new Response("{}", { status: 200 })),
     ...overrides,
   };
 }
@@ -84,14 +83,14 @@ test("unknown paths are 404 and wrong methods are 405", async () => {
 });
 
 test("session creation returns opaque credentials and a Telegram deep link", async () => {
-  const response = await call("/v1/sessions", { body: JSON.stringify({ purpose: "passkey-enrollment" }) });
+  const response = await call("/v1/sessions", { body: "{}" });
   assert.equal(response.status, 201);
   const body = await response.json();
   assert.ok(body.sessionId.length >= 30 && body.clientToken.length >= 30);
   assert.equal(body.telegramUrl, `https://t.me/TestBot?start=${body.sessionId}`);
 });
 
-test("session creation forwards the purpose, defaulting to upload", async () => {
+test("session creation always asks for an upload session, whatever purpose the caller names", async () => {
   const purposes = [];
   const env = makeEnv({
     UPLOAD_SESSION: stub(async (_id, _url, init) => {
@@ -99,10 +98,10 @@ test("session creation forwards the purpose, defaulting to upload", async () => 
       return new Response("{}");
     }),
   });
-  await call("/v1/sessions", { env, body: JSON.stringify({ purpose: "passkey-enrollment" }) });
+  await call("/v1/sessions", { env, body: JSON.stringify({ purpose: "legacy-purpose" }) });
   await call("/v1/sessions", { env, body: JSON.stringify({ purpose: "something else" }) });
   await call("/v1/sessions", { env, body: "not json" });
-  assert.deepEqual(purposes, ["passkey-enrollment", "upload", "upload"]);
+  assert.deepEqual(purposes, ["upload", "upload", "upload"]);
 });
 
 test("recognize passes the session authorisation failure through with CORS", async () => {
@@ -280,9 +279,8 @@ test("Gemini client errors and malformed output become 502 with a safe message",
   assert.equal((await recognize()).status, 502);
 });
 
-const PASSKEY = { "x-passkey-credential-id": "id", "x-passkey-token": "token" };
 const bookkeeper = (body, { headers = {}, env, method } = {}) =>
-  call("/v1/bookkeeper/process", { env, method, headers: { ...PASSKEY, ...headers }, body: typeof body === "string" ? body : JSON.stringify(body) });
+  call(`/v1/sessions/${SESSION}/bookkeeper`, { env, method, headers: { "x-upload-token": "t".repeat(32), ...headers }, body: typeof body === "string" ? body : JSON.stringify(body) });
 const bkRow = (n, extra = {}) => ({ n, document_kind: "expense_invoice", supplier_name: "Supplier", date: "03/09/2026", total: 118, net: 100, vat: 18, ...extra });
 const CHART = [
   { code: "204", name: "חשמל", type: "expense" },
@@ -290,13 +288,6 @@ const CHART = [
   { code: "110", name: "הכנסה חייבת", type: "income" },
 ];
 const bkAnswer = (results) => mockGemini([], { raw: JSON.stringify({ results }) });
-
-test("the bookkeeper route needs a passkey authorisation and a POST", async () => {
-  const deny = makeEnv({ DEVICE_REGISTRY: stub(async () => new Response("{}", { status: 401 })) });
-  assert.equal((await call("/v1/bookkeeper/process")).status, 401);
-  assert.equal((await bookkeeper({ rows: [bkRow(1)] }, { env: deny })).status, 401);
-  assert.equal((await call("/v1/bookkeeper/process", { method: "GET" })).status, 405);
-});
 
 test("the bookkeeper route validates its input", async () => {
   mockGemini([]);
@@ -378,7 +369,7 @@ test("the session bookkeeper route needs the session authorisation, passes its r
   assert.equal((await bookkeeperCall(makeEnv(), { method: "GET" })).status, 405);
 });
 
-test("the session bookkeeper route forwards the session token to the authorisation and then answers like the Windows Hello route", async () => {
+test("the session bookkeeper route forwards the session token to the authorisation", async () => {
   const seen = [];
   const env = makeEnv({
     UPLOAD_SESSION: stub(async (id, url, init) => {
@@ -400,11 +391,6 @@ test("the session bookkeeper route still validates the request after the authori
   assert.equal((await bookkeeperCall(makeEnv(), { body: { rows: [] } })).status, 400);
   assert.equal((await bookkeeperCall(makeEnv({ GEMINI_API_KEY: "" }))).status, 503);
   assert.equal(gemini.length, 0);
-});
-
-test("the Windows Hello bookkeeper route is unchanged: no passkey grant, no answer", async () => {
-  const response = await call("/v1/bookkeeper/process", { body: JSON.stringify({ rows: [{ n: 1 }] }) });
-  assert.equal(response.status, 401);
 });
 
 // An image sent as a file reaches the session as the original; anything else gets an explanation.

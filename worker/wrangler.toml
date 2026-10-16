@@ -6,17 +6,9 @@ compatibility_date = "2026-09-04"
 name = "UPLOAD_SESSION"
 class_name = "UploadSession"
 
-[[durable_objects.bindings]]
-name = "DEVICE_REGISTRY"
-class_name = "DeviceRegistry"
-
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["UploadSession"]
-
-[[migrations]]
-tag = "v2"
-new_sqlite_classes = ["DeviceRegistry"]
 
 [[r2_buckets]]
 binding = "UPLOAD_PHOTOS"

@@ -30,7 +30,6 @@ test("pure formatters", async () => {
   assert.equal(app.normalReference(" ab-12 /x "), "AB12X");
   assert.equal(app.receivedAtText("not a date"), "not a date");
   assert.equal(app.receivedAtText(""), "—");
-  assert.deepEqual([...new Uint8Array(app.fromBase64Url("_-8"))], [255, 239]);
 });
 
 test("applyRecord fills a taxable row and marks it ready", async () => {
