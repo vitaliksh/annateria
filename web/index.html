@@ -120,6 +120,40 @@
       </section>
     </div>
     <p id="inbox-error" role="alert"></p>
+    <div class="dialog-actions"><button id="inbox-guide" type="button" class="secondary">איך מעבירים מהטלפון?</button><span></span><button value="cancel" formnovalidate class="secondary">סגור</button></div></form></dialog>
+  <dialog id="phone-guide-dialog" class="workspace-dialog" aria-labelledby="phone-guide-title"><form method="dialog">
+    <header><h2 id="phone-guide-title">איך מעבירים מסמכים מהטלפון?</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header>
+    <div class="guide-body">
+      <p>המטרה: שהקובץ יגיע למחשב כמו שהוא, בלי דחיסה, ואז לגרור אותו לחלון «תיבת קלט».</p>
+      <section aria-labelledby="guide-whatsapp">
+        <h3 id="guide-whatsapp">1. WhatsApp: שליחה לעצמך (הדרך הרגילה)</h3>
+        <ol>
+          <li>ב‑WhatsApp לפתוח את הצ׳אט עם עצמך («הודעה לעצמך»).</li>
+          <li>ללחוץ על סמל הצירוף (באנדרואיד 📎, באייפון +) ולבחור <strong>«מסמך»</strong> ולא «גלריה» ולא «מצלמה». כך התמונה נשלחת מקורית ולא דחוסה.</li>
+          <li>באייפון תמונה מהגלריה צריך קודם לשמור באפליקציית «קבצים» (שיתוף ← <bdi dir="ltr">Save to Files</bdi>), ואז לבחור אותה דרך «מסמך».</li>
+          <li>במחשב לפתוח את WhatsApp Desktop ולגרור את הקובץ מהצ׳אט אל חלון «תיבת קלט». אפשר לגרור כמה קבצים יחד.</li>
+        </ol>
+      </section>
+      <section aria-labelledby="guide-scan">
+        <h3 id="guide-scan">2. סריקה בטלפון (איכות טובה יותר מצילום רגיל)</h3>
+        <ul>
+          <li><strong>אייפון:</strong> באפליקציית «פתקים» (<bdi dir="ltr">Notes</bdi>) לפתוח פתק, ללחוץ על סמל הצירוף ולבחור <bdi dir="ltr">Scan Documents</bdi>; או באפליקציית «קבצים» ללחוץ על «עוד» (<bdi dir="ltr">More</bdi>) ולבחור <bdi dir="ltr">Scan Documents</bdi>. הסריקה נשמרת כ‑PDF.</li>
+          <li><strong>אנדרואיד:</strong> באפליקציית Google Drive ללחוץ על + ולבחור <bdi dir="ltr">Scan</bdi> (בחלק מהגרסאות זה כפתור המצלמה), לצלם את המסמך ולשמור כ‑PDF.</li>
+          <li>את ה‑PDF שנשמר לשלוח לעצמך ב‑WhatsApp כמסמך (סעיף 1), או להעביר בכבל (סעיף 3).</li>
+        </ul>
+      </section>
+      <section aria-labelledby="guide-usb">
+        <h3 id="guide-usb">3. כבל USB</h3>
+        <ol>
+          <li>לחבר את הטלפון למחשב בכבל שמעביר נתונים (כבל טעינה בלבד לא יעבוד) ולפתוח את מסך הטלפון.</li>
+          <li><strong>אנדרואיד:</strong> בהתראת ה‑USB בטלפון לבחור <bdi dir="ltr">File transfer</bdi> («העברת קבצים»).</li>
+          <li><strong>אייפון:</strong> לאשר בטלפון «לסמוך על המחשב» (<bdi dir="ltr">Trust</bdi>).</li>
+          <li>בסייר הקבצים: «המחשב הזה» ← שם הטלפון ← <bdi dir="ltr">Internal Storage</bdi> ← <bdi dir="ltr">DCIM</bdi> (תמונות), ולגרור את הקבצים אל «תיבת קלט».</li>
+          <li><strong>אייפון, פעם אחת:</strong> בהגדרות ← «תמונות» (<bdi dir="ltr">Photos</bdi>), בתחתית, ב‑<bdi dir="ltr">Transfer to Mac or PC</bdi> לבחור <bdi dir="ltr">Automatic</bdi>. אז התמונות מגיעות כ‑JPEG; עם <bdi dir="ltr">Keep Originals</bdi> הן מגיעות כ‑HEIC (התוכנה קולטת גם אותן, אך ב‑Windows אין להן תצוגה מקדימה בלי תוסף).</li>
+        </ol>
+      </section>
+      <p class="muted">הקבצים נשמרים בתיבת הקלט שבתיקיית הנתונים במחשב בלבד. קובץ שכבר נקלט (גם בהצהרה קיימת) לא יישמר פעם שנייה.</p>
+    </div>
     <div class="dialog-actions"><span></span><button value="cancel" formnovalidate class="secondary">סגור</button></div></form></dialog>
   <dialog id="backup-dialog" class="workspace-dialog" aria-labelledby="backup-title"><form method="dialog">
     <header><h2 id="backup-title">גיבוי</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header>

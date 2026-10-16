@@ -292,3 +292,21 @@ test("buttons of the list are disabled without a data root", async () => {
   assert.equal(await ui.inbox.refreshCounts(), true);
   assert.equal(ui.q("#inbox-clear").disabled, true);
 });
+
+test("the phone guide has the three routes and opens from the inbox dialog", () => {
+  const ui = setup();
+  const guide = ui.window.document.querySelector("#phone-guide-dialog");
+  let opened = 0;
+  guide.showModal = () => { opened += 1; };
+  ui.q("#inbox-guide").click();
+  assert.equal(opened, 1);
+  const headings = [...guide.querySelectorAll("h3")].map((node) => node.textContent);
+  assert.equal(headings.length, 3);
+  assert.match(headings[0], /WhatsApp/);
+  assert.match(headings[1], /סריקה/);
+  assert.match(headings[2], /USB/);
+  const text = guide.textContent;
+  for (const needle of ["«מסמך»", "Save to Files", "Scan Documents", "File transfer", "Transfer to Mac or PC", "Automatic", "Keep Originals", "DCIM", "תיבת קלט"]) {
+    assert.ok(text.includes(needle), needle);
+  }
+});

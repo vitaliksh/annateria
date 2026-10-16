@@ -56,6 +56,8 @@ export function setupInbox({
   ].map(part);
   const navBadge = openButton.querySelector("[data-inbox-total]");
   const doc = dialog.ownerDocument;
+  // The phone guide (step 2.4) is a plain help dialog; the button only opens it.
+  part("inbox-guide").addEventListener("click", () => doc.querySelector("#phone-guide-dialog")?.showModal());
   const thumbnail = makeThumbnail ?? ((file, entry) => canvasThumbnail(file, entry, doc));
   let running = false;
   let message = null;

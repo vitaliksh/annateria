@@ -9,11 +9,11 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 Worker tag is `cloudflare-production-2026-10-16`. The owner accepted the published page: months open and match ocr, the access code
 works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
 
-**Done since:** steps **2.1 Inbox model**, **2.2 Drop zone and picker** (accepted by the owner) and **2.3 Inbox view** (`web/inbox-store.js`,
-`web/inbox-ui.js`: list, remove one file, "נקה תיבה" to `inbox/_trash/`, counts in the sidebar). 2.3 still needs the owner's look on the published page.
+**Done since:** phase 2 is complete: **2.1 Inbox model**, **2.2 Drop zone and picker**, **2.3 Inbox view** (all accepted by the owner) and
+**2.4 Phone guide** (`web/inbox-store.js`, `web/inbox-ui.js`, the help dialog in `index.html`). 2.4 still needs the owner's read-through on a real phone.
 
-**Next:** step **2.4 Phone guide for Anna** (Hebrew help page), which closes phase 2. Phase 3 (model bake-off, outside the repository) can run in
-parallel; it needs the owner's real documents and an answer key. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
+**Next:** phase 3 (model bake-off, outside the repository; needs the owner's real documents and an answer key) or phase 4 (agent core, which starts
+with the tool contract `docs/AGENT_TOOLS.md`). The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (not blocking): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
 project; give Anna her access code if not done; tell me the Cloudflare plan (Free or Paid) so it can be recorded.
@@ -49,7 +49,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 494 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 495 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -112,6 +112,7 @@ Phase 1 is mostly new code: `web/access.js`, `web/access-ui.js`, `web/model-clie
 ## Changes to inherited code (phase 2)
 
 - 2.1: `web/package.json` (check list) and `web/test/memory-binary-directory.mjs` (additive `removeEntry`). No production module changed.
+- 2.4: `web/index.html` (help dialog, guide button), `web/inbox-ui.js` (the button handler), `web/inbox.css`.
 - 2.3: `web/sidebar-clients.js` (optional `inboxCounts`), `web/workspace.js` (optional `getInboxCounts`; returns `renderSidebar`), `web/app.js`
   (`inboxUi`, `inboxFileCounts`, `onCounts`, a refresh in `switchDataRoot`), `web/index.html` (list, count line, clear button, nav badge).
 - 2.2: `web/app.js` (one import and one `setupInbox(...)` call next to `setupTransfer`), `web/index.html` (sidebar item `#open-inbox`, `#inbox-dialog`,
@@ -170,6 +171,23 @@ iterations in a new `ACCESS_CODES` (the count is stored per entry, no code chang
 - The statement "Tier 1 means billing is enabled" is my reading of the badge, not a line quoted from Google. Open item: the owner sets a spend cap
   ("Set spend cap") and uses a separate key for this project, so that its cost is visible on its own.
 - Prices on 16 Oct 2026 (<https://ai.google.dev/gemini-api/docs/pricing>, page dated 15 Oct): see the decision log of phase 3 when models are chosen.
+
+## Phone guide facts (step 2.4, checked 18 October 2026)
+
+The Hebrew guide (`#phone-guide-dialog`) rests on these. Phone menus change with OS versions: re-check before editing it.
+
+- Apple, scan in Notes and in Files ("Scan Documents" under the attachment button / the More button): <https://support.apple.com/en-ie/108963>
+  (official; read through a search summary, not opened in full).
+- Google Drive scan on Android (camera button, or + then Scan, depending on the app version; save as PDF): <https://support.google.com/drive/answer/3145835>
+  (official; search summary).
+- Android over USB (notification "Use USB for", then "File transfer"; a data cable; the phone appears under This PC): <https://support.google.com/android/answer/9064445>
+  (official; search summary).
+- **Not from an official page:** WhatsApp "send as a document" (third-party guides only, e.g.
+  <https://www.ghacks.net/2023/06/28/how-to-send-photos-as-document-in-whatsapp-android-iphone/>; the iPhone route "save to Files first, then Document" comes from
+  those guides) and the iPhone setting "Transfer to Mac or PC" (Settings, Photos, bottom; Automatic converts to JPEG, Keep Originals keeps HEIC; Apple's HEIF/HEVC
+  article as quoted in forums and by Macworld). I did not open Apple's own page for that setting.
+- The Hebrew names of iOS and Android menus were **not** checked; the guide gives the English names in brackets.
+- Nothing in the guide was followed step by step on a real phone.
 
 ## Not verified yet
 

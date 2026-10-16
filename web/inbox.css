@@ -144,3 +144,28 @@
   white-space: nowrap;
   font-weight: 600;
 }
+
+/* Phone guide (help page opened from the inbox dialog). */
+.guide-body {
+  display: grid;
+  gap: var(--s3);
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.guide-body p,
+.guide-body h3 {
+  margin: 0;
+}
+
+.guide-body h3 {
+  margin-bottom: var(--s1);
+}
+
+.guide-body ol,
+.guide-body ul {
+  display: grid;
+  gap: var(--s1);
+  margin: 0;
+  padding-inline-start: var(--s5);
+}
