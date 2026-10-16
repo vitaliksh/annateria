@@ -9,10 +9,10 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 Worker tag is `cloudflare-production-2026-10-16`. The owner accepted the published page: months open and match ocr, the access code
 works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
 
-**Done since:** step **2.1 Inbox model** (`web/inbox-store.js`: `addToInbox`, `ensureInbox`, `readInboxIndex`; no UI, not wired into `app.js`).
+**Done since:** steps **2.1 Inbox model** (`web/inbox-store.js`) and **2.2 Drop zone and picker** (`web/inbox-ui.js`, sidebar item "תיבת קלט"). 2.2 still needs the owner's manual drag test (see the decision log).
 
-**Next:** phase 2, step **2.2 Drop zone and picker** (UI that calls `addToInbox`; type filter and the "N files, M duplicates skipped" line;
-the client folders for `ensureInbox` come from the loaded clients' directory names). Phase 3 (model bake-off, outside the repository) can run in parallel; it needs the owner's real documents and
+**Next:** the owner's manual check of 2.2 on the published page (drag from Explorer / WhatsApp Desktop / Gmail, a HEIC and a PDF arrive with
+equal hash), then step **2.3 Inbox view** (counts per client, list with thumbnails, delete to `inbox/_trash/`). Phase 3 (model bake-off, outside the repository) can run in parallel; it needs the owner's real documents and
 an answer key. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (not blocking): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
@@ -49,7 +49,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 462 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 475 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -73,7 +73,8 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
 - **Intake rules as code:** `intake-facts.js`, `intake-index.js` (year, period, duplicates), `bookkeeper-flow.js`
   (leftover of the ocr bookkeeper agent, no UI wired since 0.3).
 - **Inbox:** `inbox-store.js` (originals dropped by the user, `inbox/index.json`, SHA-256 dedup against the inbox and all declaration
-  images; the Windows file-name rules live here). Phase 2 builds the UI on it. The backup already copies `inbox/` with the rest of the root.
+  images; the Windows file-name rules and the accepted file types live here), `inbox-ui.js` + `inbox.css` (`#inbox-dialog`: drop target, picker,
+  client choice, result lines; opened by `#open-inbox`). The backup already copies `inbox/` with the rest of the root.
 - **Classification:** `rivhit-mapping.js` (Form 6111 map), `custom-rivhit-mapping.js`, `chart-of-accounts.js`,
   `ledger-*.js` (read the classification ledger, fix codes, reconcile with declarations).
 - **Imports:** `excel-journal*.js`, `excel-import*.js` (Rivhit journal `.xlsx`), `income-report.js` (income-report PDF),
@@ -111,6 +112,8 @@ Phase 1 is mostly new code: `web/access.js`, `web/access-ui.js`, `web/model-clie
 ## Changes to inherited code (phase 2)
 
 - 2.1: `web/package.json` (check list) and `web/test/memory-binary-directory.mjs` (additive `removeEntry`). No production module changed.
+- 2.2: `web/app.js` (one import and one `setupInbox(...)` call next to `setupTransfer`), `web/index.html` (sidebar item `#open-inbox`, `#inbox-dialog`,
+  `inbox.css` link), `web/package.json` (check list).
 
 ## Dead code kept on purpose (decide in phase 4)
 

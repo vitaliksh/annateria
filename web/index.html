@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="reports.css">
   <link rel="stylesheet" href="clients.css">
   <link rel="stylesheet" href="backup.css">
+  <link rel="stylesheet" href="inbox.css">
   <link rel="stylesheet" href="sidebar.css">
   <link rel="stylesheet" href="shell.css">
   <script src="config.js" defer></script>
@@ -25,7 +26,7 @@
   <div class="app-shell">
     <aside id="workspaces-drawer" class="sidebar" aria-label="ניווט">
       <div class="sidebar-body">
-        <nav class="sidebar-nav" aria-label="ניווט ראשי"><button id="nav-clients" type="button" class="nav-item"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.4 3-5 6-5s5.4 1.6 6 5M16 5.5a3 3 0 0 1 0 5.6M18 14.4c1.7.7 2.7 2.2 3 4.6"/></svg><span class="label">כל הלקוחות</span></button><button id="nav-reports" type="button" class="nav-item" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span class="label">דוחות</span></button></nav>
+        <nav class="sidebar-nav" aria-label="ניווט ראשי"><button id="nav-clients" type="button" class="nav-item"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.4 3-5 6-5s5.4 1.6 6 5M16 5.5a3 3 0 0 1 0 5.6M18 14.4c1.7.7 2.7 2.2 3 4.6"/></svg><span class="label">כל הלקוחות</span></button><button id="nav-reports" type="button" class="nav-item" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span class="label">דוחות</span></button><button id="open-inbox" type="button" class="nav-item"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13l2.5-7h11L20 13v5H4zM4 13h5l1 2h4l1-2h5"/></svg><span class="label">תיבת קלט</span></button></nav>
         <section class="clients-section" aria-labelledby="clients-title">
           <div class="tree-section-heading"><h3 id="clients-title">לקוחות</h3><button id="show-new-client" type="button" class="tree-add"><span aria-hidden="true">+</span> לקוח חדש</button></div>
           <p id="workspace-summary" class="workspace-summary" role="status"></p>
@@ -101,6 +102,21 @@
     <div class="dialog-actions"><button id="rows-move-run" type="button" disabled>העברה</button><span></span><button value="cancel" formnovalidate class="secondary">סגירה</button></div></form></dialog>
   <dialog id="new-client-dialog" class="workspace-dialog" aria-labelledby="new-client-title"><form method="dialog"><header><h2 id="new-client-title">לקוח חדש</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header><div id="new-client-form" class="new-client-form"><label>שם הלקוח <input id="new-client-name" maxlength="120"></label><label>סוג פעילות העסק <input id="new-client-activity" maxlength="500"></label><label>סוג העסק <select id="new-client-kind"><option value="home">עסק בבית פרטי</option><option value="office">עסק במשרד</option></select></label><label>דיווח מע״מ <select id="new-client-vat-period"><option value="monthly">חד‑חודשי</option><option value="bimonthly">דו‑חודשי</option></select></label><label>דיווח מקדמות <select id="new-client-advances-period"><option value="monthly">חד‑חודשי</option><option value="bimonthly">דו‑חודשי</option></select></label><label>מספר עוסק מורשה <input id="new-client-vat-id" inputmode="numeric" maxlength="20" dir="ltr" autocomplete="off"></label><label>מספר מס הכנסה <input id="new-client-income-tax-id" inputmode="numeric" maxlength="20" dir="ltr" autocomplete="off"></label><label>אחוז מקדמות <input id="new-client-advance-percent" inputmode="decimal" maxlength="6" dir="ltr" autocomplete="off"></label><label><input id="new-client-pcn" type="checkbox"> חייב ביצירת קובץ PCN</label><p id="new-client-tax-hint" class="field-hint" role="status" hidden></p><label>חודש הצהרה ראשונה <input id="new-client-month" type="text" class="month-field" inputmode="numeric" maxlength="7" placeholder="MM/YYYY" dir="ltr" autocomplete="off"></label></div><p id="new-client-error" role="alert"></p><div class="dialog-actions"><button id="create-client" type="button">יצירת לקוח</button><span></span><button value="cancel" formnovalidate class="secondary">ביטול</button></div></form></dialog>
   <dialog id="settings-dialog" class="workspace-dialog" aria-labelledby="settings-title"><form method="dialog"><header><h2 id="settings-title">הגדרות</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header><div class="application-settings-content"><section class="data-root-setting" aria-label="תיקיית נתונים"><h3>תיקיית נתונים</h3><p id="data-root-summary">טרם נבחרה תיקיית נתונים.</p><button id="select-data-root" type="button" class="secondary">בחירת תיקיית נתונים</button><label class="folder-path">נתיב מלא (להצגה בלבד) <input id="data-root-path" dir="ltr" maxlength="260" autocomplete="off" placeholder="D:\ANNATERIA"></label><p class="muted">הדפדפן אינו חושף את הנתיב המלא של התיקייה, לכן יש לרשום אותו כאן ידנית; הוא נשמר בתיקיית הנתונים. להעתקת הנתיב: בסייר הקבצים לבחור את התיקייה וללחוץ Ctrl+Shift+C.</p><p id="data-root-title" class="sr-only">תיקיית נתונים לא נבחרה</p></section><div class="template-setting"><button id="manage-classifications" type="button" class="secondary">ניהול קודי מיון</button></div><div class="template-setting"><button id="check-model" type="button" class="secondary">בדיקת חיבור ל‑AI</button><p id="model-check-result" role="status"></p></div></div><div class="dialog-actions"><span></span><button value="cancel" formnovalidate class="secondary">סגור</button></div></form></dialog>
+  <dialog id="inbox-dialog" class="workspace-dialog" aria-labelledby="inbox-title"><form method="dialog">
+    <header><h2 id="inbox-title">תיבת קלט</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header>
+    <div class="inbox-body">
+      <p id="inbox-summary" class="plate" role="status"></p>
+      <label>שיוך ללקוח <select id="inbox-client"></select></label>
+      <div id="inbox-drop" class="inbox-drop" role="button" tabindex="0" aria-describedby="inbox-hint">
+        <strong>גרור לכאן</strong>
+        <span id="inbox-hint" class="muted">JPG, PNG, WebP, HEIC, PDF, XLSX, XLS, CSV</span>
+        <button id="inbox-pick" type="button" class="secondary">בחר קבצים</button>
+      </div>
+      <input id="inbox-file" type="file" multiple hidden>
+      <ul id="inbox-problems" class="problem-list" hidden></ul>
+    </div>
+    <p id="inbox-error" role="alert"></p>
+    <div class="dialog-actions"><span></span><button value="cancel" formnovalidate class="secondary">סגור</button></div></form></dialog>
   <dialog id="backup-dialog" class="workspace-dialog" aria-labelledby="backup-title"><form method="dialog">
     <header><h2 id="backup-title">גיבוי</h2><button value="cancel" formnovalidate aria-label="סגור" class="dialog-close">×</button></header>
     <div class="backup-body">

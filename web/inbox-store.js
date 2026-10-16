@@ -15,6 +15,15 @@ const MIME_BY_EXTENSION = {
 
 export { UNSORTED, TRASH };
 
+export const ACCEPTED_EXTENSIONS = Object.keys(MIME_BY_EXTENSION);
+
+// null when the file may enter the inbox, otherwise the reason (Hebrew) for the user.
+export function refusalReason(name) {
+  const dot = String(name ?? "").lastIndexOf("."), extension = dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
+  if (ACCEPTED_EXTENSIONS.includes(extension)) return null;
+  return extension ? `סוג קובץ שאינו נתמך (.${extension})` : "קובץ ללא סיומת";
+}
+
 const hex = (buffer) => [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 export async function sha256Hex(bytes) { return hex(await crypto.subtle.digest("SHA-256", bytes)); }
 

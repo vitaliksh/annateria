@@ -27,6 +27,7 @@ import { setupBackup } from "./backup-ui.js";
 import { setupAccess } from "./access-ui.js";
 import { checkModelConnection, createModelClient } from "./model-client.js";
 import { setupTransfer } from "./transfer-ui.js";
+import { setupInbox } from "./inbox-ui.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
 import { isHomeUtility } from "./home-utilities.js";
@@ -553,6 +554,13 @@ const transfer = setupTransfer({
     if (months.length === 1) await workspaceControls?.openDeclaration(clientId, months[0]);
     else clientsHome.openClient(clientId);
   },
+});
+setupInbox({
+  dialog: document.querySelector("#inbox-dialog"),
+  openButton: document.querySelector("#open-inbox"),
+  getDataRoot: () => dataRoot,
+  getClients: () => workspaceControls?.getClients().active ?? [],
+  onError: showError,
 });
 document.querySelector("#export-declaration").addEventListener("click", () => {
   if (committedWorkspace && currentDeclaration) transfer.openExport({ clientId: committedWorkspace.config.clientId, month: currentDeclaration.month });

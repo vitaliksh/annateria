@@ -1,0 +1,51 @@
+/* Inbox dialog: the drop target and the list of files that were not taken. */
+.inbox-body {
+  display: grid;
+  gap: var(--s3);
+}
+
+.inbox-body p {
+  margin: 0;
+}
+
+.inbox-drop {
+  display: grid;
+  justify-items: center;
+  gap: var(--s2);
+  padding: var(--s6) var(--s4);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-muted);
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+}
+
+.inbox-drop strong {
+  font-size: var(--fs-lg);
+  color: var(--text-strong);
+}
+
+.inbox-drop:hover,
+.inbox-drop:focus-visible {
+  background: var(--surface-hover);
+}
+
+.inbox-drop:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.inbox-drop[data-over="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.inbox-drop[aria-disabled="true"] {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.inbox-drop[data-busy="true"] {
+  cursor: progress;
+}

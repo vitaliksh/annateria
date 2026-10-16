@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { UNSORTED, addToInbox, declarationImageHashes, ensureInbox, isInboxFolder, readInboxIndex, safeFileName, sha256Hex } from "../inbox-store.js";
+import { UNSORTED, addToInbox, declarationImageHashes, ensureInbox, isInboxFolder, readInboxIndex, refusalReason, safeFileName, sha256Hex } from "../inbox-store.js";
 import { binaryDirectory, listPaths, putFile, readFileBytes } from "./memory-binary-directory.mjs";
 
 const bytesOf = (text) => new TextEncoder().encode(text);
@@ -26,6 +26,14 @@ test("safeFileName keeps the extension and removes what Windows refuses", () => 
   assert.equal(safeFileName("...."), "file");
   const long = safeFileName("x".repeat(400) + ".xlsx");
   assert.ok(long.endsWith(".xlsx") && long.length === 125);
+});
+
+test("refusalReason lets photos, PDFs and spreadsheets in and names the reason for the rest", () => {
+  for (const name of ["a.jpg", "A.JPEG", "b.png", "c.webp", "d.HEIC", "e.heif", "f.pdf", "g.xlsx", "h.xls", "i.csv"]) assert.equal(refusalReason(name), null, name);
+  assert.equal(refusalReason("notes.docx"), "סוג קובץ שאינו נתמך (.docx)");
+  assert.equal(refusalReason("archive.ZIP"), "סוג קובץ שאינו נתמך (.zip)");
+  assert.equal(refusalReason("README"), "קובץ ללא סיומת");
+  assert.equal(refusalReason(".pdf"), "קובץ ללא סיומת", "a dot file is a name, not an extension");
 });
 
 test("isInboxFolder accepts _unsorted and plain names, refuses paths and reserved names", () => {
