@@ -94,7 +94,7 @@ const GROSS = 7;
 const normalReference = (value) => String(value ?? "").replace(/[^\p{L}\p{N}]/gu, "").toUpperCase().replace(/^0+/, "");
 const supplierDigits = (value) => String(value ?? "").replace(/\D/g, "").replace(/^0+/, "");
 const NAME_STOP = new Set(["בעמ", "בע", "מ", "ltd", "inc", "llc", "חברת", "חברה", "ושות", "the"]);
-const nameTokens = (value) =>
+export const nameTokens = (value) =>
   String(value ?? "")
     .toLowerCase()
     .replace(/["'״׳”“]/g, "")

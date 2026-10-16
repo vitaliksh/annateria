@@ -12,12 +12,11 @@ works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
 **Done since:** phase 2 is complete: **2.1 Inbox model**, **2.2 Drop zone and picker**, **2.3 Inbox view** (all accepted by the owner) and
 **2.4 Phone guide** (`web/inbox-store.js`, `web/inbox-ui.js`, the help dialog in `index.html`). 2.4 still needs the owner's read-through on a real phone.
 
-**Done:** step **4.1 Tool contract**: `docs/AGENT_TOOLS.md` is **approved** (18 October 2026, all ten recommendations of its section 10 taken). It is the
+**Done:** step **4.1 Tool contract**: `docs/AGENT_TOOLS.md` is **approved** (16 October 2026, all ten recommendations of its section 10 taken). It is the
 specification for 4.2 onwards; a change to it needs the owner's approval.
 
-**Next:** step **4.2 Orchestrator loop** (`web/agent/`, tested with a scripted fake model; first check the Gemini function-calling rules, thought
-signatures included, in the official docs and record the source here). Phase 3 (model bake-off, outside the repository; needs the owner's real
-documents and an answer key) can run in parallel. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
+**Done:** step **4.2 Orchestrator loop** (`web/agent/`, see "Agent core" below). **Next:** **4.2b Remaining tools** (extraction, facts, client context, row query),
+then 4.3 the panel. Phase 3 (model bake-off) is in the backlog. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (not blocking): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
 project; give Anna her access code if not done; tell me the Cloudflare plan (Free or Paid) so it can be recorded.
@@ -53,7 +52,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 495 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 551 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -76,6 +75,9 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   `pcn-review.js` / `pcn-review-ui.js` (clients with a PCN duty).
 - **Intake rules as code:** `intake-facts.js`, `intake-index.js` (year, period, duplicates), `bookkeeper-flow.js`
   (leftover of the ocr bookkeeper agent, no UI wired since 0.3).
+- **Agent (phase 4):** `web/agent/`: `run.js` (the loop, `createContext`), `registry.js` (closed list of tools, dispatch, result envelope), `schema.js` (argument check and
+  the Gemini declaration from one schema), `handles.js`, `limits.js`, `run-log.js`, `gemini.js` (the model of the loop over `model-client.js`), `services.js` (the only way for
+  a tool to reach data), `tools/` (`list_inbox`, `find_client`, `ask_user`, `propose_change` so far). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
 - **Inbox:** `inbox-store.js` (originals dropped by the user, `inbox/index.json`, SHA-256 dedup against the inbox and all declaration
   images; the Windows file-name rules and the accepted file types live here), `inbox-ui.js` + `inbox.css` (`#inbox-dialog`: drop target, picker,
   client choice, result lines; opened by `#open-inbox`). The backup already copies `inbox/` with the rest of the root.
@@ -116,6 +118,7 @@ Phase 1 is mostly new code: `web/access.js`, `web/access-ui.js`, `web/model-clie
 ## Changes to inherited code (phase 2)
 
 - 2.1: `web/package.json` (check list) and `web/test/memory-binary-directory.mjs` (additive `removeEntry`). No production module changed.
+- 4.2: `web/intake-facts.js` (`nameTokens` is now exported, nothing else changed), `web/package.json` (check list). The rest is new files under `web/agent/`.
 - 2.4: `web/index.html` (help dialog, guide button), `web/inbox-ui.js` (the button handler), `web/inbox.css`.
 - 2.3: `web/sidebar-clients.js` (optional `inboxCounts`), `web/workspace.js` (optional `getInboxCounts`; returns `renderSidebar`), `web/app.js`
   (`inboxUi`, `inboxFileCounts`, `onCounts`, a refresh in `switchDataRoot`), `web/index.html` (list, count line, clear button, nav badge).
@@ -176,7 +179,39 @@ iterations in a new `ACCESS_CODES` (the count is stored per entry, no code chang
   ("Set spend cap") and uses a separate key for this project, so that its cost is visible on its own.
 - Prices on 16 Oct 2026 (<https://ai.google.dev/gemini-api/docs/pricing>, page dated 15 Oct): see the decision log of phase 3 when models are chosen.
 
-## Phone guide facts (step 2.4, checked 18 October 2026)
+## Agent core (step 4.2, built 16 October 2026)
+
+What exists: the loop, the closed registry with validation and the result envelope, run-local handles, limits, cancel, the run log
+(`common/agent-runs/<id>.json` through `writeRunLog`; nothing calls it yet), the write guards of the context (`ensureCopy` once per run and declaration,
+`requireOpen` refuses anything but an open declaration), the Gemini adapter and four tools. It has only run against a scripted model: **no real Gemini call was
+made**, and no code in `app.js` starts it. Decisions on the way:
+
+- `propose_change` takes `value` as text and parses it by the field (a number as `123.45`, a yes/no as `true`/`false`, a date as `2026-03-14` or in the journal
+  format): a Gemini schema cannot say "any type", and a text field keeps one declaration for every field. The contract's "the value has the type of the field" holds after parsing.
+- `find_client` ignores legal suffixes (`Ltd`, `בע״מ`) through `nameTokens`: "Levi Plumbing" is an exact match for "Levi Plumbing Ltd"; a name inside a longer one, or the
+  other way round, is partial; one shared word is nothing.
+- `list_inbox` cuts a page at about 15 KB so that the 20 KB result cap is never hit; `next` continues.
+- The `exclusive` flag of a tool (`ask_user`) makes the calls of one model turn run one after the other; the other tools run together.
+- The tests that keep the contract: `test/agent-boundary.test.mjs` (the tool list equals the headings of the document: built plus `PENDING_TOOLS`; no tool name starting with an
+  action verb; `services` has five operations and none that closes, deletes or writes; tool files import only the error class and pure helpers; only `services.js` reaches
+  the stores; no `fetch`, DOM or file API in the agent), `agent-run.test.mjs` (the loop), `agent-tools.test.mjs`, `agent-core.test.mjs`, `agent-gemini.test.mjs`.
+
+### Gemini function calling (read 16 October 2026)
+
+- Thought signatures, <https://ai.google.dev/gemini-api/docs/generate-content/thought-signatures> (read in full): for Gemini 3 and 4 the first `functionCall` part of every step of the
+  current turn carries `thoughtSignature` and it **must** be returned in the exact part where it arrived, otherwise the API answers 400. In parallel calls only the first part has one.
+  The order in the history must be `FC1 (+signature), FC2, FR1, FR2`; interleaving `FC1, FR1, FC2, FR2` is a 400. A `functionResponse` does not start a new turn. The loop keeps the
+  parts of the model verbatim and answers all calls of a turn in one `user` content, in call order (tests: `agent-run.test.mjs`, `agent-gemini.test.mjs`).
+- <https://ai.google.dev/gemini-api/docs/function-calling> now documents the **Interactions API** (steps `function_call` / `function_result`, `generation_config.tool_choice`), not
+  `generateContent`. This project uses `generateContent` through the Worker; I did not check whether the Interactions API is meant to replace it (as noted for step 1.2).
+- <https://ai.google.dev/api/caching> (read): `toolConfig.functionCallingConfig.mode` is `AUTO` (default), `ANY`, `NONE` or `VALIDATED`; `allowedFunctionNames` only with `ANY` or `VALIDATED`.
+  The adapter sends `AUTO`.
+- **Not verified, written from memory of the generateContent reference:** the type names of `functionDeclarations[].parameters` are upper case (`OBJECT`, `STRING`, …) and the schema has no
+  `additionalProperties`; the `functionResponse` content has the role `user`; the `finishReason` values such as `MALFORMED_FUNCTION_CALL`, `SAFETY`, `MAX_TOKENS`; that a `functionResponse`
+  `id` must echo the `id` of the call when there is one. The first real run (4.3, with the owner's key) is the check; if Gemini rejects a declaration, the one place to change is
+  `toGeminiSchema` in `schema.js`. Temperature is left at the default of the model for the orchestrator.
+
+## Phone guide facts (step 2.4, checked 16 October 2026)
 
 The Hebrew guide (`#phone-guide-dialog`) rests on these. Phone menus change with OS versions: re-check before editing it.
 

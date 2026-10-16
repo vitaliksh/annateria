@@ -1,6 +1,6 @@
 # Agent tools: the contract (step 4.1)
 
-**Status: APPROVED by the owner on 18 October 2026, all ten recommendations of section 10 taken.** It was written before any code, and is changed only with the owner's approval (`WORK_PLAN.md`,
+**Status: APPROVED by the owner on 16 October 2026, all ten recommendations of section 10 taken.** It was written before any code, and is changed only with the owner's approval (`WORK_PLAN.md`,
 step 4.1). It describes the *application agent* (the assistant inside the web app, Gemini through the Worker), not the
 development agents that work on the code.
 
