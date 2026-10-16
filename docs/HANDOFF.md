@@ -16,8 +16,8 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 423 tests; check = node --check on every module
-cd worker; npm ci; npm test; npm run check   # 5 tests; check = wrangler deploy --dry-run
+cd web;    npm ci; npm test; npm run check   # node --test, 432 tests; check = node --check on every module
+cd worker; npm ci; npm test; npm run check   # 30 tests; check = wrangler deploy --dry-run
 ```
 
 `npm ci` warns that `esbuild` / `workerd` install scripts are blocked; tests and checks work anyway. The app tests load the
@@ -49,7 +49,9 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   `transfer-store.js`, `transfer-ui.js` (`.annateria` file).
 - **Style:** `tokens.css` (the only file with colours; `styles.test.mjs` enforces it), `base.css`, `shell.css`,
   `dialogs.css`, `journal.css`, `clients.css`, `reports.css`, `backup.css`, `sidebar.css`, `photo.css`, `fonts/`.
-- `worker/src/index.js`: `/health`, CORS by `ALLOWED_ORIGINS`, 404 for everything else.
+- `worker/`: `src/index.js` (`/health`, `/v1/auth`, `requireUser`, CORS by `ALLOWED_ORIGINS`, 404 for the rest), `src/access.js`
+  (codes, hashes, tokens), `src/auth-guard.js` (lock-out Durable Object), `scripts/access-codes.mjs` (creates codes and
+  secret files outside the repository). Web side: `web/access.js` (token in memory), `web/access-ui.js` (login dialog).
 - `docs/`: `WORK_PLAN.md`, this file, `ARCHITECTURE.md`, and specs inherited from ocr (`REPORTS_SPEC.md`,
   `BACKUP_SPEC.md`, `EXCEL_IMPORT_SPEC.md`).
 
@@ -72,9 +74,24 @@ exists), `renderPdfPages` in `pdf-import.js`, `pdf-report.js`, `createDraftExpor
 `history-ranker.js`, the `.retry` CSS. The old bookkeeper prompt and schema stay in `ocr/cloudflare-worker/src/` as input
 for the phase 5 skills.
 
+## Cloudflare facts used by step 1.1 (checked 16 October 2026)
+
+- Rate Limiting binding: "local to the Cloudflare location", "eventually consistent", "not … an accurate accounting
+  system" (<https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/>), so it cannot be the lock-out.
+- Durable Objects are available on the Free plan, SQLite backend only, 100,000 requests per day
+  (<https://developers.cloudflare.com/durable-objects/platform/pricing/>).
+- CPU time per request: Free 10 ms, Paid 30 s by default (<https://developers.cloudflare.com/workers/platform/limits/>).
+- Web Crypto offers PBKDF2, HMAC and SHA-256 (<https://developers.cloudflare.com/workers/runtime-apis/web-crypto/>). The
+  page names **no PBKDF2 iteration limit**; a cap of 100,000 is my recollection, not verified.
+
+**Hypothesis to measure in step 1.4:** one PBKDF2 hash with 20,000 iterations per user fits into 10 ms of CPU on the Free
+plan (a login hashes against every user, i.e. twice). If `/v1/auth` ends with Cloudflare error 1102 (CPU exceeded) lower the
+iterations in a new `ACCESS_CODES` (the count is stored per entry, no code change) or use the Paid plan.
+
 ## Not verified yet
 
 - Anything beyond opening a month and comparing data with ocr (owner check of 16 October 2026). The rest of the UI
   (Excel import, reports PDF, backup, transfer) was not clicked through after the 0.3 removals.
-- The Worker has never been deployed from this repository.
+- The Worker has never been deployed from this repository: the login was tested against the Worker code in node
+  (30 tests) and the dialog in jsdom, never against Cloudflare. Real CPU time of PBKDF2 and the Durable Object are unmeasured.
 - The `deploy-web.yml` test job passed once on GitHub (Node 24); no other CI exists.

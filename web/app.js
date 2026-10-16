@@ -24,6 +24,7 @@ import { readUiSettings, saveUiSettings } from "./ui-settings.js";
 import { setupExcelImport } from "./excel-import-ui.js";
 import { setupReports } from "./reports-ui.js";
 import { setupBackup } from "./backup-ui.js";
+import { setupAccess } from "./access-ui.js";
 import { setupTransfer } from "./transfer-ui.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
@@ -568,6 +569,9 @@ const reports = setupReports({
 });
 updateStartAvailability();
 loadBackendVersion();
+// The access code (step 1.1): asked once per page load while a Worker is configured; the token stays in memory.
+const accessUi = setupAccess({ dialog: document.querySelector("#access-dialog"), api });
+if (api) accessUi.ensureLoggedIn();
 async function saveCurrentDraft() {
   if (!currentDeclaration || currentDeclaration.status !== "open" || !currentDeclarationDirectory) return;
   clearTimeout(draftSaveTimer);

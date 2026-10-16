@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status: **plan agreed 16 October 2026; steps 0.1–0.5 done.** This file is the single source of truth for what is
+Status: **plan agreed 16 October 2026; steps 0.1–0.5 and 1.1 done.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -94,7 +94,7 @@ Goal: a working copy of the ocr web app in this repository, published, with the 
 
 Goal: the browser can call Gemini through the Worker after Anna types her code; the key never leaves the Worker.
 
-- [ ] **1.1 Access code.** `POST /v1/auth` with a 6-character code → short-lived token (e.g. 12 hours, signed,
+- [x] **1.1 Access code.** `POST /v1/auth` with a 6-character code → short-lived token (e.g. 12 hours, signed,
   kept in page memory only). One code per user (Anna, Vitalik), stored as salted hashes in Worker secrets.
   **Rate limit:** lock-out after a few wrong attempts per IP and a global ceiling (check current Cloudflare
   options: Rate Limiting binding, Durable Object or KV). Login screen in `web/` (Hebrew).
@@ -243,3 +243,4 @@ model behind the same proxy.
 | 2026-10-16 | 0.3 regression found on the published page: opening a month failed with "pcnJournal is not defined". Cause: while cutting the bookkeeper block I also deleted `let pcnJournal = null;`; in a browser module the undeclared assignment throws, while jsdom silently creates a global, so the tests stayed green. Fix: the declaration is back, and `test/app-harness.mjs` now fails `loadApp` if app.js leaves any undeclared global on `window` (verified: 33 app tests fail without the fix). Also removed the now unused `tableRows`. Lesson: a green jsdom run does not replace opening a month in the browser. |
 | 2026-10-16 | 0.4 confirmed by the owner on the published page https://vitaliksh.github.io/annateria/ with a copy of a real ocr data root: months open, data equal to ocr. Deploys run through `deploy-web.yml` on every push to `main` that touches `web/`. |
 | 2026-10-16 | 0.5: `README.md`, `docs/ARCHITECTURE.md` and `docs/HANDOFF.md` written. Phase 0 is complete. |
+| 2026-10-16 | 1.1: `POST /v1/auth` built. Code = 6 characters of a 32-letter alphabet (30 bits), hashes PBKDF2-SHA256 (20,000 iterations, stored per entry) in the secret `ACCESS_CODES`; token = HMAC-signed, 12 h, stateless, in page memory only. Lock-out in one SQLite Durable Object (the Rate Limiting binding is eventually consistent per location, checked against the docs): 5 attempts / 15 min per address then 15 min lock, 20 attempts / hour for all; attempts counted at start, refunded on success; fails closed (503). A guessing storm can lock the real users for up to an hour: accepted. The login dialog (`#access-dialog`) opens on page load when `ANNATERIA_API` is set and can be closed: the journal works without it. `requireUser()` is the gate every 1.2 route must call first. Codes are made by `worker/scripts/access-codes.mjs` (output outside the repository). Tests: web 423 → 432, Worker 5 → 30. Not verified: a real deployment (see HANDOFF). |

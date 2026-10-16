@@ -39,10 +39,10 @@ test("health without a configured version says unknown, and sends no CORS header
   assert.equal(response.headers.get("access-control-allow-origin"), null);
 });
 
-test("preflight allows the content-type header only for allowed origins", async () => {
+test("preflight allows the content-type and authorization headers only for allowed origins", async () => {
   const allowed = await call("/anything", { method: "OPTIONS" });
   assert.equal(allowed.status, 200);
-  assert.equal(allowed.headers.get("access-control-allow-headers"), "content-type");
+  assert.equal(allowed.headers.get("access-control-allow-headers"), "content-type, authorization");
   const stranger = await call("/anything", { method: "OPTIONS", origin: "https://evil.example" });
   assert.equal(stranger.headers.get("access-control-allow-origin"), null);
 });
