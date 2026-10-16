@@ -138,14 +138,15 @@ export function setupAssistant({ root, onCommand }) {
     });
   }
 
-  // A suggestion of the agent for existing rows. Applying it from here comes with step 4.4; today the card only shows it.
+  // A suggestion of the agent for existing rows, each with its row number (the # column of the table). Applying it from here comes with
+  // step 4.4; today the card only shows it.
   function propose(proposal) {
     const box = element("div", "assistant-card");
     box.dataset.kind = "proposal";
     box.append(element("p", "card-text", proposal.title), element("p", "card-about muted", `הצעה ללקוח «${proposal.client.name}» — עדיין לא הוחלה`));
     const list = element("ul", "card-changes");
     for (const change of proposal.changes) {
-      list.append(element("li", "", `${FIELD_LABELS[change.field] ?? change.field} (${formatMonth(change.month)}): ${valueText(change.field, change.value)} — ${change.reason}`));
+      list.append(element("li", "", `שורה ${change.position} (${formatMonth(change.month)}) · ${FIELD_LABELS[change.field] ?? change.field}: ${valueText(change.field, change.value)} — ${change.reason}`));
     }
     box.append(list);
     add(box);

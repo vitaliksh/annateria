@@ -46,7 +46,8 @@ export default {
     const monthState = declaration ? (declaration.status === "open" ? "open" : "locked") : intake.lockedThrough && facts.targetMonth <= intake.lockedThrough ? "locked" : "missing";
     const matches = facts.duplicates.matches.map((match) => ({
       level: match.level, month: match.month, status: match.status === "open" ? "open" : "locked", position: match.position + 1,
-      ...(match.documentId ? { row: ctx.handles.create("R", `${client.clientId}|${match.documentId}`, { clientId: client.clientId, month: match.month, documentId: match.documentId }) } : {}),
+      // A row is told apart by its month and its number in the table: two rows can share one documentId (the groups of one invoice).
+      ...(match.documentId ? { row: ctx.handles.create("R", `${client.clientId}|${match.month}|${match.position + 1}`, { clientId: client.clientId, month: match.month, documentId: match.documentId, position: match.position + 1 }) } : {}),
     }));
     const review = pcnReview([row], { pcnRequired: profile.pcnRequired })[0];
     const pcn = review.applies ? { applies: true, threshold: review.threshold, over: review.over, allocation_missing: review.missingAllocation } : { applies: false };

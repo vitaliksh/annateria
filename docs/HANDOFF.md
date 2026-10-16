@@ -15,10 +15,9 @@ works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
 **Done:** step **4.1 Tool contract**: `docs/AGENT_TOOLS.md` is **approved** (16 October 2026, all ten recommendations of its section 10 taken). It is the
 specification for 4.2 onwards; a change to it needs the owner's approval.
 
-**Done:** steps **4.2 Orchestrator loop**, **4.2b Remaining tools** and **4.3 Assistant panel** (see "Agent core" below). **Next, for the owner:** the first real run: on the
-published page enter the access code, put a few files into "תיבת קלט", open the dock and press "עבד חדשים"; report what the dock shows (it checks the points marked
-unverified in "Gemini function calling"). **Next step:** 4.4 live rows (`add_rows`, `move_file_to_declaration`, the apply button of proposals). Phase 3 is in the backlog.
-The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
+**Done:** steps **4.2 Orchestrator loop**, **4.2b Remaining tools** and **4.3 Assistant panel**; the first real run of the dock worked (see "First real run" below). **Next, for the owner:**
+the same with files: put a few documents into "תיבת קלט" and press "עבד חדשים", which is the first run of the vision call (`extract_document`). **Next step:** 4.4 live rows (`add_rows`,
+`move_file_to_declaration`, the apply button of proposals). Phase 3 is in the backlog. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (not blocking): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
 project; give Anna her access code if not done; tell me the Cloudflare plan (Free or Paid) so it can be recorded.
@@ -54,7 +53,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 613 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 617 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -200,6 +199,13 @@ made**, and no code in `app.js` starts it. Decisions on the way:
 - The tests that keep the contract: `test/agent-boundary.test.mjs` (the tool list equals the headings of the document: built plus `PENDING_TOOLS`; no tool name starting with an
   action verb; `services` has five operations and none that closes, deletes or writes; tool files import only the error class and pure helpers; only `services.js` reaches
   the stores; no `fetch`, DOM or file API in the agent), `agent-run.test.mjs` (the loop), `agent-tools.test.mjs`, `agent-core.test.mjs`, `agent-gemini.test.mjs`.
+
+### First real run (16 October 2026)
+
+The owner asked the dock to check one real client for September. **What it proved:** the Worker, the access code, `/v1/model`, function calling on `gemini-3.8-flash` with our declarations (upper-case type names, no `additionalProperties`), `functionResponse` in a `user` content, parallel calls (`get_client_context` and `query_rows` in one turn), thought signatures kept verbatim, usage metadata in the run log (`common/agent-runs/`). The answer was in good Hebrew, in plain text.
+**Cost seen:** six turns, 44,409 prompt tokens, about 870 answer and 5,500 thinking tokens; at 0.75 / 3.75 USD per million (the price of 16 October, until 31 December) that is about 6 cents, **my arithmetic, not a bill**. Every turn sends the whole conversation again, and the client context and the 32 rows made the third turn 8,400 tokens; Gemini context caching and shorter results are the levers if cost matters.
+**What it found wrong in our code** (all fixed, with regression tests in `test/agent-context-tools.test.mjs`): row handles keyed by `documentId` collapse the rows that share one (the groups of one invoice; 2 pairs in that table), so the model quoted numbers that were not row numbers; the agent quoted the amount of the document while the table shows the recognised one; it promised an apply button that does not exist; an active row of zeros was not reported. Rows are now told apart by month and row number (`position`, the # column); a proposal carries it; the apply code of 4.4 must check `documentId` at that position before it changes anything and refuse when the table has changed.
+**Still unverified:** the vision call (`extract_document`: JSON response schema with `nullable`, temperature 0, `inlineData`, HEIC, large files); the stop button during a real call.
 
 ### What 4.3 added
 

@@ -59,7 +59,7 @@ test("query_rows: every row of every month with the facts of the table, flags an
   assert.deepEqual([insurance.flags, insurance.agent_reason, insurance.status], [["review", "agent"], "ביטוח עסק", "נדרש עיון"]);
   assert.deepEqual([copy.flags, copy.position, "agent_reason" in copy], [["review", "duplicate", "excluded"], 3, false]);
   assert.equal(Object.keys(byId).length, 4, "four different handles");
-  assert.deepEqual(ctx.handles.get("R", paper.row), { clientId: "id-Levi", month: "2026-02", documentId: "d-1" });
+  assert.deepEqual(ctx.handles.get("R", paper.row), { clientId: "id-Levi", month: "2026-02", documentId: "d-1", position: 1 });
 });
 
 test("query_rows: month, text, supplier, dates, allocation, account and flag filters", async () => {
@@ -185,4 +185,67 @@ test("read_document: a page of something that is not a PDF, an unreadable PDF an
   assert.equal((await dispatch("read_document", { file: handles["policy.pdf"] })).error.code, "unavailable");
   assert.deepEqual(await dispatch("read_document", { file: handles["notes.txt"] }), { ok: true, file: handles["notes.txt"], kind: "other" });
   assert.equal((await dispatch("read_document", { file: "F99" })).error.code, "not_found");
+});
+
+// --- regression: the first real run (16 October 2026) named rows R30 and R8 that were rows 32 and 9 of the table ---
+
+async function sharedIdTable() {
+  const tools = await toolContext();
+  const { createDeclaration, listDeclarations, saveDraft } = await import("../declaration-store.js");
+  const { directory, declaration } = await createDeclaration(tools.w.cohen.directory, { clientId: "id-Cohen", month: "2026-09" });
+  await saveDraft(directory, declaration, [
+    tableRow("a", ["01/09/2026", "202", "x", "First Shop", "", "1", "", "100", "100", "0"]),
+    tableRow("split", ["02/09/2026", "200", "x", "Market", "", "7", "", "89.06", "75.47", "13.59"]),
+    tableRow("split", ["02/09/2026", "200", "x", "Market", "", "7", "", "0", "0", "0"], { rawNet: "0", rawVat: "0" }),
+    tableRow("c", ["03/09/2026", "203", "electricity", "Power Co", "", "9", "", "247.39", "211.44", "35.95"], { rawNet: "845.79", rawVat: "143.78" }),
+  ]);
+  tools.w.cohen.declarations = await listDeclarations(tools.w.cohen.directory);
+  return tools;
+}
+
+test("two rows that share one documentId get two handles, each with its own row number", async () => {
+  const { ctx, dispatch, client } = await sharedIdTable();
+  const result = await dispatch("query_rows", { client: await client("Cohen"), month: "2026-09" });
+  assert.deepEqual(result.rows.map((row) => row.position), [1, 2, 3, 4]);
+  assert.equal(new Set(result.rows.map((row) => row.row)).size, 4, "four rows, four handles");
+  assert.deepEqual(result.rows.map((row) => row.row), ["R1", "R2", "R3", "R4"], "so a handle is never off from the row number");
+  assert.deepEqual([ctx.handles.get("R", "R2"), ctx.handles.get("R", "R3")], [
+    { clientId: "id-Cohen", month: "2026-09", documentId: "split", position: 2 },
+    { clientId: "id-Cohen", month: "2026-09", documentId: "split", position: 3 },
+  ]);
+});
+
+test("query_rows gives the amount of the document and what the table shows, and flags an active row with nothing in it", async () => {
+  const { dispatch, client } = await sharedIdTable();
+  const cohen = await client("Cohen");
+  const [, , zero, power] = (await dispatch("query_rows", { client: cohen, month: "2026-09" })).rows;
+  assert.deepEqual([power.net, power.vat, power.total, power.recognized_total], [845.79, 143.78, 989.57, 247.39], "a home client recognises 25%: both amounts are given");
+  assert.deepEqual([zero.total, zero.recognized_total, zero.flags], [0, 0, ["zero_amount"]]);
+  assert.deepEqual((await dispatch("query_rows", { client: cohen, where: { flag: "zero_amount" } })).rows.map((row) => row.position), [3]);
+  assert.deepEqual((await dispatch("query_rows", { client: await client("Levi"), where: { flag: "zero_amount" } })).rows, [], "no such row among the others");
+});
+
+test("a proposal names the row by its number, even when the row shares its documentId with another", async () => {
+  const { ui, dispatch, client } = await sharedIdTable();
+  const cohen = await client("Cohen");
+  const rows = (await dispatch("query_rows", { client: cohen, month: "2026-09" })).rows;
+  const result = await dispatch("propose_change", { client: cohen, title: "t", changes: [{ row: rows[2].row, field: "include", value: "false", reason: "אפסים" }] });
+  assert.equal(result.ok, true);
+  assert.deepEqual(ui.proposals[0].changes.map((change) => [change.position, change.documentId, change.month]), [[3, "split", "2026-09"]]);
+});
+
+test("the instruction tells the model what the user can and cannot do: no handles, no apply button, row numbers, both amounts", async () => {
+  const { ORCHESTRATOR_PROMPT } = await import("../agent/prompts.js");
+  const { default: proposeChange } = await import("../agent/tools/propose-change.js");
+  const { default: queryRows } = await import("../agent/tools/query-rows.js");
+  assert.match(ORCHESTRATOR_PROMPT, /never say that the user can click apply/);
+  assert.match(ORCHESTRATOR_PROMPT, /by its number/);
+  assert.match(ORCHESTRATOR_PROMPT, /handles like R12, F3, C1, Q2 or P1 are internal/);
+  assert.match(ORCHESTRATOR_PROMPT, /recognized_total/);
+  assert.match(ORCHESTRATOR_PROMPT, /zero_amount/);
+  assert.match(ORCHESTRATOR_PROMPT, /Do not assume the gender/);
+  assert.doesNotMatch(ORCHESTRATOR_PROMPT, /\b(she|her)\b/);
+  assert.match(proposeChange.description, /cannot be applied/);
+  assert.doesNotMatch(proposeChange.description, /until the user clicks apply/);
+  assert.match(queryRows.description, /position is the row number of the # column/);
 });

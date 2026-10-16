@@ -208,7 +208,7 @@ test("facts_for: the same document as a row of the table is a strong duplicate a
   assert.ok(result.reasons.includes("duplicate"));
   const [match] = result.duplicates.matches;
   assert.deepEqual([match.level, match.month, match.status, match.position], ["strong", "2026-02", "open", 1]);
-  assert.deepEqual(ctx.handles.get("R", match.row), { clientId: "id-Levi", month: "2026-02", documentId: "d-1" });
+  assert.deepEqual(ctx.handles.get("R", match.row), { clientId: "id-Levi", month: "2026-02", documentId: "d-1", position: 1 });
 });
 
 test("facts_for: a document of the previous year is refused by the year gate; one of a filed month goes to the first open month", async () => {

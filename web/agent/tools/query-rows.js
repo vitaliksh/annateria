@@ -5,7 +5,7 @@ import { dateKey } from "../../intake-facts.js";
 import { pcnReview } from "../../pcn-review.js";
 
 const PAGE_BYTES = 15000;
-const FLAGS = ["review", "duplicate", "excluded", "agent", "pcn_pending"];
+const FLAGS = ["review", "duplicate", "excluded", "agent", "pcn_pending", "zero_amount"];
 // Positions of a saved row's values (rowSnapshot in app.js).
 const ACCOUNT = 1, PURPOSE = 2, SUPPLIER = 3, SUPPLIER_ID = 4, REFERENCE = 5, ALLOCATION = 6, GROSS = 7, NET = 8, VAT = 9;
 const at = (row, index) => String(row.values?.[index] ?? "").trim();
@@ -26,6 +26,7 @@ function flagsOf(row, review) {
   if (row.active === false) flags.push("excluded");
   if (row.agent) flags.push("agent");
   if (review?.pending) flags.push("pcn_pending");
+  if (row.active !== false && !amountsOf(row).total && !amount(at(row, GROSS))) flags.push("zero_amount");
   return flags;
 }
 
@@ -33,7 +34,7 @@ const matchesText = (row, needle) => [at(row, PURPOSE), at(row, SUPPLIER), at(ro
 
 export default {
   name: "query_rows",
-  description: "Read the rows of a client table (one month or all), optionally filtered by text, supplier, date range, whether an allocation number exists, account code or a flag (review, duplicate, excluded, agent, pcn_pending). Rows get handles for propose_change.",
+  description: "Read the rows of a client table (one month or all), optionally filtered by text, supplier, date range, whether an allocation number exists, account code or a flag (review, duplicate, excluded, agent, pcn_pending, zero_amount). position is the row number of the # column of the table: use it when you talk to the user, never the handle (row). net, vat and total are the amounts of the document; recognized_total is what the table shows after the recognition percentages (for example 25% of a home client).",
   schema: {
     type: "object",
     required: ["client"],
@@ -88,10 +89,12 @@ export default {
     const rows = [];
     let size = 0;
     for (const { month, row, position, flags, date } of matched.slice(start, start + (args.limit ?? 50))) {
-      const handle = ctx.handles.create("R", `${client.clientId}|${row.documentId}`, { clientId: client.clientId, month, documentId: row.documentId });
+      // A row is told apart by its month and its number in the table: two rows can share one documentId (the groups of one invoice).
+      const handle = ctx.handles.create("R", `${client.clientId}|${month}|${position}`, { clientId: client.clientId, month, documentId: row.documentId, position });
       const item = {
         row: handle, month, position, date: date ?? at(row, 0), supplier: at(row, SUPPLIER), supplier_vat_id: at(row, SUPPLIER_ID),
         document_number: String(row.reference || at(row, REFERENCE)), allocation_number: at(row, ALLOCATION), ...amountsOf(row),
+        recognized_total: round(amount(at(row, GROSS))),
         account: at(row, ACCOUNT), flags, status: String(row.statusText ?? ""),
         ...(row.agent && row.agentOpinion ? { agent_reason: String(row.agentOpinion).slice(0, 300) } : {}),
       };

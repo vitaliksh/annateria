@@ -12,7 +12,7 @@ async function setup({ answers, limits } = {}) {
   const registry = createDefaultRegistry();
   return { w, ui, ctx, dispatch: (name, args = {}) => registry.dispatch({ name, args }, ctx) };
 }
-const row = (ctx, documentId, month = "2026-02", clientId = "id-Levi") => ctx.handles.create("R", documentId, { clientId, month, documentId });
+const row = (ctx, documentId, month = "2026-02", clientId = "id-Levi", position = 1) => ctx.handles.create("R", `${clientId}|${month}|${documentId}`, { clientId, month, documentId, position });
 const options = [{ id: "levi", label: "Levi" }, { id: "cohen", label: "Cohen" }];
 
 test("list_inbox: counts, kinds, the note on spreadsheets, stable handles", async () => {

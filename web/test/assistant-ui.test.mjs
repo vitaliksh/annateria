@@ -150,24 +150,24 @@ test("a run that is stopped closes its open question without answering it", asyn
   assert.equal([...root.querySelectorAll(".assistant-card button, .assistant-card input")].every((node) => node.disabled), true);
 });
 
-test("a proposal card lists the changes in Hebrew with the month and the reason, and says that nothing was applied", async () => {
+test("a proposal card lists the changes in Hebrew with the row number, the month and the reason, and says that nothing was applied", async () => {
   const { assistant, q } = setup();
   await assistant.ui.propose({
     id: "P1", client: { id: "id-Levi", name: "Levi Plumbing" }, title: "תיקון תאריכים",
     changes: [
-      { row: "R1", documentId: "d-1", month: "2026-02", field: "date", value: "2026-02-20", reason: "התאריך בצילום שונה" },
-      { row: "R2", documentId: "d-2", month: "2026-02", field: "include", value: false, reason: "כפילות" },
-      { row: "R3", documentId: "d-3", month: "2026-02", field: "month", value: "2026-03", reason: "חודש אחר" },
-      { row: "R4", documentId: "d-4", month: "2026-02", field: "allocation_number", value: "", reason: "מחיקה" },
+      { row: "R1", documentId: "d-1", month: "2026-02", position: 3, field: "date", value: "2026-02-20", reason: "התאריך בצילום שונה" },
+      { row: "R2", documentId: "d-2", month: "2026-02", position: 9, field: "include", value: false, reason: "כפילות" },
+      { row: "R3", documentId: "d-3", month: "2026-02", position: 12, field: "month", value: "2026-03", reason: "חודש אחר" },
+      { row: "R4", documentId: "d-4", month: "2026-02", position: 32, field: "allocation_number", value: "", reason: "מחיקה" },
     ],
   });
   assert.equal(q(".assistant-card[data-kind='proposal'] .card-text").textContent, "תיקון תאריכים");
   assert.match(q(".card-about").textContent, /Levi Plumbing.*עדיין לא הוחלה/);
   assert.deepEqual([...q(".card-changes").children].map((item) => item.textContent), [
-    "תאריך (02/2026): 2026-02-20 — התאריך בצילום שונה",
-    "לייצוא (02/2026): לא — כפילות",
-    "חודש (02/2026): 03/2026 — חודש אחר",
-    "מספר הקצאה (02/2026): (ריק) — מחיקה",
+    "שורה 3 (02/2026) · תאריך: 2026-02-20 — התאריך בצילום שונה",
+    "שורה 9 (02/2026) · לייצוא: לא — כפילות",
+    "שורה 12 (02/2026) · חודש: 03/2026 — חודש אחר",
+    "שורה 32 (02/2026) · מספר הקצאה: (ריק) — מחיקה",
   ]);
   assert.equal(q("#assistant-body").hidden, false);
   assert.equal(q(".assistant-card[data-kind='proposal'] button"), null, "applying comes with step 4.4");

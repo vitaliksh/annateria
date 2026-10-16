@@ -29,7 +29,7 @@ const FIELDS = {
 
 export default {
   name: "propose_change",
-  description: "Suggest changes to rows that already exist (a correction of what the document says, another account, another month, include or exclude). Nothing changes until the user clicks apply. `value` is always text: a number as 123.45, a date as 2026-03-14, a yes/no as true or false.",
+  description: "Suggest changes to rows that already exist (a correction of what the document says, another account, another month, include or exclude). It only shows the user a card with the proposed changes: in this version the card cannot be applied, so tell the user to make the change by hand in the table, with the row number (position), the field and the value. `value` is always text: a number as 123.45, a date as 2026-03-14, a yes/no as true or false.",
   schema: {
     type: "object",
     required: ["client", "title", "changes"],
@@ -73,7 +73,7 @@ export default {
       }
       if (change.field === "account" && !(value in chart)) throw bad(`${where}: the account ${value} is not in the client's chart.`);
       if (change.field === "month") await ctx.requireOpen(client.clientId, value);
-      changes.push({ row: change.row, documentId: row.documentId, month: row.month, field: change.field, value, reason: change.reason });
+      changes.push({ row: change.row, documentId: row.documentId, month: row.month, position: row.position, field: change.field, value, reason: change.reason });
     }
     const proposal = { client: { id: client.clientId, name: client.name }, title: args.title, changes };
     proposal.id = ctx.handles.create("P", crypto.randomUUID(), proposal);
