@@ -7,7 +7,7 @@ What exists today is marked **now**; everything else is planned in `WORK_PLAN.md
 | Component | Responsibility | Client data |
 | --- | --- | --- |
 | GitHub Pages, `web/` (**now**) | Hebrew UI, local files, journal, reports, backup, transfer. Skills and prompts will be served from here too | None stored |
-| Cloudflare Worker, `worker/` (**now: `/health` and `/v1/auth`**) | Access code to a 12-hour token and lock-out (1.1, built); model allow-list, size limits, Gemini proxy (1.2, not built) | None; bodies are not logged |
+| Cloudflare Worker, `worker/` (**now: `/health`, `/v1/auth`, `/v1/model`**) | Access code to a 12-hour token and lock-out (1.1); constrained Gemini proxy with model allow-list, size and output limits (1.2) | None; bodies are not logged |
 | Data root on each PC (**now**) | Clients, declarations, images, history, reports, `rules.md` (planned) | Yes, local only |
 | Google Drive shared folder (planned, phase 7) | Encrypted write-once store (packs, snapshots) and baton files | Encrypted only |
 
@@ -54,6 +54,13 @@ only (`web/access.js`): a reload asks for the code again. Failed attempts are co
 (`worker/src/auth-guard.js`) because Cloudflare's Rate Limiting binding is per location and eventually consistent by design.
 The code protects the Worker (and so the Gemini key and budget), not the local data, which stays readable on the PC.
 Any model route must start with `requireUser()`. Details and limits: `worker/README.md`.
+
+## Model calls (step 1.2)
+
+The page calls `POST /v1/model` with the token (`web/model-client.js`: `generate`, `stream`, one re-login on a 401). The Worker
+validates the request against a short allow-list (`worker/src/model.js`) and forwards it to Gemini; prompts, skills and tools
+come from the page, so they change with Ctrl+F5, not with a Worker deployment. The allow-list of models changes in code
+(`ALLOWED_MODELS`), after phase 3 has chosen the defaults.
 
 ## Browser storage (decision of step 0.2)
 

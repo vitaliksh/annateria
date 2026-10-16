@@ -25,6 +25,7 @@ import { setupExcelImport } from "./excel-import-ui.js";
 import { setupReports } from "./reports-ui.js";
 import { setupBackup } from "./backup-ui.js";
 import { setupAccess } from "./access-ui.js";
+import { checkModelConnection, createModelClient } from "./model-client.js";
 import { setupTransfer } from "./transfer-ui.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
@@ -572,6 +573,13 @@ loadBackendVersion();
 // The access code (step 1.1): asked once per page load while a Worker is configured; the token stays in memory.
 const accessUi = setupAccess({ dialog: document.querySelector("#access-dialog"), api });
 if (api) accessUi.ensureLoggedIn();
+const modelClient = createModelClient({ api, access: accessUi.access, ensureLoggedIn: accessUi.ensureLoggedIn });
+document.querySelector("#check-model").addEventListener("click", async () => {
+  const result = document.querySelector("#model-check-result");
+  result.textContent = "בודק…";
+  const checked = await checkModelConnection(modelClient);
+  result.textContent = checked.message;
+});
 async function saveCurrentDraft() {
   if (!currentDeclaration || currentDeclaration.status !== "open" || !currentDeclarationDirectory) return;
   clearTimeout(draftSaveTimer);

@@ -16,8 +16,8 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 432 tests; check = node --check on every module
-cd worker; npm ci; npm test; npm run check   # 30 tests; check = wrangler deploy --dry-run
+cd web;    npm ci; npm test; npm run check   # node --test, 442 tests; check = node --check on every module
+cd worker; npm ci; npm test; npm run check   # 51 tests; check = wrangler deploy --dry-run
 ```
 
 `npm ci` warns that `esbuild` / `workerd` install scripts are blocked; tests and checks work anyway. The app tests load the
@@ -50,8 +50,8 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
 - **Style:** `tokens.css` (the only file with colours; `styles.test.mjs` enforces it), `base.css`, `shell.css`,
   `dialogs.css`, `journal.css`, `clients.css`, `reports.css`, `backup.css`, `sidebar.css`, `photo.css`, `fonts/`.
 - `worker/`: `src/index.js` (`/health`, `/v1/auth`, `requireUser`, CORS by `ALLOWED_ORIGINS`, 404 for the rest), `src/access.js`
-  (codes, hashes, tokens), `src/auth-guard.js` (lock-out Durable Object), `scripts/access-codes.mjs` (creates codes and
-  secret files outside the repository). Web side: `web/access.js` (token in memory), `web/access-ui.js` (login dialog).
+  (codes, hashes, tokens), `src/auth-guard.js` (lock-out Durable Object), `src/model.js` (what may be forwarded to Gemini), `scripts/access-codes.mjs` (creates codes and
+  secret files outside the repository). Web side: `web/access.js` (token in memory), `web/access-ui.js` (login dialog), `web/model-client.js` (calls through the Worker; the settings button "בדיקת חיבור ל‑AI").
 - `docs/`: `WORK_PLAN.md`, this file, `ARCHITECTURE.md`, and specs inherited from ocr (`REPORTS_SPEC.md`,
   `BACKUP_SPEC.md`, `EXCEL_IMPORT_SPEC.md`).
 
@@ -88,10 +88,27 @@ for the phase 5 skills.
 plan (a login hashes against every user, i.e. twice). If `/v1/auth` ends with Cloudflare error 1102 (CPU exceeded) lower the
 iterations in a new `ACCESS_CODES` (the count is stored per entry, no code change) or use the Paid plan.
 
+## Gemini API facts used by step 1.2 (checked 16 October 2026)
+
+- Model ids (<https://ai.google.dev/gemini-api/docs/models>): `gemini-3.8-flash` (new, stable), `gemini-3.6-flash`, `gemini-3.5-flash-lite`,
+  `gemini-3.1-flash-lite` (stable), `gemini-3.1-pro-preview`, `gemini-4-argon` (flagship, stable). The page recommends 3.5 Flash-Lite or 3.8 Flash for
+  new projects. The ids in `ALLOWED_MODELS` are a starting set; phase 3 chooses the defaults.
+- REST (<https://ai.google.dev/api/generate-content>): `v1beta/models/{model}:generateContent` and `:streamGenerateContent` (the examples add
+  `alt=sse`). The examples put the key in a `key` query parameter; the Worker uses the `x-goog-api-key` header (used by ocr and shown on the
+  text-generation page) so that the key cannot appear in a URL. The same docs now also describe an Interactions API; this project uses
+  `generateContent` and I did not check whether it is meant to be replaced.
+- Inline data limits **disagree between pages**: "20MB total request size" on the image-understanding page, "100 MB per request, 50 MB for PDFs" on
+  the file-input page. The Worker uses the smaller one (20 MiB). A phone photo can be bigger: the page must shrink it first (phase 2/4).
+- Images: PNG, JPEG, WEBP, HEIC, HEIF; up to 3,600 per request. PDF: up to 50 MB / 1,000 pages, 258 tokens a page.
+- Not found in the docs I read: the exact limit of the request body on the Workers side (Cloudflare documents a body limit per plan; not checked) and
+  the paid-tier data-use terms (that is step 1.3).
+
 ## Not verified yet
 
 - Anything beyond opening a month and comparing data with ocr (owner check of 16 October 2026). The rest of the UI
   (Excel import, reports PDF, backup, transfer) was not clicked through after the 0.3 removals.
+- **Step 1.2 "done when" is only half met:** the Worker is tested against a stubbed Gemini; the real call from the published page with the
+  owner's key needs the deployed Worker (step 1.4) and `GEMINI_API_KEY`. Streaming and the timeouts (120 s / 300 s) were never run for real.
 - The Worker has never been deployed from this repository: the login was tested against the Worker code in node
   (30 tests) and the dialog in jsdom, never against Cloudflare. Real CPU time of PBKDF2 and the Durable Object are unmeasured.
 - The `deploy-web.yml` test job passed once on GitHub (Node 24); no other CI exists.

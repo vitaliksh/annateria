@@ -3,8 +3,8 @@
 The thin, stateless proxy between the browser and Gemini (see `../docs/WORK_PLAN.md`, phase 1). The API key and the
 access-code hashes live only in Worker secrets; client data is never stored and request bodies are never logged.
 
-**Current state (step 1.1):** `GET /health`, CORS for `ALLOWED_ORIGINS`, and `POST /v1/auth`. The model proxy (1.2) is not
-built, and nothing here may call Gemini before `requireUser()` (in `src/index.js`) has accepted the caller's token.
+**Current state (step 1.2):** `GET /health`, CORS for `ALLOWED_ORIGINS`, `POST /v1/auth` and `POST /v1/model`. Nothing here may
+call Gemini before `requireUser()` (in `src/index.js`) has accepted the caller's token.
 The Telegram, R2, upload-session, passkey and recognition routes of ocr are gone.
 
 ## Access code (`POST /v1/auth`)
@@ -21,9 +21,23 @@ out), `503` (secrets missing or broken, or the guard unreachable: it fails close
   success. A wrong guess storm therefore also blocks the real users for up to an hour; this is deliberate. If it happens
   wait: the attempts leave the window one by one.
 
+## Model proxy (`POST /v1/model`)
+
+`Authorization: Bearer <token>` and a body `{ "model": "...", "stream": false, "request": { contents, systemInstruction?, generationConfig?, tools?, toolConfig? } }`.
+The Worker forwards `request` to `models/<model>:generateContent` (or `:streamGenerateContent?alt=sse` when `stream` is true;
+the event stream is passed through) with the Gemini key in the `x-goog-api-key` header. What it refuses (400, before Gemini is
+called): a model outside `ALLOWED_MODELS`, any unknown field (cached content, labels, store, service tier, safety settings...),
+file links (`fileData`), tools other than function declarations (no search, code execution or URL reading), inline data other
+than JPEG, PNG, WEBP, HEIC, HEIF and PDF, `candidateCount` above 1, and `maxOutputTokens` above 32768 (default 8192 when missing).
+Over 20 MiB: 413. Errors are short and generic (`busy` 429, `unavailable` 502, `rejected` 502): Gemini's own message is never
+passed on, and nothing from the request or the answer is logged (only the status number of a failure). No retries here: the
+caller decides. Rules and limits are in `src/model.js`; the sources are in `../docs/HANDOFF.md`.
+
 ### Create the secrets
 
-Run on the owner's PC, with the output folder **outside** the repository (the script refuses otherwise):
+Also set the Gemini key (a paid-tier key, see `AGENTS.md`): `npx wrangler secret put GEMINI_API_KEY`.
+
+The access secrets are made on the owner's PC, with the output folder **outside** the repository (the script refuses otherwise):
 
 ```powershell
 node scripts/access-codes.mjs C:\secrets\annateria anna vitalik

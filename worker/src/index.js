@@ -1,7 +1,8 @@
 // ANNATERIA Worker. Step 1.1: the access code. POST /v1/auth turns a 6-character code into a signed token that the
-// browser keeps in page memory. Step 1.2 adds the model proxy, which must call requireUser() before anything else:
-// no route here may reach Gemini without it.
+// browser keeps in page memory. Step 1.2: POST /v1/model forwards a constrained generateContent request to Gemini.
+// Every route that reaches Gemini must call requireUser() first.
 import { AccessConfigError, checkCode, normalizeCode, parseAccessCodes, signToken, verifyToken } from "./access.js";
+import { MAX_REQUEST_BYTES, readLimitedText, validateModelCall } from "./model.js";
 
 export { AuthGuard } from "./auth-guard.js";
 
@@ -92,6 +93,70 @@ async function authenticate(request, env, headers) {
   }
 }
 
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
+const GEMINI_TIMEOUT_MS = 120_000;
+const GEMINI_STREAM_TIMEOUT_MS = 300_000;
+
+// What the caller learns about a Gemini failure. Gemini's own message is not passed on: it may quote the input.
+function geminiFailure(status, headers) {
+  if (status === 429) return json({ error: "Gemini is busy. Try again in a minute.", code: "busy" }, 429, headers);
+  if (status >= 500) return json({ error: "Gemini is unavailable. Try again.", code: "unavailable" }, 502, headers);
+  return json({ error: "Gemini rejected the request.", code: "rejected" }, 502, headers);
+}
+
+async function modelCall(request, env, headers) {
+  if (request.method !== "POST") return json({ error: "Method not allowed." }, 405, headers);
+  if (!env.GEMINI_API_KEY) return json({ error: "The model is not configured." }, 503, headers);
+  let user;
+  try {
+    user = await requireUser(request, env);
+  } catch (error) {
+    console.error("Token check failed:", error instanceof AccessConfigError ? error.message : error?.name);
+    return json({ error: "Login is not available." }, 503, headers);
+  }
+  if (!user) return json({ error: "Login required.", code: "login" }, 401, headers);
+  const text = await readLimitedText(request, MAX_REQUEST_BYTES);
+  if (text === null) return json({ error: "The request is too large.", code: "too-large" }, 413, headers);
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return json({ error: "The body is not valid JSON." }, 400, headers);
+  }
+  const checked = validateModelCall(body);
+  if (!checked.ok) return json({ error: checked.error }, 400, headers);
+  const { model, stream, request: payload } = checked;
+  const url = `${GEMINI_BASE}${model}:${stream ? "streamGenerateContent?alt=sse" : "generateContent"}`;
+  let upstream;
+  try {
+    upstream = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(stream ? GEMINI_STREAM_TIMEOUT_MS : GEMINI_TIMEOUT_MS),
+    });
+  } catch {
+    return json({ error: "Gemini is unavailable. Try again.", code: "unavailable" }, 502, headers);
+  }
+  // Only the status is logged: never the request, the answer or Gemini's message.
+  if (!upstream.ok) {
+    console.error("Gemini answered", upstream.status);
+    return geminiFailure(upstream.status, headers);
+  }
+  if (stream)
+    return new Response(upstream.body, {
+      status: 200,
+      headers: { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store", ...headers },
+    });
+  let answer;
+  try {
+    answer = await upstream.json();
+  } catch {
+    return json({ error: "Gemini returned an unreadable answer.", code: "unavailable" }, 502, headers);
+  }
+  return json(answer, 200, headers);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -101,6 +166,7 @@ export default {
     const rejected = clientRequest(request, env);
     if (rejected) return rejected;
     if (url.pathname === "/v1/auth") return authenticate(request, env, cors(request, env));
+    if (url.pathname === "/v1/model") return modelCall(request, env, cors(request, env));
     return json({ error: "Not found." }, 404, cors(request, env));
   },
 };

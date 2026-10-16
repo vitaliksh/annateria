@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status: **plan agreed 16 October 2026; steps 0.1–0.5 and 1.1 done.** This file is the single source of truth for what is
+Status: **plan agreed 16 October 2026; steps 0.1–0.5 and 1.1 done, 1.2 built (real call pending).** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -100,7 +100,7 @@ Goal: the browser can call Gemini through the Worker after Anna types her code; 
   options: Rate Limiting binding, Durable Object or KV). Login screen in `web/` (Hebrew).
   *Done when:* Worker tests cover right code, wrong code, lock-out, expired and forged token; a reload of the page
   asks for the code again.
-- [ ] **1.2 Constrained Gemini proxy.** `POST /v1/model` forwards a `generateContent` request: model from an
+- [ ] **1.2 Constrained Gemini proxy.** *(built 16 Oct, tested with a stub; ticks when the real call works after 1.4)* `POST /v1/model` forwards a `generateContent` request: model from an
   allow-list, size limit, token limit, streaming for long answers, no logging of bodies, no storage. Prompts and
   skills come from the browser (so they update with Ctrl+F5, not with `wrangler deploy`).
   *Done when:* Worker tests with a stubbed Gemini; one real call from the published page with the owner's key;
@@ -244,3 +244,4 @@ model behind the same proxy.
 | 2026-10-16 | 0.4 confirmed by the owner on the published page https://vitaliksh.github.io/annateria/ with a copy of a real ocr data root: months open, data equal to ocr. Deploys run through `deploy-web.yml` on every push to `main` that touches `web/`. |
 | 2026-10-16 | 0.5: `README.md`, `docs/ARCHITECTURE.md` and `docs/HANDOFF.md` written. Phase 0 is complete. |
 | 2026-10-16 | 1.1: `POST /v1/auth` built. Code = 6 characters of a 32-letter alphabet (30 bits), hashes PBKDF2-SHA256 (20,000 iterations, stored per entry) in the secret `ACCESS_CODES`; token = HMAC-signed, 12 h, stateless, in page memory only. Lock-out in one SQLite Durable Object (the Rate Limiting binding is eventually consistent per location, checked against the docs): 5 attempts / 15 min per address then 15 min lock, 20 attempts / hour for all; attempts counted at start, refunded on success; fails closed (503). A guessing storm can lock the real users for up to an hour: accepted. The login dialog (`#access-dialog`) opens on page load when `ANNATERIA_API` is set and can be closed: the journal works without it. `requireUser()` is the gate every 1.2 route must call first. Codes are made by `worker/scripts/access-codes.mjs` (output outside the repository). Tests: web 423 → 432, Worker 5 → 30. Not verified: a real deployment (see HANDOFF). |
+| 2026-10-16 | 1.2: `POST /v1/model` built on `requireUser()`. Body `{ model, stream?, request }`; strict allow-list in `worker/src/model.js` (models, fields, part types, function tools only, inline MIME types, output tokens default 8192 / max 32768, 20 MiB), snake_case accepted and rewritten to camelCase, duplicate spellings refused. Streaming = pass-through of the `alt=sse` body. Generic error messages, only the status is logged, no retries in the Worker. Page side: `web/model-client.js` and a settings button for a one-call check. Gemini ids and limits re-checked in the docs (sources in HANDOFF; the docs contradict themselves on the inline limit, 20 MB used). Tests: web 432 → 442, Worker 30 → 51. Open: the real call (needs 1.4), `ALLOWED_MODELS` is a starting set until phase 3. |

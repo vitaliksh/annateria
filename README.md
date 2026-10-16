@@ -19,7 +19,7 @@ income-report PDF import. What is next and why: [`docs/WORK_PLAN.md`](docs/WORK_
 | Path | What |
 | --- | --- |
 | `web/` | The static app published to GitHub Pages (no build step, ES modules) |
-| `worker/` | Cloudflare Worker, a thin Gemini proxy; today `/health` and the access code `/v1/auth` (the proxy is step 1.2) |
+| `worker/` | Cloudflare Worker, a thin Gemini proxy; today `/health`, the access code `/v1/auth` and the Gemini proxy `/v1/model` |
 | `docs/` | Plan, architecture, hand-off notes, inherited specs |
 | `.github/workflows/` | Test and deploy of `web/` |
 
@@ -27,8 +27,8 @@ income-report PDF import. What is next and why: [`docs/WORK_PLAN.md`](docs/WORK_
 
 ```powershell
 py -m http.server 8000 --directory web      # open http://127.0.0.1:8000, pick a COPY of a data folder
-cd web;    npm ci; npm test; npm run check  # 432 tests
-cd worker; npm ci; npm test; npm run check  # 30 tests (check = wrangler dry run)
+cd web;    npm ci; npm test; npm run check  # 442 tests
+cd worker; npm ci; npm test; npm run check  # 51 tests (check = wrangler dry run)
 ```
 
 ## For developers and AI agents
