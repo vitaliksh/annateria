@@ -180,8 +180,36 @@ test("the progress line names what the agent is doing and counts the documents r
   assert.equal(progressLabel({ type: "call", name: "extract_document" }, counts), "קורא מסמך (1)");
   assert.equal(progressLabel({ type: "call", name: "extract_document" }, counts), "קורא מסמך (2)");
   assert.equal(progressLabel({ type: "call", name: "something_new" }, counts), "עובד…");
+  assert.equal(progressLabel({ type: "done", name: "extract_document", ok: true }, counts), null, "a finished call only updates the counts");
+  assert.equal(progressLabel({ type: "turn", turn: 2 }, counts), "חושב…");
   for (const name of ["list_inbox", "read_document", "extract_document", "find_client", "get_client_context", "query_rows", "facts_for", "ask_user", "propose_change"]) assert.ok(TOOL_LABELS[name], name);
   for (const field of ["date", "supplier_name", "purpose", "supplier_vat_id", "document_number", "allocation_number", "net", "vat", "total", "account", "vat_recognized_percent", "expense_recognized_percent", "include", "month"]) assert.ok(FIELD_LABELS[field], field);
+});
+
+test("the progress line counts the files read, the rows added and the originals filed", () => {
+  const counts = {};
+  const files = [{ kind: "image", status: "waiting" }, { kind: "pdf", status: "waiting" }, { kind: "spreadsheet", status: "waiting" }, { kind: "pdf", status: "filed" }];
+  progressLabel({ type: "done", name: "list_inbox", ok: true, result: { files } }, counts);
+  assert.equal(counts.total, 2, "spreadsheets and files that are not waiting are not counted");
+  assert.equal(progressLabel({ type: "call", name: "extract_document" }, counts), "קורא מסמך (1) · נקראו 0 מתוך 2");
+  progressLabel({ type: "done", name: "extract_document", ok: true, result: {} }, counts);
+  assert.equal(progressLabel({ type: "turn", turn: 2 }, counts), "חושב… · נקראו 1 מתוך 2");
+  progressLabel({ type: "done", name: "extract_document", ok: true, result: {} }, counts);
+  progressLabel({ type: "done", name: "add_rows", ok: true, result: { rows: [{ state: "created" }, { state: "rejected" }, { state: "moved_month" }] } }, counts);
+  assert.equal(progressLabel({ type: "call", name: "move_file_to_declaration" }, counts), "מתייק את המקור · נקראו 2 מתוך 2 · נוספו 2 שורות");
+  progressLabel({ type: "done", name: "move_file_to_declaration", ok: true, result: { state: "filed" } }, counts);
+  assert.equal(progressLabel({ type: "turn", turn: 3 }, counts), "חושב… · נקראו 2 מתוך 2 · נוספו 2 שורות · תויקו 1");
+});
+
+test("a new step replaces the line, and the line is cleared when the run ends", () => {
+  const { assistant, q } = setup();
+  assistant.setBusy(true);
+  assistant.setProgress("חושב…");
+  assert.equal(q("#assistant-progress").textContent, "חושב…");
+  assistant.setProgress("קורא מסמך (1)");
+  assert.equal(q("#assistant-progress").textContent, "קורא מסמך (1)");
+  assistant.setBusy(false);
+  assert.equal(q("#assistant-progress").textContent, "");
 });
 
 test("a quick request can also be started from elsewhere: it shows the same line, and does nothing while a run is on", () => {
@@ -196,7 +224,7 @@ test("a quick request can also be started from elsewhere: it shows the same line
 test("the button of the dock says what it does and what it does not do", () => {
   const { q } = setup();
   assert.equal(q("#assistant-process").textContent, "בדוק מסמכים חדשים");
-  assert.match(q("#assistant-process").title, /בודק אותם ומציג סיכום.*לא מוסיף שורות/);
+  assert.match(q("#assistant-process").title, /מוסיף שורות לטבלאות.*מתייק את המקורות.*שואל כשצריך/);
 });
 
 const proposal = () => ({

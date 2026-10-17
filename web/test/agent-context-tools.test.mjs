@@ -248,7 +248,8 @@ test("the instruction tells the model what the user can and cannot do: no handle
   assert.ok(ORCHESTRATOR_PROMPT.includes("A name match alone is no proof. Never add a row for a document whose client is not proven."));
   assert.ok(ORCHESTRATOR_PROMPT.includes("call move_file_to_declaration with every month in which it has rows"));
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /not available yet|cannot be applied/);
-  assert.ok(ORCHESTRATOR_PROMPT.includes("one button per candidate client (the option carries the client handle: client), the client the user has open among them"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("ONE question for all the files whose client is not proven yet"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("A file the user has already answered about is never asked about again."));
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /\b(she|her)\b/);
   assert.match(proposeChange.description, /applies the ones that stay ticked/);
   assert.doesNotMatch(proposeChange.description, /the card cannot be applied/);

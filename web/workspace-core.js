@@ -27,6 +27,15 @@ export function taxIdProblem(text, { checkDigit = false } = {}) {
   return sum % 10 === 0 ? "" : "ספרת הביקורת של המספר אינה תקינה.";
 }
 
+// The new name of a client from the menu: trimmed, not empty, and not the name of another client (the folder of the client keeps
+// its name; only the name that is shown changes). clients: [{ id, clientName }].
+export function checkClientRename(value, clients, clientId) {
+  const clientName = String(value ?? "").trim().replace(/\s+/g, " ");
+  if (!clientName) return { valid: false, error: "יש למלא את שם הלקוח." };
+  const taken = clients.some((other) => other.id !== clientId && String(other.clientName).trim().toLowerCase() === clientName.toLowerCase());
+  return taken ? { valid: false, error: "כבר קיים לקוח בשם הזה." } : { valid: true, clientName };
+}
+
 export function normalizeWorkspaceConfig(value) {
   if (!value || typeof value !== "object") return { valid: false, error: "קובץ הגדרות הלקוח אינו תקין." };
   const clientName = String(value.clientName ?? "").trim();

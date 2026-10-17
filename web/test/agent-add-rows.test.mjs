@@ -38,7 +38,7 @@ test("add_rows: an invoice for the client becomes a ready row at the end of the 
   const row = rows[3];
   assert.deepEqual(row.values, ["20/02/26", "202", "paper", "Paper Shop", "512345679", "2002", "", "236.00", "200.00", "36.00", "100", "100"]);
   assert.deepEqual([row.active, row.statusText, row.statusClass, row.reference, row.documentKind, row.agentOpinion, row.confidence], [true, "מוכן לייצוא", "ready", "INV-2002", "expense_invoice", "חשבונית משרדית", "92%"]);
-  assert.deepEqual([row.agent.run, row.agent.version, row.agent.fact, row.agent.page, row.agent.reasons], [ctx.run.id, "stand-in-2026-10-17", fact, null, []]);
+  assert.deepEqual([row.agent.run, row.agent.version, row.agent.fact, row.agent.page, row.agent.reasons], [ctx.run.id, "stand-in-2026-10-17b", fact, null, []]);
   assert.equal(row.agent.file.length, 64);
   assert.equal(ctx.handles.get("R", added.row).position, 4);
   assert.equal(ctx.run.factsUsed.has(fact), true);
@@ -102,7 +102,7 @@ test("add_rows: a buyer that is another business, or no buyer on the document, i
 
 test("add_rows: routed by the user needs a question about this file, answered by a button that carries this client", async () => {
   const click = (id) => ({ type: "option", id });
-  const { dispatch, factsOf, levi, client, files } = await session([[rawRecord({ buyer_vat_id: null })], [rawRecord({ buyer_vat_id: null, document_number: "X-2" })]], { answers: [click("levi"), click("cohen"), click("levi"), { type: "dismissed" }] });
+  const { dispatch, factsOf, levi, client, files } = await session([[rawRecord({ buyer_vat_id: null })], [rawRecord({ buyer_vat_id: null, document_number: "X-2" })]], { answers: [click("levi"), { type: "dismissed" }, click("cohen")] });
   const handles = await files();
   const [photo] = await factsOf("photo.jpg");
   const cohen = await client("Cohen");
@@ -115,15 +115,44 @@ test("add_rows: routed by the user needs a question about this file, answered by
   assert.equal((await dispatch("add_rows", row({ routing_ask: forLevi }))).rows[0].state, "created", "the user clicked Levi");
 
   const [second] = await factsOf("policy.pdf");
+  const dismissed = await ask(handles["policy.pdf"], "Fourth?");
   const forCohen = await ask(handles["policy.pdf"], "And this one?");
   const refused = (await dispatch("add_rows", { client: levi, rows: [decision(second, { routed_by: "user", routing_ask: forCohen })] })).rows[0];
   assert.deepEqual([refused.state, refused.error.code, refused.error.message], ["rejected", "not_allowed", "The user did not choose this client for this file."]);
-  await ask(handles["policy.pdf"], "Third?");
   assert.match((await dispatch("add_rows", { client: levi, rows: [decision(second, { routed_by: "user", routing_ask: forLevi })] })).rows[0].error.message, /not about the file/);
-  const dismissed = await ask(handles["policy.pdf"], "Fourth?");
   assert.match((await dispatch("add_rows", { client: levi, rows: [decision(second, { routed_by: "user", routing_ask: dismissed })] })).rows[0].error.message, /not answered with a button/);
   assert.equal((await dispatch("add_rows", { client: levi, rows: [decision(second, { routed_by: "user" })] })).rows[0].error.code, "invalid_argument", "routing_ask is required");
   assert.equal((await dispatch("add_rows", { client: levi, rows: [decision(second, { routed_by: "user", routing_ask: "Q99" })] })).rows[0].error.code, "not_found");
+});
+
+test("ask_user: one question for several files routes all of them; the same files are never asked about twice", async () => {
+  const { dispatch, factsOf, levi, handles, client, ui } = await session([[rawRecord({ buyer_vat_id: null })], [rawRecord({ buyer_vat_id: null, document_number: "X-2" })]], { answers: [{ type: "option", id: "levi" }] });
+  const [photo] = await factsOf("photo.jpg");
+  const [policy] = await factsOf("policy.pdf");
+  const cohen = await client("Cohen");
+  const both = [handles["photo.jpg"], handles["policy.pdf"]];
+  const options = [{ id: "levi", label: "Levi", client: levi }, { id: "cohen", label: "Cohen", client: cohen }];
+  const first = await dispatch("ask_user", { question: "Whose are these?", options, allow_other: false, about: { files: both } });
+  assert.equal(ui.cards.length, 1);
+  assert.deepEqual(ui.cards[0].about.files.map((file) => file.file), both);
+  for (const fact of [photo, policy]) {
+    assert.equal((await dispatch("add_rows", { client: levi, rows: [decision(fact, { routed_by: "user", routing_ask: first.ask })] })).rows[0].state, "created");
+  }
+  // Another wording, one of the files, or both again: the user is not asked, the earlier answer comes back.
+  const again = await dispatch("ask_user", { question: "And the second one?", options, allow_other: false, about: { files: [handles["policy.pdf"]] } });
+  const twice = await dispatch("ask_user", { question: "Please confirm", options, allow_other: false, about: { files: both } });
+  assert.equal(ui.cards.length, 1, "no second card");
+  assert.deepEqual([again.ask, again.already_answered, twice.ask, twice.already_answered], [first.ask, true, first.ask, true]);
+});
+
+test("ask_user: a file that was dismissed or answered with a typed text is asked about again", async () => {
+  const { dispatch, handles, levi, ui } = await session([[rawRecord()]], { answers: [{ type: "dismissed" }, { type: "option", id: "levi" }] });
+  const options = [{ id: "levi", label: "Levi", client: levi }, { id: "x", label: "X" }];
+  const about = { files: [handles["photo.jpg"]] };
+  await dispatch("ask_user", { question: "First?", options, allow_other: false, about });
+  const second = await dispatch("ask_user", { question: "Second?", options, allow_other: false, about });
+  assert.equal(ui.cards.length, 2);
+  assert.equal(second.already_answered, undefined);
 });
 
 test("add_rows: the same document as a row of the table is added as an inactive duplicate with its reason", async () => {

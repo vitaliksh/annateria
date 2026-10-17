@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { REPORT_PERIODS, normalizeClientTaxProfile, normalizeWorkspaceConfig, taxIdProblem } from "../workspace-core.js";
+import { REPORT_PERIODS, checkClientRename, normalizeClientTaxProfile, normalizeWorkspaceConfig, taxIdProblem } from "../workspace-core.js";
 
 test("нормализует корректную конфигурацию клиента", () => {
   const result = normalizeWorkspaceConfig({ clientId: "id", clientName: " Клиент ", businessActivity: " Спорт ", businessKind: "home" });
@@ -41,4 +41,13 @@ test("мягкая проверка налогового номера: 9 циф�
   assert.equal(taxIdProblem("123456783"), "");
   assert.notEqual(taxIdProblem("12345"), "");
   assert.notEqual(taxIdProblem("12345678a"), "");
+});
+
+test("rename of a client: trimmed, not empty, not the name of another client; the own name may be kept", () => {
+  const clients = [{ id: "a", clientName: "Levi Plumbing" }, { id: "b", clientName: "Cohen" }];
+  assert.deepEqual(checkClientRename("  Levi   Plumbing Ltd ", clients, "a"), { valid: true, clientName: "Levi Plumbing Ltd" });
+  assert.deepEqual(checkClientRename("levi plumbing", clients, "a"), { valid: true, clientName: "levi plumbing" }, "the own name, other case");
+  assert.equal(checkClientRename("   ", clients, "a").valid, false);
+  assert.equal(checkClientRename("COHEN", clients, "a").valid, false);
+  assert.equal(checkClientRename(undefined, clients, "a").valid, false);
 });

@@ -16,11 +16,12 @@ const isAbort = (error) => error?.name === "AbortError";
 // What a tool receives: the handle table, the services, the user interface of the panel, the abort signal, the counters of the
 // run and the two guards every write goes through.
 export function createContext({ services, ui = {}, signal = new AbortController().signal, limits = LIMITS, now = () => new Date().toISOString(), log = null, runId = crypto.randomUUID() }) {
+  // routes: file handle -> the answered question that sent the file to a client (ask_user), so that it is never asked twice.
   // fileStatus: file handle -> waiting | extracted | filed. extractions: file handle -> { tries, records } (the fact store).
   // addedEntries, factsUsed and addedFacts (fact handle -> what add_rows made of it) are filled by add_rows: rows made in this run are seen by the duplicate search, and facts
   // that already became a row cannot be extracted again.
   const run = {
-    id: runId, asked: new Map(), questions: 0, copies: new Set(), fileStatus: new Map(), toolCalls: 0,
+    id: runId, asked: new Map(), routes: new Map(), questions: 0, copies: new Set(), fileStatus: new Map(), toolCalls: 0,
     extractions: new Map(), extractCount: 0, extractSlots: createSemaphore(limits.parallelExtractions ?? LIMITS.parallelExtractions), addedEntries: [], factsUsed: new Set(), addedFacts: new Map(),
   };
   return {
@@ -48,8 +49,8 @@ export function createContext({ services, ui = {}, signal = new AbortController(
 
 // model: { step({ system, contents, tools, signal }) -> { parts, finishReason?, blockReason?, usage?, model? } }
 // registry: createRegistry(...). services: the only way for a tool to reach data (services.js). ui: { ask(card, { signal }),
-// propose(proposal) } supplied by the panel. onEvent receives every log entry when it is written; onProgress({ type: "turn" | "call", ... })
-// is told when a model turn or a tool call starts (the progress line of the panel).
+// propose(proposal) } supplied by the panel. onEvent receives every log entry when it is written; onProgress({ type: "turn" | "call" | "done", ... })
+// is told when a model turn or a tool call starts and when a call has ended (the progress line of the panel).
 // Resolves with { status, text?, error?, reason?, turns, toolCalls, questions, runId, log };
 // status: completed | cancelled | limit_reached | failed | blocked.
 export async function runAgent({
@@ -90,6 +91,7 @@ export async function runAgent({
     progress({ type: "call", name: call.name });
     const envelope = await (registry.isExclusive(call.name) ? (queue = queue.then(() => registry.dispatch(call, ctx))) : registry.dispatch(call, ctx));
     log.add({ kind: "tool", name: call.name, args: shorten(call.args ?? {}), ok: envelope.ok, error: envelope.error?.code, result: shorten(envelope), ms: clock() - started });
+    progress({ type: "done", name: call.name, ok: envelope.ok, result: envelope });
     return { functionResponse: { ...(call.id ? { id: call.id } : {}), name: call.name, response: envelope } };
   }
 

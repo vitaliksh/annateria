@@ -211,6 +211,10 @@ function updateWorkspace(selected) {
   if (workspace?.config.clientId === selected.config.clientId) workspace = { ...workspace, config: selected.config };
   if (committedWorkspace?.config.clientId === selected.config.clientId) {
     committedWorkspace = { ...committedWorkspace, config: selected.config };
+    if (currentDeclaration) {
+      currentClient.textContent = `לקוח: ${selected.config.clientName} · הצהרה: ${formatMonth(currentDeclaration.month)}`;
+      journalTitle.textContent = currentClient.textContent;
+    }
     businessActivity.value = selected.config.businessActivity;
     businessKind.value = selected.config.businessKind;
     applyBusinessRules();
@@ -332,6 +336,7 @@ const workspaceControls = setupWorkspaceControls({
   onExportClient: (clientId) => transfer.openExport({ clientId }),
   clientMenu: document.querySelector("#client-menu"),
   clientMenuName: document.querySelector("#client-menu-name"),
+  clientMenuNameInput: document.querySelector("#client-name"),
   clientNameInput: document.querySelector("#new-client-name"),
   clientActivityInput: document.querySelector("#new-client-activity"),
   clientKindInput: document.querySelector("#new-client-kind"),
@@ -638,6 +643,7 @@ async function runAssistant(kind, text) {
   const counts = {};
   assistantRun = controller;
   assistant.setBusy(true);
+  assistant.setProgress("מתחיל…");
   try {
     const result = await assistantFlow.run({
       message: buildMessage({
@@ -646,7 +652,10 @@ async function runAssistant(kind, text) {
       }),
       ui: assistant.ui,
       signal: controller.signal,
-      onProgress: (event) => assistant.setProgress(progressLabel(event, counts)),
+      onProgress: (event) => {
+        const text = progressLabel(event, counts);
+        if (text) assistant.setProgress(text);
+      },
     });
     const note = resultNote(result);
     assistant.addMessage(note.kind, note.text);

@@ -12,8 +12,10 @@ export const TOOL_LABELS = {
   get_client_context: "קורא את פרטי הלקוח",
   query_rows: "בודק את הטבלה",
   facts_for: "בודק את הכללים",
-  ask_user: "שואל שאלה",
+  ask_user: "ממתין לתשובה שלך",
   propose_change: "מכין הצעה",
+  add_rows: "מוסיף שורות לטבלה",
+  move_file_to_declaration: "מתייק את המקור",
 };
 
 export const FIELD_LABELS = {
@@ -24,12 +26,36 @@ export const FIELD_LABELS = {
 
 export const COMMAND_LABELS = { process: "בדוק מסמכים חדשים", left: "מה נשאר?" };
 
-// The line of the progress bar for a progress event of the loop; `counts` keeps how many documents were read in this run.
+const ADDED_STATES = ["created", "moved_month", "already_added"];
+
+// What the run has done so far, for the progress line: documents read of the files found, rows added, originals filed.
+function summaryOf(counts) {
+  const parts = [];
+  if (counts.total) parts.push(`נקראו ${counts.read ?? 0} מתוך ${counts.total}`);
+  if (counts.rows) parts.push(`נוספו ${counts.rows} שורות`);
+  if (counts.filed) parts.push(`תויקו ${counts.filed}`);
+  return parts.join(" · ");
+}
+
+// The line of the progress bar for a progress event of the loop; `counts` keeps what was done in this run. A finished call only updates
+// the counts (null: nothing new to show before the next event).
 export function progressLabel(event, counts) {
-  if (event.type === "turn") return "חושב…";
+  if (event.type === "done") {
+    const result = event.result ?? {};
+    if (event.name === "list_inbox" && event.ok) {
+      const found = (result.files ?? []).filter((file) => file.kind !== "spreadsheet" && file.status === "waiting").length;
+      counts.total = Math.max(counts.total ?? 0, found);
+    } else if (event.name === "extract_document") counts.read = (counts.read ?? 0) + 1;
+    else if (event.name === "add_rows") counts.rows = (counts.rows ?? 0) + (result.rows ?? []).filter((row) => ADDED_STATES.includes(row.state)).length;
+    else if (event.name === "move_file_to_declaration" && result.state === "filed") counts.filed = (counts.filed ?? 0) + 1;
+    return null;
+  }
+  const summary = summaryOf(counts);
+  if (event.type === "turn") return summary ? `חושב… · ${summary}` : "חושב…";
   if (event.name === "extract_document") counts.extracted = (counts.extracted ?? 0) + 1;
   const label = TOOL_LABELS[event.name] ?? "עובד…";
-  return event.name === "extract_document" ? `${label} (${counts.extracted})` : label;
+  const line = event.name === "extract_document" ? `${label} (${counts.extracted})` : label;
+  return summary ? `${line} · ${summary}` : line;
 }
 
 function valueText(field, value) {
@@ -49,6 +75,9 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
   ].map(part);
   const doc = root.ownerDocument;
   let busy = false;
+  let shown = "";
+  let since = 0;
+  let timer = null;
 
   const element = (tag, className, text) => {
     const node = doc.createElement(tag);
@@ -68,12 +97,28 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
     if (show) scrollDown();
   }
 
+  // The progress line, with the seconds since it last changed once the step takes a while: a long wait for the model is not a freeze.
+  const drawProgress = () => {
+    const seconds = Math.floor((Date.now() - since) / 1000);
+    progress.textContent = shown && seconds >= 5 ? `${shown} · ${seconds} שנ׳` : shown;
+  };
+  function setProgress(text) {
+    shown = text;
+    since = Date.now();
+    drawProgress();
+  }
+
   function setBusy(value) {
     busy = value;
     for (const control of [processButton, leftButton, input, sendButton]) control.disabled = value;
     cancelButton.hidden = !value;
-    if (value) open(true);
-    else progress.textContent = "";
+    clearInterval(timer);
+    timer = null;
+    if (value) {
+      open(true);
+      timer = setInterval(drawProgress, 1000);
+      timer.unref?.();
+    } else setProgress("");
   }
 
   function addMessage(kind, text) {
@@ -212,5 +257,5 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
   });
 
   open(false);
-  return { open, setBusy, addMessage, trigger: start, setProgress: (text) => { progress.textContent = text; }, ui: { ask, propose }, isBusy: () => busy };
+  return { open, setBusy, addMessage, trigger: start, setProgress, ui: { ask, propose }, isBusy: () => busy };
 }

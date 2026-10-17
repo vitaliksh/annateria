@@ -34,7 +34,7 @@ export default {
       about: {
         type: "object",
         properties: {
-          files: { type: "array", maxItems: 6, items: { type: "string", maxLength: 12 }, description: "File handles the question is about." },
+          files: { type: "array", maxItems: 12, items: { type: "string", maxLength: 12 }, description: "File handles the question is about." },
           rows: { type: "array", maxItems: 6, items: { type: "string", maxLength: 12 }, description: "Row handles the question is about." },
         },
       },
@@ -50,6 +50,10 @@ export default {
     const earlier = ctx.run.asked.get(key);
     if (earlier) return earlier;
     if (ctx.run.questions >= ctx.limits.questions) throw new ToolError("limit_reached", "No more questions are allowed in this run.");
+    // A file that the user already sent to a client in this run is not asked about again: the earlier answer stands.
+    const fileHandles = args.about?.files ?? [];
+    const routed = fileHandles.map((handle) => ctx.run.routes.get(handle));
+    if (routed.length && routed.every(Boolean) && new Set(routed.map((output) => output.ask)).size === 1) return { ...routed[0], already_answered: true };
     const ids = args.options.map((option) => option.id);
     if (new Set(ids).size !== ids.length || ids.some((id) => RESERVED_IDS.includes(id))) throw new ToolError("invalid_argument", "Option ids must be unique and not 'other' or 'dismissed'.");
     const files = (args.about?.files ?? []).map((handle) => ({ file: handle, ...ctx.handles.get("F", handle) }));
@@ -94,6 +98,8 @@ export default {
     record.remembered = Boolean(client && answer.remember === true && answer.type !== "dismissed");
     const output = { ask, answer: record.answer, remember: record.remembered };
     ctx.run.asked.set(key, output);
+    const chosen = record.answer.type === "option" ? record.options.find((option) => option.id === record.answer.id) : null;
+    if (chosen?.clientId) for (const handle of record.fileHandles) ctx.run.routes.set(handle, output);
     return output;
   },
 };

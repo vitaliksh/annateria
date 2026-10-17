@@ -194,6 +194,13 @@ test("cancel buttons of dialogs with required fields skip form validation", asyn
   }
 });
 
+test("the client menu has a field for the name of the client, filled from the client and saved with the other details", async () => {
+  const { document } = await loadApp();
+  const field = document.querySelector("#client-menu #client-name");
+  assert.ok(field && field.required, "a name field in the menu");
+  assert.ok(document.querySelector("#client-menu").compareDocumentPosition(field) & 16, "inside the dialog");
+});
+
 test("the lock button is shown by default and the reopen button stays hidden without a locked declaration", async () => {
   const { document } = await loadApp();
   assert.equal(document.querySelector("#close-declaration").textContent, "נעילת הצהרה");
