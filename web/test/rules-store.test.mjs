@@ -8,6 +8,7 @@ import { JSDOM } from "jsdom";
 import { cleanRule } from "../rule-text.js";
 import { appendRule, readRules, saveRules } from "../rules-store.js";
 import { setupClientRules } from "../client-rules-ui.js";
+import { addAlias, readAliases } from "../aliases-store.js";
 import { binaryDirectory, listPaths, putFile } from "./memory-binary-directory.mjs";
 
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "index.html"), "utf8");
@@ -73,4 +74,25 @@ test("the client card has a button for the rules, and its dialog shows, edits an
   assert.match(dialog.querySelector("#client-rules-status").textContent, /^נשמר\. עותק של הגרסה הקודמת: rules\.before-.+\.md$/);
   assert.equal(await readRules(directory), "- דלק הוא הוצאה\n- חניה היא הוצאה\n");
   assert.deepEqual(errors, []);
+  assert.equal(dialog.querySelector("#client-aliases-list").textContent, "אין עדיין.");
+});
+
+test("the rules dialog lists the buyers confirmed as the client, and the user removes one (marked in the file)", async () => {
+  const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/annateria/" });
+  const dialog = window.document.querySelector("#client-rules-dialog");
+  dialog.showModal = () => { dialog.open = true; };
+  const directory = binaryDirectory("Levi");
+  await addAlias(directory, { vatId: "300000007", name: "משה לוי" }, { now });
+  await addAlias(directory, { vatId: "", name: "דנה לוי" }, { now });
+  await setupClientRules({ dialog }).open({ clientName: "Levi", directory });
+  const items = () => [...dialog.querySelectorAll("#client-aliases-list li")].map((item) => item.firstChild.textContent);
+  assert.deepEqual(items(), ["«משה לוי» · מס׳ 300000007 · נוסף 17/10/2026", "«דנה לוי» · נוסף 17/10/2026"]);
+  dialog.querySelector("#client-aliases-list li button").click();
+  await tick();
+  await tick();
+  assert.deepEqual(items(), ["«דנה לוי» · נוסף 17/10/2026"]);
+  assert.deepEqual((await readAliases(directory)).aliases.map((alias) => alias.name), ["דנה לוי"]);
+  await putFile(directory, "aliases.json", "{ damaged");
+  await setupClientRules({ dialog }).open({ clientName: "Levi", directory });
+  assert.deepEqual(items(), ["הקובץ aliases.json של הלקוח פגום; הקונים שבו אינם נחשבים."]);
 });

@@ -34,6 +34,7 @@ import { buildMessage, createAssistantFlow, leftNote, resultNote } from "./assis
 import { setupModelSettings } from "./model-settings-ui.js";
 import { applyProposal } from "./proposal-apply.js";
 import { appendRule } from "./rules-store.js";
+import { addAlias } from "./aliases-store.js";
 import { setupClientRules } from "./client-rules-ui.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
@@ -775,6 +776,12 @@ const assistant = setupAssistant({
     const client = workspaceControls?.getClients().active.find((item) => item.id === clientId && item.parent);
     if (!client) throw new Error("הלקוח לא נמצא ברשימת הלקוחות.");
     return appendRule(client.directory, rule);
+  },
+  // The buyer printed on the documents of a "which client?" question, kept for the chosen client when the user ticked the box (step 4.6.2).
+  onRememberAlias: async ({ clientId, vatId, name }) => {
+    const client = workspaceControls?.getClients().active.find((item) => item.id === clientId && item.parent);
+    if (!client) throw new Error("הלקוח לא נמצא ברשימת הלקוחות.");
+    return addAlias(client.directory, { vatId, name });
   },
   onCommand: (command) => {
     if (command.type === "cancel") assistantRun?.abort();

@@ -17,7 +17,7 @@ specification for 4.2 onwards; a change to it needs the owner's approval.
 
 **Done:** steps 4.1 to **4.4** (the agent reads, checks, adds rows, files the originals, and its proposals can be applied); 4.5 (routing) is built with 4.4. **Next, for the
 owner:** the same run as before, now with files: put a document of a client into "תיבת קלט" (best in the folder of that client), press "בדוק מסמכים חדשים" or "בדוק עם העוזר", and look at
-the table: a row, its status, its original (the PDF button), and the cards. **Next step:** block 4.7 (all imports through the inbox; 4.7.1 to 4.7.3 accepted; 4.7.1 to 4.7.3, 4.7.5 and 4.7.6 accepted; 4.7.4 waits for one run of the operations ledger with the right client), then 4.6 client memory in two steps: **4.6.1 rules (built 17 October, not pushed: a ticked rule is written by the page, `remember_rule` removed, the rules dialog of the client card)**, 4.6.2 the confirmed alias (`aliases.json`, `routed_by alias`), then phase 5 (skills and eval). The
+the table: a row, its status, its original (the PDF button), and the cards. **Next step:** block 4.7 (all imports through the inbox; 4.7.1 to 4.7.3 accepted; 4.7.1 to 4.7.3, 4.7.5 and 4.7.6 accepted; 4.7.4 waits for one run of the operations ledger with the right client), then 4.6 client memory in two steps: **4.6.1 rules (pushed 17 October: a ticked rule is written by the page, `remember_rule` removed, the rules dialog of the client card)**, **4.6.2 the confirmed alias (built 17 October, not pushed: `aliases.json`, `routed_by alias`)**, then phase 5 (skills and eval). The
 owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (the Cloudflare plan now matters: see "General check of 16 October"): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
@@ -54,7 +54,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 755 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 765 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -84,7 +84,9 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
 - **Rows of the agent (4.4):** `row-builder.js` (the row from a fact and a decision), `proposal-apply.js` (the apply button), `agent/facts.js`, `agent/answers.js`; the page side is
   `appendSnapshots`, `setRowImage`, `attachRowImages`, `openPdf`, `proposalOps` in `app.js`.
 - **Client memory (4.6):** `rules-store.js` (`readRules` for the agent; `appendRule` and `saveRules` for the page only), `rule-text.js` (pure: the cleaned text of a
-  rule), `client-rules-ui.js` (the dialog "כללים של הלקוח" of the client card).
+  rule), `client-rules-ui.js` (the dialog "כללים של הלקוח" of the client card, with the confirmed buyers), `client-alias.js` (pure: the rule of
+  proof of an alias), `aliases-store.js` (`clients/<client>/aliases.json`: `readAliases` for the agent, `addAlias` / `removeAlias` for the page),
+  `agent/aliases.js` (`holdersOf`).
 - **Inbox:** `inbox-store.js` (originals dropped by the user, `inbox/index.json`, SHA-256 dedup against the inbox and all declaration
   images; the Windows file-name rules and the accepted file types live here), `inbox-ui.js` + `inbox.css` (`#inbox-dialog`: drop target, picker,
   client choice, result lines; opened by `#open-inbox`). The backup already copies `inbox/` with the rest of the root.
@@ -255,6 +257,18 @@ now names the answer, `finish` waits for the save), `workspace.js` (optional `cl
 dialog), `agent/prompts.js`, `package.json` (check). **Checked in a local Chrome (OPFS folder, synthetic client, no Gemini):** the dialog reads, edits and saves with a
 copy; a card with the box ticked and the answer of the rule clicked wrote the line. **Not verified:** a real run where Gemini offers `remember` with an `option`; the
 button in the client card of a real data root.
+
+### Step 4.6.2 (17 October 2026): the confirmed alias
+
+Decided by the owner (`docs/AGENT_TOOLS.md` question 13): the buyer printed on documents, once confirmed as a client, is routing proof. The
+buyer of a fact is `{ vatId, name }` (`buyerOf`); a printed VAT number decides, otherwise the exact name after `nameTokens` (`aliasProves`).
+`add_rows` `routed_by: alias` asks `holdersOf` (every client whose own VAT number or alias proves the buyer) and wants exactly this client.
+`ask_user` with `choose_client` computes the offer (`aliasOffer`): all files extracted, one buyer (`provesSame`), no holder; the card gets
+`alias: { vatId, name, clients: { optionId: clientId } }` and `assistant-ui.js` calls `onRememberAlias` (page, `addAlias`) for the ticked box and a
+chosen client. **Changed existing code:** `agent/services.js` (read-only `clients.aliases`), `agent/tools/find-client.js` (`alias` match, `ORDER`),
+`agent/tools/get-client-context.js` (`aliases`), `agent/tools/add-rows.js` (`verifyRouting` async, `alias`), `agent/tools/ask-user.js` (the offer,
+`alias_saved`), `assistant-ui.js` (the box, `onRememberAlias`, hint `alias`), `client-rules-ui.js` (the list), `app.js`, `index.html`, `agent/prompts.js`,
+`package.json` (check). **Not verified:** a real run with Gemini; the look of the box and the list on the published page.
 
 ### General check of 16 October 2026 (before the first PDFs)
 

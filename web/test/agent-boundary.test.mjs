@@ -54,7 +54,7 @@ test("`services` offers a fixed list of operations, none of which changes a decl
   const services = createServices({ getDataRoot: () => null, getClients: () => [] });
   const operations = Object.entries(services).flatMap(([group, members]) => Object.keys(members).map((name) => `${group}.${name}`));
   assert.deepEqual(operations.sort(), [
-    "clients.chart", "clients.list", "clients.open", "clients.profile", "declarations.create", "declarations.state", "documents.inspect", "extraction.run",
+    "clients.aliases", "clients.chart", "clients.list", "clients.open", "clients.profile", "declarations.create", "declarations.state", "documents.inspect", "extraction.run",
     "files.copyToDeclaration", "files.moveOutOfInbox", "imports.prepare", "inbox.readIndex", "intake.context", "rows.append", "rows.attachImage", "rows.list", "rules.read",
     "tables.copyBeforeAgent",
   ]);
@@ -69,10 +69,11 @@ const outsideImports = (file) => importsOf(file).map((specifier) => relative(web
 
 const PURE = [
   "intake-facts.js", "pcn-review.js", "row-calculations.js", "home-utilities.js", "reports.js", "month-format.js", "month-distribution.js", "workspace-core.js",
-  "row-builder.js", "rule-text.js",
+  "row-builder.js", "rule-text.js", "client-alias.js",
 ];
 const ALLOWED_OUTSIDE = {
-  "agent/services.js": ["chart-of-accounts.js", "table-backup.js", "declaration-store.js", "inbox-store.js", "intake-facts.js", "intake-index.js", "rules-store.js"],
+  "agent/services.js": ["chart-of-accounts.js", "table-backup.js", "declaration-store.js", "inbox-store.js", "intake-facts.js", "intake-index.js", "rules-store.js", "aliases-store.js"],
+  "agent/aliases.js": ["client-alias.js"],
   "agent/fact-record.js": ["intake-facts.js", "workspace-core.js"],
   "agent/facts.js": ["intake-facts.js", "home-utilities.js", "pcn-review.js"],
   "agent/adapters/documents.js": ["pdf-import.js"],
@@ -125,14 +126,14 @@ test("the guard of the previous test would catch a commit", () => {
 });
 
 // rules.md gets only what the user confirmed (step 4.6): the page writes it at the click; the agent can only read it.
-test("nothing in the agent can write rules.md: only readRules is imported from rules-store.js, and no tool is a rule writer", () => {
+test("nothing in the agent can write rules.md or aliases.json: only the readers are imported, and no tool is a writer of them", () => {
   const files = [...sources(agentDirectory), ...sources(join(agentDirectory, "tools")), ...sources(join(agentDirectory, "adapters"))];
   for (const file of files) {
     const name = relative(webDirectory, file).replaceAll("\\", "/");
-    for (const imported of importedNames(file)) assert.doesNotMatch(imported, /^(appendRule|saveRules)$/, `${name} imports ${imported}`);
-    if (outsideImports(file).includes("rules-store.js")) assert.equal(name, "agent/services.js", name);
+    for (const imported of importedNames(file)) assert.doesNotMatch(imported, /^(appendRule|saveRules|addAlias|removeAlias)$/, `${name} imports ${imported}`);
+    for (const store of ["rules-store.js", "aliases-store.js"]) if (outsideImports(file).includes(store)) assert.equal(name, "agent/services.js", name);
   }
-  assert.deepEqual(importedNames(join(agentDirectory, "services.js")).filter((item) => /Rules?$/.test(item)), ["readRules"]);
+  assert.deepEqual(importedNames(join(agentDirectory, "services.js")).filter((item) => /(Rules?|Alias(es)?)$/.test(item)), ["readRules", "readAliases"]);
   assert.equal(createDefaultRegistry().names().includes("remember_rule"), false);
   assert.equal(documented.includes("remember_rule"), false);
 });

@@ -6,6 +6,8 @@
 // accepts nothing else as that decision.
 import { ToolError } from "../errors.js";
 import { cleanRule } from "../../rule-text.js";
+import { buyerOf, provesSame } from "../../client-alias.js";
+import { holdersOf } from "../aliases.js";
 
 const normal = (text) => text.trim().replace(/\s+/g, " ").toLowerCase();
 const RESERVED_IDS = ["other", "dismissed"];
@@ -41,10 +43,27 @@ async function clientOptions(args, ctx, fileCount) {
   return options;
 }
 
+// The buyer that choose_client offers to remember for the chosen client (step 4.6.2): only when every file of the question was read and all its
+// documents print the same buyer, and no client holds that buyer yet (by its VAT number or a confirmed alias). Otherwise null: no box.
+async function aliasOffer(ctx, fileHandles) {
+  let buyer = null;
+  for (const handle of fileHandles) {
+    const facts = ctx.run.extractions?.get(handle)?.facts ?? [];
+    if (!facts.length) return null;
+    for (const fact of facts) {
+      const current = buyerOf(ctx.handles.getFact(fact).record);
+      if (!current || (buyer && !provesSame(buyer, current))) return null;
+      buyer ??= current;
+    }
+  }
+  if (!buyer || holdersOf(await ctx.services.clients.aliases(), buyer).length) return null;
+  return buyer;
+}
+
 export default {
   name: "ask_user",
   exclusive: true,
-  description: "Ask the user one short question in Hebrew with 2 to 6 buttons and wait for the answer. Use it only when the facts cannot decide. To ask which client files belong to, do not build buttons: set choose_client true, list the files in about.files and the candidate clients (handles, the client the user has open first) in clients; the code shows the names of the clients as buttons and a list of all the other clients, and the answer gives you the handle of the chosen client (client). Optionally offer to remember the answer as a rule of one client: remember.rule is the exact Hebrew rule text shown to the user and remember.option the id of the answer it belongs to; the page saves it in the client's rules only if the user ticks the box and clicks that answer (saved: true in the result). There is no other way to save a rule.",
+  description: "Ask the user one short question in Hebrew with 2 to 6 buttons and wait for the answer. Use it only when the facts cannot decide. To ask which client files belong to, do not build buttons: set choose_client true, list the files in about.files and the candidate clients (handles, the client the user has open first) in clients; the code shows the names of the clients as buttons and a list of all the other clients, and the answer gives you the handle of the chosen client (client); when every file prints the same buyer, the card itself offers the user to remember that buyer for the chosen client (alias_saved in the result), so that later documents of that buyer are proven by find_client match alias without a question. Optionally offer to remember the answer as a rule of one client: remember.rule is the exact Hebrew rule text shown to the user and remember.option the id of the answer it belongs to; the page saves it in the client's rules only if the user ticks the box and clicks that answer (saved: true in the result). There is no other way to save a rule.",
   schema: {
     type: "object",
     required: ["question", "allow_other"],
@@ -84,6 +103,7 @@ export default {
   async run(args, ctx) {
     if (typeof ctx.ui.ask !== "function") throw new ToolError("unavailable", "There is no one to ask.");
     const key = normal(args.question);
+    let offer = null;
     const earlier = ctx.run.asked.get(key);
     if (earlier) return earlier;
     if (ctx.run.questions >= ctx.limits.questions) throw new ToolError("limit_reached", "No more questions are allowed in this run.");
@@ -104,6 +124,7 @@ export default {
       if (!fileHandles.length) throw new ToolError("invalid_argument", "choose_client needs the files it is about (about.files).");
       if (args.options) throw new ToolError("invalid_argument", "choose_client builds the buttons itself: give clients (candidates), not options.");
       args = { ...args, options: await clientOptions(args, ctx, fileHandles.length) };
+      offer = await aliasOffer(ctx, fileHandles);
     } else if (!args.options || args.options.length < 2) throw new ToolError("invalid_argument", "options needs 2 to 6 buttons.");
     const ids = args.options.map((option) => option.id);
     if (args.options.some((option) => option.client) && !fileHandles.length) throw new ToolError("invalid_argument", "A question that offers clients must list the files it is about (about.files): a click proves nothing about other files.");
@@ -134,7 +155,7 @@ export default {
     }));
 
     ctx.run.questions += 1;
-    const record = { question: args.question, options, fileHandles: args.about?.files ?? [], clientId: client?.clientId ?? null, rule, ruleOption: args.remember?.option ?? null, answer: null, remembered: false, saved: false };
+    const record = { question: args.question, options, fileHandles: args.about?.files ?? [], clientId: client?.clientId ?? null, rule, ruleOption: args.remember?.option ?? null, answer: null, remembered: false, saved: false, aliasOffer: offer };
     const ask = ctx.handles.create("Q", ctx.run.questions, record);
     const card = {
       id: ask, question: args.question, allowOther: args.allow_other,
@@ -143,6 +164,8 @@ export default {
       // The list holds every client, the ones on the buttons too, so that the user finds any client there (owner, 17 October).
       ...(args.choose_client ? { more: options.filter((option) => option.clientId).map(({ id, label }) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, "he")) } : {}),
       about: { files: files.map(({ file, name, folder }) => ({ file, name, folder })), rows: rows.map(({ row }) => ({ row })) },
+      // choose_client: the box that remembers the printed buyer for the client the user chooses; clientId per option is for the page.
+      ...(offer ? { alias: { vatId: offer.vatId, name: offer.name, clients: Object.fromEntries(options.filter((option) => option.clientId).map((option) => [option.id, option.clientId])) } } : {}),
       // clientId is for the page, which saves the rule; optionLabel tells the user which answer the rule belongs to.
       remember: client ? { client: client.name, clientId: client.clientId, rule, option: args.remember.option, optionLabel: options.find((option) => option.id === args.remember.option).label } : null,
     };
@@ -167,10 +190,13 @@ export default {
     // The tick counts only with the answer the rule belongs to; `saved` is what the page reports after it wrote rules.md.
     record.remembered = Boolean(client && answer.remember === true && record.answer.type === "option" && record.answer.id === record.ruleOption);
     record.saved = record.remembered && answer.saved === true;
+    const chosenClient = record.answer.type === "option" ? record.options.find((option) => option.id === record.answer.id)?.clientId : null;
+    record.aliasRemembered = Boolean(offer && answer.alias === true && chosenClient);
     const chosen = record.answer.type === "option" ? record.options.find((option) => option.id === record.answer.id) : null;
     // The handle of the chosen client, so that the model can name it in add_rows or prepare_import even if it never found it.
     const chosenHandle = chosen?.clientId ? args.options.find((option) => option.id === chosen.id).client : null;
-    const output = { ask, answer: record.answer, remember: record.remembered, ...(record.remembered ? { saved: record.saved } : {}), ...(chosenHandle ? { client: chosenHandle } : {}) };
+    const output = { ask, answer: record.answer, remember: record.remembered, ...(record.remembered ? { saved: record.saved } : {}),
+      ...(record.aliasRemembered ? { alias_saved: answer.aliasSaved === true } : {}), ...(chosenHandle ? { client: chosenHandle } : {}) };
     ctx.run.asked.set(key, output);
     if (chosen?.clientId) for (const handle of record.fileHandles) ctx.run.routes.set(handle, output);
     return output;

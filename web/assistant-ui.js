@@ -53,7 +53,7 @@ const IMPORT_PROBLEMS = {
   types_suggested: (item) => `ל-${item.count} קודי מיון הוצע סוג אחר כדי שהסכומים בסוף הקובץ יתאימו; האשף מראה זאת.`,
 };
 // Why a client is offered as a button of the question "which client?" (choose_client).
-const CLIENT_HINTS = { open: "הלקוח הפתוח כעת", vat_id: "מספר העוסק במסמך זהה", name_exact: "נמצא לפי שם זהה", name_partial: "נמצא לפי שם דומה, לא בטוח" };
+const CLIENT_HINTS = { open: "הלקוח הפתוח כעת", vat_id: "מספר העוסק במסמך זהה", alias: "הקונה במסמך אושר בעבר ללקוח הזה", name_exact: "נמצא לפי שם זהה", name_partial: "נמצא לפי שם דומה, לא בטוח" };
 const money = (value) => value.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const importProblemText = (item) => (IMPORT_PROBLEMS[item.code] ?? problemText)(item) ?? item.code;
 
@@ -99,8 +99,10 @@ function valueText(field, value) {
 // onApply(proposal, kept) is called when the user applies a proposal (kept: the numbers of the changes that stayed ticked); it resolves with
 // { applied, refused: [{ change, reason }] }. Without it a proposal card only shows the changes.
 // onRemember({ clientId, rule }) appends a confirmed rule to the client's rules.md and resolves with { added }; it is called only after
-// the user ticked "זכור ללקוח" and clicked the answer the rule belongs to.
-export function setupAssistant({ root, onCommand, onApply = null, onRemember = null }) {
+// the user ticked "זכור ללקוח" and clicked the answer the rule belongs to. onRememberAlias({ clientId, vatId, name }) keeps the printed buyer of
+// the documents of a "which client?" question as an alias of the chosen client (step 4.6.2) and resolves with { added }; it is called only after
+// the user ticked that box and chose a client.
+export function setupAssistant({ root, onCommand, onApply = null, onRemember = null, onRememberAlias = null }) {
   const part = (id) => root.querySelector(`#${id}`);
   const [toggle, progress, body, feed, form, input, sendButton, processButton, leftButton, reportButton, cancelButton, minimizeButton] = [
     "assistant-toggle", "assistant-progress", "assistant-body", "assistant-feed", "assistant-form", "assistant-input", "assistant-send",
@@ -216,6 +218,32 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
           return { remember: true, saved: false };
         }
       };
+      // choose_client: remember the buyer printed on the documents for the client that is chosen.
+      let aliasBox = null;
+      if (card.alias) {
+        const label = element("label", "check-line");
+        aliasBox = Object.assign(doc.createElement("input"), { type: "checkbox" });
+        const buyer = [card.alias.name ? `«${card.alias.name}»` : "", card.alias.vatId ? `מס׳ ${card.alias.vatId}` : ""].filter(Boolean).join(" ");
+        label.append(aliasBox, ` לזכור: מסמכים שהקונה בהם ${buyer} שייכים ללקוח שייבחר`);
+        box.append(label);
+      }
+      const saveAlias = async (answer, shown) => {
+        if (!aliasBox?.checked) return {};
+        const clientId = answer.type === "option" ? card.alias.clients?.[answer.id] : null;
+        if (!clientId) {
+          box.append(element("p", "card-answer muted", "הקונה לא נשמר: לא נבחר לקוח."));
+          return { aliasSaved: false };
+        }
+        try {
+          if (!onRememberAlias) throw new Error("אין אפשרות לשמור כאן.");
+          const { added } = await onRememberAlias({ clientId, vatId: card.alias.vatId, name: card.alias.name });
+          box.append(element("p", "card-answer muted", added ? `הקונה נשמר ללקוח «${shown}».` : `הקונה כבר רשום ללקוח «${shown}».`));
+          return { aliasSaved: true };
+        } catch (error) {
+          box.append(element("p", "card-answer", `הקונה לא נשמר: ${error.message}`));
+          return { aliasSaved: false };
+        }
+      };
       let finished = false;
       const finish = async (answer, shown) => {
         if (finished) return;
@@ -224,7 +252,8 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
         box.dataset.state = "answered";
         box.append(element("p", "card-answer", `נבחר: ${shown}`));
         const saved = await saveRule(answer);
-        resolve({ ...answer, ...(remember ? { remember: remember.checked, ...saved } : {}) });
+        const aliasSaved = await saveAlias(answer, shown);
+        resolve({ ...answer, ...(remember ? { remember: remember.checked, ...saved } : {}), ...(aliasBox ? { alias: aliasBox.checked, ...aliasSaved } : {}) });
         scrollDown();
       };
       const options = element("div", "card-options");

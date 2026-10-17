@@ -19,7 +19,7 @@ function capRules(text) {
 
 export default {
   name: "get_client_context",
-  description: "Everything about one client that the decision needs: activity, home or office, PCN duty, VAT number and periods, its declarations with their state, the last locked month, its chart of accounts (the only codes you may use) and its rules.md.",
+  description: "Everything about one client that the decision needs: activity, home or office, PCN duty, VAT number and periods, its declarations with their state, the last locked month, its chart of accounts (the only codes you may use), its rules.md and its aliases (buyers printed on documents that the user confirmed as this client).",
   schema: {
     type: "object",
     required: ["client"],
@@ -27,13 +27,17 @@ export default {
   },
   async run(args, ctx) {
     const { clientId } = ctx.handles.get("C", args.client);
-    const [profile, chart, rules] = await Promise.all([ctx.services.clients.profile(clientId), ctx.services.clients.chart(clientId), ctx.services.rules.read(clientId)]);
+    const [profile, chart, rules, aliases] = await Promise.all([
+      ctx.services.clients.profile(clientId), ctx.services.clients.chart(clientId), ctx.services.rules.read(clientId), ctx.services.clients.aliases(),
+    ]);
+    const own = aliases.find((item) => item.clientId === clientId);
     const accounts = Object.entries(chart.accounts).sort(([a], [b]) => a.localeCompare(b)).slice(0, MAX_ACCOUNTS).map(([code, account]) => ({ code, name: account.name, type: account.type }));
     return {
       client: args.client, name: profile.name, activity: profile.activity, kind: profile.kind, pcn_required: profile.pcnRequired,
       vat_id: profile.vatId, vat_period: profile.vatPeriod, advances_period: profile.advancesPeriod,
       locked_through: lockedThrough(profile.declarations), declarations: profile.declarations,
       chart: accounts, chart_source: chart.source, ...capRules(rules),
+      aliases: (own?.aliases ?? []).map((alias) => ({ vat_id: alias.vatId, name: alias.name })), ...(own?.damaged ? { aliases_damaged: true } : {}),
     };
   },
 };

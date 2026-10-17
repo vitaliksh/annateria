@@ -237,7 +237,7 @@ test("a proposal names the row by its number, even when the row shares its docum
 test("the instruction has the agent read import files and name the wizard of the menu, and never extract a spreadsheet (4.7.1)", async () => {
   const { ORCHESTRATOR_PROMPT, AGENT_VERSION } = await import("../agent/prompts.js");
   const { default: listInbox } = await import("../agent/tools/list-inbox.js");
-  assert.equal(AGENT_VERSION, "stand-in-2026-10-17m");
+  assert.equal(AGENT_VERSION, "stand-in-2026-10-17n");
   assert.ok(ORCHESTRATOR_PROMPT.includes("read every spreadsheet, and every PDF that does not look like an invoice"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("with read_document, and never extract a spreadsheet with the vision model"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("say plainly when you cannot tell what a file is"));

@@ -12,6 +12,7 @@ import { entryFromRow } from "../intake-facts.js";
 import { loadIntakeContext } from "../intake-index.js";
 import { copyToDeclarationImages, moveOutOfInbox, readInboxFile, readInboxIndex } from "../inbox-store.js";
 import { readRules } from "../rules-store.js";
+import { readAliases } from "../aliases-store.js";
 import { createDocumentReader } from "./adapters/documents.js";
 import { createImportReader } from "./adapters/imports.js";
 
@@ -62,6 +63,12 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
       // The client whose table is open in the page, or null.
       open: () => getLiveTable()?.clientId ?? null,
       list: () => homeClients().map((client) => ({ clientId: client.id, clientName: client.clientName, vatId: client.config?.vatId ?? "", folder: client.entryName })),
+      // The confirmed aliases of every client (aliases.json): [{ clientId, vatId, aliases: [{ vatId, name }], damaged }]. A file that
+      // cannot be read gives no aliases (damaged), so it proves nothing.
+      aliases: () => Promise.all(homeClients().map(async (client) => {
+        const read = await readAliases(client.directory).catch(() => ({ aliases: [], damaged: true }));
+        return { clientId: client.id, vatId: client.config?.vatId ?? "", aliases: read.aliases.map(({ vatId, name }) => ({ vatId, name })), damaged: read.damaged };
+      })),
       // { clientId, name, activity, kind, pcnRequired, vatId, vatPeriod, advancesPeriod, declarations: [{ month, status, rows }] }
       // `rows` counts the active rows of the saved table.
       profile: async (clientId) => {

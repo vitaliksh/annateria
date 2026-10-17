@@ -11,6 +11,10 @@ the same day, the form "one tool with `kind`" instead of four tools (section 10,
 **Amendment of 17 October 2026 (step 4.6.1, question 12):** `remember_rule` is gone; a confirmed rule is written to `rules.md` by
 the page at the user's click on a question card, and the rule is bound to one answer (`remember.option`). Fourteen tools.
 
+**Amendment of 17 October 2026 (step 4.6.2, question 13):** a confirmed alias of a client. The question `choose_client` offers to
+remember the buyer printed on its documents for the chosen client; the page keeps it in `clients/<client>/aliases.json`, and the
+code accepts it as routing proof (`add_rows` `routed_by: "alias"`, `find_client` `match: "alias"`).
+
 What this document fixes: the run, the conventions every tool follows, the facts that extraction returns, and for each
 tool its inputs, outputs, validation, effects and what it may never do. What it leaves to later steps: the Hebrew
 wording of prompts and skills (phase 5), the panel layout (4.3), the exact model ids (phase 3).
@@ -31,7 +35,7 @@ the test that proves it (the tests are written in 4.2 and later and are part of 
 | The table is copied before the agent writes | The first write of a run to a declaration first writes `draft-table.before-agent-<time>.json`; if the copy fails, the write is refused | Copy exists before the first row; copy failure blocks the write |
 | An error of the agent leaves the rows editable | Rows are ordinary rows the moment they are written; a failed or cancelled run ends with a summary, no row stays "waiting" | Scripted model fails in the middle: rows written so far are editable and saved |
 | `rules.md` gets only what the user confirmed | No tool writes it. The page appends the exact rule text of the card when the user ticks "זכור ללקוח" and clicks the answer the rule belongs to (`ask_user` `remember.option`); the user edits the file from the client card. Nothing in `web/agent/` imports a writer of the file (services only `readRules`) | Without the tick, or with another answer: nothing written; text in the file equals text on the card; static check of the imports |
-| A document is not routed to a client on a guess | `add_rows` needs `routed_by`; the code verifies it (folder, VAT number match, or an answer of the user) | `_unsorted` file with a name-only match: refused until the user answers |
+| A document is not routed to a client on a guess | `add_rows` needs `routed_by`; the code verifies it (folder, VAT number match, a buyer the user once confirmed as this client and no other (alias, 4.6.2), or an answer of the user). Aliases are written only by the page after the user ticked the box of `choose_client`; nothing in `web/agent/` imports a writer of `aliases.json` | `_unsorted` file with a name-only match: refused until the user answers or confirms the buyer; an alias of two clients is no proof; static check of the imports |
 | Import has no AI | The agent starts only after files are in `inbox/`; nothing here changes `inbox-store.js` add | Existing tests |
 | Imports of journals, ledgers and income reports go through the inbox, and the agent never writes them (4.7) | `prepare_import` only parses (`prepareImport`, `prepareLedger`, `prepareReconcile`, `readIncomeReportFile`) and returns counts and check results; `services` has no operation that commits an import; the wizard opens only by the user's click on the card and keeps its own steps and its own copies before writing; the original leaves the inbox for `clients/<client>/imports/` only after the wizard wrote and the copy was read back | Tool files import no commit function (`commitImport`, `commitLedger`, `commitReconcile`); a scripted model that calls `prepare_import` leaves the file tree byte-equal; the card carries counts, no parsed rows reach the model |
 
@@ -163,8 +167,9 @@ the registry so that this file and the code cannot drift apart.
 - **Purpose.** Which client a document is for.
 - **Input.** `{ vat_id?, name? }`, at least one.
 - **Output.** `{ matches: [{ client, name, vat_id, match }] }`, at most 5; `match` is `vat_id` (digits equal, leading
-  zeros ignored), `name_exact` or `name_partial`. Only active clients inside the data root.
-- **Effect.** None. Only `vat_id` is evidence for routing; a name match must be confirmed by the user.
+  zeros ignored), `alias` (4.6.2: a confirmed alias of the client proves the buyer given: by `vat_id` when one is given, otherwise
+  by the exact normalised `name`), `name_exact` or `name_partial`. Only active clients inside the data root.
+- **Effect.** None. Only `vat_id` and `alias` are evidence for routing; a name match must be confirmed by the user.
 - **Never.** Create or edit a client.
 
 #### `get_client_context`
@@ -175,7 +180,8 @@ the registry so that this file and the code cannot drift apart.
   locked_through, declarations: [{ month, status, rows }], chart: [{ code, name, type }], chart_source:
   "client"|"built-in", rules, rules_truncated }`. `chart` is the client's own chart when it has one, otherwise the
   built-in Form 6111 map plus the root-local custom codes; at most 400 accounts. `rules` is `rules.md` (at most 8 KB; the
-  newest lines are kept if it is longer, and `rules_truncated` is set).
+  newest lines are kept if it is longer, and `rules_truncated` is set). `aliases: [{ vat_id, name }]` are the buyers confirmed as
+  this client (4.6.2); `aliases_damaged` is set when `aliases.json` cannot be read (then it proves nothing).
 - **Effect.** None.
 - **Never.** Return the advance percent or other report settings; return another client's data.
 
@@ -229,7 +235,9 @@ the registry so that this file and the code cannot drift apart.
 - **Input.** `{ client, rows: [{ fact, routed_by, routing_ask?, decision, account?, needs_review, reason,
   month_override?: { month, ask } }] }`, at most 40 rows per call.
   - `routed_by`: `folder` (the file sits in this client's inbox folder), `vat_id` (the fact's `buyer_vat_id` equals
-    the client's VAT number), or `user` (`routing_ask` names an answered question, or the user's message of this run
+    the client's VAT number), `alias` (4.6.2: the buyer of the fact is a confirmed alias of this client and of no other client;
+    when the fact prints the buyer's VAT number only the number counts, otherwise the exact normalised name; a client's own VAT
+    number counts as its alias for the "no other client" check), or `user` (`routing_ask` names an answered question, or the user's message of this run
     named the client).
   - `decision`: `expense`, `not_expense`, `unclear`. `account` only for an expense, a code from the chart.
   - `month_override`: only when the user asked for a month; `ask` names that answer.
@@ -302,6 +310,7 @@ the registry so that this file and the code cannot drift apart.
   `unclear`, never stall. The same question text twice returns the first answer. More than 15 questions: `limit_reached`.
 - **Labels.** The button of an option that carries a `client` shows that client's name (the code sets it, whatever label the model gave); a label that is a handle (`C1`, `F2.1`) is refused.
 - **Which client (`choose_client`, 17 October 2026, approved by the owner).** `{ question, choose_client: true, clients?: [client handles, at most 5], about: { files }, allow_other }`, no `options`. The code builds the card: the candidates as buttons with their names, every active client, the candidates too, in a list ("לקוח אחר…", sorted by name); the client open in the page is always the first button (service `clients.open`), and each button says why it is offered (open, or the best match `find_client` gave for it in this run: VAT number, same name, similar name), and for several files a button "לקוחות שונים" without a client. The answer carries `client`, the handle of the chosen client; the click is the routing proof of `add_rows` and `prepare_import` for every file of the question, as a button with a client always was. Without `choose_client`, `options` (2 to 6) stay required. A question about files whose text or buttons speak of the client ("לקוח", "client") but whose buttons carry no client is refused with a pointer to `choose_client`; buttons that only number ("לקוח א", "בחירה ב'", "option A") are refused anywhere.
+- **Remember the buyer (`choose_client`, step 4.6.2, question 13).** When every file of the question was extracted and all its documents print one buyer (the same VAT number when either prints one, otherwise the same normalised name), and no client holds that buyer yet (by its own VAT number or an alias), the card has a box "לזכור: מסמכים שהקונה בהם «name» מס׳ N שייכים ללקוח שייבחר". When the user ticks it and chooses a client (a button or the list; not "לקוחות שונים", not "דלג"), **the page** adds `{ vatId, name }` to `clients/<client>/aliases.json` (`schemaVersion` 1; an alias already in force is not added twice; a damaged or newer file is never overwritten) and the card says so. The answer then has `alias_saved`. The user sees the aliases in the dialog "כללים של הלקוח" of the client card and removes one there (it stays in the file with `removedAt` and no longer counts).
 - **Remember (step 4.6.1, replaces the tool `remember_rule`; question 12).** The rule is cleaned to one line (no control
   characters, single spaces) before the card shows it, and `option` must be one of the options; `remember` is refused with
   `choose_client` (the routing question gets its own, code-built remember in 4.6.2). The box reads "זכור ללקוח «name» (בתשובה
@@ -351,7 +360,7 @@ the registry so that this file and the code cannot drift apart.
     declarations), `income_report` (the periodic income report PDF "דיווח הכנסות תקופתי").
   - `client`: a client handle. `routed_by` as in `add_rows`: `folder` (the file lies in this client's inbox folder) or
     `user` (`routing_ask` names an answered question whose option carries this client). A name match alone is no proof. No
-    `vat_id` route: none of the four parsers reads the client's VAT number from the file (a parser that does would add it
+    `vat_id` or `alias` route: none of the four parsers reads the client's VAT number from the file (a parser that does would add it
     here, with the same code check as `add_rows`).
   - `month`: optional `YYYY-MM`, a suggestion for the wizard that the user can change there. The code compares it with
     the month or months the file itself holds; a difference is reported as a problem and the card shows the file's month.
@@ -406,7 +415,7 @@ the registry so that this file and the code cannot drift apart.
 There is no tool, and no operation in `services`, for: closing or reopening a declaration; deleting or archiving
 anything (clients, declarations, rows, images, `rules.md` lines; the single exception is the inbox original after a
 verified filing, section 5.3; an import original leaves the inbox through page code after the wizard's commit, not through a tool); editing an OCR fact; writing JSON or any file
-directly, `rules.md` included (a confirmed rule is written by the page at the user's click, 5.4); committing an import (`prepare_import` only parses, the user opens the wizard and the wizard writes, 5.6); opening
+directly, `rules.md` and `aliases.json` included (a confirmed rule or buyer is written by the page at the user's click, 5.4); committing an import (`prepare_import` only parses, the user opens the wizard and the wizard writes, 5.6); opening
 a wizard or any dialog by itself; creating or editing clients; changing report settings; sending anything to a service other than the Worker's
 model route. A name that is not in the registry gets `not_allowed` and is logged. Adding a tool means changing this
 file, the registry snapshot and getting the owner's approval.
@@ -438,6 +447,7 @@ file, the registry snapshot and getting the owner's approval.
 | `propose_change` | the cell edit path of `app.js`, `rows-move-flow.js` | proposal card |
 | `prepare_import` (adapter `agent/adapters/imports.js`) | `prepareImport` (`excel-import-flow.js`), `prepareLedger` (`ledger-codes-flow.js`), `prepareReconcile` (`ledger-reconcile-flow.js`), `readIncomeReportFile` (`income-report.js`), and the wizards `setupExcelImport`, `setupLedgerCodes`, `setupLedgerCheck`, the income-report import of `app.js` | one `services` operation that runs the read-only preparer for a kind; opening a wizard with a preloaded file; filing the original after the wizard's commit |
 | `ask_user` remember (page code, not a tool) | `rules-store.js` `readRules` | `appendRule`, `saveRules`, `rule-text.js`, the dialog `client-rules-ui.js` |
+| `choose_client` remember the buyer, `routed_by alias` (4.6.2) | `nameTokens` of `intake-facts.js` | `client-alias.js` (pure rule of proof), `aliases-store.js` (`readAliases` for `services.clients.aliases`; `addAlias`, `removeAlias` for the page), `agent/aliases.js` |
 | `run_report` | `reports.js`, `report-data.js` | none |
 | `ready_to_close` | `pcnSummary`, the checks of the lock handler | one shared `lockProblems()` |
 
@@ -457,7 +467,10 @@ kind with a wrong file (`wrong_format`, the message of the parser); a kind that 
 (`not_allowed`); idempotence; the file tree byte-equal after the call; the tool files import no commit function; the filing after a
 successful wizard (hash checked, inbox entry gone) and its absence after a failed or closed wizard. For 4.6.1 (rules): nothing
 written without the tick, with another answer or a dismissed card; the text of the file equals the text of the card; a rule is
-not added twice; the user's edit keeps a copy; no source of the agent imports a writer of `rules.md`.
+not added twice; the user's edit keeps a copy; no source of the agent imports a writer of `rules.md`. For 4.6.2 (aliases): a name
+without confirmation is refused; after a ticked click a later run routes by `alias` without a question; an alias of two clients is
+refused; a printed number that is not the alias is refused; no box when the buyers differ, one is missing, a file was not read or a
+client holds the buyer; nothing is written without a chosen client; no source of the agent imports a writer of `aliases.json`.
 
 ## 10. Questions for the owner
 
@@ -476,6 +489,7 @@ Approving the document means answering these. The recommended answer is first; "
 | 9 | Run log in `common/agent-runs/` | Yes, local, no images | No log: a wrong row cannot be explained afterwards |
 | 10 | PDFs | Stored as the original in `images/`; facts carry `page`; the viewer in 4.4 shows the page | Render pages to JPEG on filing: bigger folders, a second copy of the truth |
 | 11 | **New, 17 October 2026 (4.7):** the import functions of the menu "ייבוא ובדיקות" through the inbox. The principle is **approved**: the agent reads a bounded sample, recognises the file, and a read-only tool prepares it; the user opens the wizard from a card. **Confirmed by the owner on 17 October 2026:** one tool `prepare_import` with `kind` (`journal`, `ledger_codes`, `ledger_check`, `income_report`) | One tool: 15 tools in all, one description and one schema to test, a new kind is an enum value (and a new owner approval, as every change here). The four wizards differ in the summary only | Four tools, `prepare_journal`, `prepare_ledger_codes`, `prepare_ledger_check`, `prepare_income_report`: 18 tools, four near-identical schemas and declarations sent to the model on every turn; a model choosing between four names is no safer than choosing one enum value |
+| 13 | **New, 17 October 2026 (4.6.2):** the agent asks "whose is this?" again for documents of a buyer the user already answered. **Decided by the owner on 17 October 2026:** a confirmed alias in a small structured file `clients/<client>/aliases.json`, written by the page when the user ticks the box of `choose_client`, accepted by the code as routing proof (`routed_by alias`) | Routing proof must not come from parsing free text that the user and the model write (`rules.md`); a structured file has one reader and one writer, and the code checks it like a VAT number. A name alone still proves nothing until the user confirmed it once | Keep the aliases as lines of `rules.md`: one file for the user, but the proof would depend on the wording of a line |
 | 12 | **New, 17 October 2026 (4.6):** who writes a confirmed rule into `rules.md`. **Decided by the owner on 17 October 2026:** the page, at the user's click; `remember_rule` is removed (14 tools); the rule is bound to one answer (`remember.option`) | The tick is the confirmation, so nothing the model does afterwards should matter: if the model had to call `remember_rule`, a forgotten call lost the user's tick (an instruction alone did not hold the model for `choose_client`). With the page as the only writer, no tool can write the file at all | Keep `remember_rule { ask }`: the contract as approved on 16 October, but a confirmed rule depends on one more model call |
 
 ## 11. Changes against the plan of 16 October
@@ -493,3 +507,6 @@ of `list_inbox` and the instruction of the orchestrator; 4.7.2 built the tool fo
 
 **17 October 2026 (step 4.6.1):** `remember_rule` removed (fourteen tools); `ask_user` `remember` takes `option` and returns
 `saved`; the page writes the rule (question 12); principle row, sections 5, 6, 8 and 9 changed.
+
+**17 October 2026 (step 4.6.2):** confirmed aliases (question 13): `find_client` `match: alias`, `get_client_context` `aliases`,
+`add_rows` `routed_by: alias`, the box of `choose_client` and `alias_saved`; principle row, sections 5, 6, 8 and 9 changed.
