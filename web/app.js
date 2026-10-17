@@ -582,6 +582,10 @@ inboxUi = setupInbox({
   openButton: document.querySelector("#open-inbox"),
   getDataRoot: () => dataRoot,
   getClients: () => workspaceControls?.getClients().active ?? [],
+  getOpenFolder: () => {
+    const openId = committedWorkspace?.config.clientId;
+    return openId ? (workspaceControls?.getClients().active.find((client) => client.config?.clientId === openId)?.entryName ?? null) : null;
+  },
   onCheck: () => assistant.trigger("process"),
   onCounts: ({ byFolder }) => {
     inboxFileCounts = byFolder;
@@ -1375,7 +1379,7 @@ records.addEventListener("input", (event) => {
   queueDraftSave();
 });
 records.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && event.target.matches(".amount-cell input")) {
+  if (event.key === "Enter" && !event.isComposing && event.target.matches(".amount-cell input, .editable")) {
     event.preventDefault();
     event.target.blur();
   }

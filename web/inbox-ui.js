@@ -46,10 +46,11 @@ async function canvasThumbnail(file, entry, doc) {
 
 // getClients() returns this PC's active clients ({ entryName, clientName, parent, ... }); only those inside the data root
 // ("parent" set) have an inbox folder. The store functions and `makeThumbnail(file, entry)` are replaceable in tests.
+// getOpenFolder() is the inbox folder of the client that is open in the journal (or null): the dialog offers it for new files.
 // onCounts({ total, byFolder }) is called whenever the index was read, for the sidebar. onCheck() is called by the button that
 // hands the files to the assistant.
 export function setupInbox({
-  dialog, openButton, getDataRoot, getClients, onError = () => {}, onCounts = () => {}, onCheck = () => {},
+  dialog, openButton, getDataRoot, getClients, getOpenFolder = () => null, onError = () => {}, onCounts = () => {}, onCheck = () => {},
   add = addToInbox, ensure = ensureInbox, readIndex = readInboxIndex, reconcile = reconcileInbox, trash = moveToTrash, readFile = readInboxFile,
   makeThumbnail = null, confirm = confirmDialog, now = () => new Date().toISOString(),
 }) {
@@ -288,6 +289,8 @@ export function setupInbox({
       onError("תיבת הקלט: " + error.message);
     }
     fillClients();
+    const openFolder = getOpenFolder();
+    if (openFolder && [...select.options].some((item) => item.value === openFolder)) select.value = openFolder;
     await refreshCounts();
     dialog.showModal();
   }

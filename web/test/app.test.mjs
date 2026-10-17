@@ -201,6 +201,24 @@ test("the client menu has a field for the name of the client, filled from the cl
   assert.ok(document.querySelector("#client-menu").compareDocumentPosition(field) & 16, "inside the dialog");
 });
 
+test("Enter in a text cell or a number field ends the edit and makes no new line; other keys are left alone", async () => {
+  const { app, window } = await loadApp();
+  const row = await addRecord(app);
+  const press = (target, key, extra = {}) => {
+    let blurred = 0;
+    target.blur = () => { blurred += 1; };
+    const event = new window.KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...extra });
+    target.dispatchEvent(event);
+    return { prevented: event.defaultPrevented, blurred };
+  };
+  const supplier = row.querySelector(".editable");
+  assert.ok(supplier, "a text cell");
+  assert.deepEqual(press(supplier, "Enter"), { prevented: true, blurred: 1 });
+  assert.deepEqual(press(supplier, "Enter", { shiftKey: true }), { prevented: true, blurred: 1 }, "not even with Shift: no second line in a cell");
+  assert.deepEqual(press(supplier, "a"), { prevented: false, blurred: 0 });
+  assert.deepEqual(press(row.querySelector(".amount-cell input"), "Enter"), { prevented: true, blurred: 1 });
+});
+
 test("the lock button is shown by default and the reopen button stays hidden without a locked declaration", async () => {
   const { document } = await loadApp();
   assert.equal(document.querySelector("#close-declaration").textContent, "נעילת הצהרה");

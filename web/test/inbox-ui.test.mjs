@@ -331,3 +331,18 @@ test("the button that hands the files to the assistant is on only when something
 test("the select says it is for the files that are added now", () => {
   assert.match(html, /<label>שיוך ללקוח, לקבצים שמוסיפים עכשיו <select id="inbox-client">/);
 });
+
+test("the client that is open in the journal is offered as the folder of new files; without one the choice stays as it was", async () => {
+  const open = setup({ getOpenFolder: () => "Levi" });
+  open.window.document.querySelector("#open-inbox").click();
+  await settle();
+  assert.equal(open.q("#inbox-client").value, "Levi");
+  const unknown = setup({ getOpenFolder: () => "Elsewhere" });
+  unknown.window.document.querySelector("#open-inbox").click();
+  await settle();
+  assert.equal(unknown.q("#inbox-client").value, "", "a client that has no inbox folder here is not offered");
+  const none = setup();
+  none.window.document.querySelector("#open-inbox").click();
+  await settle();
+  assert.equal(none.q("#inbox-client").value, "");
+});
