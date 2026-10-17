@@ -3,22 +3,39 @@
 Facts a new developer or agent needs that the code does not say. Keep it true: update it in the commit that changes
 the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must not be broken are in `../AGENTS.md`.
 
-## Start here (state at the end of 16 October 2026)
+## Start here (state at the end of 17 October 2026)
 
-**Done:** phases 0 and 1 (steps 0.1–1.4), all committed and pushed to `main`; the last commit before this note is `e57b5e4`; the
-Worker tag is `cloudflare-production-2026-10-16`. The owner accepted the published page: months open and match ocr, the access code
-works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
+**State.** `main` is pushed up to c777be3 (step 5.1, the skills). Web 775 tests, Worker 54, `npm run check` green. The published page serves
+`skills/*/SKILL.md` (checked: 200, `text/markdown`). Accepted by the owner: phases 0, 1 and 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6.
+Built and pushed, with a real run seen: 5.1.
 
-**Done since:** phase 2 is complete: **2.1 Inbox model**, **2.2 Drop zone and picker**, **2.3 Inbox view** (all accepted by the owner) and
-**2.4 Phone guide** (`web/inbox-store.js`, `web/inbox-ui.js`, the help dialog in `index.html`). 2.4 still needs the owner's read-through on a real phone.
+**Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (the operations ledger of
+the right client through the card), and the phase check of 4.6 (a second similar month asks fewer questions: a later run routes the confirmed
+buyer by `alias`).
 
-**Done:** step **4.1 Tool contract**: `docs/AGENT_TOOLS.md` is **approved** (16 October 2026, all ten recommendations of its section 10 taken). It is the
-specification for 4.2 onwards; a change to it needs the owner's approval.
+**First real run after 5.1 (17 October 2026, 18:52; read from the run log and the data, structure only):** the skills loaded (the log header has
+`base-2026-10-17o` and the three versions), the new row carries `agent.skills`, the client was routed by `alias` without a question, 7 tool
+calls all ok, the original was filed (hash equal to the picture of the row, inbox empty), the amounts reconcile. **One defect seen:** the final
+text of the model contained the internal handle "C1" although the instruction forbids handles. That run used `gemini-3.5-flash-lite`, chosen in
+the settings (the default is `gemini-3.8-flash`); the rule exists only as text in the prompt, as before 5.1. *Proposed, not built, needs the
+owner's yes:* the code replaces handles in the final text by names (a rule that only the prompt states is not a rule, `AGENT_TOOLS.md` section 1).
 
-**Done:** steps 4.1 to **4.4** (the agent reads, checks, adds rows, files the originals, and its proposals can be applied); 4.5 (routing) is built with 4.4. **Next, for the
-owner:** the same run as before, now with files: put a document of a client into "תיבת קלט" (best in the folder of that client), press "בדוק מסמכים חדשים" or "בדוק עם העוזר", and look at
-the table: a row, its status, its original (the PDF button), and the cards. **Next step:** block 4.7 (all imports through the inbox; 4.7.1 to 4.7.3 accepted; 4.7.1 to 4.7.3, 4.7.5 and 4.7.6 accepted; 4.7.4 waits for one run of the operations ledger with the right client), then 4.6 client memory in two steps: **4.6.1 rules (pushed 17 October: a ticked rule is written by the page, `remember_rule` removed, the rules dialog of the client card)**, **4.6.2 the confirmed alias (pushed 17 October, accepted: `aliases.json`, `routed_by alias`)**, then phase 5 (skills and eval): **5.1 skill layout built 17 October (see "Step 5.1" below)**. The
-owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
+**Next step: 5.2 "Port the rules".** Move the rules of ocr into the skills (the owner decides when to start; do not start without his "yes"):
+read `D:\projects\ocr\agent-prompts\bookkeeper-agent.md` and `gemini-pass-1.md` (read only) and `ocr/docs/HANDOFF.md` ("Two-agent redesign",
+"PCN clients", "Anna's first notes"); put what is a rule of the work into the skills, keep in code what code already does (duplicates, year,
+periods, utilities 25%, allocation ceiling): the skill tells the agent to use the tool, not to compute. Create `pcn-allocation` (it gets its first
+content here; add it to `SKILL_ROLES` in `web/agent/skills.js`); `month-closing-checklist` waits for 6.2. **How to change a skill:** edit the file,
+raise `metadata.version`, run `npm test`: the failure prints the line to paste into `web/test/fixtures/skill-hashes.json`. The test that holds
+the old prompts (`web/test/fixtures/legacy-prompts.json`, in `skills.test.mjs`) guards 5.1 only: 5.2 changes the rules on purpose, so remove that
+fixture and its test in the same commit and say so. A rule change should run the eval first (5.3 builds it); until then say what was not checked.
+
+**Open proposals** (cards, not started): handles in the final text (above); the status "מוכן, חסרים סימונים" of rows that are not the agent's
+(inherited from ocr); the flaky `backup-ui.test.mjs` "both copies fresh turn the dot green" (a fixed wait of 8 ticks, fails now and then on a busy machine).
+
+**Practical notes.** The owner's real data root is `D:\ANNATERIA` on his PC (`clients/`, `inbox/`, `common/agent-runs/<runId>.json`); read it only when he
+asks, record structure in the docs, never names or amounts, never copy it into the repository. `python` on this PC is the Microsoft Store stub (use
+node); `gh` is not installed; for a browser check a throw-away static server of `web/` (a `.claude/launch.json` that is not committed) is enough for
+module-level checks, but the dock itself needs a data root and the Worker. Pushes to `main` wait for the owner's explicit "yes" for that commit.
 
 **Open items for the owner** (the Cloudflare plan now matters: see "General check of 16 October"): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
 project; give Anna her access code if not done; tell me the Cloudflare plan (Free or Paid) so it can be recorded.
