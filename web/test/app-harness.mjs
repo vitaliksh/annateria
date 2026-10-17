@@ -10,7 +10,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const exposed = [
   "applyRecord", "addPendingRecord", "restoreRow", "rowSnapshot", "recalculateRow", "manualAmountChanged",
   "displayDate", "displayedReference", "normalReference", "receivedAtText", "cellValue",
-  "nextFreeClassificationCode", "applyBusinessRules", "loadCustomMapping", "showError", "applyBookkeeperPlan", "applyBookkeeperRecheck", "activateDeclaration", "saveCurrentDraft",
+  "nextFreeClassificationCode", "applyBusinessRules", "loadCustomMapping", "showError", "activateDeclaration", "saveCurrentDraft",
   "appendSnapshots", "attachRowImages", "setRowImage", "openPhoto", "applyProposalToTable",
 ];
 

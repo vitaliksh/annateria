@@ -181,8 +181,7 @@ td .photo-button {
   white-space: nowrap;
 }
 
-.photo-button,
-.retry {
+.photo-button {
   padding: 3px 8px;
   border-color: var(--border-strong);
   background: var(--surface);
@@ -190,25 +189,9 @@ td .photo-button {
   font-size: var(--fs-xs);
 }
 
-.photo-button:hover,
-.retry:hover {
+.photo-button:hover {
   border-color: var(--border-strong);
   background: var(--surface-muted);
-}
-
-.retry {
-  margin-top: var(--s1);
-}
-
-/* Re-running recognition needs the source image; rows imported from Excel have none */
-#journal-table tr[data-image-file=""] .retry {
-  display: none;
-}
-
-#journal-table td .retry {
-  display: block;
-  width: 100%;
-  white-space: normal;
 }
 
 .agent-opinion {
@@ -387,37 +370,6 @@ td .photo-button {
   color: var(--text-muted);
 }
 
-/* A row with fresh OCR waits for the bookkeeper agent and cannot be edited until it has run: its status line says so
-   (the saved status stays untouched) and the plate above the table explains and carries the button. */
-.bookkeeper-plate {
-  margin: var(--s2) 0;
-  transition: box-shadow .2s;
-}
-
-.bookkeeper-plate.flash {
-  box-shadow: 0 0 0 3px var(--warning-border);
-}
-
-#journal-table tr.waiting-agent td {
-  background: var(--surface-muted);
-  color: var(--text-muted);
-}
-
-#journal-table tr.waiting-agent td.state {
-  font-size: 0;
-}
-
-#journal-table tr.waiting-agent td.state::before {
-  content: "ממתין לעיבוד חשבונאי";
-  display: block;
-  font-size: var(--fs-sm);
-  color: var(--warning);
-}
-
-#journal-table tr.waiting-agent td.state .retry {
-  font-size: var(--fs-sm);
-}
-
 /* PCN clients: an invoice above the allocation ceiling waits for the bookkeeper's tick (pcn-review-ui.js) */
 #journal-table tr[data-pcn="review"] td {
   background: var(--pcn-row);
@@ -451,11 +403,4 @@ td .photo-button {
 
 .pcn-approve span::after {
   content: attr(data-label);
-}
-
-#journal-table tr[data-processing="failed"] td.state::after {
-  content: "העיבוד נכשל — אפשר לערוך ידנית";
-  display: block;
-  font-size: var(--fs-xs);
-  color: var(--error);
 }

@@ -73,12 +73,6 @@ export async function readSourceImage(declarationDirectory, filename) {
   return (await images.getFileHandle(filename)).getFile();
 }
 
-export async function createDraftExportDirectory(declarationDirectory, date = new Date()) {
-  const exports = await declarationDirectory.getDirectoryHandle(exportsName, { create: true }), stamp = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}_${String(date.getHours()).padStart(2, "0")}-${String(date.getMinutes()).padStart(2, "0")}`;
-  for (let suffix = 0; suffix < 1000; suffix += 1) { const name = suffix ? `${stamp}_${String(suffix + 1).padStart(3, "0")}` : stamp; try { await exports.getDirectoryHandle(name); } catch (error) { if (error.name !== "NotFoundError") throw error; return { name, directory: await exports.getDirectoryHandle(name, { create: true }) }; } }
-  throw new Error("לא ניתן ליצור תיקיית ייצוא נוספת.");
-}
-
 async function readHistoryText(clientDirectory) {
   try { return await (await clientDirectory.getFileHandle("history.jsonl")).getFile().then((file) => file.text()); } catch (error) { if (error.name === "NotFoundError") return ""; throw error; }
 }

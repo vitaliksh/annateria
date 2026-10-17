@@ -495,34 +495,6 @@ const rowsMove = setupRowsMove({
   },
   onError: showError,
 });
-// Writes what the agent and the intake rules decided into the row. The recognition percentages stay with applyBusinessRule.
-function applyBookkeeperPlan(row, plan) {
-  if (plan.rivhitCode && rivhitMapping[plan.rivhitCode]) {
-    row.cells[1].replaceChildren(classificationSelect(plan.rivhitCode));
-    applyBusinessRule(row);
-  }
-  row.dataset.autoExclude = plan.exclude;
-  row.dataset.wouldInclude = plan.wouldInclude ? "true" : "";
-  if (["strong", "likely"].includes(plan.facts.duplicates.level)) row.dataset.duplicate = "true";
-  const opinion = row.cells[14].textContent.trim();
-  row.cells[14].textContent = opinion && opinion !== "—" ? `${plan.reason} | ${opinion}` : plan.reason;
-  setExportIncluded(row, plan.include);
-  if (plan.statusText) setStatus(row, plan.statusText, "review");
-  else setStatus(row, row.highlights.length ? "מוכן לייצוא" : "מוכן, חסרים סימונים", row.highlights.length ? "ready" : "review");
-}
-// A corrected date or reference may lift the exclusion (or bring it back); the user's own decision is never overridden.
-function applyBookkeeperRecheck(row, facts) {
-  const exclude = facts.exclude ?? "";
-  row.dataset.autoExclude = exclude;
-  if (exclude) {
-    setExportIncluded(row, false);
-    setStatus(row, exclude === "duplicate" ? "כפילות — נדרש עיון" : "שנה קודמת — לבדוק תאריך", "review");
-  } else if (row.dataset.wouldInclude) {
-    setExportIncluded(row, true);
-    setStatus(row, row.highlights.length ? "מוכן לייצוא" : "מוכן, חסרים סימונים", row.highlights.length ? "ready" : "review");
-  }
-  queueDraftSave();
-}
 let pcnJournal = null;
 // Clients with a PCN duty: yellow rows and a tick for invoices above the allocation ceiling (pcn-review.js).
 pcnJournal = setupPcnReview({
@@ -793,7 +765,7 @@ function setTableLocked(locked) {
   tableLocked = locked;
   records.classList.toggle("table-locked", locked);
   for (const cell of records.querySelectorAll(".editable")) cell.contentEditable = locked ? "false" : "true";
-  for (const control of records.querySelectorAll("select,input,.delete,.retry,.field-swap")) control.disabled = locked;
+  for (const control of records.querySelectorAll("select,input,.delete,.field-swap")) control.disabled = locked;
   pcnJournal?.refresh();
 }
 function refreshRows() {
@@ -1247,7 +1219,6 @@ async function applyRecord(row, record) {
   row.dataset.periodTo = record.period_to || "";
   row.dataset.autoExclude = "";
   row.dataset.wouldInclude = "";
-  row.dataset.processing = record.document_kind === "income_report" ? "" : "pending";
   row.highlights = Array.isArray(record.highlight_regions) ? record.highlight_regions : [];
   const values = [
     displayDate(record.date),
@@ -1321,7 +1292,6 @@ function rowSnapshot(row) {
     documentTitle: row.dataset.documentTitle || "",
     periodFrom: row.dataset.periodFrom || "",
     periodTo: row.dataset.periodTo || "",
-    processing: row.dataset.processing || "",
     autoExclude: row.dataset.autoExclude || "",
     wouldInclude: row.dataset.wouldInclude || "",
     pcnApproved: row.dataset.pcnApproved || "",
@@ -1351,7 +1321,7 @@ function restoreRow(saved, blob) {
   row.dataset.rawVat = String(saved.rawVat || 0);
   row.dataset.vatPercent = String(saved.vatPercent ?? (Number(saved.rawVat) ? 18 : 0));
   row.dataset.form6111Code = saved.form6111Code || "";
-  for (const [key, field] of [["documentKind", "documentKind"], ["fullReference", "reference"], ["documentTitle", "documentTitle"], ["periodFrom", "periodFrom"], ["periodTo", "periodTo"], ["processing", "processing"], ["autoExclude", "autoExclude"], ["wouldInclude", "wouldInclude"], ["pcnApproved", "pcnApproved"]])
+  for (const [key, field] of [["documentKind", "documentKind"], ["fullReference", "reference"], ["documentTitle", "documentTitle"], ["periodFrom", "periodFrom"], ["periodTo", "periodTo"], ["autoExclude", "autoExclude"], ["wouldInclude", "wouldInclude"], ["pcnApproved", "pcnApproved"]])
     if (saved[field]) row.dataset[key] = saved[field];
   row.highlights = Array.isArray(saved.highlights) ? saved.highlights : [];
   if (saved.agent) row.dataset.agent = JSON.stringify(saved.agent);

@@ -5,7 +5,7 @@
 // the images of a declaration. It has no operation that closes, reopens, deletes or archives anything; a test lists its keys and
 // fails when such a word appears.
 // Tools do not import file stores: they only see what is here.
-import { backupTable } from "../bookkeeper-flow.js";
+import { backupTable } from "../table-backup.js";
 import { readClientChart, readEffectiveChart } from "../chart-of-accounts.js";
 import { createDeclaration, getDeclarationDirectory, listDeclarations, loadDeclaration, saveDraft } from "../declaration-store.js";
 import { entryFromRow } from "../intake-facts.js";

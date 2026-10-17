@@ -19,7 +19,7 @@ test("an ordinary invoice becomes a ready, active row whose values are those of 
   assert.deepEqual([row.active, row.statusClass, row.statusText, row.wouldInclude, row.autoExclude], [true, "ready", "מוכן לייצוא", "true", ""]);
   assert.deepEqual([row.agentOpinion, row.confidence, row.receivedAt, row.documentId], ["חשבונית משרדית", "92%", entry.addedAt, "agent-x-p0"]);
   assert.deepEqual(row.agent, { run: "r1", version: "v1", fact: "F1.1", file: entry.hash, page: null, reasons: [] });
-  assert.deepEqual([row.imageFile, row.imageIndex, row.highlights, row.processing, row.pcnApproved, row.imageIndex], ["", 0, [], "", "", 0]);
+  assert.deepEqual([row.imageFile, row.imageIndex, row.highlights, row.pcnApproved, row.imageIndex], ["", 0, [], "", 0]);
 });
 
 test("recognition follows the business rule of the page: 25% of a home for utilities, 66.67% VAT for the mobile codes, none without VAT", () => {

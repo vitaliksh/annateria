@@ -202,77 +202,28 @@ test("the lock button is shown by default and the reopen button stays hidden wit
   assert.ok(document.querySelector("#reopen-dialog #reopen-reason"));
 });
 
-const plan = (overrides = {}) => ({
-  index: 0, decision: "expense", rivhitCode: "802", reason: "חשבון חשמל", include: true, wouldInclude: true, exclude: "",
-  review: false, statusText: null, facts: { duplicates: { level: null, matches: [] } }, ...overrides,
-});
-
-test("fresh OCR leaves a row waiting for the bookkeeper agent, with the facts the agent needs", async () => {
+test("the facts of fresh OCR (reference, title, period, kind) are kept in the row", async () => {
   const { app } = await loadApp();
   const row = await addRecord(app, {
     invoice_number: "26/001/673/1017507", document_title: "אישור תשלום לפוליסה", period_from: "2026-10-01", period_to: "2027-09-30", document_kind: "payment_confirmation",
   });
-  assert.equal(row.dataset.processing, "pending");
   const snapshot = plain(app.rowSnapshot(row));
   assert.deepEqual(
-    [snapshot.processing, snapshot.reference, snapshot.documentTitle, snapshot.periodFrom, snapshot.periodTo, snapshot.documentKind],
-    ["pending", "26/001/673/1017507", "אישור תשלום לפוליסה", "2026-10-01", "2027-09-30", "payment_confirmation"],
+    [snapshot.reference, snapshot.documentTitle, snapshot.periodFrom, snapshot.periodTo, snapshot.documentKind],
+    ["26/001/673/1017507", "אישור תשלום לפוליסה", "2026-10-01", "2027-09-30", "payment_confirmation"],
   );
   assert.equal(snapshot.values[5], "7507");
 });
 
-test("the waiting state, the period and the full reference survive a save and restore; old rows are not waiting", async () => {
+test("the period and the full reference survive a save and restore", async () => {
   const { app, rows } = await loadApp();
   const saved = plain(app.rowSnapshot(await addRecord(app, { invoice_number: "INV-0042", period_from: "2026-01-01", period_to: "2026-12-31" })));
   app.restoreRow(saved, new Blob(["x"]));
   const restored = rows().at(-1);
   assert.deepEqual(
-    [restored.dataset.processing, restored.dataset.fullReference, restored.dataset.periodFrom, restored.dataset.periodTo],
-    ["pending", "INV-0042", "2026-01-01", "2026-12-31"],
+    [restored.dataset.fullReference, restored.dataset.periodFrom, restored.dataset.periodTo],
+    ["INV-0042", "2026-01-01", "2026-12-31"],
   );
-  const old = { ...saved };
-  for (const key of ["processing", "reference", "periodFrom", "periodTo", "documentKind", "documentTitle"]) delete old[key];
-  app.restoreRow(old, new Blob(["x"]));
-  assert.equal(rows().at(-1).dataset.processing ?? "", "");
-});
-
-
-test("a plan sets the account of the client, keeps the recognition rules, explains itself and excludes a duplicate", async () => {
-  const { app } = await loadApp();
-  const row = await addRecord(app, { rivhit_code: "803" });
-  app.applyBookkeeperPlan(row, plan());
-  assert.equal(row.cells[1].querySelector("select").value, "802");
-  assert.match(row.cells[14].textContent, /^חשבון חשמל \| ok/);
-  assert.equal(app.rowSnapshot(row).active, true);
-  assert.equal(app.rowSnapshot(row).statusClass, "ready");
-  const copy = await addRecord(app);
-  app.applyBookkeeperPlan(copy, plan({ include: false, exclude: "duplicate", statusText: "כפילות של שורה 1 בהצהרה זו", facts: { duplicates: { level: "strong", matches: [] } } }));
-  assert.deepEqual([copy.dataset.autoExclude, copy.dataset.wouldInclude, copy.dataset.duplicate], ["duplicate", "true", "true"]);
-  assert.equal(app.rowSnapshot(copy).active, false);
-  assert.equal(app.rowSnapshot(copy).statusText, "כפילות של שורה 1 בהצהרה זו");
-});
-
-test("a plan for a document that is not an expense or has no account leaves the row out and says why", async () => {
-  const { app } = await loadApp();
-  const row = await addRecord(app);
-  app.applyBookkeeperPlan(row, plan({ decision: "not_expense", rivhitCode: null, include: false, wouldInclude: false, statusText: "לא הוצאה — נדרש אישור" }));
-  assert.equal(app.rowSnapshot(row).active, false);
-  assert.equal(app.rowSnapshot(row).statusClass, "review");
-  assert.equal(row.dataset.wouldInclude, "");
-});
-
-test("a corrected date lifts the exclusion and the row is included again; a user's own decision is not overridden", async () => {
-  const { app } = await loadApp();
-  const row = await addRecord(app);
-  app.applyBookkeeperPlan(row, plan({ include: false, exclude: "previous-year", statusText: "מסמך משנה קודמת (2025) — לבדוק את התאריך" }));
-  assert.equal(app.rowSnapshot(row).active, false);
-  app.applyBookkeeperRecheck(row, { exclude: null });
-  assert.equal(row.dataset.autoExclude, "");
-  assert.equal(app.rowSnapshot(row).active, true);
-  assert.equal(app.rowSnapshot(row).statusClass, "ready");
-  app.applyBookkeeperRecheck(row, { exclude: "duplicate" });
-  assert.equal(app.rowSnapshot(row).active, false);
-  assert.equal(app.rowSnapshot(row).statusText, "כפילות — נדרש עיון");
 });
 
 test("the photo window opens only from its button; a click in the row does not open it", async () => {
@@ -286,11 +237,9 @@ test("the photo window opens only from its button; a click in the row does not o
   assert.equal(opened.length, 1);
 });
 
-test("a recognised row, a processed row and a restored row have no re-run button of their own", async () => {
+test("a recognised row and a restored row have no re-run button of their own", async () => {
   const { app, rows } = await loadApp();
   const row = await addRecord(app);
-  assert.equal(row.cells[16].querySelectorAll(".retry").length, 0);
-  app.applyBookkeeperPlan(row, plan());
   assert.equal(row.cells[16].querySelectorAll(".retry").length, 0);
   app.restoreRow(plain(app.rowSnapshot(row)), new Blob(["x"]));
   assert.equal(rows().at(-1).cells[16].querySelectorAll(".retry").length, 0);

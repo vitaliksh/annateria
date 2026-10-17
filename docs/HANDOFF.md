@@ -54,7 +54,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 682 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 668 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -75,8 +75,8 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
 - **Declarations:** `declaration-core.js` (lifecycle: open, locked, reopened), `declaration-store.js` (files),
   `document-package.js`, `month-distribution.js`, `rows-move-flow.js` / `rows-move-ui.js` (spread rows over months),
   `pcn-review.js` / `pcn-review-ui.js` (clients with a PCN duty).
-- **Intake rules as code:** `intake-facts.js`, `intake-index.js` (year, period, duplicates), `bookkeeper-flow.js`
-  (leftover of the ocr bookkeeper agent, no UI wired since 0.3).
+- **Intake rules as code:** `intake-facts.js`, `intake-index.js` (year, period, duplicates), `table-backup.js`
+  (the copy of a table before the agent writes to it).
 - **Agent (phase 4):** `web/agent/`: `run.js` (the loop, `createContext`), `registry.js` (closed list of tools, dispatch, result envelope), `schema.js` (argument check and
   the Gemini declaration from one schema), `handles.js`, `limits.js`, `run-log.js`, `gemini.js` (the model of the loop over `model-client.js`), `services.js` (the only way for
   a tool to reach data), `tools/` (nine so far: `list_inbox`, `read_document`, `extract_document`, `find_client`, `get_client_context`, `query_rows`, `facts_for`, `ask_user`, `propose_change`),
@@ -89,9 +89,9 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
 - **Classification:** `rivhit-mapping.js` (Form 6111 map), `custom-rivhit-mapping.js`, `chart-of-accounts.js`,
   `ledger-*.js` (read the classification ledger, fix codes, reconcile with declarations).
 - **Imports:** `excel-journal*.js`, `excel-import*.js` (Rivhit journal `.xlsx`), `income-report.js` (income-report PDF),
-  `pdf-import.js` (PDF checks; page rendering has no caller now).
+  `pdf-import.js` (PDF checks, pdf.js loader).
 - **Reports:** `reports.js` (pure calculations), `report-data.js`, `reports-view.js`, `reports-pdf.js`,
-  `report-viewer.js`, `reports-ui.js`, `pdf-report.js` (legacy invoice PDF, no caller now).
+  `report-viewer.js`, `reports-ui.js`.
 - **Backup and transfer:** `backup-store.js`, `backup-state.js`, `backup-handles.js` (IndexedDB), `backup-ui.js`,
   `transfer-store.js`, `transfer-ui.js` (`.annateria` file).
 - **Style:** `tokens.css` (the only file with colours; `styles.test.mjs` enforces it), `base.css`, `shell.css`,
@@ -135,12 +135,13 @@ Phase 1 is mostly new code: `web/access.js`, `web/access-ui.js`, `web/model-clie
 - 2.2: `web/app.js` (one import and one `setupInbox(...)` call next to `setupTransfer`), `web/index.html` (sidebar item `#open-inbox`, `#inbox-dialog`,
   `inbox.css` link), `web/package.json` (check list).
 
-## Dead code kept on purpose (decide in phase 4)
+## Dead code removed (17 October 2026, a separate refactor commit)
 
-`bookkeeper-flow.js` and `applyBookkeeperPlan` / `applyBookkeeperRecheck` in `app.js` (the row `processing` flag still
-exists), `renderPdfPages` in `pdf-import.js`, `pdf-report.js`, `createDraftExportDirectory` in `declaration-store.js`,
-`history-ranker.js`, the `.retry` CSS. The old bookkeeper prompt and schema stay in `ocr/cloudflare-worker/src/` as input
-for the phase 5 skills.
+The leftovers of step 0.3 are gone, as the owner approved in the contract (question 8): `bookkeeper-flow.js` (only `backupTable` lives on, in
+`table-backup.js`), `applyBookkeeperPlan` / `applyBookkeeperRecheck` in `app.js`, the row `processing` flag (old drafts that still carry it
+are read as before, the key is ignored), `renderPdfPages` in `pdf-import.js`, `pdf-report.js`, `createDraftExportDirectory` in
+`declaration-store.js`, `history-ranker.js`, the `.retry`, `waiting-agent`, `bookkeeper-plate` and `data-processing` CSS, and the tests of
+these. Behaviour is unchanged. The old bookkeeper prompt and schema stay in `ocr/cloudflare-worker/src/` as input for the phase 5 skills.
 
 ## Cloudflare facts used by step 1.1 (checked 16 October 2026)
 

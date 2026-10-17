@@ -18,27 +18,3 @@ export async function loadPdfJs() {
   pdfjs.GlobalWorkerOptions.workerSrc = PDF_WORKER_URL;
   return pdfjs;
 }
-
-async function canvasJpeg(canvas) {
-  for (const quality of [0.94, 0.85, 0.75, 0.65]) { const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality)); if (blob && blob.size <= 11 * 1024 * 1024) return blob; }
-  throw new Error("עמוד ה‑PDF גדול מדי לעיבוד. יש להקטין או לפצל את הקובץ.");
-}
-
-// One page at a time keeps the existing image-only Gemini route and 12 MB limit.
-export async function renderPdfPages(file, { onPage, shouldStop = () => false } = {}) {
-  validatePdfFile(file);
-  const pdfjs = await loadPdfJs(), document = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
-  try {
-    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-      if (shouldStop()) break;
-      const page = await document.getPage(pageNumber), base = page.getViewport({ scale: 1 });
-      // About 215 dpi for an A4 page (it was 144): small print of receipts and invoices stays legible for the eye and for OCR.
-      const scale = Math.min(3, 3000 / Math.max(base.width, base.height)), viewport = page.getViewport({ scale });
-      const canvas = window.document.createElement("canvas"); canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
-      const context = canvas.getContext("2d", { alpha: false }); context.fillStyle = "white"; context.fillRect(0, 0, canvas.width, canvas.height);
-      await page.render({ canvasContext: context, viewport, background: "white" }).promise;
-      const image = await canvasJpeg(canvas); canvas.width = 1; canvas.height = 1;
-      await onPage?.({ pageNumber, pageCount: document.numPages, image });
-    }
-  } finally { await document.destroy(); }
-}

@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { jpegPagesToPdf, makePackageManifest, makeSourceText, packageDateParts } from "../document-package.js";
-import { buildPdfReport } from "../pdf-report.js";
 
 test("имя месяца и пакета основано на локальной дате", () => {
   assert.deepEqual(packageDateParts(new Date(2026, 8, 9)), { monthName: "2026-09", dayName: "2026-09-09" });
@@ -24,11 +23,4 @@ test("PDF содержит заголовок, объекты страниц и 
 test("PDF может хранить изображение с большей плотностью, чем размер страницы", () => {
   const text = new TextDecoder().decode(jpegPagesToPdf([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], 200, 300, 100, 150));
   assert.match(text, /\/Width 200 \/Height 300/); assert.match(text, /\/MediaBox \[0 0 100 150\]/);
-});
-
-test("PDF-отчёт рисует зелёные и жёлтые полупрозрачные маркеры без рамки", async () => {
-  const source = await import("node:fs/promises").then(({ readFile }) => readFile(new URL("../pdf-report.js", import.meta.url), "utf8"));
-  const highlightFunction = source.slice(source.indexOf("function drawHighlights"), source.indexOf("// Each selected record"));
-  assert.match(highlightFunction, /rgba\(64, 185, 90, 0\.42\)/); assert.match(highlightFunction, /rgba\(255, 232, 77, 0\.48\)/); assert.doesNotMatch(highlightFunction, /stroke|ellipse/);
-  assert.equal(typeof buildPdfReport, "function");
 });

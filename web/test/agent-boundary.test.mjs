@@ -72,7 +72,7 @@ const PURE = [
   "row-builder.js",
 ];
 const ALLOWED_OUTSIDE = {
-  "agent/services.js": ["bookkeeper-flow.js", "chart-of-accounts.js", "declaration-store.js", "inbox-store.js", "intake-facts.js", "intake-index.js", "rules-store.js"],
+  "agent/services.js": ["chart-of-accounts.js", "table-backup.js", "declaration-store.js", "inbox-store.js", "intake-facts.js", "intake-index.js", "rules-store.js"],
   "agent/fact-record.js": ["intake-facts.js", "workspace-core.js"],
   "agent/facts.js": ["intake-facts.js", "home-utilities.js", "pcn-review.js"],
   "agent/adapters/documents.js": ["pdf-import.js"],
