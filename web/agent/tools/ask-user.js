@@ -1,9 +1,11 @@
 // ask_user (docs/AGENT_TOOLS.md, 5.4): a short question with buttons. The call waits for the answer; a dismissed question
 // comes back as `dismissed` and the agent goes on. The record of the question (with the rule text that was shown, when the
-// card offered "remember for this client") is what remember_rule later relies on. An option may carry a client handle or a month:
+// card offered "remember for this client") says what was shown. The rule is bound to one option: the page appends it to rules.md when
+// the user ticks the box and clicks that option (step 4.6); this tool writes nothing. An option may carry a client handle or a month:
 // a click on it is then the decision of the user about the client (or the month) of the files the question is about, and add_rows
 // accepts nothing else as that decision.
 import { ToolError } from "../errors.js";
+import { cleanRule } from "../../rule-text.js";
 
 const normal = (text) => text.trim().replace(/\s+/g, " ").toLowerCase();
 const RESERVED_IDS = ["other", "dismissed"];
@@ -42,7 +44,7 @@ async function clientOptions(args, ctx, fileCount) {
 export default {
   name: "ask_user",
   exclusive: true,
-  description: "Ask the user one short question in Hebrew with 2 to 6 buttons and wait for the answer. Use it only when the facts cannot decide. To ask which client files belong to, do not build buttons: set choose_client true, list the files in about.files and the candidate clients (handles, the client the user has open first) in clients; the code shows the names of the clients as buttons and a list of all the other clients, and the answer gives you the handle of the chosen client (client). Optionally offer to remember the answer as a rule of one client (the exact rule text is shown to the user).",
+  description: "Ask the user one short question in Hebrew with 2 to 6 buttons and wait for the answer. Use it only when the facts cannot decide. To ask which client files belong to, do not build buttons: set choose_client true, list the files in about.files and the candidate clients (handles, the client the user has open first) in clients; the code shows the names of the clients as buttons and a list of all the other clients, and the answer gives you the handle of the chosen client (client). Optionally offer to remember the answer as a rule of one client: remember.rule is the exact Hebrew rule text shown to the user and remember.option the id of the answer it belongs to; the page saves it in the client's rules only if the user ticks the box and clicks that answer (saved: true in the result). There is no other way to save a rule.",
   schema: {
     type: "object",
     required: ["question", "allow_other"],
@@ -70,8 +72,12 @@ export default {
         },
       },
       remember: {
-        type: "object", required: ["client", "rule"],
-        properties: { client: { type: "string", maxLength: 12, description: "Client handle." }, rule: { type: "string", minLength: 1, maxLength: 200, description: "The rule, in Hebrew, exactly as it should be saved." } },
+        type: "object", required: ["client", "rule", "option"],
+        properties: {
+          client: { type: "string", maxLength: 12, description: "Client handle." },
+          rule: { type: "string", minLength: 1, maxLength: 200, description: "The rule, in Hebrew, exactly as it should be saved." },
+          option: { type: "string", maxLength: 20, description: "The id of the option the rule belongs to: it is saved only when the user clicks that option." },
+        },
       },
     },
   },
@@ -105,6 +111,12 @@ export default {
     const files = (args.about?.files ?? []).map((handle) => ({ file: handle, ...ctx.handles.get("F", handle) }));
     const rows = (args.about?.rows ?? []).map((handle) => ({ row: handle, ...ctx.handles.get("R", handle) }));
     const client = args.remember ? ctx.handles.get("C", args.remember.client) : null;
+    const rule = args.remember ? cleanRule(args.remember.rule) : null;
+    if (args.remember) {
+      if (args.choose_client) throw new ToolError("invalid_argument", "remember cannot be given with choose_client.");
+      if (!rule) throw new ToolError("invalid_argument", "remember.rule is empty.");
+      if (!ids.includes(args.remember.option)) throw new ToolError("invalid_argument", "remember.option must be the id of one of the options.");
+    }
     const monthOf = (month) => {
       if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new ToolError("invalid_argument", "month must look like 2026-03.");
       return month;
@@ -122,7 +134,7 @@ export default {
     }));
 
     ctx.run.questions += 1;
-    const record = { question: args.question, options, fileHandles: args.about?.files ?? [], clientId: client?.clientId ?? null, rule: args.remember?.rule ?? null, answer: null, remembered: false };
+    const record = { question: args.question, options, fileHandles: args.about?.files ?? [], clientId: client?.clientId ?? null, rule, ruleOption: args.remember?.option ?? null, answer: null, remembered: false, saved: false };
     const ask = ctx.handles.create("Q", ctx.run.questions, record);
     const card = {
       id: ask, question: args.question, allowOther: args.allow_other,
@@ -131,7 +143,8 @@ export default {
       // The list holds every client, the ones on the buttons too, so that the user finds any client there (owner, 17 October).
       ...(args.choose_client ? { more: options.filter((option) => option.clientId).map(({ id, label }) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, "he")) } : {}),
       about: { files: files.map(({ file, name, folder }) => ({ file, name, folder })), rows: rows.map(({ row }) => ({ row })) },
-      remember: client ? { client: client.name, rule: args.remember.rule } : null,
+      // clientId is for the page, which saves the rule; optionLabel tells the user which answer the rule belongs to.
+      remember: client ? { client: client.name, clientId: client.clientId, rule, option: args.remember.option, optionLabel: options.find((option) => option.id === args.remember.option).label } : null,
     };
     const aborted = new Promise((_, reject) => {
       if (ctx.signal.aborted) reject(cancelled());
@@ -151,11 +164,13 @@ export default {
       || (answer?.type === "other" && args.allow_other && text);
     if (!valid) throw new ToolError("internal", "The answer was not one of the offered ones.");
     record.answer = answer.type === "option" ? { type: "option", id: answer.id } : answer.type === "other" ? { type: "other", text } : { type: "dismissed" };
-    record.remembered = Boolean(client && answer.remember === true && answer.type !== "dismissed");
+    // The tick counts only with the answer the rule belongs to; `saved` is what the page reports after it wrote rules.md.
+    record.remembered = Boolean(client && answer.remember === true && record.answer.type === "option" && record.answer.id === record.ruleOption);
+    record.saved = record.remembered && answer.saved === true;
     const chosen = record.answer.type === "option" ? record.options.find((option) => option.id === record.answer.id) : null;
     // The handle of the chosen client, so that the model can name it in add_rows or prepare_import even if it never found it.
     const chosenHandle = chosen?.clientId ? args.options.find((option) => option.id === chosen.id).client : null;
-    const output = { ask, answer: record.answer, remember: record.remembered, ...(chosenHandle ? { client: chosenHandle } : {}) };
+    const output = { ask, answer: record.answer, remember: record.remembered, ...(record.remembered ? { saved: record.saved } : {}), ...(chosenHandle ? { client: chosenHandle } : {}) };
     ctx.run.asked.set(key, output);
     if (chosen?.clientId) for (const handle of record.fileHandles) ctx.run.routes.set(handle, output);
     return output;

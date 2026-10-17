@@ -23,7 +23,7 @@ const BUILT_TOOLS = [
   "query_rows", "read_document",
 ];
 // Tools of docs/AGENT_TOOLS.md that no step has built yet. Each step that builds one moves it to BUILT_TOOLS.
-const PENDING_TOOLS = ["ready_to_close", "remember_rule", "run_report"];
+const PENDING_TOOLS = ["ready_to_close", "run_report"];
 
 const documented = [...doc.matchAll(/^#### `([a-z_]+)`$/gm)].map((match) => match[1]);
 
@@ -32,7 +32,7 @@ test("the registry holds exactly the tools built so far", () => {
 });
 
 test("the document and the registry cannot drift: every documented tool is built or pending, and nothing else exists", () => {
-  assert.equal(documented.length, 15);
+  assert.equal(documented.length, 14);
   assert.deepEqual([...BUILT_TOOLS, ...PENDING_TOOLS].sort(), [...documented].sort());
 });
 
@@ -69,7 +69,7 @@ const outsideImports = (file) => importsOf(file).map((specifier) => relative(web
 
 const PURE = [
   "intake-facts.js", "pcn-review.js", "row-calculations.js", "home-utilities.js", "reports.js", "month-format.js", "month-distribution.js", "workspace-core.js",
-  "row-builder.js",
+  "row-builder.js", "rule-text.js",
 ];
 const ALLOWED_OUTSIDE = {
   "agent/services.js": ["chart-of-accounts.js", "table-backup.js", "declaration-store.js", "inbox-store.js", "intake-facts.js", "intake-index.js", "rules-store.js"],
@@ -122,4 +122,17 @@ test("prepare_import cannot commit an import: nothing in the agent imports a com
 test("the guard of the previous test would catch a commit", () => {
   for (const name of ["commitImport", "commitLedger", "commitReconcile", "importRowsIntoDeclaration", "saveClientChart", "saveChartOfAccounts"]) assert.match(name, WIZARD_WRITERS, name);
   for (const name of ["prepareImport", "inspectImportTarget", "readClientChart", "saveDraft"]) assert.doesNotMatch(name, WIZARD_WRITERS, name);
+});
+
+// rules.md gets only what the user confirmed (step 4.6): the page writes it at the click; the agent can only read it.
+test("nothing in the agent can write rules.md: only readRules is imported from rules-store.js, and no tool is a rule writer", () => {
+  const files = [...sources(agentDirectory), ...sources(join(agentDirectory, "tools")), ...sources(join(agentDirectory, "adapters"))];
+  for (const file of files) {
+    const name = relative(webDirectory, file).replaceAll("\\", "/");
+    for (const imported of importedNames(file)) assert.doesNotMatch(imported, /^(appendRule|saveRules)$/, `${name} imports ${imported}`);
+    if (outsideImports(file).includes("rules-store.js")) assert.equal(name, "agent/services.js", name);
+  }
+  assert.deepEqual(importedNames(join(agentDirectory, "services.js")).filter((item) => /Rules?$/.test(item)), ["readRules"]);
+  assert.equal(createDefaultRegistry().names().includes("remember_rule"), false);
+  assert.equal(documented.includes("remember_rule"), false);
 });

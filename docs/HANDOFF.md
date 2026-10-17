@@ -17,7 +17,7 @@ specification for 4.2 onwards; a change to it needs the owner's approval.
 
 **Done:** steps 4.1 to **4.4** (the agent reads, checks, adds rows, files the originals, and its proposals can be applied); 4.5 (routing) is built with 4.4. **Next, for the
 owner:** the same run as before, now with files: put a document of a client into "תיבת קלט" (best in the folder of that client), press "בדוק מסמכים חדשים" or "בדוק עם העוזר", and look at
-the table: a row, its status, its original (the PDF button), and the cards. **Next step:** block 4.7 (all imports through the inbox; 4.7.1 to 4.7.3 accepted; 4.7.1 to 4.7.3, 4.7.5 and 4.7.6 accepted; 4.7.4 waits for one run of the operations ledger with the right client; next 4.6 client memory), then 4.6 client memory (`remember_rule`, `rules.md`), then phase 5 (skills and eval). The
+the table: a row, its status, its original (the PDF button), and the cards. **Next step:** block 4.7 (all imports through the inbox; 4.7.1 to 4.7.3 accepted; 4.7.1 to 4.7.3, 4.7.5 and 4.7.6 accepted; 4.7.4 waits for one run of the operations ledger with the right client), then 4.6 client memory in two steps: **4.6.1 rules (built 17 October, not pushed: a ticked rule is written by the page, `remember_rule` removed, the rules dialog of the client card)**, 4.6.2 the confirmed alias (`aliases.json`, `routed_by alias`), then phase 5 (skills and eval). The
 owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (the Cloudflare plan now matters: see "General check of 16 October"): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
@@ -54,7 +54,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 748 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 755 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -83,6 +83,8 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `web/assistant-ui.js` (the dock), `web/assistant-flow.js` (runs the agent for the dock), `assistant.css`, `web/model-settings-ui.js` (the model selects of the settings), `fact-record.js`, `prompts.js`, `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
 - **Rows of the agent (4.4):** `row-builder.js` (the row from a fact and a decision), `proposal-apply.js` (the apply button), `agent/facts.js`, `agent/answers.js`; the page side is
   `appendSnapshots`, `setRowImage`, `attachRowImages`, `openPdf`, `proposalOps` in `app.js`.
+- **Client memory (4.6):** `rules-store.js` (`readRules` for the agent; `appendRule` and `saveRules` for the page only), `rule-text.js` (pure: the cleaned text of a
+  rule), `client-rules-ui.js` (the dialog "כללים של הלקוח" of the client card).
 - **Inbox:** `inbox-store.js` (originals dropped by the user, `inbox/index.json`, SHA-256 dedup against the inbox and all declaration
   images; the Windows file-name rules and the accepted file types live here), `inbox-ui.js` + `inbox.css` (`#inbox-dialog`: drop target, picker,
   client choice, result lines; opened by `#open-inbox`). The backup already copies `inbox/` with the rest of the root.
@@ -237,6 +239,22 @@ only; the card also has the totals. **Changed existing code:** `excel-import-ui.
 scans `imports/` too), `inbox-ui.js` (one text), `assistant-ui.js`, `app.js`, `agent/run.js` (`run.prepared`), `agent/errors.js` (`wrong_format`), `agent/services.js`, the test helper
 `memory-binary-directory.mjs` (`getFile` returns a `name`). **Not verified:** everything in a real browser and with real Gemini (see the decision log of 17 October). The wizard works on the open client: the button first opens the
 latest declaration of the card's client (which may ask "switch to another declaration?"); if the client has no declaration the card says so.
+
+### Step 4.6.1 (17 October 2026): rules of a client
+
+Decided by the owner (`docs/AGENT_TOOLS.md` question 12): the tick on a question card is the confirmation, so the **page** writes the rule at the click and
+the tool `remember_rule` is gone (14 tools). `ask_user` `remember` is `{ client, rule, option }`: the rule is cleaned to one line (`rule-text.js`, pure, shared with
+the store), bound to one option, refused with `choose_client`; the answer has `remember` (ticked and that option clicked) and `saved` (what the page reported).
+`assistant-ui.js` calls the new `onRemember({ clientId, rule })` of `setupAssistant` only for the ticked box and the option of the rule and writes on the card what
+happened; `app.js` finds the client (inside the data root) and calls `appendRule` (`rules-store.js`): `- <rule> (<date>, אושר ע״י המשתמש)`, never twice, also not
+when the user typed it. The client card has the button "כללים של הלקוח" (`#client-rules`, hidden for a client outside the data root) that opens
+`#client-rules-dialog` (`client-rules-ui.js`): the whole `rules.md` in a text field; a save keeps the text before in `rules.before-<time>.md`. The instruction has a
+paragraph "RULES OF A CLIENT" (`AGENT_VERSION` `stand-in-2026-10-17m`). A test checks that nothing in `web/agent/` imports `appendRule` or `saveRules` and that only
+`services.js` imports `rules-store.js` (`readRules`). **Changed existing code:** `agent/tools/ask-user.js` (remember), `assistant-ui.js` (`onRemember`, the box text
+now names the answer, `finish` waits for the save), `workspace.js` (optional `clientRulesButton`, `onClientRules`), `app.js`, `index.html` (the button and the
+dialog), `agent/prompts.js`, `package.json` (check). **Checked in a local Chrome (OPFS folder, synthetic client, no Gemini):** the dialog reads, edits and saves with a
+copy; a card with the box ticked and the answer of the rule clicked wrote the line. **Not verified:** a real run where Gemini offers `remember` with an `option`; the
+button in the client card of a real data root.
 
 ### General check of 16 October 2026 (before the first PDFs)
 

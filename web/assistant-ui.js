@@ -98,7 +98,9 @@ function valueText(field, value) {
 // onCommand({ type: "process" | "left" | "report" | "cancel" | "text" | "open", text?, clientId?, month? }) is called for a click or a sent line.
 // onApply(proposal, kept) is called when the user applies a proposal (kept: the numbers of the changes that stayed ticked); it resolves with
 // { applied, refused: [{ change, reason }] }. Without it a proposal card only shows the changes.
-export function setupAssistant({ root, onCommand, onApply = null }) {
+// onRemember({ clientId, rule }) appends a confirmed rule to the client's rules.md and resolves with { added }; it is called only after
+// the user ticked "זכור ללקוח" and clicked the answer the rule belongs to.
+export function setupAssistant({ root, onCommand, onApply = null, onRemember = null }) {
   const part = (id) => root.querySelector(`#${id}`);
   const [toggle, progress, body, feed, form, input, sendButton, processButton, leftButton, reportButton, cancelButton, minimizeButton] = [
     "assistant-toggle", "assistant-progress", "assistant-body", "assistant-feed", "assistant-form", "assistant-input", "assistant-send",
@@ -194,17 +196,35 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
       if (card.remember) {
         const label = element("label", "check-line");
         remember = Object.assign(doc.createElement("input"), { type: "checkbox" });
-        label.append(remember, ` זכור ללקוח «${card.remember.client}»: ${card.remember.rule}`);
+        label.append(remember, ` זכור ללקוח «${card.remember.client}» (בתשובה «${card.remember.optionLabel}»): ${card.remember.rule}`);
         box.append(label);
       }
+      // The rule is written here, by the page, when the box is ticked and the answer it belongs to is clicked; the card says what happened.
+      const saveRule = async (answer) => {
+        if (!remember?.checked) return {};
+        if (answer.type !== "option" || answer.id !== card.remember.option) {
+          box.append(element("p", "card-answer muted", "הכלל לא נשמר: נבחרה תשובה אחרת."));
+          return { remember: true, saved: false };
+        }
+        try {
+          if (!onRemember) throw new Error("אין אפשרות לשמור כאן.");
+          const { added } = await onRemember({ clientId: card.remember.clientId, rule: card.remember.rule });
+          box.append(element("p", "card-answer muted", added ? "הכלל נשמר בכללים של הלקוח." : "הכלל כבר רשום בכללים של הלקוח."));
+          return { remember: true, saved: true };
+        } catch (error) {
+          box.append(element("p", "card-answer", `הכלל לא נשמר: ${error.message}`));
+          return { remember: true, saved: false };
+        }
+      };
       let finished = false;
-      const finish = (answer, shown) => {
+      const finish = async (answer, shown) => {
         if (finished) return;
         finished = true;
         lock(box);
         box.dataset.state = "answered";
         box.append(element("p", "card-answer", `נבחר: ${shown}`));
-        resolve({ ...answer, ...(remember ? { remember: remember.checked } : {}) });
+        const saved = await saveRule(answer);
+        resolve({ ...answer, ...(remember ? { remember: remember.checked, ...saved } : {}) });
         scrollDown();
       };
       const options = element("div", "card-options");

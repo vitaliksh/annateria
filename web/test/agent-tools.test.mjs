@@ -117,7 +117,7 @@ test("ask_user: checks options, handles and the limit; the limit counts only new
   assert.equal(await code({ question: "Reserved?", options: [{ id: "other", label: "A" }, { id: "b", label: "B" }] }), "invalid_argument");
   assert.equal(await code({ question: "One option?", options: [{ id: "a", label: "A" }] }), "invalid_argument");
   assert.equal(await code({ question: "Ghost file?", about: { files: ["F9"] } }), "not_found");
-  assert.equal(await code({ question: "Ghost client?", remember: { client: "C9", rule: "x" } }), "not_found");
+  assert.equal(await code({ question: "Ghost client?", remember: { client: "C9", rule: "x", option: "levi" } }), "not_found");
   assert.equal(await code({ question: "One?" }), undefined);
   assert.equal(await code({ question: "Two?" }), undefined);
   assert.equal(await code({ question: "one?" }), undefined, "an earlier question is answered again without counting");
@@ -125,16 +125,42 @@ test("ask_user: checks options, handles and the limit; the limit counts only new
   assert.equal(ui.cards.length, 2);
 });
 
-test("ask_user: remember is true only when the card offered it and the user ticked the box", async () => {
-  const { ui, dispatch } = await setup({ answers: [{ type: "option", id: "levi", remember: true }, { type: "option", id: "levi", remember: true }, { type: "option", id: "levi" }] });
+test("ask_user: remember is true only when the card offered it, the user ticked the box and clicked the answer of the rule", async () => {
+  const { ui, dispatch } = await setup({
+    answers: [
+      { type: "option", id: "levi", remember: true, saved: true }, { type: "option", id: "levi", remember: true, saved: true }, { type: "option", id: "levi" },
+      { type: "option", id: "cohen", remember: true, saved: true }, { type: "dismissed", remember: true }, { type: "option", id: "levi", remember: true, saved: false },
+    ],
+  });
   const client = (await dispatch("find_client", { vat_id: "514123456" })).matches[0].client;
-  const ticked = await dispatch("ask_user", { question: "Insurance is a business expense?", options, allow_other: false, remember: { client, rule: "ביטוח עסק הוא הוצאה" } });
-  assert.deepEqual([ticked.ask, ticked.remember], ["Q1", true]);
-  assert.deepEqual(ui.cards[0].remember, { client: "Levi Plumbing Ltd", rule: "ביטוח עסק הוא הוצאה" });
+  const offer = (rule = "ביטוח עסק הוא הוצאה") => ({ client, rule, option: "levi" });
+  const ticked = await dispatch("ask_user", { question: "Insurance is a business expense?", options, allow_other: false, remember: offer("  ביטוח עסק\nהוא   הוצאה ") });
+  assert.deepEqual([ticked.ask, ticked.remember, ticked.saved], ["Q1", true, true]);
+  assert.deepEqual(ui.cards[0].remember, { client: "Levi Plumbing Ltd", clientId: "id-Levi", rule: "ביטוח עסק הוא הוצאה", option: "levi", optionLabel: "Levi" }, "the card shows the rule as it will be saved");
   const noOffer = await dispatch("ask_user", { question: "No rule offered?", options, allow_other: false });
   assert.equal(noOffer.remember, false, "a tick on a card without the offer counts for nothing");
-  const unticked = await dispatch("ask_user", { question: "Offered but not ticked?", options, allow_other: false, remember: { client, rule: "x" } });
+  assert.equal("saved" in noOffer, false);
+  const unticked = await dispatch("ask_user", { question: "Offered but not ticked?", options, allow_other: false, remember: offer("x") });
   assert.equal(unticked.remember, false);
+  const other = await dispatch("ask_user", { question: "Ticked, but the other answer?", options, allow_other: false, remember: offer("y") });
+  assert.deepEqual([other.remember, "saved" in other], [false, false], "the rule belongs to levi; a click on cohen saves nothing");
+  const dismissed = await dispatch("ask_user", { question: "Ticked and skipped?", options, allow_other: false, remember: offer("z") });
+  assert.equal(dismissed.remember, false);
+  const failed = await dispatch("ask_user", { question: "Ticked, the page could not write?", options, allow_other: false, remember: offer("w") });
+  assert.deepEqual([failed.remember, failed.saved], [true, false]);
+});
+
+test("ask_user: remember needs an option of the question and a rule, and is not offered with choose_client", async () => {
+  const { dispatch, ui } = await setup({ answers: () => ({ type: "option", id: "levi" }) });
+  await dispatch("list_inbox");
+  const client = (await dispatch("find_client", { vat_id: "514123456" })).matches[0].client;
+  const code = async (args) => (await dispatch("ask_user", { options, allow_other: false, ...args })).error?.code;
+  assert.equal(await code({ question: "No option?", remember: { client, rule: "x" } }), "invalid_argument");
+  assert.equal(await code({ question: "Unknown option?", remember: { client, rule: "x", option: "nobody" } }), "invalid_argument");
+  assert.equal(await code({ question: "Blank rule?", remember: { client, rule: " \n ", option: "levi" } }), "invalid_argument");
+  const chooser = await dispatch("ask_user", { question: "לאיזה לקוח?", choose_client: true, about: { files: ["F1"] }, allow_other: false, remember: { client, rule: "x", option: "client1" } });
+  assert.deepEqual([chooser.ok, chooser.error.code], [false, "invalid_argument"]);
+  assert.equal(ui.cards.length, 0);
 });
 
 test("propose_change: the user sees a card with parsed values; nothing on disk changes", async () => {

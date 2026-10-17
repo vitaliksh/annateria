@@ -9,11 +9,11 @@ import { FIELD_LABELS, TOOL_LABELS, progressLabel, setupAssistant } from "../ass
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "index.html"), "utf8");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
-function setup({ onApply } = {}) {
+function setup({ onApply, onRemember } = {}) {
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/annateria/" });
   const commands = [];
   const root = window.document.querySelector("#assistant");
-  const assistant = setupAssistant({ root, onCommand: (command) => commands.push(command), ...(onApply ? { onApply } : {}) });
+  const assistant = setupAssistant({ root, onCommand: (command) => commands.push(command), ...(onApply ? { onApply } : {}), ...(onRemember ? { onRemember } : {}) });
   const q = (selector) => root.querySelector(selector);
   const messages = () => [...root.querySelectorAll(".assistant-message")].map((node) => [node.dataset.kind, node.textContent]);
   return { window, root, assistant, commands, q, messages, click: (selector) => q(selector).click() };
@@ -120,15 +120,38 @@ test("a question can be skipped, or answered with another text by the button or 
   assert.equal(without.q(".card-other"), null, "no other-field unless the agent allowed it");
 });
 
-test("remember for this client: the box shows the rule exactly, and the answer says whether it was ticked", async () => {
-  const offer = card({ remember: { client: "Levi Plumbing", rule: "ביטוח עסק הוא הוצאה מוכרת" } });
-  const ticked = setup();
+test("remember for this client: the box shows the rule exactly; the page writes it only for the ticked box and the answer of the rule", async () => {
+  const offer = card({ remember: { client: "Levi Plumbing", clientId: "id-Levi", rule: "ביטוח עסק הוא הוצאה מוכרת", option: "levi", optionLabel: "Levi" } });
+  const written = [];
+  const onRemember = async (item) => { written.push(item); return { added: written.length === 1 }; };
+  const ticked = setup({ onRemember });
   const first = ticked.assistant.ui.ask(offer);
-  assert.match(ticked.q(".assistant-card label").textContent, /זכור ללקוח «Levi Plumbing»: ביטוח עסק הוא הוצאה מוכרת/);
+  assert.match(ticked.q(".assistant-card label").textContent, /זכור ללקוח «Levi Plumbing» \(בתשובה «Levi»\): ביטוח עסק הוא הוצאה מוכרת/);
   ticked.q(".assistant-card label input").click();
   ticked.root.querySelector(".card-options button").click();
-  assert.deepEqual(await first, { type: "option", id: "levi", remember: true });
-  const unticked = setup();
+  assert.deepEqual(await first, { type: "option", id: "levi", remember: true, saved: true });
+  assert.deepEqual(written, [{ clientId: "id-Levi", rule: "ביטוח עסק הוא הוצאה מוכרת" }]);
+  assert.ok(ticked.root.textContent.includes("הכלל נשמר בכללים של הלקוח."));
+  const again = setup({ onRemember });
+  const repeated = again.assistant.ui.ask(offer);
+  again.q(".assistant-card label input").click();
+  again.root.querySelector(".card-options button").click();
+  assert.deepEqual(await repeated, { type: "option", id: "levi", remember: true, saved: true });
+  assert.ok(again.root.textContent.includes("הכלל כבר רשום בכללים של הלקוח."));
+  const wrong = setup({ onRemember });
+  const otherAnswer = wrong.assistant.ui.ask(offer);
+  wrong.q(".assistant-card label input").click();
+  wrong.root.querySelectorAll(".card-options button")[1].click();
+  assert.deepEqual(await otherAnswer, { type: "option", id: "cohen", remember: true, saved: false });
+  assert.ok(wrong.root.textContent.includes("הכלל לא נשמר: נבחרה תשובה אחרת."));
+  const failing = setup({ onRemember: async () => { throw new Error("אין הרשאה"); } });
+  const failed = failing.assistant.ui.ask(offer);
+  failing.q(".assistant-card label input").click();
+  failing.root.querySelector(".card-options button").click();
+  assert.deepEqual(await failed, { type: "option", id: "levi", remember: true, saved: false });
+  assert.ok(failing.root.textContent.includes("הכלל לא נשמר: אין הרשאה"));
+  assert.equal(written.length, 2, "nothing was written for the other answer");
+  const unticked = setup({ onRemember });
   const second = unticked.assistant.ui.ask(offer);
   unticked.root.querySelector(".card-options button").click();
   assert.deepEqual(await second, { type: "option", id: "levi", remember: false });

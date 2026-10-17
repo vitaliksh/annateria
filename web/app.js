@@ -33,6 +33,8 @@ import { progressLabel, setupAssistant } from "./assistant-ui.js";
 import { buildMessage, createAssistantFlow, leftNote, resultNote } from "./assistant-flow.js";
 import { setupModelSettings } from "./model-settings-ui.js";
 import { applyProposal } from "./proposal-apply.js";
+import { appendRule } from "./rules-store.js";
+import { setupClientRules } from "./client-rules-ui.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
 import { isHomeUtility } from "./home-utilities.js";
@@ -333,6 +335,8 @@ const workspaceControls = setupWorkspaceControls({
   saveClientButton: document.querySelector("#save-client-settings"),
   exportClientButton: document.querySelector("#export-client"),
   onExportClient: (clientId) => transfer.openExport({ clientId }),
+  clientRulesButton: document.querySelector("#client-rules"),
+  onClientRules: (client) => clientRules.open(client),
   clientMenu: document.querySelector("#client-menu"),
   clientMenuName: document.querySelector("#client-menu-name"),
   clientMenuNameInput: document.querySelector("#client-name"),
@@ -420,6 +424,7 @@ const excelImport = setupExcelImport({
   onOpenCodes: () => ledgerCodes.open(),
   onError: showError,
 });
+const clientRules = setupClientRules({ dialog: document.querySelector("#client-rules-dialog"), onError: showError });
 const ledgerCodes = setupLedgerCodes({
   dialog: document.querySelector("#ledger-codes-dialog"),
   getContext: () =>
@@ -765,6 +770,12 @@ function applyProposalToTable(proposal, kept) {
 const assistant = setupAssistant({
   root: document.querySelector("#assistant"),
   onApply: async (proposal, kept) => applyProposalToTable(proposal, kept),
+  // A rule the user confirmed on a question card ("זכור ללקוח" ticked, its answer clicked) goes into rules.md of that client (step 4.6).
+  onRemember: async ({ clientId, rule }) => {
+    const client = workspaceControls?.getClients().active.find((item) => item.id === clientId && item.parent);
+    if (!client) throw new Error("הלקוח לא נמצא ברשימת הלקוחות.");
+    return appendRule(client.directory, rule);
+  },
   onCommand: (command) => {
     if (command.type === "cancel") assistantRun?.abort();
     else if (command.type === "report") reports.open();

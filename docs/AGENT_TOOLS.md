@@ -8,6 +8,9 @@ development agents that work on the code.
 inbox. The owner approved the principle (the agent recognises an import file, only prepares it, the user opens the wizard) and,
 the same day, the form "one tool with `kind`" instead of four tools (section 10, question 11).
 
+**Amendment of 17 October 2026 (step 4.6.1, question 12):** `remember_rule` is gone; a confirmed rule is written to `rules.md` by
+the page at the user's click on a question card, and the rule is bound to one answer (`remember.option`). Fourteen tools.
+
 What this document fixes: the run, the conventions every tool follows, the facts that extraction returns, and for each
 tool its inputs, outputs, validation, effects and what it may never do. What it leaves to later steps: the Hebrew
 wording of prompts and skills (phase 5), the panel layout (4.3), the exact model ids (phase 3).
@@ -27,7 +30,7 @@ the test that proves it (the tests are written in 4.2 and later and are part of 
 | Existing rows change only by a click of the user | After a run, a change to a row that already exists is a `propose_change` card that the user applies | Scripted model calls `propose_change`: table unchanged until the apply handler runs |
 | The table is copied before the agent writes | The first write of a run to a declaration first writes `draft-table.before-agent-<time>.json`; if the copy fails, the write is refused | Copy exists before the first row; copy failure blocks the write |
 | An error of the agent leaves the rows editable | Rows are ordinary rows the moment they are written; a failed or cancelled run ends with a summary, no row stays "waiting" | Scripted model fails in the middle: rows written so far are editable and saved |
-| `rules.md` gets only what the user confirmed | `remember_rule` takes no text, only the id of a question that the user answered with the box "remember" ticked; the code writes the exact rule text that was shown on the card | Without a ticked answer: refused; text in the file equals text on the card |
+| `rules.md` gets only what the user confirmed | No tool writes it. The page appends the exact rule text of the card when the user ticks "זכור ללקוח" and clicks the answer the rule belongs to (`ask_user` `remember.option`); the user edits the file from the client card. Nothing in `web/agent/` imports a writer of the file (services only `readRules`) | Without the tick, or with another answer: nothing written; text in the file equals text on the card; static check of the imports |
 | A document is not routed to a client on a guess | `add_rows` needs `routed_by`; the code verifies it (folder, VAT number match, or an answer of the user) | `_unsorted` file with a name-only match: refused until the user answers |
 | Import has no AI | The agent starts only after files are in `inbox/`; nothing here changes `inbox-store.js` add | Existing tests |
 | Imports of journals, ledgers and income reports go through the inbox, and the agent never writes them (4.7) | `prepare_import` only parses (`prepareImport`, `prepareLedger`, `prepareReconcile`, `readIncomeReportFile`) and returns counts and check results; `services` has no operation that commits an import; the wizard opens only by the user's click on the card and keeps its own steps and its own copies before writing; the original leaves the inbox for `clients/<client>/imports/` only after the wizard wrote and the copy was read back | Tool files import no commit function (`commitImport`, `commitLedger`, `commitReconcile`); a scripted model that calls `prepare_import` leaves the file tree byte-equal; the card carries counts, no parsed rows reach the model |
@@ -122,9 +125,9 @@ recomputes the amount check, and stores the record. From then on the record is *
 
 ## 5. The tools
 
-Fifteen tools: seven that read, compute or extract, one that prepares an import and writes nothing (`prepare_import`, 5.6),
-three that write (`add_rows`, `move_file_to_declaration`, `remember_rule`), two that ask the user (`propose_change`,
-`ask_user`), two for reports and closing. Headings below are the registry names; a test compares them with
+Fourteen tools: seven that read, compute or extract, one that prepares an import and writes nothing (`prepare_import`, 5.6),
+two that write (`add_rows`, `move_file_to_declaration`), two that ask the user (`propose_change`, `ask_user`; a rule the user
+confirms on an `ask_user` card is written by the page, not by a tool), two for reports and closing. Headings below are the registry names; a test compares them with
 the registry so that this file and the code cannot drift apart.
 
 ### 5.1 Read
@@ -288,26 +291,27 @@ the registry so that this file and the code cannot drift apart.
 #### `ask_user`
 
 - **Purpose.** A short question with buttons. (The plan called it `ask_anna`; the app is also used by the owner.)
-- **Input.** `{ question, options: [{ id, label }], allow_other, about?: { files?, rows? }, remember?: { client, rule } }`.
-  `question` up to 200 characters; 2 to 6 options, labels up to 40 characters; `rule` up to 200 characters.
-- **Output.** `{ ask, answer: { type: "option"|"other"|"dismissed", id?, text? }, remember }`. `remember` is true only
-  if the user ticked the box.
+- **Input.** `{ question, options: [{ id, label }], allow_other, about?: { files?, rows? }, remember?: { client, rule, option } }`.
+  `question` up to 200 characters; 2 to 6 options, labels up to 40 characters; `rule` up to 200 characters; `option` is the id
+  of the option the rule belongs to.
+- **Output.** `{ ask, answer: { type: "option"|"other"|"dismissed", id?, text? }, remember, saved? }`. `remember` is true only
+  if the card offered it, the user ticked the box and clicked the option of the rule; `saved` (only then) says whether the
+  page wrote it.
 - **Effect.** Shows a card (thumbnails of `about.files`, the rule text and a box "זכור ללקוח" when `remember` is given)
   and **waits** for the answer. A dismissed question returns `dismissed`; the agent must go on with the rows as
   `unclear`, never stall. The same question text twice returns the first answer. More than 15 questions: `limit_reached`.
 - **Labels.** The button of an option that carries a `client` shows that client's name (the code sets it, whatever label the model gave); a label that is a handle (`C1`, `F2.1`) is refused.
 - **Which client (`choose_client`, 17 October 2026, approved by the owner).** `{ question, choose_client: true, clients?: [client handles, at most 5], about: { files }, allow_other }`, no `options`. The code builds the card: the candidates as buttons with their names, every active client, the candidates too, in a list ("לקוח אחר…", sorted by name); the client open in the page is always the first button (service `clients.open`), and each button says why it is offered (open, or the best match `find_client` gave for it in this run: VAT number, same name, similar name), and for several files a button "לקוחות שונים" without a client. The answer carries `client`, the handle of the chosen client; the click is the routing proof of `add_rows` and `prepare_import` for every file of the question, as a button with a client always was. Without `choose_client`, `options` (2 to 6) stay required. A question about files whose text or buttons speak of the client ("לקוח", "client") but whose buttons carry no client is refused with a pointer to `choose_client`; buttons that only number ("לקוח א", "בחירה ב'", "option A") are refused anywhere.
-- **Never.** Ask for secrets; accept an answer outside the options except through `other`; write anything.
-
-#### `remember_rule`
-
-- **Purpose.** Keep an answer as a rule of this client.
-- **Input.** `{ ask }` only.
-- **Validation.** The question had a `remember` block and the user ticked the box.
-- **Effect.** Appends one line to `clients/<client>/rules.md` (created if missing): the exact rule text of the card, the
-  date, "confirmed by the user". A line already present is not added twice. The file is read into every later run for
-  this client and the user can view and edit it (4.6).
-- **Never.** Take text from the model; edit or remove lines; write another file.
+- **Remember (step 4.6.1, replaces the tool `remember_rule`; question 12).** The rule is cleaned to one line (no control
+  characters, single spaces) before the card shows it, and `option` must be one of the options; `remember` is refused with
+  `choose_client` (the routing question gets its own, code-built remember in 4.6.2). The box reads "זכור ללקוח «name» (בתשובה
+  «label»): rule". When the user ticks it and clicks that option, **the page** (not the tool, not the model) appends one line to
+  `clients/<client>/rules.md` (created if missing): `- <rule> (<date>, אושר ע״י המשתמש)`; a rule already in the file, also one the
+  user typed, is not added twice. The card then says "saved", "already there", "not saved: another answer was chosen" or the
+  error. The file is read into every later run for this client (`get_client_context`), and the user views and edits it from the
+  client card ("כללים של הלקוח"); that save keeps the text before in `rules.before-<time>.md`.
+- **Never.** Ask for secrets; accept an answer outside the options except through `other`; write anything (the rule is written by
+  the page at the user's click).
 
 ### 5.5 Reports and closing (phase 6)
 
@@ -402,7 +406,7 @@ the registry so that this file and the code cannot drift apart.
 There is no tool, and no operation in `services`, for: closing or reopening a declaration; deleting or archiving
 anything (clients, declarations, rows, images, `rules.md` lines; the single exception is the inbox original after a
 verified filing, section 5.3; an import original leaves the inbox through page code after the wizard's commit, not through a tool); editing an OCR fact; writing JSON or any file
-directly; committing an import (`prepare_import` only parses, the user opens the wizard and the wizard writes, 5.6); opening
+directly, `rules.md` included (a confirmed rule is written by the page at the user's click, 5.4); committing an import (`prepare_import` only parses, the user opens the wizard and the wizard writes, 5.6); opening
 a wizard or any dialog by itself; creating or editing clients; changing report settings; sending anything to a service other than the Worker's
 model route. A name that is not in the registry gets `not_allowed` and is logged. Adding a tool means changing this
 file, the registry snapshot and getting the owner's approval.
@@ -433,7 +437,7 @@ file, the registry snapshot and getting the owner's approval.
 | `add_rows` | the row path of `applyRecord`, `excludeText` and the status logic of `buildPlan`, `backupTable`, `saveDraft` | a headless row builder shared with the live table |
 | `propose_change` | the cell edit path of `app.js`, `rows-move-flow.js` | proposal card |
 | `prepare_import` (adapter `agent/adapters/imports.js`) | `prepareImport` (`excel-import-flow.js`), `prepareLedger` (`ledger-codes-flow.js`), `prepareReconcile` (`ledger-reconcile-flow.js`), `readIncomeReportFile` (`income-report.js`), and the wizards `setupExcelImport`, `setupLedgerCodes`, `setupLedgerCheck`, the income-report import of `app.js` | one `services` operation that runs the read-only preparer for a kind; opening a wizard with a preloaded file; filing the original after the wizard's commit |
-| `remember_rule` | none | `rules-store.js` |
+| `ask_user` remember (page code, not a tool) | `rules-store.js` `readRules` | `appendRule`, `saveRules`, `rule-text.js`, the dialog `client-rules-ui.js` |
 | `run_report` | `reports.js`, `report-data.js` | none |
 | `ready_to_close` | `pcnSummary`, the checks of the lock handler | one shared `lockProblems()` |
 
@@ -451,7 +455,9 @@ each validation, idempotence, and every "never" of section 5 as a failing case. 
 the lock refusals. For 4.7 (`prepare_import`): each kind with a valid fixture (counts and checks, no rows in the result); each
 kind with a wrong file (`wrong_format`, the message of the parser); a kind that does not fit the file type; a client without proof
 (`not_allowed`); idempotence; the file tree byte-equal after the call; the tool files import no commit function; the filing after a
-successful wizard (hash checked, inbox entry gone) and its absence after a failed or closed wizard.
+successful wizard (hash checked, inbox entry gone) and its absence after a failed or closed wizard. For 4.6.1 (rules): nothing
+written without the tick, with another answer or a dismissed card; the text of the file equals the text of the card; a rule is
+not added twice; the user's edit keeps a copy; no source of the agent imports a writer of `rules.md`.
 
 ## 10. Questions for the owner
 
@@ -470,6 +476,7 @@ Approving the document means answering these. The recommended answer is first; "
 | 9 | Run log in `common/agent-runs/` | Yes, local, no images | No log: a wrong row cannot be explained afterwards |
 | 10 | PDFs | Stored as the original in `images/`; facts carry `page`; the viewer in 4.4 shows the page | Render pages to JPEG on filing: bigger folders, a second copy of the truth |
 | 11 | **New, 17 October 2026 (4.7):** the import functions of the menu "ייבוא ובדיקות" through the inbox. The principle is **approved**: the agent reads a bounded sample, recognises the file, and a read-only tool prepares it; the user opens the wizard from a card. **Confirmed by the owner on 17 October 2026:** one tool `prepare_import` with `kind` (`journal`, `ledger_codes`, `ledger_check`, `income_report`) | One tool: 15 tools in all, one description and one schema to test, a new kind is an enum value (and a new owner approval, as every change here). The four wizards differ in the summary only | Four tools, `prepare_journal`, `prepare_ledger_codes`, `prepare_ledger_check`, `prepare_income_report`: 18 tools, four near-identical schemas and declarations sent to the model on every turn; a model choosing between four names is no safer than choosing one enum value |
+| 12 | **New, 17 October 2026 (4.6):** who writes a confirmed rule into `rules.md`. **Decided by the owner on 17 October 2026:** the page, at the user's click; `remember_rule` is removed (14 tools); the rule is bound to one answer (`remember.option`) | The tick is the confirmation, so nothing the model does afterwards should matter: if the model had to call `remember_rule`, a forgotten call lost the user's tick (an instruction alone did not hold the model for `choose_client`). With the page as the only writer, no tool can write the file at all | Keep `remember_rule { ask }`: the contract as approved on 16 October, but a confirmed rule depends on one more model call |
 
 ## 11. Changes against the plan of 16 October
 
@@ -483,3 +490,6 @@ superseded by question 11; `read_document` is also the way the agent recognises 
 Gemini on the paid tier); principle row and sections 6, 7, 8 and 9 extended. Four tools (18 in all) were considered and not
 recommended. The principle and the single tool with `kind` are the owner's decisions of 17 October. Code: 4.7.1 changed the neutral note
 of `list_inbox` and the instruction of the orchestrator; 4.7.2 built the tool for `journal`.
+
+**17 October 2026 (step 4.6.1):** `remember_rule` removed (fourteen tools); `ask_user` `remember` takes `option` and returns
+`saved`; the page writes the rule (question 12); principle row, sections 5, 6, 8 and 9 changed.
