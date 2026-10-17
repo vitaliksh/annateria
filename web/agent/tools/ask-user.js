@@ -11,6 +11,9 @@ const RESERVED_IDS = ["other", "dismissed"];
 function cancelled() { return new ToolError("cancelled", "The run was cancelled."); }
 
 const CLIENT_BUTTONS = 5;
+const CLIENT_WORDS = /לקוח|client/i;
+// Labels that only number the buttons: "לקוח א", "בחירה ב'", "אפשרות 1", "option A".
+const PLACEHOLDER_LABEL = /^(לקוח|בחירה|אפשרות|option|choice|client)\s*[א-תA-Za-z0-9]?['׳"]?$/i;
 
 // choose_client: the question "which client?" is built by the code, so the user always reads names and every choice carries its
 // client. The candidates of the model (the open client first) become buttons; every other active client is in a list; several
@@ -77,6 +80,15 @@ export default {
     const fileHandles = args.about?.files ?? [];
     const routed = fileHandles.map((handle) => ctx.run.routes.get(handle));
     if (routed.length && routed.every(Boolean) && new Set(routed.map((output) => output.ask)).size === 1) return { ...routed[0], already_answered: true };
+    // A question about the client of files must be choose_client: a model that builds its own buttons gave them labels such as
+    // "לקוח א" with no client behind them (seen 17 October), which tell the user nothing and prove nothing.
+    const aboutClient = CLIENT_WORDS.test(args.question) || (args.options ?? []).some((option) => CLIENT_WORDS.test(option.label));
+    if (!args.choose_client && fileHandles.length && aboutClient && !(args.options ?? []).some((option) => option.client)) {
+      throw new ToolError("invalid_argument", "To ask which client files belong to, call ask_user with choose_client true, about.files and the candidate clients in clients; give no options.");
+    }
+    if ((args.options ?? []).some((option) => PLACEHOLDER_LABEL.test(option.label.trim()))) {
+      throw new ToolError("invalid_argument", "A label must say what the button means (a name, a month, a decision), not \"option A\" or \"client B\".");
+    }
     if (args.choose_client) {
       if (!fileHandles.length) throw new ToolError("invalid_argument", "choose_client needs the files it is about (about.files).");
       if (args.options) throw new ToolError("invalid_argument", "choose_client builds the buttons itself: give clients (candidates), not options.");

@@ -280,3 +280,23 @@ test("ask_user choose_client: files are required, options are not allowed, a can
   assert.equal((await dispatch("ask_user", { question: "q3", choose_client: true, allow_other: false, about, clients: ["C9"] })).error.code, "not_found");
   assert.equal((await dispatch("ask_user", { question: "q4", allow_other: false })).error.code, "invalid_argument");
 });
+
+test("ask_user: a question about the client of files with buttons of the model's own is refused; so are buttons that only number", async () => {
+  const { dispatch, ui } = await setup();
+  const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
+  const about = { files: [handles["journal.xlsx"]] };
+  // What the owner saw on 17 October: "לאיזה לקוח שייך קובץ היומן?" with "לקוח א" and "לקוח ב".
+  const seen = await dispatch("ask_user", { question: "לאיזה לקוח שייך קובץ היומן?", about, allow_other: false, options: [{ id: "a", label: "לקוח א" }, { id: "b", label: "לקוח ב" }] });
+  assert.equal(seen.error.code, "invalid_argument");
+  assert.match(seen.error.message, /choose_client/);
+  const quiet = await dispatch("ask_user", { question: "של מי הקובץ?", about, allow_other: false, options: [{ id: "a", label: "בחירה א'" }, { id: "b", label: "בחירה ב'" }] });
+  assert.match(quiet.error.message, /not "option A"/);
+  const english = await dispatch("ask_user", { question: "Which client is this for?", about, allow_other: false, options: [{ id: "a", label: "Yes" }, { id: "b", label: "No" }] });
+  assert.equal(english.error.code, "invalid_argument");
+  assert.equal(ui.cards.length, 0, "the user saw none of these");
+  // A question about the document itself, with meaningful buttons, is still fine.
+  const fine = await setup({ answers: [{ type: "option", id: "yes" }] });
+  const files = Object.fromEntries((await fine.dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
+  const ok = await fine.dispatch("ask_user", { question: "האם זו הוצאה של העסק?", about: { files: [files["photo.jpg"]] }, allow_other: false, options: [{ id: "yes", label: "כן, הוצאה" }, { id: "no", label: "לא" }] });
+  assert.equal(ok.ok, true);
+});
