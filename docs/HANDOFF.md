@@ -226,7 +226,7 @@ made**, and no code in `app.js` starts it. Decisions on the way:
 - **Output limit:** the thinking of the model counts against `maxOutputTokens`; raised to 16,384 (assistant) and 32,768 (extraction, the most the Worker allows). Thinking is also most of the cost of a run; a lower thinking level for extraction would cut it, but the parameter was not verified, so it is not used.
 - **Style:** about 320 lines of the new modules (agent, inbox, assistant) are longer than the ~120 characters of `AGENTS.md`, mostly comments, prompts and tool descriptions. A formatting-only commit would fix it; proposed to the owner, not done.
 - **Run logs hold data:** `common/agent-runs/*.json` keep the arguments and a shortened result of every tool call (supplier names, amounts). They are local, in the backup, and must be treated like the rest of the data root; nothing deletes them.
-- **PDF through the dock:** put the PDF in `תיבת קלט`, press "בדוק מסמכים חדשים". The old **דוח הכנסות (PDF)** import (menu "הוספת מסמכים") is another feature and does not use the agent.
+- **PDF through the dock:** put the PDF in `תיבת קלט`, press "בדוק מסמכים חדשים". The old **דוח הכנסות (PDF)** import (menu "ייבוא ובדיקות") is another feature and does not use the agent.
 
 ### First real run (16 October 2026)
 

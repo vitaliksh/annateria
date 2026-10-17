@@ -133,7 +133,7 @@ class name, date, net and gross (the ledger shows expenses negative and credits 
 VAT follows the sign of the net). Equal operations are counted, so two identical payments need two rows. What is left on
 the ledger side is missing, what is left on the declarations' side is reported and never changed.
 
-The dialog "בדיקה מול כרטסת…" (menu "+ הוספת מסמכים") lists the missing operations; the chosen ones are appended to the
+The dialog "בדיקה מול כרטסת…" (menu "ייבוא ובדיקות") lists the missing operations; the chosen ones are appended to the
 declaration of their month (open ones only, a missing declaration is created) after saving a copy
 `draft-table.before-ledger-<time>.json`; the rows read "נוסף מהכרטסת". An operation whose class has no code in the
 client's chart is not added (load the ledger codes first).
