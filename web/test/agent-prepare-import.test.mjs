@@ -178,3 +178,13 @@ test("a run: the model reads the file, finds the client, prepares the import and
   assert.deepEqual(Object.keys(before).filter((path) => !(path in files)), [], "no file was removed");
   assert.equal(files["inbox/Cohen/journal-08.xlsx"] !== undefined, true, "the original is still in the inbox");
 });
+
+test("prepare_import: the client the user picked from the list of a choose_client question is the proof", async () => {
+  const s = await session({ folder: "_unsorted", answers: [{ type: "option", id: "list2" }] });
+  const asked = await s.dispatch("ask_user", { question: "לאיזה לקוח שייך היומן?", choose_client: true, allow_other: false, about: { files: [s.handle] } });
+  assert.equal(asked.ok, true);
+  const levi = asked.client;
+  assert.equal(s.ctx.handles.get("C", levi).clientId, "id-Levi", "the list is sorted by name: Cohen, Levi, Pcn");
+  const ok = await prepare(s, { client: levi, routed_by: "user", routing_ask: asked.ask });
+  assert.deepEqual([ok.ok, ok.state], [true, "prepared"]);
+});

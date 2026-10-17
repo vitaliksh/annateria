@@ -241,3 +241,42 @@ test("ask_user: the button of a client shows the name of the client, never the h
   assert.equal(asked.ok, true);
   assert.deepEqual(ui.cards[0].options, [{ id: "a", label: "Levi Plumbing Ltd" }, { id: "b", label: "Cohen Studio" }]);
 });
+
+test("ask_user choose_client: the code builds the question about the client: candidates as buttons, every other client in a list", async () => {
+  const { dispatch, ui, ctx } = await setup({ answers: [{ type: "option", id: "list1" }] });
+  const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
+  const levi = (await dispatch("find_client", { name: "Levi" })).matches[0].client;
+  const about = { files: [handles["photo.jpg"], handles["policy.pdf"]] };
+  const asked = await dispatch("ask_user", { question: "לאיזה לקוח שייכים המסמכים?", choose_client: true, clients: [levi], allow_other: false, about });
+  assert.equal(asked.ok, true);
+  const [card] = ui.cards;
+  assert.deepEqual(card.options, [{ id: "client1", label: "Levi Plumbing Ltd" }, { id: "mixed", label: "לקוחות שונים" }]);
+  assert.deepEqual(card.more.map((item) => item.label), ["Cohen Studio", "Pcn Trading"]);
+  // The user picked Cohen from the list: the model gets Cohen's handle, and the files are routed to Cohen.
+  assert.equal(asked.answer.id, "list1");
+  assert.equal(ctx.handles.get("C", asked.client).clientId, "id-Cohen");
+  assert.equal(ctx.run.routes.get(handles["photo.jpg"]).ask, asked.ask);
+});
+
+test("ask_user choose_client: one file has no 'different clients' button; 'different clients' gives no client and routes nothing", async () => {
+  const { dispatch, ui, ctx } = await setup({ answers: [{ type: "option", id: "client1" }, { type: "option", id: "mixed" }] });
+  const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
+  const cohen = (await dispatch("find_client", { name: "Cohen" })).matches[0].client;
+  const one = await dispatch("ask_user", { question: "Whose is the photo?", choose_client: true, clients: [cohen, cohen], allow_other: false, about: { files: [handles["photo.jpg"]] } });
+  assert.deepEqual(ui.cards[0].options, [{ id: "client1", label: "Cohen Studio" }], "a candidate given twice is one button");
+  assert.equal(ctx.handles.get("C", one.client).clientId, "id-Cohen");
+  const mixed = await dispatch("ask_user", { question: "Whose are these?", choose_client: true, allow_other: false, about: { files: [handles["policy.pdf"], handles["journal.xlsx"]] } });
+  assert.deepEqual(ui.cards[1].options, [{ id: "mixed", label: "לקוחות שונים" }], "no candidates: only the list and 'different clients'");
+  assert.equal(ui.cards[1].more.length, 3);
+  assert.deepEqual([mixed.answer.id, "client" in mixed, ctx.run.routes.has(handles["policy.pdf"])], ["mixed", false, false]);
+});
+
+test("ask_user choose_client: files are required, options are not allowed, a candidate must be known; a normal question still needs options", async () => {
+  const { dispatch } = await setup();
+  const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
+  const about = { files: [handles["photo.jpg"]] };
+  assert.equal((await dispatch("ask_user", { question: "q1", choose_client: true, allow_other: false })).error.code, "invalid_argument");
+  assert.equal((await dispatch("ask_user", { question: "q2", choose_client: true, allow_other: false, about, options })).error.code, "invalid_argument");
+  assert.equal((await dispatch("ask_user", { question: "q3", choose_client: true, allow_other: false, about, clients: ["C9"] })).error.code, "not_found");
+  assert.equal((await dispatch("ask_user", { question: "q4", allow_other: false })).error.code, "invalid_argument");
+});

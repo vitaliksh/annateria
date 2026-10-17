@@ -98,10 +98,16 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
     if (text !== undefined) node.textContent = text;
     return node;
   };
+  // A line whose file names are isolated (<bdi>): a Latin name such as "journal (1).xlsx" is not turned around by the Hebrew text.
+  const isolated = (className, parts) => {
+    const line = element("p", className);
+    for (const part of parts) line.append(typeof part === "string" ? part : element("bdi", "", part.name));
+    return line;
+  };
   const button = (label, className = "secondary small") => Object.assign(element("button", className, label), { type: "button" });
   const scrollDown = () => { feed.scrollTop = feed.scrollHeight; };
   const add = (node) => { feed.append(node); scrollDown(); return node; };
-  const lock = (box) => { for (const control of box.querySelectorAll("button, input")) control.disabled = true; };
+  const lock = (box) => { for (const control of box.querySelectorAll("button, input, select")) control.disabled = true; };
 
   function open(show = true) {
     root.dataset.open = String(show);
@@ -165,7 +171,7 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
       box.dataset.kind = "question";
       box.append(element("p", "card-text", card.question));
       const files = card.about?.files ?? [];
-      if (files.length) box.append(element("p", "card-about muted", files.map((file) => file.name).join(" · ")));
+      if (files.length) box.append(isolated("card-about muted", files.flatMap((file, index) => [...(index ? [" · "] : []), { name: file.name }])));
       let remember = null;
       if (card.remember) {
         const label = element("label", "check-line");
@@ -193,6 +199,21 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
       dismiss.addEventListener("click", () => finish({ type: "dismissed" }, "דילוג"));
       options.append(dismiss);
       box.append(options);
+      // The question "which client?" (choose_client): every client that is not a button is in this list.
+      if (card.more?.length) {
+        const other = element("div", "card-other");
+        const list = doc.createElement("select");
+        list.setAttribute("aria-label", "לקוח אחר");
+        list.append(new doc.defaultView.Option("לקוח אחר…", ""));
+        for (const option of card.more) list.append(new doc.defaultView.Option(option.label, option.id));
+        const pick = button("בחירה");
+        pick.addEventListener("click", () => {
+          const option = card.more.find((item) => item.id === list.value);
+          if (option) finish({ type: "option", id: option.id }, option.label);
+        });
+        other.append(list, pick);
+        box.append(other);
+      }
       if (card.allowOther) {
         const other = element("div", "card-other");
         const text = Object.assign(doc.createElement("input"), { type: "text", maxLength: 300, placeholder: "אחר…", autocomplete: "off" });
@@ -272,7 +293,7 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
     const box = element("div", "assistant-card");
     box.dataset.kind = "import";
     box.append(element("p", "card-text", card.reason));
-    box.append(element("p", "card-about muted", `${IMPORT_KINDS[card.kind] ?? card.kind} · ${card.file.name} · לקוח «${card.client.name}»`));
+    box.append(isolated("card-about muted", [`${IMPORT_KINDS[card.kind] ?? card.kind} · `, { name: card.file.name }, ` · לקוח «${card.client.name}»`]));
     const { summary, totals } = card;
     const list = element("ul", "card-changes");
     const lines = [`${summary.rows} שורות${totals ? ` · נטו ${money(totals.net)} · מע״מ ${money(totals.vat)} · ברוטו ${money(totals.gross)}` : ""}`];

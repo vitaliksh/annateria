@@ -10,15 +10,38 @@ const RESERVED_IDS = ["other", "dismissed"];
 
 function cancelled() { return new ToolError("cancelled", "The run was cancelled."); }
 
+const CLIENT_BUTTONS = 5;
+
+// choose_client: the question "which client?" is built by the code, so the user always reads names and every choice carries its
+// client. The candidates of the model (the open client first) become buttons; every other active client is in a list; several
+// files get a button "different clients" (no client: the agent then asks per file).
+async function clientOptions(args, ctx, fileCount) {
+  const all = await ctx.services.clients.list();
+  const handleOf = (client) => ctx.handles.create("C", client.clientId, { clientId: client.clientId, name: client.clientName, vatId: client.vatId ?? "", folder: client.folder ?? "" });
+  const candidates = [...new Set((args.clients ?? []).map((handle) => ctx.handles.get("C", handle).clientId))].slice(0, CLIENT_BUTTONS);
+  const options = candidates.map((clientId, index) => {
+    const client = all.find((item) => item.clientId === clientId);
+    if (!client) throw new ToolError("not_found", "A candidate is not an active client.");
+    return { id: `client${index + 1}`, label: client.clientName, client: handleOf(client) };
+  });
+  const rest = all.filter((client) => !candidates.includes(client.clientId)).sort((a, b) => a.clientName.localeCompare(b.clientName, "he"));
+  rest.forEach((client, index) => options.push({ id: `list${index + 1}`, label: client.clientName, client: handleOf(client), listed: true }));
+  if (fileCount > 1) options.push({ id: "mixed", label: "לקוחות שונים" });
+  if (!options.some((option) => option.client)) throw new ToolError("not_found", "There is no active client to choose.");
+  return options;
+}
+
 export default {
   name: "ask_user",
   exclusive: true,
-  description: "Ask the user one short question in Hebrew with 2 to 6 buttons and wait for the answer. Use it only when the facts cannot decide. Optionally offer to remember the answer as a rule of one client (the exact rule text is shown to the user).",
+  description: "Ask the user one short question in Hebrew with 2 to 6 buttons and wait for the answer. Use it only when the facts cannot decide. To ask which client files belong to, do not build buttons: set choose_client true, list the files in about.files and the candidate clients (handles, the client the user has open first) in clients; the code shows the names of the clients as buttons and a list of all the other clients, and the answer gives you the handle of the chosen client (client). Optionally offer to remember the answer as a rule of one client (the exact rule text is shown to the user).",
   schema: {
     type: "object",
-    required: ["question", "options", "allow_other"],
+    required: ["question", "allow_other"],
     properties: {
       question: { type: "string", minLength: 1, maxLength: 200 },
+      choose_client: { type: "boolean", description: "The question is which client the files of about.files belong to; the code builds the buttons (do not give options)." },
+      clients: { type: "array", maxItems: 5, items: { type: "string", maxLength: 12 }, description: "With choose_client: candidate client handles, shown first as buttons." },
       options: {
         type: "array", minItems: 2, maxItems: 6,
         items: {
@@ -54,6 +77,11 @@ export default {
     const fileHandles = args.about?.files ?? [];
     const routed = fileHandles.map((handle) => ctx.run.routes.get(handle));
     if (routed.length && routed.every(Boolean) && new Set(routed.map((output) => output.ask)).size === 1) return { ...routed[0], already_answered: true };
+    if (args.choose_client) {
+      if (!fileHandles.length) throw new ToolError("invalid_argument", "choose_client needs the files it is about (about.files).");
+      if (args.options) throw new ToolError("invalid_argument", "choose_client builds the buttons itself: give clients (candidates), not options.");
+      args = { ...args, options: await clientOptions(args, ctx, fileHandles.length) };
+    } else if (!args.options || args.options.length < 2) throw new ToolError("invalid_argument", "options needs 2 to 6 buttons.");
     const ids = args.options.map((option) => option.id);
     if (args.options.some((option) => option.client) && !fileHandles.length) throw new ToolError("invalid_argument", "A question that offers clients must list the files it is about (about.files): a click proves nothing about other files.");
     if (new Set(ids).size !== ids.length || ids.some((id) => RESERVED_IDS.includes(id))) throw new ToolError("invalid_argument", "Option ids must be unique and not 'other' or 'dismissed'.");
@@ -72,13 +100,17 @@ export default {
       id: option.id, label: labelOf(option),
       ...(option.client ? { clientId: clients.get(option.id).clientId } : {}),
       ...(option.month ? { month: monthOf(option.month) } : {}),
+      ...(option.listed ? { listed: true } : {}),
     }));
 
     ctx.run.questions += 1;
     const record = { question: args.question, options, fileHandles: args.about?.files ?? [], clientId: client?.clientId ?? null, rule: args.remember?.rule ?? null, answer: null, remembered: false };
     const ask = ctx.handles.create("Q", ctx.run.questions, record);
     const card = {
-      id: ask, question: args.question, options: options.map(({ id, label }) => ({ id, label })), allowOther: args.allow_other,
+      id: ask, question: args.question, allowOther: args.allow_other,
+      // Buttons; with choose_client the clients that are not candidates are in a list (`more`) instead.
+      options: options.filter((option) => !option.listed).map(({ id, label }) => ({ id, label })),
+      ...(args.choose_client ? { more: options.filter((option) => option.listed).map(({ id, label }) => ({ id, label })) } : {}),
       about: { files: files.map(({ file, name, folder }) => ({ file, name, folder })), rows: rows.map(({ row }) => ({ row })) },
       remember: client ? { client: client.name, rule: args.remember.rule } : null,
     };
@@ -101,9 +133,11 @@ export default {
     if (!valid) throw new ToolError("internal", "The answer was not one of the offered ones.");
     record.answer = answer.type === "option" ? { type: "option", id: answer.id } : answer.type === "other" ? { type: "other", text } : { type: "dismissed" };
     record.remembered = Boolean(client && answer.remember === true && answer.type !== "dismissed");
-    const output = { ask, answer: record.answer, remember: record.remembered };
-    ctx.run.asked.set(key, output);
     const chosen = record.answer.type === "option" ? record.options.find((option) => option.id === record.answer.id) : null;
+    // The handle of the chosen client, so that the model can name it in add_rows or prepare_import even if it never found it.
+    const chosenHandle = chosen?.clientId ? args.options.find((option) => option.id === chosen.id).client : null;
+    const output = { ask, answer: record.answer, remember: record.remembered, ...(chosenHandle ? { client: chosenHandle } : {}) };
+    ctx.run.asked.set(key, output);
     if (chosen?.clientId) for (const handle of record.fileHandles) ctx.run.routes.set(handle, output);
     return output;
   },

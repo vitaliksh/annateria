@@ -357,3 +357,19 @@ test("prepare_import has a label for the progress line", () => {
   assert.equal(TOOL_LABELS.prepare_import, "בודק קובץ לייבוא");
   assert.equal(progressLabel({ type: "call", name: "prepare_import" }, {}), "בודק קובץ לייבוא");
 });
+
+test("the question about the client has a list of the other clients; choosing one answers with its option and locks the card", async () => {
+  const { assistant, q } = setup();
+  const answer = assistant.ui.ask(card({ question: "לאיזה לקוח?", options: [{ id: "client1", label: "Levi" }], more: [{ id: "list1", label: "Cohen" }, { id: "list2", label: "Pcn" }] }));
+  const box = q(".assistant-card[data-kind='question']");
+  const list = box.querySelector("select");
+  assert.deepEqual([...list.options].map((option) => option.textContent), ["לקוח אחר…", "Cohen", "Pcn"]);
+  const pick = [...box.querySelectorAll("button")].find((item) => item.textContent === "בחירה");
+  pick.click();
+  assert.equal(box.dataset.state, undefined, "nothing chosen yet: no answer");
+  list.value = "list2";
+  pick.click();
+  assert.deepEqual(await answer, { type: "option", id: "list2" });
+  assert.equal(list.disabled, true);
+  assert.match(box.textContent, /נבחר: Pcn/);
+});
