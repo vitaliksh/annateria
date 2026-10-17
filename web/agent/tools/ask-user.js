@@ -122,7 +122,8 @@ export default {
       id: ask, question: args.question, allowOther: args.allow_other,
       // Buttons; with choose_client the clients that are not candidates are in a list (`more`) instead.
       options: options.filter((option) => !option.listed).map(({ id, label }) => ({ id, label })),
-      ...(args.choose_client ? { more: options.filter((option) => option.listed).map(({ id, label }) => ({ id, label })) } : {}),
+      // The list holds every client, the ones on the buttons too, so that the user finds any client there (owner, 17 October).
+      ...(args.choose_client ? { more: options.filter((option) => option.clientId).map(({ id, label }) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, "he")) } : {}),
       about: { files: files.map(({ file, name, folder }) => ({ file, name, folder })), rows: rows.map(({ row }) => ({ row })) },
       remember: client ? { client: client.name, rule: args.remember.rule } : null,
     };

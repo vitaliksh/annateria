@@ -242,7 +242,7 @@ test("ask_user: the button of a client shows the name of the client, never the h
   assert.deepEqual(ui.cards[0].options, [{ id: "a", label: "Levi Plumbing Ltd" }, { id: "b", label: "Cohen Studio" }]);
 });
 
-test("ask_user choose_client: the code builds the question about the client: candidates as buttons, every other client in a list", async () => {
+test("ask_user choose_client: the code builds the question about the client: candidates as buttons, every client in the list", async () => {
   const { dispatch, ui, ctx } = await setup({ answers: [{ type: "option", id: "list1" }] });
   const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
   const levi = (await dispatch("find_client", { name: "Levi" })).matches[0].client;
@@ -251,7 +251,7 @@ test("ask_user choose_client: the code builds the question about the client: can
   assert.equal(asked.ok, true);
   const [card] = ui.cards;
   assert.deepEqual(card.options, [{ id: "client1", label: "Levi Plumbing Ltd" }, { id: "mixed", label: "לקוחות שונים" }]);
-  assert.deepEqual(card.more.map((item) => item.label), ["Cohen Studio", "Pcn Trading"]);
+  assert.deepEqual(card.more.map((item) => [item.id, item.label]), [["list1", "Cohen Studio"], ["client1", "Levi Plumbing Ltd"], ["list2", "Pcn Trading"]], "the candidate is in the list too");
   // The user picked Cohen from the list: the model gets Cohen's handle, and the files are routed to Cohen.
   assert.equal(asked.answer.id, "list1");
   assert.equal(ctx.handles.get("C", asked.client).clientId, "id-Cohen");
