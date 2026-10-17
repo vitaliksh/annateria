@@ -376,8 +376,31 @@ test("a whole run: list, read, find the client, check, add the row, file the ori
   ]);
   const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, ui: recordingUi() });
   assert.deepEqual([result.status, result.text], ["completed", "added filed"]);
+  assert.deepEqual(result.added, [{ clientId: "id-Levi", month: "2026-02", count: 1 }], "the result says where the rows went");
   const rows = (await loadDeclaration(w.levi.directory, "2026-02")).draft.rows;
   assert.equal(rows.length, 4);
   assert.deepEqual([rows[3].statusClass, rows[3].imageFile, rows[3].agent.run], ["ready", "001.jpg", result.runId]);
   assert.equal((await readInboxIndex(w.root)).files.some((entry) => entry.name === "photo.jpg"), false);
+});
+
+test("a whole run: two moves called in one turn are done one after the other; both files are filed, both rows have their image", async () => {
+  const { runAgent } = await import("../agent/run.js");
+  const { scriptedModel, reply, say } = await import("./agent-fixtures.mjs");
+  const w = await world({ extraction: scriptedExtraction([answers(rawRecord({ document_number: "P-1" })), answers(rawRecord({ document_number: "P-2" }))]) });
+  const last = (request, name) => request.contents.at(-1).parts.map((part) => part.functionResponse).filter((item) => item.name === name).map((item) => item.response);
+  let read = [];
+  const model = scriptedModel([
+    reply(call("list_inbox", {})),
+    (request) => reply(...last(request, "list_inbox")[0].files.filter((file) => file.kind !== "spreadsheet").map((file) => call("extract_document", { file: file.file })), call("find_client", { name: "Levi" })),
+    (request) => reply(call("add_rows", { client: last(request, "find_client")[0].matches[0].client, rows: (read = last(request, "extract_document")).map((item) => decision(item.documents[0].fact, { routed_by: "vat_id" })) })),
+    (request) => reply(...read.map((item) => call("move_file_to_declaration", { file: item.file, client: "C1", months: ["2026-02"] }))),
+    (request) => reply(say(last(request, "move_file_to_declaration").map((item) => item.state).join(","))),
+  ]);
+  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, ui: recordingUi() });
+  assert.deepEqual([result.status, result.error, result.text], ["completed", undefined, "filed,filed"]);
+  const rows = (await loadDeclaration(w.levi.directory, "2026-02")).draft.rows.filter((row) => row.agent?.run === result.runId);
+  assert.ok(rows.length === 2 && rows.every((row) => row.imageFile), "every row of the run has its picture");
+  assert.equal(new Set(rows.map((row) => row.imageFile)).size, rows.length, "every picture has its own number");
+  assert.equal((await readInboxIndex(w.root)).files.some((entry) => entry.folder === "_unsorted"), false, "nothing of the run is left in the inbox");
+  assert.equal((await readInboxIndex(w.root)).files.some((entry) => entry.name === "policy.pdf"), false);
 });

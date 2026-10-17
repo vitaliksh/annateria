@@ -660,6 +660,7 @@ async function runAssistant(kind, text) {
     const note = resultNote(result);
     assistant.addMessage(note.kind, note.text);
     if (result.status === "completed") assistantLastAnswer = result.text;
+    assistant.showPlaced(result.added ?? []);
     if (result.logError) assistant.addMessage("note", `לא ניתן לשמור את יומן הריצה: ${result.logError}`);
   } catch (error) {
     assistant.addMessage("error", `העוזר נעצר: ${error.message}`);
@@ -706,6 +707,7 @@ const assistant = setupAssistant({
   onCommand: (command) => {
     if (command.type === "cancel") assistantRun?.abort();
     else if (command.type === "report") reports.open();
+    else if (command.type === "open") workspaceControls?.openDeclaration(command.clientId, command.month).catch((error) => showError(`לא ניתן לפתוח הצהרה: ${error.message}`));
     else runAssistant(command.type, command.text);
   },
 });

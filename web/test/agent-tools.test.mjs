@@ -211,3 +211,18 @@ test("propose_change and ask_user need a panel", async () => {
   assert.equal((await registry.dispatch({ name: "propose_change", args: { client, title: "t", changes: [{ row: handle, field: "purpose", value: "x", reason: "r" }] } }, ctx)).error.code, "unavailable");
   assert.equal(new TextDecoder().decode(await readFileBytes(w.root, "inbox/index.json")).includes("photo.jpg"), true);
 });
+
+test("ask_user: a question that offers a client must say which files it is about", async () => {
+  const { dispatch, ctx, ui } = await setup({ answers: () => ({ type: "option", id: "levi" }) });
+  const client = ctx.handles.create("C", "id-Levi", { clientId: "id-Levi", name: "Levi", vatId: "", folder: "Levi" });
+  const asked = { question: "Whose are these?", allow_other: false, options: [{ id: "levi", label: "Levi", client }, { id: "x", label: "X" }] };
+  const refused = await dispatch("ask_user", asked);
+  assert.deepEqual([refused.error.code, ui.cards.length], ["invalid_argument", 0]);
+  assert.match(refused.error.message, /about\.files/);
+});
+
+test("the tools that write files and drafts wait for each other, like the question that waits for the user", () => {
+  const registry = createDefaultRegistry();
+  for (const name of ["add_rows", "move_file_to_declaration", "ask_user"]) assert.equal(registry.isExclusive(name), true, name);
+  for (const name of ["extract_document", "facts_for", "list_inbox", "query_rows"]) assert.equal(registry.isExclusive(name), false, name);
+});

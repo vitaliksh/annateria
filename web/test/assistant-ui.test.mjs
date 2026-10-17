@@ -22,7 +22,7 @@ const options = [{ id: "levi", label: "Levi" }, { id: "cohen", label: "Cohen" }]
 const card = (extra = {}) => ({ id: "Q1", question: "Whose is this file?", options, allowOther: false, about: { files: [], rows: [] }, remember: null, ...extra });
 
 test("the page has the dock between the workspace and the status bar, with its own stylesheet", () => {
-  for (const id of ["assistant", "assistant-toggle", "assistant-progress", "assistant-body", "assistant-feed", "assistant-form", "assistant-input", "assistant-send", "assistant-process", "assistant-left", "assistant-report", "assistant-cancel"]) {
+  for (const id of ["assistant", "assistant-toggle", "assistant-progress", "assistant-body", "assistant-feed", "assistant-form", "assistant-input", "assistant-send", "assistant-process", "assistant-left", "assistant-report", "assistant-cancel", "assistant-minimize"]) {
     assert.ok(html.includes(`id="${id}"`), id);
   }
   assert.ok(html.indexOf("</main>") < html.indexOf('id="assistant"') && html.indexOf('id="assistant"') < html.indexOf('<footer class="statusbar">'));
@@ -278,4 +278,27 @@ test("a proposal can be turned down, applied with nothing ticked (nothing happen
   failing.root.querySelector(".card-options button").click();
   await tick();
   assert.match(failing.q(".card-about").textContent, /לא ניתן להחיל: disk full/);
+});
+
+test("a clear button minimizes the open dock; it is there only while the dock is open", () => {
+  const { root, q, click, assistant } = setup();
+  assert.equal(q("#assistant-minimize").hidden, true, "closed: nothing to minimize");
+  click("#assistant-toggle");
+  assert.equal(q("#assistant-minimize").hidden, false);
+  assert.match(q("#assistant-minimize").textContent, /מזער/);
+  click("#assistant-minimize");
+  assert.deepEqual([root.dataset.open, q("#assistant-body").hidden, q("#assistant-minimize").hidden], ["false", true, true]);
+  assistant.open(true);
+  assert.equal(q("#assistant-minimize").hidden, false, "a question or a run opens it again with the button");
+});
+
+test("after a run the dock offers a button for each month that got rows; a click asks to open that month", () => {
+  const { assistant, commands, q } = setup();
+  assistant.showPlaced([]);
+  assert.equal(q(".assistant-card[data-kind='placed']"), null, "nothing was added: nothing to offer");
+  assistant.showPlaced([{ clientId: "id-Levi", month: "2026-01", count: 5 }, { clientId: "id-Levi", month: "2026-03", count: 1 }]);
+  const buttons = [...q(".assistant-card[data-kind='placed']").querySelectorAll("button")];
+  assert.deepEqual(buttons.map((button) => button.textContent), ["01/2026 · 5 שורות", "03/2026 · 1 שורות"]);
+  buttons[1].click();
+  assert.deepEqual(commands.at(-1), { type: "open", clientId: "id-Levi", month: "2026-03" });
 });

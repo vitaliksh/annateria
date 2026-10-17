@@ -58,6 +58,15 @@ export function isInboxFolder(name) {
   return ![UNSORTED, TRASH].includes(name.toLowerCase());
 }
 
+// The index file and the numbering of images are read, changed and written back: two such calls at the same time lose one change
+// (the first real run of 4.4 left files in the inbox and rows without a picture). One call at a time, in the order of the calls.
+let queue = Promise.resolve();
+function oneAtATime(task) {
+  const result = queue.then(task, task);
+  queue = result.catch(() => {});
+  return result;
+}
+
 async function inboxDirectory(dataRoot) { return dataRoot.getDirectoryHandle(INBOX_NAME, { create: true }); }
 
 // Creates inbox/_unsorted/ and one folder per client. Names that cannot be folders are skipped and returned.
@@ -166,7 +175,8 @@ async function storeFile(directory, storedName, bytes) {
 //   added:      index entries of the stored files,
 //   duplicates: { name, reason: "inbox" | "declaration", of } for bytes that were already seen,
 //   failed:     { name, error } for files that could not be stored (the rest of the batch continues).
-export async function addToInbox(dataRoot, files, { folder = UNSORTED, now = new Date().toISOString() } = {}) {
+export const addToInbox = (...args) => oneAtATime(() => addToInboxNow(...args));
+async function addToInboxNow(dataRoot, files, { folder = UNSORTED, now = new Date().toISOString() } = {}) {
   if (!isInboxFolder(folder)) throw new Error("שם תיקייה לא חוקי בתיבת הקלט.");
   await ensureInbox(dataRoot);
   const inbox = await inboxDirectory(dataRoot), directory = await inbox.getDirectoryHandle(folder, { create: true });
@@ -221,7 +231,8 @@ const isMissing = (error) => error?.name === "NotFoundError";
 //   moved:   the entries that were moved,
 //   missing: entries whose file was no longer on disk (they are only dropped from the index),
 //   failed:  { name, error } for files that stay where they are (or, when the original could not be removed, are in both places).
-export async function moveToTrash(dataRoot, hashes, { now = new Date().toISOString() } = {}) {
+export const moveToTrash = (...args) => oneAtATime(() => moveToTrashNow(...args));
+async function moveToTrashNow(dataRoot, hashes, { now = new Date().toISOString() } = {}) {
   const inbox = await inboxDirectory(dataRoot), trash = await inbox.getDirectoryHandle(TRASH, { create: true });
   const index = await readInboxIndex(dataRoot), taken = await directoryNames(trash);
   const result = { moved: [], missing: [], failed: [] };
@@ -278,7 +289,8 @@ export async function nextImageNumber(imagesDirectory) {
 
 // Copies the original of an inbox entry into <declaration>/images/NNN.<ext> and reads the copy back. The original stays where it is.
 // Resolves with { imageFile, imageIndex }. Refuses a file that is no longer what the index says it is.
-export async function copyToDeclarationImages(dataRoot, entry, declarationDirectory) {
+export const copyToDeclarationImages = (...args) => oneAtATime(() => copyToDeclarationImagesNow(...args));
+async function copyToDeclarationImagesNow(dataRoot, entry, declarationDirectory) {
   const file = await readInboxFile(dataRoot, entry);
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (bytes.length !== entry.size || (await sha256Hex(bytes)) !== entry.hash) throw new Error("הקובץ בתיבת הקלט שונה ממה שנרשם באינדקס.");
@@ -292,7 +304,8 @@ export async function copyToDeclarationImages(dataRoot, entry, declarationDirect
 
 // Takes a file that now has its copy in a declaration out of the inbox: the entry leaves the index first, then the file is removed.
 // A repeated call does nothing. Resolves with true when something was taken out.
-export async function moveOutOfInbox(dataRoot, entry) {
+export const moveOutOfInbox = (...args) => oneAtATime(() => moveOutOfInboxNow(...args));
+async function moveOutOfInboxNow(dataRoot, entry) {
   const inbox = await inboxDirectory(dataRoot);
   const index = await readInboxIndex(dataRoot);
   const present = index.files.some((item) => item.hash === entry.hash);

@@ -5,6 +5,7 @@ import { ToolError } from "../errors.js";
 
 export default {
   name: "move_file_to_declaration",
+  exclusive: true, // several calls in one turn must not write the same draft and index at the same time
   description: "After add_rows: give the rows made from a file their original. The file is copied into the images of the declaration of every month that holds a row of it (give all of those months), the copy is checked, the rows get the image, and the file leaves the inbox. A file without a row is not moved.",
   schema: {
     type: "object",

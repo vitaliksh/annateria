@@ -379,3 +379,15 @@ test("after the original moved to a declaration the same file cannot be added to
   const again = await addToInbox(root, [fileOf("scan again.jpg", "photo bytes")], { now: NOW });
   assert.deepEqual([again.added.length, again.duplicates.map((item) => [item.reason, item.of.file])], [0, [["declaration", "001.jpg"]]]);
 });
+
+test("calls made at the same time do not lose each other's changes: ten files leave the inbox together, two copies get two numbers", async () => {
+  const root = binaryDirectory("data");
+  const added = await addToInbox(root, Array.from({ length: 10 }, (_, n) => fileOf(`doc${n}.jpg`, `bytes ${n}`)), { now: NOW });
+  const entries = added.added;
+  const declaration = await (await root.getDirectoryHandle("clients", { create: true })).getDirectoryHandle("declaration", { create: true });
+  const copies = await Promise.all(entries.slice(0, 2).map((entry) => copyToDeclarationImages(root, entry, declaration)));
+  assert.deepEqual(copies.map((copy) => copy.imageFile).sort(), ["001.jpg", "002.jpg"]);
+  await Promise.all(entries.map((entry) => moveOutOfInbox(root, entry)));
+  assert.deepEqual((await readInboxIndex(root)).files, [], "no entry is left in the index");
+  assert.deepEqual((await listPaths(root)).filter((path) => path.startsWith("inbox/_unsorted/")), [], "no file is left in the folder");
+});

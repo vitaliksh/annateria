@@ -64,14 +64,14 @@ function valueText(field, value) {
   return value === "" ? "(ריק)" : String(value);
 }
 
-// onCommand({ type: "process" | "left" | "report" | "cancel" | "text", text? }) is called for a click or a sent line.
+// onCommand({ type: "process" | "left" | "report" | "cancel" | "text" | "open", text?, clientId?, month? }) is called for a click or a sent line.
 // onApply(proposal, kept) is called when the user applies a proposal (kept: the numbers of the changes that stayed ticked); it resolves with
 // { applied, refused: [{ change, reason }] }. Without it a proposal card only shows the changes.
 export function setupAssistant({ root, onCommand, onApply = null }) {
   const part = (id) => root.querySelector(`#${id}`);
-  const [toggle, progress, body, feed, form, input, sendButton, processButton, leftButton, reportButton, cancelButton] = [
+  const [toggle, progress, body, feed, form, input, sendButton, processButton, leftButton, reportButton, cancelButton, minimizeButton] = [
     "assistant-toggle", "assistant-progress", "assistant-body", "assistant-feed", "assistant-form", "assistant-input", "assistant-send",
-    "assistant-process", "assistant-left", "assistant-report", "assistant-cancel",
+    "assistant-process", "assistant-left", "assistant-report", "assistant-cancel", "assistant-minimize",
   ].map(part);
   const doc = root.ownerDocument;
   let busy = false;
@@ -94,6 +94,8 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
     root.dataset.open = String(show);
     body.hidden = !show;
     toggle.setAttribute("aria-expanded", String(show));
+    minimizeButton.hidden = !show;
+    minimizeButton.setAttribute("aria-expanded", String(show));
     if (show) scrollDown();
   }
 
@@ -125,6 +127,22 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
     const message = element("div", "assistant-message", text);
     message.dataset.kind = kind; // user | assistant | note | error
     return add(message);
+  }
+
+  // Where the rows of a run went: one button per month that opens it. months: [{ clientId, month, count }].
+  function showPlaced(months) {
+    if (!months.length) return;
+    const box = element("div", "assistant-card");
+    box.dataset.kind = "placed";
+    box.append(element("p", "card-text", "נוספו שורות בחודשים:"));
+    const options = element("div", "card-options");
+    for (const { clientId, month, count } of months) {
+      const choice = button(`${formatMonth(month)} · ${count} שורות`, "small");
+      choice.addEventListener("click", () => onCommand({ type: "open", clientId, month }));
+      options.append(choice);
+    }
+    box.append(options);
+    add(box);
   }
 
   // A question of the agent: resolves with the answer of the user, never rejects. An aborted run only closes the card.
@@ -236,6 +254,7 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
   }
 
   toggle.addEventListener("click", () => open(body.hidden));
+  minimizeButton.addEventListener("click", () => open(false));
   // The two quick requests, from the buttons of the dock or from elsewhere (the inbox dialog). False when a run is on.
   function start(type) {
     if (busy) return false;
@@ -257,5 +276,5 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
   });
 
   open(false);
-  return { open, setBusy, addMessage, trigger: start, setProgress, ui: { ask, propose }, isBusy: () => busy };
+  return { open, setBusy, addMessage, trigger: start, setProgress, showPlaced, ui: { ask, propose }, isBusy: () => busy };
 }

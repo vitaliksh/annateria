@@ -39,13 +39,35 @@
   stroke-linejoin: round;
 }
 
+/* What the agent is doing now: it must be seen from across the desk, so it is large, bold and in the accent colour. */
 .assistant-progress {
   min-width: 0;
   overflow: hidden;
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
+  padding: 2px var(--s3);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: var(--fs-lg);
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.assistant-progress:empty {
+  display: none;
+}
+
+.assistant-minimize {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--white);
+  font-weight: 700;
+}
+
+.assistant-minimize:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .assistant-body {

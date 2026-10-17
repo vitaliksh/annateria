@@ -67,9 +67,19 @@ export async function runAgent({
   let refusals = 0;
   let malformed = 0;
   const progress = (event) => { try { onProgress?.(event); } catch { /* a faulty listener must not stop the run */ } };
+  // Where the rows of this run went: [{ clientId, month, count }], oldest month first.
+  const placed = () => {
+    const counts = new Map();
+    for (const item of run.addedFacts.values()) {
+      const clientId = item.row ? ctx.handles.get("R", item.row).clientId : null;
+      if (clientId) counts.set(`${clientId}|${item.month}`, (counts.get(`${clientId}|${item.month}`) ?? 0) + 1);
+    }
+    return [...counts].map(([key, count]) => ({ clientId: key.split("|")[0], month: key.split("|")[1], count })).sort((a, b) => a.month.localeCompare(b.month));
+  };
   const finish = (status, extra = {}) => {
     log.add({ kind: "end", status, turns, toolCalls: run.toolCalls, ...extra });
-    return { status, turns, toolCalls: run.toolCalls, questions: run.questions, runId, log, ...extra };
+    const added = placed();
+    return { status, turns, toolCalls: run.toolCalls, questions: run.questions, runId, log, ...(added.length ? { added } : {}), ...extra };
   };
 
   async function askModel() {

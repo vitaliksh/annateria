@@ -72,6 +72,7 @@ const visible = ({ file, fileHash, ...rest }) => rest;
 
 export default {
   name: "add_rows",
+  exclusive: true, // see move_file_to_declaration
   description: "Put documents into the monthly table as draft rows, one per fact. You give the fact handle, the proof of the client (routed_by: folder when the file is in the inbox folder of this client, vat_id when the VAT number of the buyer on the document is the client's, user when the user clicked a button of an ask_user question about this file that carries this client), your decision (expense, not_expense, unclear), an account code of the client's chart for an expense, whether it needs a look, and a one-sentence Hebrew reason. The code copies every value from the fact, decides the month, excludes duplicates and documents of a previous year, applies the recognition percentages and sets the status; a row is ready only when nothing in the facts warns. Give month_override only when the user chose the month with a button (an ask_user option with that month).",
   schema: {
     type: "object",

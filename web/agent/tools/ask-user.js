@@ -55,6 +55,7 @@ export default {
     const routed = fileHandles.map((handle) => ctx.run.routes.get(handle));
     if (routed.length && routed.every(Boolean) && new Set(routed.map((output) => output.ask)).size === 1) return { ...routed[0], already_answered: true };
     const ids = args.options.map((option) => option.id);
+    if (args.options.some((option) => option.client) && !fileHandles.length) throw new ToolError("invalid_argument", "A question that offers clients must list the files it is about (about.files): a click proves nothing about other files.");
     if (new Set(ids).size !== ids.length || ids.some((id) => RESERVED_IDS.includes(id))) throw new ToolError("invalid_argument", "Option ids must be unique and not 'other' or 'dismissed'.");
     const files = (args.about?.files ?? []).map((handle) => ({ file: handle, ...ctx.handles.get("F", handle) }));
     const rows = (args.about?.rows ?? []).map((handle) => ({ row: handle, ...ctx.handles.get("R", handle) }));
