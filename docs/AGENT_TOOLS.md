@@ -380,7 +380,12 @@ the registry so that this file and the code cannot drift apart.
   and `kind: ledger_check` (4.7.4, the operations ledger, PDF or `.xlsx`, `prepareReconcile`: year, operations, matched, missing, how
   many can be added and how many declarations would be created, rows of the tables without a match; problems `operations_missing`,
   `missing_unknown_class`, `missing_in_locked_month`, `rows_not_in_ledger`, and the error `maybe_other_client` when less than a fifth of
-  at least 10 operations is found although the client's tables have rows in the ledger's months; the button opens the ledger-check dialog); the enum of the schema lists the kinds that exist and widens with
+  at least 10 operations is found although the client's tables have rows in the ledger's months; the button opens the ledger-check dialog);
+  and `kind: income_report` (4.7.5, the periodic income report of morning, PDF, `readIncomeReportFile`: month, period, number of
+  documents, one or two rows, whether the listing matches the summary; problems are the report's own codes and `listing_unread`, and the
+  errors `month_missing` / `month_locked` for the declaration of its month. The import has no dialog: the button opens that month's
+  declaration (it must exist and be open), asks for a confirmation and runs the existing import, which keeps the PDF in the images of
+  the declaration; the original also goes to `imports/`); the enum of the schema lists the kinds that exist and widens with
   4.7.3 to 4.7.5 (a kind that is not in it is `invalid_argument`). The tool calls the service `imports.prepare`, which runs
   `prepareImport` and `inspectImportTarget` (adapter `agent/adapters/imports.js`) and hands back counts, checks and problems for
   the model and the totals for the card only. The card is `ctx.ui.importCard`; its button asks the page to open the wizard (the

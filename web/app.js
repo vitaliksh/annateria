@@ -681,15 +681,34 @@ async function runAssistant(kind, text) {
 // inbox, for the client of the card.
 // The wizard works on the open client, so that client is opened first. Once the wizard has written the rows, the original goes from
 // the inbox to clients/<client>/imports/ (copied, read back, compared, then taken out); the agent has no part in this.
+// The income report has no dialog: from the menu it adds its rows to the open declaration at once. From a card the page has opened the
+// month of the report first (below), and the user confirms before the rows are added.
+const incomeReportImport = {
+  async openWith(file, { onCommitted } = {}) {
+    const where = `${formatMonth(currentDeclaration.month)} של «${committedWorkspace.config.clientName}»`;
+    if (!(await confirmDialog(`להוסיף את דוח ההכנסות להצהרה ${where}?`, { title: "דוח הכנסות", confirmLabel: "הוספה" }))) return;
+    await importIncomeReportFile(file);
+    const filed = await onCommitted?.().catch((error) => `הקובץ לא הועבר מתיבת הקלט: ${error.message}`);
+    if (filed) status.textContent = `${status.textContent} ${filed}`;
+  },
+};
 async function openImportWizard({ card, report }) {
   try {
-    const wizard = { journal: excelImport, ledger_codes: ledgerCodes, ledger_check: ledgerCheck }[card.kind];
+    const wizard = { journal: excelImport, ledger_codes: ledgerCodes, ledger_check: ledgerCheck, income_report: incomeReportImport }[card.kind];
     if (!wizard) return report({ text: "אין אשף לסוג הקובץ הזה." });
     const entry = (await readInboxIndex(dataRoot)).files.find((item) => item.hash === card.file.hash);
     if (!entry) return report({ text: "הקובץ כבר אינו בתיבת הקלט.", done: true });
     const client = workspaceControls?.getClients().active.find((item) => item.id === card.client.id);
     if (!client) return report({ text: "הלקוח לא נמצא ברשימת הלקוחות." });
-    if (committedWorkspace?.config.clientId !== client.config.clientId) {
+    // The income report goes into the declaration of its own month, which must exist and be open.
+    const month = card.kind === "income_report" ? card.summary.month : null;
+    const declared = month ? (client.declarations ?? []).find((item) => item.declaration.month === month)?.declaration : null;
+    if (month && (!declared || declared.archived)) return report({ text: `אין הצהרה ל-${formatMonth(month)}. יש ליצור אותה, ואז ללחוץ שוב.` });
+    if (month && declared.status !== "open") return report({ text: `ההצהרה ל-${formatMonth(month)} נעולה.` });
+    if (month && (committedWorkspace?.config.clientId !== client.config.clientId || currentDeclaration?.month !== month)) {
+      await workspaceControls.openDeclaration(client.id, month);
+      if (committedWorkspace?.config.clientId !== client.config.clientId || currentDeclaration?.month !== month) return report({ text: "ההצהרה לא נפתחה." });
+    } else if (committedWorkspace?.config.clientId !== client.config.clientId) {
       const latest = (client.declarations ?? []).map((item) => item.declaration).filter((item) => !item.archived).sort((a, b) => a.month.localeCompare(b.month)).at(-1);
       if (!latest) return report({ text: "ללקוח אין הצהרה. יש ליצור הצהרה ולפתוח אותה, ואז ללחוץ שוב." });
       await workspaceControls.openDeclaration(client.id, latest.month);
@@ -712,7 +731,7 @@ async function openImportWizard({ card, report }) {
       },
     });
   } catch (error) {
-    report({ text: `לא ניתן לפתוח את האשף: ${error.message}` });
+    report({ text: `לא בוצע: ${error.message}` });
   }
 }
 // The edits of a proposal go through the functions of the table, as if the user typed them.

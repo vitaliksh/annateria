@@ -6,11 +6,11 @@ import { clickedOption } from "../answers.js";
 import { ToolError } from "../errors.js";
 import { kindOf } from "../kinds.js";
 
-// The kinds built so far; income_report joins with step 4.7.5.
-const KINDS = ["journal", "ledger_codes", "ledger_check"];
+// Every kind of the contract is built (4.7.2 to 4.7.5).
+const KINDS = ["journal", "ledger_codes", "ledger_check", "income_report"];
 // The types of file each kind can be, and the wizard that the button of the card opens.
-const FILE_KINDS = { journal: ["spreadsheet"], ledger_codes: ["pdf", "spreadsheet"], ledger_check: ["pdf", "spreadsheet"] };
-const WIZARDS = { journal: "excel_import", ledger_codes: "ledger_codes", ledger_check: "ledger_check" };
+const FILE_KINDS = { journal: ["spreadsheet"], ledger_codes: ["pdf", "spreadsheet"], ledger_check: ["pdf", "spreadsheet"], income_report: ["pdf"] };
+const WIZARDS = { journal: "excel_import", ledger_codes: "ledger_codes", ledger_check: "ledger_check", income_report: "income_report" };
 const UNSORTED = "_unsorted";
 
 // The proof that the file is for this client: the inbox folder it lies in, or a button of the user (as in add_rows).
@@ -25,7 +25,7 @@ function verifyRouting(ctx, args, client, entry) {
 
 export default {
   name: "prepare_import",
-  description: "For an inbox file that you recognised as an import file (read it with read_document first): parse and check it read-only and leave the user a card with the result and the button \"פתח אשף\", which opens the existing import wizard with that file. You write nothing and the wizard opens only when the user clicks. kind journal is a Rivhit journal workbook (\"יומן קליטה\", .xlsx) for the Excel import; kind ledger_codes is the classification-codes ledger of Rivhit (\"כרטסת קודי מיון\", PDF or .xlsx), whose codes become the client's own chart; kind ledger_check is the operations ledger of Rivhit (\"כרטסת\" with dated movements per code, PDF or .xlsx), checked against the declarations of its year (the dialog can add what is missing). Give the proof of the client (routed_by: folder when the file lies in the inbox folder of that client, user when the user clicked a button of an ask_user question about this file that carries this client) and a one-sentence Hebrew reason for the card. month (YYYY-MM, journal only) is only a suggestion for a file that has no month in its header. You get counts and check results back, never the rows. wrong_format means the file is not of that kind.",
+  description: "For an inbox file that you recognised as an import file (read it with read_document first): parse and check it read-only and leave the user a card with the result and the button \"פתח אשף\", which opens the existing import wizard with that file. You write nothing and the wizard opens only when the user clicks. kind journal is a Rivhit journal workbook (\"יומן קליטה\", .xlsx) for the Excel import; kind ledger_codes is the classification-codes ledger of Rivhit (\"כרטסת קודי מיון\", PDF or .xlsx), whose codes become the client's own chart; kind ledger_check is the operations ledger of Rivhit (\"כרטסת\" with dated movements per code, PDF or .xlsx), checked against the declarations of its year (the dialog can add what is missing); kind income_report is the periodic income report of morning (\"דיווח הכנסות תקופתי\", PDF), whose sums go into the declaration of the report's month after the user confirms. Give the proof of the client (routed_by: folder when the file lies in the inbox folder of that client, user when the user clicked a button of an ask_user question about this file that carries this client) and a one-sentence Hebrew reason for the card. month (YYYY-MM, journal only) is only a suggestion for a file that has no month in its header. You get counts and check results back, never the rows. wrong_format means the file is not of that kind.",
   schema: {
     type: "object",
     required: ["file", "kind", "client", "routed_by", "reason"],

@@ -413,3 +413,15 @@ test("an import card that may be of another client shows that first, as an error
   const items = [...q(".assistant-card[data-kind='import'] .card-changes").children].map((item) => item.textContent);
   assert.match(items.find((item) => item.startsWith("שגיאה")), /ייתכן שהכרטסת של לקוח אחר/);
 });
+
+test("the card of an income report says the period, the sums and where the rows go", () => {
+  const { assistant, q } = setup();
+  assistant.ui.importCard(importCard({
+    kind: "income_report", file: { name: "report.pdf", hash: "d".repeat(64), folder: "Levi" }, totals: { net: 250.5, vat: 45.09, gross: 295.59 },
+    summary: { month: "2026-02", period_from: "2026-02-01", period_to: "2026-02-28", documents: 5, rows_to_add: 2, verified: true },
+    problems: [{ code: "sum-differs", severity: "warning", count: 1, key: "vat" }, { code: "month_missing", severity: "error", count: 1 }],
+  }));
+  const text = q(".assistant-card[data-kind='import']").textContent;
+  for (const part of ["דוח הכנסות תקופתי (חשבונית ירוקה)", "01/02/2026–28/02/2026: 5 מסמכים", "ללא מע״מ 250.50", "כולל 295.59", "שתי שורות (חייב ופטור) תתווסף להצהרה 02/2026; הפירוט תואם לסיכום", "סכום הפירוט שונה מהסיכום", "שגיאה: אין הצהרה לחודש של הדוח"]) assert.ok(text.includes(part), part);
+  assert.equal(text.includes("undefined"), false);
+});

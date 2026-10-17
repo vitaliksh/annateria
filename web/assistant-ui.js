@@ -29,7 +29,7 @@ export const FIELD_LABELS = {
 export const COMMAND_LABELS = { process: "בדוק מסמכים חדשים", left: "מה נשאר?" };
 
 // The card of an import file (prepare_import): what the file is, what was found in it, and the button that opens the wizard.
-const IMPORT_KINDS = { journal: "יומן קליטה (Rivhit)", ledger_codes: "כרטסת קודי מיון (Rivhit)", ledger_check: "כרטסת עם פעולות (Rivhit), לבדיקה מול ההצהרות" };
+const IMPORT_KINDS = { journal: "יומן קליטה (Rivhit)", ledger_codes: "כרטסת קודי מיון (Rivhit)", ledger_check: "כרטסת עם פעולות (Rivhit), לבדיקה מול ההצהרות", income_report: "דוח הכנסות תקופתי (חשבונית ירוקה)" };
 const IMPORT_PROBLEMS = {
   month_locked: () => "ההצהרה לחודש הזה נעולה, אי אפשר לייבא אליה.",
   month_has_rows: (item) => `בחודש הזה כבר יש ${item.count} שורות; באשף אפשר להחליף אותן (עותק של הטבלה הישנה יישמר).`,
@@ -38,6 +38,13 @@ const IMPORT_PROBLEMS = {
   lines_skipped: (item) => `${item.count} שורות בכרטסת לא נקראו; האשף מראה אילו ולמה.`,
   rows_not_remapped: (item) => `ל-${item.count} סוגים של שורות שיובאו מ-Excel אין קוד בכרטסת; השורות האלה לא יעודכנו.`,
   locked_months_not_remapped: (item) => `ב-${item.count} הצהרות נעולות יש שורות שיובאו מ-Excel; הן לא יעודכנו.`,
+  month_missing: () => "אין הצהרה לחודש של הדוח; יש ליצור אותה לפני ההוספה.",
+  listing_unread: () => "פירוט המסמכים בדוח לא נקרא; הסכומים נלקחים מהסיכום בלבד, יש לבדוק מול הדוח.",
+  "unreadable-documents": () => "חלק מהמסמכים בפירוט הדוח לא נקראו במלואם.",
+  "section-count": () => "מספר המסמכים שנקראו בחלק מהדוח שונה מהמספר שבדוח.",
+  "document-count": () => "מספר המסמכים שנקראו שונה מהמספר שבדוח.",
+  "sum-differs": () => "סכום הפירוט שונה מהסיכום של הדוח.",
+  "summary-inconsistent": () => "סיכום הדוח אינו מתחבר: חייב + פטור + מע״מ שונה מהסה״כ.",
   maybe_other_client: () => "כמעט אף פעולה בכרטסת לא נמצאה בהצהרות, אף שיש בהן שורות באותם חודשים: ייתכן שהכרטסת של לקוח אחר. יש לבדוק לפני הוספה.",
   operations_missing: (item) => `${item.count} פעולות מהכרטסת חסרות בהצהרות; באשף אפשר לסמן אותן ולהוסיף.`,
   missing_unknown_class: (item) => `ל-${item.count} מהפעולות החסרות אין קוד מיון אצל הלקוח; יש לטעון קודם את כרטסת קודי המיון.`,
@@ -310,7 +317,11 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
     const { summary, totals } = card;
     const list = element("ul", "card-changes");
     const lines = [];
-    if (card.kind === "ledger_check") {
+    if (card.kind === "income_report") {
+      const dates = `${summary.period_from.split("-").reverse().join("/")}–${summary.period_to.split("-").reverse().join("/")}`;
+      lines.push(`${dates}: ${summary.documents} מסמכים${totals ? ` · ללא מע״מ ${money(totals.net)} · מע״מ ${money(totals.vat)} · כולל ${money(totals.gross)}` : ""}`);
+      lines.push(`${summary.rows_to_add === 2 ? "שתי שורות (חייב ופטור)" : "שורה אחת"} תתווסף להצהרה ${formatMonth(summary.month)}${summary.verified ? "; הפירוט תואם לסיכום" : ""}.`);
+    } else if (card.kind === "ledger_check") {
       lines.push(`${summary.operations} פעולות בכרטסת לשנת ${summary.year}: ${summary.matched} קיימות בהצהרות, ${summary.missing} חסרות`);
       if (summary.can_add) lines.push(`${summary.can_add} מהחסרות אפשר להוסיף באשף${summary.months_created ? ` (${summary.months_created} הצהרות ייווצרו)` : ""}.`);
     } else if (card.kind === "ledger_codes") {

@@ -8,7 +8,7 @@ import { createDocumentReader } from "../agent/adapters/documents.js";
 import { createImportReader } from "../agent/adapters/imports.js";
 import { buildJournalGrid, SAMPLE_ROWS } from "./excel-journal-fixture.mjs";
 import { ledgerGrid, ledgerPdfPages, ledgerRowsGrid, ledgerRowsPdfPages } from "./ledger-fixture.mjs";
-import { fakePdfJs } from "./income-report-fixture.mjs";
+import { fakePdfJs, sampleReport, summaryPage } from "./income-report-fixture.mjs";
 import { createDefaultRegistry } from "../agent/index.js";
 import { runAgent } from "../agent/run.js";
 import { call, file, reply, say, scriptedModel, recordingUi, toolContext, world } from "./agent-fixtures.mjs";
@@ -304,4 +304,47 @@ test("prepare_import ledger_codes: an operations ledger (dated movements) is ref
   }
   assert.equal(tools.ui.importCards.length, 0);
   assert.equal((await prepare({ ...tools, handle: handles["ops.xlsx"], levi: cohen }, { kind: "ledger_check" })).ok, true, "the same file as ledger_check is fine");
+});
+
+// --- kind income_report (step 4.7.5) ---
+async function incomeSession(pages, { owner = "Levi" } = {}) {
+  const tools = await toolContext({ imports: createImportReader({ loadLibrary, loadPdf: fakePdfJs(pages) }) });
+  await addToInbox(tools.w.root, [file("report.pdf", new TextEncoder().encode("%PDF-1.4 report"), "application/pdf")], { folder: owner, now: "2026-10-16T08:10:00.000Z" });
+  const handles = await tools.files();
+  return { ...tools, handles, handle: handles["report.pdf"], levi: await tools.client(owner) };
+}
+const income = (s) => prepare(s, { kind: "income_report", reason: "דוח הכנסות תקופתי של חשבונית ירוקה" });
+const february = () => [summaryPage({ from: "01/02/2026", to: "28/02/2026", taxable: 250.5, vat: 45.09, gross: 295.59, documents: 5 }), ...sampleReport().pages.slice(1)];
+
+test("prepare_import income_report: the report is read and checked; the model gets the month and counts, the card the sums", async () => {
+  const s = await incomeSession(february());
+  const before = await snapshot(s.w.root);
+  const result = await income(s);
+  assert.equal(result.ok, true);
+  assert.deepEqual([result.kind, result.wizard, result.month], ["income_report", "income_report", "2026-02"]);
+  assert.deepEqual(result.summary, { month: "2026-02", period_from: "2026-02-01", period_to: "2026-02-28", documents: 5, rows_to_add: 1, verified: true });
+  assert.deepEqual(result.checks.map((check) => [check.code, check.ok]), [["report_read", true], ["listing_matches_summary", true]]);
+  assert.deepEqual(result.problems, []);
+  assert.equal(JSON.stringify(result).includes("295.59"), false, "no sum reaches the model");
+  assert.deepEqual(s.ui.importCards[0].totals, { net: 250.5, vat: 45.09, gross: 295.59 });
+  assert.deepEqual(await snapshot(s.w.root), before);
+});
+
+test("prepare_import income_report: a month without a declaration or a locked month is an error on the card; a listing that differs is a warning", async () => {
+  const september = await income(await incomeSession(sampleReport().pages));
+  assert.deepEqual(september.problems.map((item) => [item.code, item.severity]), [["month_missing", "error"]]);
+  const locked = [summaryPage({ from: "01/01/2026", to: "31/01/2026", taxable: 250.5, vat: 45.09, gross: 295.59, documents: 5 }), ...sampleReport().pages.slice(1)];
+  assert.deepEqual((await income(await incomeSession(locked))).problems.map((item) => item.code), ["month_locked"]);
+  const tampered = [summaryPage({ from: "01/02/2026", to: "28/02/2026", taxable: 999, vat: 45.09, gross: 1044.09, documents: 5 }), ...sampleReport().pages.slice(1)];
+  const differs = await income(await incomeSession(tampered));
+  assert.equal(differs.summary.verified, false);
+  assert.ok(differs.problems.some((item) => item.code === "sum-differs" && item.severity === "warning"));
+});
+
+test("prepare_import income_report: a PDF that is no income report is wrong_format, a spreadsheet is the wrong type", async () => {
+  const other = await income(await incomeSession([[{ str: "חשבונית מס 77", x: 300, y: 700, width: 60 }]]));
+  assert.equal(other.error.code, "wrong_format");
+  assert.match(other.error.message, /Not a periodic income report/);
+  const s = await session();
+  assert.equal((await prepare(s, { kind: "income_report" })).error.code, "invalid_argument");
 });

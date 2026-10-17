@@ -1,8 +1,9 @@
 // The backend of prepare_import (docs/AGENT_TOOLS.md, 5.6): runs the read-only preparer of the existing import wizard on an inbox
 // file and boils the result down to what the model may see (counts and check results) and what the card shows to the user (the
-// same, plus the totals). Nothing here writes: only the preparers (`prepareImport`, `prepareLedger`, `prepareReconcile`) and
-// `inspectImportTarget` are used, never a commit function.
+// same, plus the totals). Nothing here writes: only the readers (`prepareImport`, `prepareLedger`, `prepareReconcile`,
+// `readIncomeReportFile`) and `inspectImportTarget` are used, never a commit function.
 import { prepareImport } from "../../excel-import-flow.js";
+import { readIncomeReportFile } from "../../income-report.js";
 import { inspectImportTarget } from "../../excel-import-store.js";
 import { prepareLedger } from "../../ledger-codes-flow.js";
 import { prepareReconcile } from "../../ledger-reconcile-flow.js";
@@ -34,7 +35,7 @@ function groupProblems(prepared) {
 }
 
 // loadLibrary: loads SheetJS, loadPdf: pdf.js (tests pass their own). Built so far: journal (4.7.2), ledger_codes (4.7.3),
-// ledger_check (4.7.4).
+// ledger_check (4.7.4), income_report (4.7.5).
 export function createImportReader({ loadLibrary, loadPdf } = {}) {
   async function journal(file, { dataRoot, client, reserved, month }) {
     let prepared;
@@ -147,12 +148,42 @@ export function createImportReader({ loadLibrary, loadPdf } = {}) {
     };
   }
 
+  // The periodic income report of "חשבונית ירוקה" (morning), PDF with a text layer: its sums become one or two rows of the declaration of
+  // the report's month. The report is read and its listing checked against its summary; the month is looked at, nothing is written.
+  async function incomeReport(file, { client }) {
+    let report;
+    try {
+      report = await readIncomeReportFile(file, { loadPdf });
+    } catch (error) {
+      throw new ImportError("wrong_format", error.message);
+    }
+    if (!report) throw new ImportError("wrong_format", "Not a periodic income report of morning (חשבונית ירוקה), or the PDF has no text layer.");
+    const problems = report.problems.map((problem) => ({ code: problem.code, severity: "warning", count: 1, ...(problem.field ? { key: problem.field } : {}) }));
+    if (!report.parsedDocuments) problems.push({ code: "listing_unread", severity: "warning", count: 1 });
+    const target = await inspectImportTarget(client.directory, report.month);
+    if (target.state === "missing") problems.push({ code: "month_missing", severity: "error", count: 1 });
+    if (target.state === "closed") problems.push({ code: "month_locked", severity: "error", count: 1 });
+    return {
+      summary: {
+        month: report.month, period_from: report.period.from, period_to: report.period.to, documents: report.documents,
+        rows_to_add: report.exempt && (report.taxable || !report.exempt) ? 2 : 1, verified: report.verified,
+      },
+      checks: [
+        { code: "report_read", ok: true, count: report.documents },
+        { code: "listing_matches_summary", ok: report.verified },
+      ],
+      problems,
+      totals: { net: report.taxable + report.exempt, vat: report.vat, gross: report.gross },
+    };
+  }
+
   return {
     // file: the File of the inbox entry. options: { kind, dataRoot, client, reserved, month }. Resolves with { summary, checks, problems, totals }.
     async prepare(file, options) {
       if (options.kind === "journal") return journal(file, options);
       if (options.kind === "ledger_codes") return ledgerCodes(file, options);
       if (options.kind === "ledger_check") return ledgerCheck(file, options);
+      if (options.kind === "income_report") return incomeReport(file, options);
       throw new ImportError("wrong_format", `The kind ${options.kind} is not available yet.`);
     },
   };
