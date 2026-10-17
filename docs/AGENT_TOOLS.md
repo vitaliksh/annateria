@@ -295,6 +295,7 @@ the registry so that this file and the code cannot drift apart.
 - **Effect.** Shows a card (thumbnails of `about.files`, the rule text and a box "זכור ללקוח" when `remember` is given)
   and **waits** for the answer. A dismissed question returns `dismissed`; the agent must go on with the rows as
   `unclear`, never stall. The same question text twice returns the first answer. More than 15 questions: `limit_reached`.
+- **Labels.** The button of an option that carries a `client` shows that client's name (the code sets it, whatever label the model gave); a label that is a handle (`C1`, `F2.1`) is refused.
 - **Never.** Ask for secrets; accept an answer outside the options except through `other`; write anything.
 
 #### `remember_rule`

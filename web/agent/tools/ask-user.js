@@ -64,9 +64,13 @@ export default {
       if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new ToolError("invalid_argument", "month must look like 2026-03.");
       return month;
     };
+    // The user must never read a handle (C1, F2): the button of a client carries the client's name, whatever label the model gave it.
+    if (args.options.some((option) => !option.client && /^[A-Z]\d+(\.\d+)?$/.test(option.label.trim()))) throw new ToolError("invalid_argument", "A label must be words for the user, not a handle.");
+    const clients = new Map(args.options.filter((option) => option.client).map((option) => [option.id, ctx.handles.get("C", option.client)]));
+    const labelOf = (option) => clients.get(option.id)?.name ?? option.label;
     const options = args.options.map((option) => ({
-      id: option.id, label: option.label,
-      ...(option.client ? { clientId: ctx.handles.get("C", option.client).clientId } : {}),
+      id: option.id, label: labelOf(option),
+      ...(option.client ? { clientId: clients.get(option.id).clientId } : {}),
       ...(option.month ? { month: monthOf(option.month) } : {}),
     }));
 
@@ -74,7 +78,7 @@ export default {
     const record = { question: args.question, options, fileHandles: args.about?.files ?? [], clientId: client?.clientId ?? null, rule: args.remember?.rule ?? null, answer: null, remembered: false };
     const ask = ctx.handles.create("Q", ctx.run.questions, record);
     const card = {
-      id: ask, question: args.question, options: args.options.map(({ id, label }) => ({ id, label })), allowOther: args.allow_other,
+      id: ask, question: args.question, options: options.map(({ id, label }) => ({ id, label })), allowOther: args.allow_other,
       about: { files: files.map(({ file, name, folder }) => ({ file, name, folder })), rows: rows.map(({ row }) => ({ row })) },
       remember: client ? { client: client.name, rule: args.remember.rule } : null,
     };

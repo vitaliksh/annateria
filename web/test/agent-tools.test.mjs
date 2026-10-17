@@ -228,3 +228,16 @@ test("the tools that write files and drafts wait for each other, like the questi
   for (const name of ["add_rows", "move_file_to_declaration", "ask_user"]) assert.equal(registry.isExclusive(name), true, name);
   for (const name of ["extract_document", "facts_for", "list_inbox", "query_rows"]) assert.equal(registry.isExclusive(name), false, name);
 });
+
+test("ask_user: the button of a client shows the name of the client, never the handle the model used; a label that is a handle is refused", async () => {
+  const { dispatch, ui } = await setup({ answers: [{ type: "option", id: "a" }] });
+  const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
+  const levi = await dispatch("find_client", { name: "Levi" }).then((found) => found.matches[0].client);
+  const cohen = await dispatch("find_client", { name: "Cohen" }).then((found) => found.matches[0].client);
+  const about = { files: [handles["photo.jpg"]] };
+  const bad = await dispatch("ask_user", { question: "Whose?", about, allow_other: false, options: [{ id: "a", label: "x", client: levi }, { id: "b", label: "C2" }] });
+  assert.equal(bad.error.code, "invalid_argument");
+  const asked = await dispatch("ask_user", { question: "Whose is this?", about, allow_other: false, options: [{ id: "a", label: cohen, client: levi }, { id: "b", label: "C2", client: cohen }] });
+  assert.equal(asked.ok, true);
+  assert.deepEqual(ui.cards[0].options, [{ id: "a", label: "Levi Plumbing Ltd" }, { id: "b", label: "Cohen Studio" }]);
+});
