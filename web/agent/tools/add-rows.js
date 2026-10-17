@@ -59,7 +59,7 @@ async function addOne(ctx, clientHandle, clientValue, chart, row, aliases) {
   const snapshot = buildRowSnapshot({
     record, entry, documentId: `agent-${entry.hash.slice(0, 16)}-p${record.page ?? 0}`, decision: row.decision, account, accountName: account ? chart[account].name : "",
     facts: computed.facts, kind: computed.profile.kind, month, reason: row.reason, needsReview: row.needs_review,
-    agent: { run: ctx.run.id, version: AGENT_VERSION, fact: row.fact },
+    agent: { run: ctx.run.id, version: AGENT_VERSION, skills: { ...ctx.skills }, fact: row.fact },
   });
   const [position] = await ctx.services.rows.append(clientValue.clientId, month, [snapshot]);
   const handle = ctx.handles.create("R", `${clientValue.clientId}|${month}|${position}`, { clientId: clientValue.clientId, month, documentId: snapshot.documentId, position });

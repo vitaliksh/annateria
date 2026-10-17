@@ -4,6 +4,7 @@
 import { ToolError } from "./errors.js";
 import { createHandles } from "./handles.js";
 import { LIMITS } from "./limits.js";
+import { AGENT_VERSION } from "./prompts.js";
 import { createRunLog, shorten } from "./run-log.js";
 import { createSemaphore } from "./semaphore.js";
 
@@ -15,7 +16,7 @@ const isAbort = (error) => error?.name === "AbortError";
 
 // What a tool receives: the handle table, the services, the user interface of the panel, the abort signal, the counters of the
 // run and the two guards every write goes through.
-export function createContext({ services, ui = {}, signal = new AbortController().signal, limits = LIMITS, now = () => new Date().toISOString(), log = null, runId = crypto.randomUUID() }) {
+export function createContext({ services, ui = {}, signal = new AbortController().signal, limits = LIMITS, now = () => new Date().toISOString(), log = null, runId = crypto.randomUUID(), skills = {} }) {
   // listed: file handle -> { name, folder, kind } of every file that list_inbox showed.
   // routes: file handle -> the answered question that sent the file to a client (ask_user), so that it is never asked twice.
   // fileStatus: file handle -> waiting | extracted | filed. extractions: file handle -> { tries, records } (the fact store).
@@ -28,7 +29,7 @@ export function createContext({ services, ui = {}, signal = new AbortController(
     extractions: new Map(), extractCount: 0, extractSlots: createSemaphore(limits.parallelExtractions ?? LIMITS.parallelExtractions), addedEntries: [], factsUsed: new Set(), addedFacts: new Map(), prepared: new Map(), clientMatches: new Map(),
   };
   return {
-    handles: createHandles(), services, ui, signal, run, limits, log,
+    handles: createHandles(), services, ui, signal, run, limits, log, skills,
     today: () => new Date(now()),
     // The table is copied once per run and declaration before the agent first writes to it; no copy, no write.
     async ensureCopy(clientId, month) {
@@ -51,17 +52,17 @@ export function createContext({ services, ui = {}, signal = new AbortController(
 }
 
 // model: { step({ system, contents, tools, signal }) -> { parts, finishReason?, blockReason?, usage?, model? } }
-// registry: createRegistry(...). services: the only way for a tool to reach data (services.js). ui: { ask(card, { signal }),
+// skills: { name: version } of the skills in `system`, written into every row and into the run log. registry: createRegistry(...). services: the only way for a tool to reach data (services.js). ui: { ask(card, { signal }),
 // propose(proposal) } supplied by the panel. onEvent receives every log entry when it is written; onProgress({ type: "turn" | "call" | "done", ... })
 // is told when a model turn or a tool call starts and when a call has ended (the progress line of the panel).
 // Resolves with { status, text?, error?, reason?, turns, toolCalls, questions, runId, log };
 // status: completed | cancelled | limit_reached | failed | blocked.
 export async function runAgent({
   model, system, registry, message, services, ui = {}, signal = new AbortController().signal, limits = LIMITS,
-  now = () => new Date().toISOString(), clock = () => Date.now(), sleep = defaultSleep, runId = crypto.randomUUID(), onEvent, onProgress,
+  now = () => new Date().toISOString(), clock = () => Date.now(), sleep = defaultSleep, runId = crypto.randomUUID(), onEvent, onProgress, skills = {},
 }) {
-  const log = createRunLog({ runId, now, onEvent });
-  const ctx = createContext({ services, ui, signal, limits, now, log, runId });
+  const log = createRunLog({ runId, now, onEvent, header: { agent: { version: AGENT_VERSION, skills } } });
+  const ctx = createContext({ services, ui, signal, limits, now, log, runId, skills });
   const { run } = ctx;
   const deadline = clock() + limits.minutes * 60_000;
 

@@ -2,7 +2,6 @@
 // stores them is the tool; this file only builds the request and reads the answer. It sends the one file named, nothing else.
 import { RECORD_SCHEMA } from "../fact-record.js";
 import { MODELS } from "../models.js";
-import { EXTRACTION_PROMPT } from "../prompts.js";
 import { toGeminiSchema } from "../schema.js";
 
 export const INLINE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf"];
@@ -49,8 +48,10 @@ async function browserShrink(file, maxBytes) {
   throw new ExtractionError("too_large", "The photo is too large to send even after shrinking it.");
 }
 
-// client: createModelClient(...). readText(file): the text layer of a PDF (optional, best effort).
-export function createExtractionAdapter({ client, models = MODELS, readText = null, shrinkImage = browserShrink, today = () => new Date() }) {
+// client: createModelClient(...). prompt: the text of the skill invoice-extraction (agent/skills.js). readText(file): the text layer of a PDF
+// (optional, best effort).
+export function createExtractionAdapter({ client, prompt, models = MODELS, readText = null, shrinkImage = browserShrink, today = () => new Date() }) {
+  if (typeof prompt !== "string" || !prompt.trim()) throw new Error("The extraction adapter needs the text of the skill invoice-extraction.");
   return {
     // entry: the index entry (type, name); file: its File. Resolves with { records, model, usage }.
     async run(entry, file, { hint = "", strong = false, signal } = {}) {
@@ -73,7 +74,7 @@ export function createExtractionAdapter({ client, models = MODELS, readText = nu
       const answer = await client.generate({
         model,
         request: {
-          systemInstruction: { parts: [{ text: EXTRACTION_PROMPT }] },
+          systemInstruction: { parts: [{ text: prompt }] },
           contents: [{ role: "user", parts: [{ text: note }, { inlineData: { mimeType: type, data: toBase64(bytes) } }] }],
           generationConfig: { temperature: EXTRACTION_TEMPERATURE, maxOutputTokens: MAX_OUTPUT_TOKENS, responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA },
         },

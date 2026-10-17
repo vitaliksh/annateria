@@ -7,6 +7,7 @@ import { addToInbox } from "../inbox-store.js";
 import { readRules } from "../rules-store.js";
 import { file, tableRow, toolContext } from "./agent-fixtures.mjs";
 import { binaryDirectory, putFile } from "./memory-binary-directory.mjs";
+import { orchestratorInstruction } from "./skills-fixture.mjs";
 
 test("get_client_context: profile, declarations with their state, the last locked month, the client's own chart", async () => {
   const { dispatch, client } = await toolContext();
@@ -235,9 +236,10 @@ test("a proposal names the row by its number, even when the row shares its docum
 });
 
 test("the instruction has the agent read import files and name the wizard of the menu, and never extract a spreadsheet (4.7.1)", async () => {
-  const { ORCHESTRATOR_PROMPT, AGENT_VERSION } = await import("../agent/prompts.js");
+  const { AGENT_VERSION } = await import("../agent/prompts.js");
+  const ORCHESTRATOR_PROMPT = await orchestratorInstruction();
   const { default: listInbox } = await import("../agent/tools/list-inbox.js");
-  assert.equal(AGENT_VERSION, "stand-in-2026-10-17n");
+  assert.equal(AGENT_VERSION, "base-2026-10-17o");
   assert.ok(ORCHESTRATOR_PROMPT.includes("read every spreadsheet, and every PDF that does not look like an invoice"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("with read_document, and never extract a spreadsheet with the vision model"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("say plainly when you cannot tell what a file is"));
@@ -250,7 +252,7 @@ test("the instruction has the agent read import files and name the wizard of the
 });
 
 test("the instruction tells the model what the user can and cannot do: no handles, no apply button, row numbers, both amounts", async () => {
-  const { ORCHESTRATOR_PROMPT } = await import("../agent/prompts.js");
+  const ORCHESTRATOR_PROMPT = await orchestratorInstruction();
   const { default: proposeChange } = await import("../agent/tools/propose-change.js");
   const { default: queryRows } = await import("../agent/tools/query-rows.js");
   assert.match(ORCHESTRATOR_PROMPT, /by its number/);
@@ -273,7 +275,7 @@ test("the instruction tells the model what the user can and cannot do: no handle
 });
 
 test("the instruction sends a journal to prepare_import and never lets the model say that something was imported (4.7.2)", async () => {
-  const { ORCHESTRATOR_PROMPT } = await import("../agent/prompts.js");
+  const ORCHESTRATOR_PROMPT = await orchestratorInstruction();
   const { default: prepareImport } = await import("../agent/tools/prepare-import.js");
   assert.ok(ORCHESTRATOR_PROMPT.includes("is prepared with prepare_import, kind journal"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("you import nothing, the user opens the wizard, so never say that a file was imported"));
@@ -286,7 +288,7 @@ test("the instruction sends a journal to prepare_import and never lets the model
 });
 
 test("the instruction asks which client with choose_client and gives no buttons of its own", async () => {
-  const { ORCHESTRATOR_PROMPT } = await import("../agent/prompts.js");
+  const ORCHESTRATOR_PROMPT = await orchestratorInstruction();
   const { default: askUser } = await import("../agent/tools/ask-user.js");
   assert.ok(ORCHESTRATOR_PROMPT.includes("with choose_client true, about.files listing all of them"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("give no options (a question about the client with buttons of your own is refused): the code shows the names of the clients as buttons"));
@@ -296,14 +298,14 @@ test("the instruction asks which client with choose_client and gives no buttons 
 });
 
 test("the instruction sends a classification-codes ledger to prepare_import (4.7.3)", async () => {
-  const { ORCHESTRATOR_PROMPT } = await import("../agent/prompts.js");
+  const ORCHESTRATOR_PROMPT = await orchestratorInstruction();
   assert.ok(ORCHESTRATOR_PROMPT.includes('a classification-codes ledger ("כרטסת קודי מיון", PDF or .xlsx'));
   assert.ok(ORCHESTRATOR_PROMPT.includes("with kind ledger_codes"));
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /classification-codes ledger is opened from the client card/);
 });
 
 test("the instruction sends an operations ledger and an income report to prepare_import (4.7.4, 4.7.5)", async () => {
-  const { ORCHESTRATOR_PROMPT } = await import("../agent/prompts.js");
+  const ORCHESTRATOR_PROMPT = await orchestratorInstruction();
   assert.ok(ORCHESTRATOR_PROMPT.includes('an operations ledger ("כרטסת" with dated movements per account, PDF or .xlsx) with kind ledger_check'));
   assert.ok(ORCHESTRATOR_PROMPT.includes('a periodic income report of morning ("דיווח הכנסות תקופתי", PDF) with kind income_report'));
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /cannot be prepared yet/);
@@ -311,6 +313,6 @@ test("the instruction sends an operations ledger and an income report to prepare
 });
 
 test("the instruction says to warn first when a ledger is probably of another client", async () => {
-  const { ORCHESTRATOR_PROMPT } = await import("../agent/prompts.js");
+  const ORCHESTRATOR_PROMPT = await orchestratorInstruction();
   assert.ok(ORCHESTRATOR_PROMPT.includes("If its problems include maybe_other_client, say first that the ledger is probably of another client"));
 });

@@ -4,7 +4,7 @@ import { createExtractionAdapter } from "./agent/adapters/extraction.js";
 import { createDocumentReader } from "./agent/adapters/documents.js";
 import { createDefaultRegistry, createGeminiModel, createServices, runAgent, writeRunLog } from "./agent/index.js";
 import { MODELS } from "./agent/models.js";
-import { ORCHESTRATOR_PROMPT } from "./agent/prompts.js";
+import { SkillsUnavailableError, fetchSkillFromSite, instructionFor, loadSkills, skillVersions } from "./agent/skills.js";
 import { MODEL_MESSAGES } from "./model-client.js";
 
 const PREVIOUS_ANSWER_CHARS = 2000;
@@ -37,6 +37,9 @@ const LIMIT_TEXT = { turns: "הריצה הגיעה למספר הצעדים המ�
 
 // { kind: "assistant" | "note" | "error", text } for the end of a run.
 export function resultNote(result) {
+  if (result.code === "skills_unavailable") {
+    return { kind: "error", text: `הריצה לא התחילה: לא ניתן לטעון את כללי העבודה (${(result.missing ?? []).map((item) => item.name).join(", ")}). יש לרענן את הדף (Ctrl+F5) ולנסות שוב.` };
+  }
   switch (result.status) {
     case "completed": return { kind: "assistant", text: result.truncated ? `${result.text}\n(התשובה נקטעה)` : result.text };
     case "cancelled": return { kind: "note", text: "הריצה הופסקה." };
@@ -47,19 +50,27 @@ export function resultNote(result) {
 }
 
 // modelClient: createModelClient(...). getClients(), getDataRoot(), getLiveTable(): see agent/services.js. getModels(): the model of each role.
-export function createAssistantFlow({ modelClient, getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), getModels = () => MODELS, system = ORCHESTRATOR_PROMPT, now, reader = createDocumentReader(), onDeclarationCreated }) {
+export function createAssistantFlow({ modelClient, getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), getModels = () => MODELS, fetchSkill = fetchSkillFromSite, now, reader = createDocumentReader(), onDeclarationCreated }) {
   const readText = async (file) => (await reader.inspect(file, { type: "application/pdf", storedName: file.name || "file.pdf" }, { maxChars: TEXT_LAYER_CHARS })).text ?? "";
   const registry = createDefaultRegistry();
 
   return {
-    // Resolves with the result of the loop; `logError` is set when the run log could not be written.
+    // Resolves with the result of the loop; `logError` is set when the run log could not be written. The skills are read first, from the site,
+    // for every run; if one cannot be read nothing starts and the result is failed with code skills_unavailable and `missing`.
     async run({ message, ui, signal, onEvent, onProgress }) {
+      let skills;
+      try {
+        skills = await loadSkills(fetchSkill);
+      } catch (error) {
+        const missing = error instanceof SkillsUnavailableError ? error.missing : [{ name: "?", reason: error?.message ?? String(error) }];
+        return { status: "failed", code: "skills_unavailable", error: error?.message, missing, turns: 0, toolCalls: 0, questions: 0 };
+      }
       // The models are looked up for every run: the user may have changed them in the settings.
       const models = getModels();
-      const extraction = createExtractionAdapter({ client: modelClient, models, readText });
+      const extraction = createExtractionAdapter({ client: modelClient, prompt: instructionFor("extraction", skills), models, readText });
       const services = createServices({ getDataRoot, getClients, getLiveTable, builtInChart, reserved, documents: reader, extraction, onDeclarationCreated });
       const model = createGeminiModel({ client: modelClient, model: models.orchestrator });
-      const result = await runAgent({ model, system, registry, message, services, ui, signal, onEvent, onProgress, ...(now ? { now } : {}) });
+      const result = await runAgent({ model, system: instructionFor("orchestrator", skills), skills: skillVersions(skills), registry, message, services, ui, signal, onEvent, onProgress, ...(now ? { now } : {}) });
       try {
         await writeRunLog(getDataRoot(), result.log);
       } catch (error) {

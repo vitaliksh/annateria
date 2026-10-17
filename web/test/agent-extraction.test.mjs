@@ -4,12 +4,14 @@ import assert from "node:assert/strict";
 import { INLINE_TYPES, MAX_INLINE_BYTES, RESPONSE_SCHEMA, createExtractionAdapter, ExtractionError, toBase64 } from "../agent/adapters/extraction.js";
 import { normalizeRecord, RECORD_SCHEMA } from "../agent/fact-record.js";
 import { MODELS } from "../agent/models.js";
-import { EXTRACTION_PROMPT } from "../agent/prompts.js";
+import { extractionInstruction } from "./skills-fixture.mjs";
 import { createSemaphore } from "../agent/semaphore.js";
 import { validate } from "../agent/schema.js";
 import { entryFromRow, intakeFacts } from "../intake-facts.js";
 import { addToInbox } from "../inbox-store.js";
 import { abortError, file, modelError, rawRecord, scriptedExtraction, toolContext } from "./agent-fixtures.mjs";
+
+const EXTRACTION_PROMPT = await extractionInstruction();
 
 const answers = (...records) => ({ records });
 
@@ -321,7 +323,7 @@ const fileOf = (name, content, type) => new File([content], name, { type });
 
 test("the adapter sends one file with the extraction instruction and a response schema, and returns the raw records", async () => {
   const client = stubClient({ documents: [rawRecord()] });
-  const adapter = createExtractionAdapter({ client, today: () => new Date("2026-10-16T09:00:00Z") });
+  const adapter = createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client, today: () => new Date("2026-10-16T09:00:00Z") });
   const bytes = new Uint8Array([0, 1, 2, 250, 255]);
   const signal = new AbortController().signal;
   const result = await adapter.run(entry("a.jpg", "image/jpeg"), fileOf("a.jpg", bytes, "image/jpeg"), { hint: "a fuel receipt", signal });
@@ -349,15 +351,15 @@ test("the response schema is the record schema in the Gemini shape, nullable fie
 
 test("the adapter adds the text layer of a PDF, cut to 12000 characters, and survives a reader that fails", async () => {
   const client = stubClient({ documents: [] });
-  const withText = createExtractionAdapter({ client, readText: async () => "Ω".repeat(20000) });
+  const withText = createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client, readText: async () => "Ω".repeat(20000) });
   await withText.run(entry("a.pdf", "application/pdf"), fileOf("a.pdf", "pdf"), {});
   const text = client.sent[0].request.contents[0].parts[0].text;
   assert.match(text, /Text layer of the PDF/);
   assert.equal(text.split("Ω").length - 1, 12000);
-  const failing = createExtractionAdapter({ client, readText: async () => { throw new Error("no text"); } });
+  const failing = createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client, readText: async () => { throw new Error("no text"); } });
   await failing.run(entry("a.pdf", "application/pdf"), fileOf("a.pdf", "pdf"), {});
   assert.doesNotMatch(client.sent[1].request.contents[0].parts[0].text, /Text layer/);
-  const photo = createExtractionAdapter({ client, readText: async () => "never" });
+  const photo = createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client, readText: async () => "never" });
   await photo.run(entry("a.jpg", "image/jpeg"), fileOf("a.jpg", "x"), {});
   assert.doesNotMatch(client.sent[2].request.contents[0].parts[0].text, /Text layer/);
 });
@@ -365,7 +367,7 @@ test("the adapter adds the text layer of a PDF, cut to 12000 characters, and sur
 test("the adapter refuses what the model cannot read, shrinks a large photo, and says when the answer is not JSON", async () => {
   const client = stubClient({ documents: [] });
   const shrunk = [];
-  const adapter = createExtractionAdapter({ client, shrinkImage: async (source, limit) => { shrunk.push(limit); return new Uint8Array([1, 2, 3]); } });
+  const adapter = createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client, shrinkImage: async (source, limit) => { shrunk.push(limit); return new Uint8Array([1, 2, 3]); } });
   await assert.rejects(() => adapter.run(entry("a.txt", "application/octet-stream"), fileOf("a.txt", "x"), {}), (error) => error instanceof ExtractionError && error.code === "unsupported_type");
   assert.deepEqual(INLINE_TYPES.includes("image/heic"), true);
   const big = new Uint8Array(MAX_INLINE_BYTES + 1);
@@ -375,14 +377,14 @@ test("the adapter refuses what the model cannot read, shrinks a large photo, and
   assert.deepEqual(shrunk, [MAX_INLINE_BYTES]);
   assert.deepEqual(client.sent.at(-1).request.contents[0].parts[1], { inlineData: { mimeType: "image/jpeg", data: "AQID" } });
   for (const body of ["not json", "", "{"]) {
-    await assert.rejects(() => createExtractionAdapter({ client: stubClient(body) }).run(entry("a.jpg", "image/jpeg"), fileOf("a.jpg", "x"), {}), (error) => error.code === "bad_answer");
+    await assert.rejects(() => createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client: stubClient(body) }).run(entry("a.jpg", "image/jpeg"), fileOf("a.jpg", "x"), {}), (error) => error.code === "bad_answer");
   }
-  assert.deepEqual((await createExtractionAdapter({ client: stubClient({ other: 1 }) }).run(entry("a.jpg", "image/jpeg"), fileOf("a.jpg", "x"), {})).records, []);
+  assert.deepEqual((await createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client: stubClient({ other: 1 }) }).run(entry("a.jpg", "image/jpeg"), fileOf("a.jpg", "x"), {})).records, []);
 });
 
 test("the adapter ignores thought parts of the answer and reads the JSON text", async () => {
   const client = stubClient("", { parts: [{ text: "I think...", thought: true }, { text: JSON.stringify({ documents: [rawRecord()] }) }] });
-  const result = await createExtractionAdapter({ client }).run(entry("a.jpg", "image/jpeg"), fileOf("a.jpg", "x"), {});
+  const result = await createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client }).run(entry("a.jpg", "image/jpeg"), fileOf("a.jpg", "x"), {});
   assert.equal(result.records.length, 1);
 });
 

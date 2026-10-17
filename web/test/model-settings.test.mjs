@@ -11,6 +11,7 @@ import { setupModelSettings } from "../model-settings-ui.js";
 import { normaliseUiSettings, readUiSettings, saveUiSettings } from "../ui-settings.js";
 import { call, rawRecord, recordingUi, world } from "./agent-fixtures.mjs";
 import { memoryDirectory } from "./memory-directory.mjs";
+import { diskFetch } from "./skills-fixture.mjs";
 
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "index.html"), "utf8");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 10));
@@ -119,7 +120,7 @@ test("the flow asks for the models of every run: a change in the settings reache
       return { candidates: [{ content: { parts } }] };
     },
   };
-  const flow = createAssistantFlow({ modelClient, getDataRoot: () => w.root, getClients: () => w.clients, getModels: () => models });
+  const flow = createAssistantFlow({ modelClient, getDataRoot: () => w.root, getClients: () => w.clients, getModels: () => models, fetchSkill: diskFetch });
   const run = () => flow.run({ message: "x", ui: recordingUi(), signal: new AbortController().signal });
   assert.equal((await run()).status, "completed");
   models = { orchestrator: "gemini-3.5-flash-lite", extraction: "gemini-3.6-flash", strong: MODELS.strong };

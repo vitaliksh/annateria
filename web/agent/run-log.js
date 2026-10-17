@@ -7,7 +7,8 @@ export const shorten = (value) => {
   return text.length > SHORT ? `${text.slice(0, SHORT)}…` : text;
 };
 
-export function createRunLog({ runId, now, onEvent = () => {} }) {
+// header: what the file says about the run besides its entries (the version of the instruction and of each skill).
+export function createRunLog({ runId, now, onEvent = () => {}, header = {} }) {
   const entries = [];
   return {
     runId,
@@ -17,7 +18,7 @@ export function createRunLog({ runId, now, onEvent = () => {} }) {
       entries.push(stamped);
       try { onEvent(stamped); } catch { /* a faulty listener must not stop the run */ }
     },
-    toJSON: () => ({ runId, entries }),
+    toJSON: () => ({ runId, ...header, entries }),
   };
 }
 

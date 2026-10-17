@@ -2,10 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { MODEL_MESSAGES } from "../model-client.js";
 import { MODELS } from "../agent/models.js";
-import { EXTRACTION_PROMPT, ORCHESTRATOR_PROMPT } from "../agent/prompts.js";
 import { QUICK_MESSAGES, buildMessage, createAssistantFlow, resultNote } from "../assistant-flow.js";
 import { call, rawRecord, recordingUi, world } from "./agent-fixtures.mjs";
 import { listPaths, readFileBytes } from "./memory-binary-directory.mjs";
+import { diskFetch, extractionInstruction, orchestratorInstruction } from "./skills-fixture.mjs";
 
 test("a quick request is the fixed text with the date; a typed one carries the words of the user and the last answer", () => {
   assert.equal(buildMessage({ kind: "process", today: "2026-10-16" }), `Today is 2026-10-16.\n\n${QUICK_MESSAGES.process}`);
@@ -63,14 +63,14 @@ test("a run through the flow: the orchestrator model, the tools and the extracti
       (request) => [{ text: `Found ${lastResponse(request, "extract_document").documents.length} document.` }],
     ],
   });
-  const flow = createAssistantFlow({ modelClient, getDataRoot: () => w.root, getClients: () => w.clients });
+  const flow = createAssistantFlow({ modelClient, getDataRoot: () => w.root, getClients: () => w.clients, fetchSkill: diskFetch });
   const result = await flow.run({ message: "process", ui: recordingUi(), signal: new AbortController().signal, onProgress: (event) => progress.push(event) });
   assert.deepEqual([result.status, result.text, result.toolCalls], ["completed", "Found 1 document.", 2]);
   const [first, second, extraction, last] = modelClient.requests;
   assert.deepEqual([first.model, second.model, extraction.model, last.model], [MODELS.orchestrator, MODELS.orchestrator, MODELS.extraction, MODELS.orchestrator]);
-  assert.deepEqual(first.request.systemInstruction, { parts: [{ text: ORCHESTRATOR_PROMPT }] });
+  assert.deepEqual(first.request.systemInstruction, { parts: [{ text: await orchestratorInstruction() }] });
   assert.equal(first.request.tools[0].functionDeclarations.length, 12);
-  assert.deepEqual(extraction.request.systemInstruction, { parts: [{ text: EXTRACTION_PROMPT }] });
+  assert.deepEqual(extraction.request.systemInstruction, { parts: [{ text: await extractionInstruction() }] });
   const sent = extraction.request.contents[0].parts[1].inlineData;
   assert.deepEqual([sent.mimeType, sent.data], ["image/jpeg", Buffer.from("jpeg-bytes").toString("base64")], "the real file of the inbox goes to the vision call");
   assert.deepEqual(progress.filter((event) => event.type === "call").map((event) => event.name), ["list_inbox", "extract_document"]);
@@ -84,7 +84,7 @@ test("a run that fails still returns its result, and a run log that cannot be wr
   const w = await world();
   w.root.state.failures.push({ match: /\.json$/, name: "NotAllowedError", times: 1 });
   const busy = Object.assign(new Error("busy"), { name: "ModelError", code: "busy" });
-  const flow = createAssistantFlow({ modelClient: { generate: async () => { throw busy; } }, getDataRoot: () => w.root, getClients: () => w.clients });
+  const flow = createAssistantFlow({ modelClient: { generate: async () => { throw busy; } }, getDataRoot: () => w.root, getClients: () => w.clients, fetchSkill: diskFetch });
   const result = await flow.run({ message: "x", ui: recordingUi(), signal: new AbortController().signal });
   assert.deepEqual([result.status, result.code], ["failed", "busy"]);
   assert.equal(typeof result.logError, "string");
@@ -96,7 +96,7 @@ test("the text layer of a PDF found by the document reader is sent along with th
   const modelClient = geminiStub({
     steps: [() => [call("list_inbox", { kind: "pdf" })], (request) => [call("extract_document", { file: lastResponse(request, "list_inbox").files[0].file })], () => [{ text: "done" }]],
   });
-  const flow = createAssistantFlow({ modelClient, getDataRoot: () => w.root, getClients: () => w.clients, reader });
+  const flow = createAssistantFlow({ modelClient, getDataRoot: () => w.root, getClients: () => w.clients, reader, fetchSkill: diskFetch });
   assert.equal((await flow.run({ message: "x", ui: recordingUi(), signal: new AbortController().signal })).status, "completed");
   const note = modelClient.requests.find((item) => item.request.generationConfig.responseMimeType).request.contents[0].parts[0].text;
   assert.ok(note.includes("Text layer of the PDF") && note.endsWith("TEXT LAYER OF THE POLICY"), note);

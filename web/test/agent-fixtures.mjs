@@ -123,11 +123,11 @@ export const rawRecord = (overrides = {}) => ({
 });
 
 // A context for calling tools directly: dispatch(name, args), client(name) -> handle, files() -> { name: handle }.
-export async function toolContext({ answers, limits, ...worldOptions } = {}) {
+export async function toolContext({ answers, limits, skills, ...worldOptions } = {}) {
   const w = await world(worldOptions);
   const ui = recordingUi({ answers });
   const base = createContext({ services: w.services });
-  const ctx = createContext({ services: w.services, ui, limits: { ...base.limits, ...limits }, now: () => "2026-10-16T09:00:00.000Z" });
+  const ctx = createContext({ services: w.services, ui, limits: { ...base.limits, ...limits }, now: () => "2026-10-16T09:00:00.000Z", ...(skills ? { skills } : {}) });
   const registry = createDefaultRegistry();
   const dispatch = (name, args = {}) => registry.dispatch({ name, args }, ctx);
   const client = async (name) => (await dispatch("find_client", { name })).matches[0].client;

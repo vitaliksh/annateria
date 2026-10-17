@@ -15,6 +15,9 @@ the page at the user's click on a question card, and the rule is bound to one an
 remember the buyer printed on its documents for the chosen client; the page keeps it in `clients/<client>/aliases.json`, and the
 code accepts it as routing proof (`add_rows` `routed_by: "alias"`, `find_client` `match: "alias"`).
 
+**Amendment of 17 October 2026 (step 5.1):** the rules of the work moved out of `web/agent/prompts.js` into `web/skills/<name>/SKILL.md`; see
+section 2, "Skills". The tools, their count (14) and their contracts did not change.
+
 What this document fixes: the run, the conventions every tool follows, the facts that extraction returns, and for each
 tool its inputs, outputs, validation, effects and what it may never do. What it leaves to later steps: the Hebrew
 wording of prompts and skills (phase 5), the panel layout (4.3), the exact model ids (phase 3).
@@ -72,11 +75,31 @@ row or file (each write is atomic per row or file); then the loop stops and the 
 failed. Whatever was written stays and is editable. Two refusals by the model's safety filter end the run with a message.
 
 **Run log.** The code writes `common/agent-runs/<runId>.json` in the data root: tool names, arguments, short results,
-timings, model ids, skill versions. No images, no document text beyond the fact fields. It is local only (the backup
+timings, model ids, and in its header the version of the instruction and of each skill (`agent.version`, `agent.skills`). No images, no document text beyond the fact fields. It is local only (the backup
 copies it with the rest of the root). It is how a wrong row is explained and how a run is reproduced.
 
-**Skills.** The orchestrator's system prompt is the base prompt, the skills (phase 5) and the client's `rules.md`. The
-skill version is stored in every row the agent writes (`agent.skillVersion`).
+**Skills** (step 5.1). The rules of the work live in `web/skills/<name>/SKILL.md`, in the Agent Skills format: frontmatter with `name` (the
+folder name: lowercase letters, digits, single hyphens), `description` and `metadata.version` (a positive integer), then the text. The list is
+closed in `agent/skills.js` (a file that is not on it is never loaded). Today: `invoice-extraction` (the instruction of the vision call of
+`extract_document`, and of nothing else), `classification` and `periods-and-duplicates` (the orchestrator). `pcn-allocation` and
+`month-closing-checklist` are created when they get content (5.2, 6.2).
+
+- *What the model is told.* The orchestrator's system instruction is the base prompt (`agent/prompts.js`: role, tools, routing proof to a
+  client, imports, talking to the user, rules of a client) followed by the whole text of its skills. There is no `read_skill` tool: all
+  skills go in whole, and the tool count stays 14. The rules of the client (`rules.md`) reach the model through `get_client_context`, not
+  through the instruction.
+- *Loading.* At the start of every run the page fetches each file from its own site (`skills/<name>/SKILL.md`, `cache: "no-cache"`, so a
+  new deployment reaches the next run and Ctrl+F5 refreshes the page's own scripts). If any file cannot be fetched or does not parse, the
+  run does not start: the result is `failed` with `code: "skills_unavailable"`, the dock shows an error naming the skill, no model is
+  called and no run log is written. There is no running on part of the rules.
+- *Versions.* Every row the agent writes stores `agent.skills` (name → version) next to `agent.version` (`AGENT_VERSION`, the version of the
+  base prompt); the run log carries both in its header. A change of the text of a skill raises its `metadata.version`: `test/skills.test.mjs`
+  keeps a hash of every file (`test/fixtures/skill-hashes.json`) and fails when the text changed and the version did not.
+- *Tests.* The tests read the files from disk (`test/skills-fixture.mjs`). One test holds the prompts as they were before 5.1
+  (`test/fixtures/legacy-prompts.json`) and checks that the extraction skill equals the old extraction prompt word for word and that the
+  orchestrator's instruction still contains every paragraph and sentence of the old one; step 5.2 rewrites the rules and removes it.
+- *Agent Skills format outside the app.* The files can also be used by Claude Code or Codex for debugging. Note that `metadata.version` is an
+  integer here, while the open specification describes metadata values as strings.
 
 ## 3. Conventions for every tool
 

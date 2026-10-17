@@ -1,0 +1,14 @@
+{
+  "classification": {
+    "version": 1,
+    "sha256": "3165ae0e866acf4e2aef51326f56d35ad7612f93a3b1677938770ee49393b839"
+  },
+  "invoice-extraction": {
+    "version": 1,
+    "sha256": "4f4a4132fb112370161bc02172942d06eb225fc1ac857d2bcf22e11a18211a4d"
+  },
+  "periods-and-duplicates": {
+    "version": 1,
+    "sha256": "dcebde8e3428bfdf7fa5809c1962efc0bfaa5859ee4e93dd94253d179c9ace37"
+  }
+}

@@ -17,7 +17,7 @@ specification for 4.2 onwards; a change to it needs the owner's approval.
 
 **Done:** steps 4.1 to **4.4** (the agent reads, checks, adds rows, files the originals, and its proposals can be applied); 4.5 (routing) is built with 4.4. **Next, for the
 owner:** the same run as before, now with files: put a document of a client into "תיבת קלט" (best in the folder of that client), press "בדוק מסמכים חדשים" or "בדוק עם העוזר", and look at
-the table: a row, its status, its original (the PDF button), and the cards. **Next step:** block 4.7 (all imports through the inbox; 4.7.1 to 4.7.3 accepted; 4.7.1 to 4.7.3, 4.7.5 and 4.7.6 accepted; 4.7.4 waits for one run of the operations ledger with the right client), then 4.6 client memory in two steps: **4.6.1 rules (pushed 17 October: a ticked rule is written by the page, `remember_rule` removed, the rules dialog of the client card)**, **4.6.2 the confirmed alias (built 17 October, not pushed: `aliases.json`, `routed_by alias`)**, then phase 5 (skills and eval). The
+the table: a row, its status, its original (the PDF button), and the cards. **Next step:** block 4.7 (all imports through the inbox; 4.7.1 to 4.7.3 accepted; 4.7.1 to 4.7.3, 4.7.5 and 4.7.6 accepted; 4.7.4 waits for one run of the operations ledger with the right client), then 4.6 client memory in two steps: **4.6.1 rules (pushed 17 October: a ticked rule is written by the page, `remember_rule` removed, the rules dialog of the client card)**, **4.6.2 the confirmed alias (pushed 17 October, accepted: `aliases.json`, `routed_by alias`)**, then phase 5 (skills and eval): **5.1 skill layout built 17 October (see "Step 5.1" below)**. The
 owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (the Cloudflare plan now matters: see "General check of 16 October"): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
@@ -80,7 +80,9 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
 - **Agent (phase 4):** `web/agent/`: `run.js` (the loop, `createContext`), `registry.js` (closed list of tools, dispatch, result envelope), `schema.js` (argument check and
   the Gemini declaration from one schema), `handles.js`, `limits.js`, `run-log.js`, `gemini.js` (the model of the loop over `model-client.js`), `services.js` (the only way for
   a tool to reach data), `tools/` (nine so far: `list_inbox`, `read_document`, `extract_document`, `find_client`, `get_client_context`, `query_rows`, `facts_for`, `ask_user`, `propose_change`),
-  `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `web/assistant-ui.js` (the dock), `web/assistant-flow.js` (runs the agent for the dock), `assistant.css`, `web/model-settings-ui.js` (the model selects of the settings), `fact-record.js`, `prompts.js`, `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
+  `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `web/assistant-ui.js` (the dock), `web/assistant-flow.js` (runs the agent for the dock), `assistant.css`, `web/model-settings-ui.js` (the model selects of the settings), `fact-record.js`, `prompts.js` (the base prompt and `AGENT_VERSION`), `skills.js` (parse, load and assemble the skills), `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
+- **Skills (5.1):** `web/skills/<name>/SKILL.md` (three so far), `web/agent/skills.js`; tests `test/skills.test.mjs`, helper `test/skills-fixture.mjs`, ledger
+  `test/fixtures/skill-hashes.json`, the old prompts `test/fixtures/legacy-prompts.json` (removed with 5.2).
 - **Rows of the agent (4.4):** `row-builder.js` (the row from a fact and a decision), `proposal-apply.js` (the apply button), `agent/facts.js`, `agent/answers.js`; the page side is
   `appendSnapshots`, `setRowImage`, `attachRowImages`, `openPdf`, `proposalOps` in `app.js`.
 - **Client memory (4.6):** `rules-store.js` (`readRules` for the agent; `appendRule` and `saveRules` for the page only), `rule-text.js` (pure: the cleaned text of a
@@ -269,6 +271,26 @@ chosen client. **Changed existing code:** `agent/services.js` (read-only `client
 `agent/tools/get-client-context.js` (`aliases`), `agent/tools/add-rows.js` (`verifyRouting` async, `alias`), `agent/tools/ask-user.js` (the offer,
 `alias_saved`), `assistant-ui.js` (the box, `onRememberAlias`, hint `alias`), `client-rules-ui.js` (the list), `app.js`, `index.html`, `agent/prompts.js`,
 `package.json` (check). **Not verified:** a real run with Gemini; the look of the box and the list on the published page.
+
+### Step 5.1 (17 October 2026): the skills
+
+The rules moved out of `agent/prompts.js` without a changed word (`docs/AGENT_TOOLS.md`, section 2, "Skills"). `web/skills/invoice-extraction` is the old
+extraction prompt, word for word; `classification` holds the decision rules of the orchestrator (what a document is for the books, the
+account of the chart, `decision`, `needs_review`, the reason); `periods-and-duplicates` holds the paragraph "THE SOFTWARE COMPUTES, YOU DECIDE" and the
+sentences on the month, duplicates, previous years, recognition percentages and `month_override`. `BASE_PROMPT` keeps the mechanics. Choices made:
+(1) **each skill goes to the model call it is meant for**, not all into the orchestrator: `invoice-extraction` is the system instruction of
+the vision call only, because it says "you only read; you never classify" and the orchestrator never sees pixels; (2) the paragraph "THE SOFTWARE COMPUTES, YOU DECIDE"
+was cut in two: the computing sentence went to `periods-and-duplicates`, "What you decide is…" to `classification`; (3) three short glue sentences are
+new text (a lead-in in `classification`, the heading of each skill in the assembled instruction, one sentence in the base prompt that points to
+the skills where the deciding sentence used to be). `AGENT_VERSION` is `base-2026-10-17o`. **Changed existing code:** `agent/prompts.js`
+(`EXTRACTION_PROMPT` and `ORCHESTRATOR_PROMPT` are gone, `BASE_PROMPT` is new), `agent/adapters/extraction.js` (`createExtractionAdapter` takes `prompt`,
+required), `assistant-flow.js` (loads the skills first; the option `system` became `fetchSkill`; `resultNote` knows `skills_unavailable`), `agent/run.js`
+(`skills` option, kept in the context and in the run log header), `agent/run-log.js` (`header`), `agent/tools/add-rows.js` (`agent.skills`),
+`package.json` (check), and the tests that read the old prompts. Nothing in `app.js` or the page changed. **Not verified:** the dock showing the
+error (the real `runAssistant` needs a data root and a Worker; the message text is tested, and the flow was run in a real browser against a
+local static server: three files loaded with status 200, and with one file removed the run did not start and no model was called); a run with real Gemini
+after the move (the text is the same, but the order of the paragraphs in the instruction changed: the skills now follow the base prompt); the deployed
+site serving `.md` files (GitHub Pages is expected to; checked after the push).
 
 ### General check of 16 October 2026 (before the first PDFs)
 

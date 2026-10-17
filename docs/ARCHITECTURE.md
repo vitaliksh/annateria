@@ -6,7 +6,7 @@ What exists today is marked **now**; everything else is planned in `WORK_PLAN.md
 
 | Component | Responsibility | Client data |
 | --- | --- | --- |
-| GitHub Pages, `web/` (**now**) | Hebrew UI, local files, journal, reports, backup, transfer. Skills and prompts will be served from here too | None stored |
+| GitHub Pages, `web/` (**now**) | Hebrew UI, local files, journal, reports, backup, transfer. Skills (`skills/*/SKILL.md`) and prompts are served from here too | None stored |
 | Cloudflare Worker, `worker/` (**now: `/health`, `/v1/auth`, `/v1/model`**) | Access code to a 12-hour token and lock-out (1.1); constrained Gemini proxy with model allow-list, size and output limits (1.2) | None; bodies are not logged |
 | Data root on each PC (**now**) | Clients, declarations, images, history, reports, `rules.md` (planned) | Yes, local only |
 | Google Drive shared folder (planned, phase 7) | Encrypted write-once store (packs, snapshots) and baton files | Encrypted only |
@@ -16,7 +16,7 @@ GitHub Pages: web/            (Ctrl+F5 updates UI, skills and prompts)
  ├─ journal, clients, reports        (now, ported from ocr)
  ├─ intake: drop zone → inbox/       (now: dialog "תיבת קלט", no AI)
  ├─ assistant panel: orchestrator → tools (JS) → data root   (loop and 11 tools in web/agent/, the dock in assistant-ui.js, rows through row-builder.js)
- └─ skills/*/SKILL.md                (phase 5)
+ └─ skills/*/SKILL.md                (now: 3 skills, fetched at the start of every run; a missing one stops the run)
         │  6-character access code → short-lived token, kept in page memory only
 Cloudflare Worker: worker/    stateless Gemini proxy
         │
