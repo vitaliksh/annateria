@@ -131,7 +131,10 @@ test("extract_document: spreadsheets, unknown handles, a file handle used as a f
   const extraction = scriptedExtraction([answers(rawRecord()), answers(rawRecord())]);
   const { dispatch, files } = await toolContext({ extraction, limits: { extractions: 1 } });
   const handles = await files();
-  assert.equal((await dispatch("extract_document", { file: handles["journal.xlsx"] })).error.code, "not_allowed");
+  const refused = await dispatch("extract_document", { file: handles["journal.xlsx"] });
+  assert.equal(refused.error.code, "not_allowed");
+  assert.match(refused.error.message, /read_document/);
+  assert.doesNotMatch(refused.error.message, /Excel import/);
   assert.equal((await dispatch("extract_document", { file: "F99" })).error.code, "not_found");
   assert.equal((await dispatch("extract_document", { file: handles["photo.jpg"] })).ok, true);
   assert.equal((await dispatch("extract_document", { file: handles["policy.pdf"] })).error.code, "limit_reached");

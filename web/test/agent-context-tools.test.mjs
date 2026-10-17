@@ -1,6 +1,7 @@
 // get_client_context, query_rows and read_document (docs/AGENT_TOOLS.md, 5.1) on real stores in memory.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import * as XLSX from "xlsx";
 import { createDocumentReader } from "../agent/adapters/documents.js";
 import { addToInbox } from "../inbox-store.js";
@@ -232,6 +233,28 @@ test("a proposal names the row by its number, even when the row shares its docum
   const result = await dispatch("propose_change", { client: cohen, title: "t", changes: [{ row: rows[2].row, field: "include", value: "false", reason: "אפסים" }] });
   assert.equal(result.ok, true);
   assert.deepEqual(ui.proposals[0].changes.map((change) => [change.position, change.documentId, change.month]), [[3, "split", "2026-09"]]);
+});
+
+test("the instruction has the agent read import files and name the wizard of the menu, and never extract a spreadsheet (4.7.1)", async () => {
+  const { ORCHESTRATOR_PROMPT, AGENT_VERSION } = await import("../agent/prompts.js");
+  const { default: listInbox } = await import("../agent/tools/list-inbox.js");
+  assert.equal(AGENT_VERSION, "stand-in-2026-10-17d");
+  assert.ok(ORCHESTRATOR_PROMPT.includes("read every spreadsheet, and every PDF that does not look like an invoice"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("with read_document, and never extract a spreadsheet with the vision model"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("say plainly when you cannot tell what a file is"));
+  assert.doesNotMatch(ORCHESTRATOR_PROMPT, /ignore spreadsheets|tell the user to use the Excel import/);
+  for (const name of ["יומן קליטה", "כרטסת קודי מיון", "כרטסת", "דיווח הכנסות תקופתי"]) assert.ok(ORCHESTRATOR_PROMPT.includes(name), name);
+  // The labels the agent quotes are the labels of the menu in index.html; a renamed button must change the instruction too.
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const menu = html.match(/<details[^>]*id="add-documents-menu">([\s\S]*?)<\/details>/)[1];
+  const summary = menu.match(/<summary[^>]*>([^<]+)<\/summary>/)[1];
+  assert.ok(ORCHESTRATOR_PROMPT.includes(`menu "${summary}"`));
+  for (const id of ["import-excel", "check-ledger", "import-income-report"]) {
+    const label = menu.match(new RegExp(`id="${id}"[^>]*>([^<]+)</button>`))[1];
+    assert.ok(ORCHESTRATOR_PROMPT.includes(`"${label}"`), `${id}: ${label}`);
+  }
+  assert.doesNotMatch(listInbox.description, /not processed by the agent/);
+  assert.match(listInbox.description, /never read with the vision model/);
 });
 
 test("the instruction tells the model what the user can and cannot do: no handles, no apply button, row numbers, both amounts", async () => {

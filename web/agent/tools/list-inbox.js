@@ -5,7 +5,7 @@ const PAGE_BYTES = 15000;
 
 export default {
   name: "list_inbox",
-  description: "List the files waiting in the inbox: handle, name, folder (a client folder or _unsorted), kind, size, source date, and the state in this run. Spreadsheets are listed but not processed by the agent.",
+  description: "List the files waiting in the inbox: handle, name, folder (a client folder or _unsorted), kind, size, source date, and the state in this run. Spreadsheets are listed; they are never read with the vision model (use read_document).",
   schema: {
     type: "object",
     properties: {
@@ -33,7 +33,7 @@ export default {
       const kind = kindOf(entry);
       const row = {
         file: handle, name: entry.name, folder: entry.folder, kind, size_kb: Math.max(1, Math.round(entry.size / 1024)),
-        source_date: entry.sourceDate, added_at: entry.addedAt, status, ...(kind === "spreadsheet" ? { note: "use the Excel import" } : {}),
+        source_date: entry.sourceDate, added_at: entry.addedAt, status, ...(kind === "spreadsheet" ? { note: "spreadsheet: not extracted; read it with read_document to see what it is" } : {}),
       };
       size += JSON.stringify(row).length;
       if (files.length && size > PAGE_BYTES) break;

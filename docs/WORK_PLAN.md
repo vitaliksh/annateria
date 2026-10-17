@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status: **plan agreed 16 October 2026; phases 0, 1 and 2 done (steps 0.1–2.4); phase 4 started (4.1 to 4.4 done; 4.5 is built with 4.4, to be confirmed); phase 3 in the backlog.** This file is the single source of truth for what is
+Status: **plan agreed 16 October 2026; phases 0, 1 and 2 done (steps 0.1–2.4); phase 4 started (4.1 to 4.4 done; 4.5 is built with 4.4, to be confirmed; block 4.7 "all imports through the inbox" added 17 October, before 4.6); phase 3 in the backlog.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -169,6 +169,52 @@ Goal: "בדוק מסמכים חדשים" turns the inbox into reviewed-ready row
   *Done when (phase):* on the published page, a synthetic month of ~20 documents goes from inbox to rows with
   questions answered by buttons; a second run of a similar month asks fewer questions.
 
+### Block 4.7 — All imports through the inbox (added 17 October 2026; agreed to come before 4.6)
+
+Goal: the menu "ייבוא ובדיקות" (`#add-documents-menu`: income report PDF, Excel journal import, check against a ledger; the
+ledger-codes dialog opens from the client card) goes away, and every one of its functions is reached from the inbox. The owner
+drops the file; the agent reads a bounded sample with `read_document`, recognises what it is (Rivhit journal "יומן קליטה",
+classification-codes ledger "כרטסת קודי מיון", operations ledger "כרטסת", periodic income report "דיווח הכנסות תקופתי", or
+something unsupported), decides client and month, and calls **`prepare_import`**, which only parses and checks. The user sees a
+card with the summary and a button "פתח אשף" that opens the **existing** wizard with that file preloaded. **The agent never
+writes and never sums**; the wizards keep their own steps and their own copies before writing. The original leaves the inbox for
+`clients/<client>/imports/` only after the wizard wrote successfully (hash verified), by page code. Contract:
+`docs/AGENT_TOOLS.md` section 5.6 (one tool with `kind`; the form waits for the owner's confirmation, question 11). One step, one
+commit, the owner's "yes" between steps.
+
+- [ ] **4.7.1 Contract, and the agent reads and names import files** (no new tool). `docs/AGENT_TOOLS.md` section 5.6, principle row,
+  sections 6 to 11; `list_inbox` stops saying "use the Excel import" (neutral note); the orchestrator instruction tells the agent to
+  read each spreadsheet and each PDF that does not look like an invoice with `read_document`, never to extract a spreadsheet with the
+  vision model, and to say in the summary what each file appears to be and which wizard of the menu "ייבוא ובדיקות" to use for now.
+  *Done when:* the owner approves the contract, including question 11 (one tool with `kind`); the tests of the changed note and
+  instruction and the documented tool count (15) are green; **a real run by the owner** with a journal, a codes ledger, an income
+  report and an invoice in the inbox: the summary names each file correctly and points to the right menu item (not verified until then).
+- [ ] **4.7.2 `prepare_import` for `journal`.** The tool in the registry (`PENDING_TOOLS` loses it), one `services` operation that
+  runs `prepareImport` read-only, the card with the button, the Excel-import wizard opened with the file from the inbox, and the
+  filing of the original into `clients/<client>/imports/` after the wizard's commit (copy, read back, compare hash, drop the index
+  entry, remove the file; the hash of an import original also counts as "already seen" for the inbox's duplicate check).
+  *Done when:* tests with a scripted model: a valid journal fixture gives a card with counts and the file tree is byte-equal; a
+  wrong file gives `wrong_format` with the parser's message; an unproven client gives `not_allowed`; no parsed row, name or amount is
+  in the model-facing result; a click opens the wizard with the file; after the wizard's commit the original is in `imports/` with an
+  equal hash and gone from the inbox; a closed or failed wizard leaves the file and the card. Static check: no tool file imports a
+  commit function. Then the owner takes one real journal from the inbox to a written month.
+- [ ] **4.7.3 `kind: ledger_codes`** (classification-codes ledger, PDF or `.xlsx`; `prepareLedger`; the ledger-codes dialog).
+  *Done when:* the same list as 4.7.2 for this kind, plus the dialog that also opens from the client card still works unchanged; the
+  owner takes one real ledger through the card.
+- [ ] **4.7.4 `kind: ledger_check`** (operations ledger against the declarations; `prepareReconcile`; the check dialog).
+  *Done when:* the same list; the card says how many operations matched and how many did not, from code; the owner checks one real
+  ledger.
+- [ ] **4.7.5 `kind: income_report`** (periodic income report PDF; `readIncomeReportFile`; the income-report import). The PDF is told
+  apart from an invoice by `read_document`, never by the vision model.
+  *Done when:* the same list; a real income report is recognised, prepared and imported through the card.
+- [ ] **4.7.6 Remove the menu.** Delete `#add-documents-menu` and the buttons that only it holds (`#import-income-report`,
+  `#import-excel`, `#check-ledger`) from `index.html` and `app.js`; the wizards stay and are opened only from the cards (and the
+  ledger-codes dialog from the client card); the empty-table button that opens the menu (`data-open-menu="add-documents-menu"`)
+  points to the inbox instead (a change of existing interface text: ask before editing the wording).
+  *Done when:* no reference to the menu is left (`git grep`); a test lists the four kinds and the wizard each one opens; the owner has
+  done each of the four through the inbox once on the published page; tests and `npm run check` green; README and HANDOFF say that
+  imports go through the inbox.
+
 ## Phase 5 — Skills content and evaluation
 
 Goal: Anna's rules live in skills, are tested, and update with Ctrl+F5.
@@ -271,3 +317,4 @@ model behind the same proxy.
 | 2026-10-17 | **Third real run (owner, the 5 files that the race had left): the run log and the data read, structure only.** Run: 6 files listed, 5 read and filed (3 rows in 01/2026, 2 in 02/2026, each with its picture: the race fix works), the sixth was a stale index entry of a file that is gone (`extract_document` and `read_document` failed) and the agent still wrote "all processed". **The 4 invoices the owner misses are not lost by a bug:** the first run of that day filed 5 originals into 01, 02 and 03/2026; the owner then deleted those months (option 1 of the repair proposal), and with a month its images and rows go; the 5 files that were still in the inbox are the ones of this run. The 5th, the stale entry, is the "1 document left". **Fixes:** (1) `reconcileInbox` drops index entries whose file is gone (called when the inbox counts are read, and by `addToInbox` before it looks for duplicates, so the same bytes can be added again); the counts are re-read after every run. (2) The run itself reports the files it showed and did not file (`result.left`, only when it did some work on files; spreadsheets apart): the panel adds a note "נשארו בתיבת הקלט N קבצים שלא טופלו: …", whatever the model wrote; the instruction forbids "all processed" unless every file was filed. (3) `extract_document` says "listed in the inbox but not in its folder any more" (`not_found`) for a missing file. `AGENT_VERSION` `stand-in-2026-10-17c`. **Not reproduced:** "after the panel is minimized the table must grow back": measured in a real browser with a 40-row table, the workspace is 665 px with the panel closed, 297 px with it open and 665 px again after the minimize button; if the owner still sees it, a screenshot is needed. Web 686 tests. **Not verified:** the reconcile in a real data folder. |
 | 2026-10-17 | **Owner feedback after the fourth run: two items.** (1) *Enter in a table cell made a new line:* the text cells of the table (`contenteditable`) now end the edit on Enter, like the number fields did before (`records` keydown handler in `app.js`; Shift+Enter too, a cell never holds two lines). (2) *The agent asked "to whom does this invoice belong" again in a new run:* nothing is remembered between runs (a question is remembered only inside one run), and a file in `_unsorted` has no proof of its client. **Done now:** the inbox dialog offers the client that is open in the journal as the folder of the new files (`getOpenFolder`), so a file added while a client is open lies in the folder of that client and needs no question (the select is visible and can be changed; with no client open, or a client without an inbox folder here, it stays as before). **Not done, proposed for 4.6 (needs the owner\'s decision):** a confirmed alias, for example the buyer name printed on the document, saved with the client (`rules.md` or a small structured file) when the user ticks "remember" on the routing question; the code would then accept the alias as proof like the folder. A name match alone stays no proof until the user has confirmed it once. Web 688 tests. **Not verified:** the Enter key in a real browser (jsdom has no real contenteditable focus; the test checks that the key is intercepted and `blur()` is called). |
 | 2026-10-17 | **The menu "+ הוספת מסמכים" is renamed "ייבוא ובדיקות"** (owner: it looks redundant now that documents come in through the inbox). Its three items stay, because the inbox cannot do them: the Excel import (spreadsheets are refused by the inbox), the old income report PDF import (its own path, not the agent) and the check against the ledger. Only the label changed. |
+| 2026-10-17 | **Block 4.7 planned: all imports go through the inbox, driven by the agent (owner's approval of the principle).** The menu "ייבוא ובדיקות" is to be removed at the end (4.7.6); the Excel journal import, the classification-codes ledger, the ledger check and the income-report PDF are reached from cards that the agent leaves in the panel. Agreed design: the agent may read a bounded sample of the file with `read_document` (the sample goes to Gemini on the paid tier, like invoices), recognises what it is, and calls **`prepare_import`**, a read-only tool (parse and check with the existing preparers, counts and check results back to the model, never rows or amounts); the card has a button "פתח אשף" that opens the existing wizard with the file; the wizard keeps its steps and its own copies before writing; the original moves to `clients/<client>/imports/` after the wizard's successful write (hash verified, page code, not a tool). **Awaiting the owner:** the form "one tool with `kind`" (15 tools in all) instead of four `prepare_*` tools (18); recommendation: one tool (`docs/AGENT_TOOLS.md` question 11). Order: 4.7 before 4.6. **Unit 1 done (4.7.1, docs and a small code change):** contract section 5.6 and sections 1, 3, 5, 6, 7, 8, 9, 10, 11 of `AGENT_TOOLS.md`; `list_inbox` has a neutral note for spreadsheets, `extract_document` points to `read_document`, the instruction names the files and the wizard of the menu to use for now (`AGENT_VERSION` `stand-in-2026-10-17d`); `PENDING_TOOLS` lists `prepare_import` and the documented count is 15. Web 689 tests. **Not verified:** a real run with import files in the inbox (4.7.1 stays unchecked until then). |

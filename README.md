@@ -29,7 +29,7 @@ Excel import and the income-report PDF import. Next: phase 2 (inbox) and phase 3
 
 ```powershell
 py -m http.server 8000 --directory web      # open http://127.0.0.1:8000, pick a COPY of a data folder
-cd web;    npm ci; npm test; npm run check  # 688 tests
+cd web;    npm ci; npm test; npm run check  # 689 tests
 cd worker; npm ci; npm test; npm run check  # 54 tests (check = wrangler dry run)
 ```
 

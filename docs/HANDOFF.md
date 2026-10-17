@@ -17,7 +17,7 @@ specification for 4.2 onwards; a change to it needs the owner's approval.
 
 **Done:** steps 4.1 to **4.4** (the agent reads, checks, adds rows, files the originals, and its proposals can be applied); 4.5 (routing) is built with 4.4. **Next, for the
 owner:** the same run as before, now with files: put a document of a client into "תיבת קלט" (best in the folder of that client), press "בדוק מסמכים חדשים" or "בדוק עם העוזר", and look at
-the table: a row, its status, its original (the PDF button), and the cards. **Next step:** 4.6 client memory (`remember_rule`, `rules.md`), then phase 5 (skills and eval). The
+the table: a row, its status, its original (the PDF button), and the cards. **Next step:** block 4.7 (all imports through the inbox; 4.7.1 is in progress, waiting for the owner's "yes" on the contract), then 4.6 client memory (`remember_rule`, `rules.md`), then phase 5 (skills and eval). The
 owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (the Cloudflare plan now matters: see "General check of 16 October"): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
@@ -54,7 +54,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 688 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 689 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -216,6 +216,19 @@ made**, and no code in `app.js` starts it. Decisions on the way:
 - **Filing is safe by order:** copy and read back, then the rows get the image, then the entry leaves the index, then the file is removed from the inbox. A failure before the last step leaves the original in the inbox. The same bytes can no longer be added again: they are now a duplicate of an image of the declaration.
 - **Real data check, on a scratch copy outside the repository** (deleted after): see the decision log of 17 October. The scripts live in the session scratchpad, not in the repository; the row builder parity check (read only) compared percentages and amounts of 27 real rows and found no difference.
 - **Contract deviations to approve:** `docs/AGENT_TOOLS.md` is unchanged; the code differs from it in four points (decision log, 17 October). `docs/AGENT_TOOLS.md` should be amended once the owner approves them.
+
+### Block 4.7, unit 1 (17 October 2026): all imports through the inbox
+
+The owner wants the menu "ייבוא ובדיקות" gone and its functions reached from the inbox, with the agent choosing the tool. Design: `docs/AGENT_TOOLS.md`
+section 5.6 (`prepare_import`, read-only, one tool with `kind`; the user opens the existing wizard from a card; the page files the original into
+`clients/<client>/imports/` after the wizard wrote). Steps: `WORK_PLAN.md` 4.7.1 to 4.7.6. **Built so far (4.7.1, no new tool):** `list_inbox` gives a spreadsheet the
+neutral note "spreadsheet: not extracted; read it with read_document to see what it is" (before: "use the Excel import"), `extract_document` refuses a spreadsheet with a message
+that points to `read_document`, and the orchestrator instruction (`AGENT_VERSION` `stand-in-2026-10-17d`) tells the agent to read each spreadsheet and each PDF that does not
+look like an invoice with `read_document` and to say in the summary what each file appears to be and which wizard of the menu to use for now. A test compares the menu labels
+quoted by the instruction with `index.html`. **Changed existing code (as `AGENTS.md` asks to list):** the three strings above and the instruction text; no behaviour of the loop,
+the registry or the wizards. **Not verified:** a real run with a journal, a codes ledger, an operations ledger, an income report and an invoice in the inbox (does Gemini name each
+file correctly and quote the right menu item?); what `read_document` returns for a real Rivhit workbook and a real ledger PDF (only synthetic fixtures were read in tests). The file
+`prepared` by the agent will hold counts only; the sample that `read_document` returns for recognition goes to Gemini on the paid tier like an invoice does (section 7 of the contract).
 
 ### General check of 16 October 2026 (before the first PDFs)
 

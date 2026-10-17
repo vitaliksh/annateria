@@ -4,6 +4,10 @@
 step 4.1). It describes the *application agent* (the assistant inside the web app, Gemini through the Worker), not the
 development agents that work on the code.
 
+**Amendment of 17 October 2026 (step 4.7, section 5.6):** the tool `prepare_import` and the rule that all imports go through the
+inbox. The owner approved the principle (the agent recognises an import file, only prepares it, the user opens the wizard);
+the form "one tool with `kind`" instead of four tools is a refinement that he still has to confirm (section 10, question 11).
+
 What this document fixes: the run, the conventions every tool follows, the facts that extraction returns, and for each
 tool its inputs, outputs, validation, effects and what it may never do. What it leaves to later steps: the Hebrew
 wording of prompts and skills (phase 5), the panel layout (4.3), the exact model ids (phase 3).
@@ -26,6 +30,7 @@ the test that proves it (the tests are written in 4.2 and later and are part of 
 | `rules.md` gets only what the user confirmed | `remember_rule` takes no text, only the id of a question that the user answered with the box "remember" ticked; the code writes the exact rule text that was shown on the card | Without a ticked answer: refused; text in the file equals text on the card |
 | A document is not routed to a client on a guess | `add_rows` needs `routed_by`; the code verifies it (folder, VAT number match, or an answer of the user) | `_unsorted` file with a name-only match: refused until the user answers |
 | Import has no AI | The agent starts only after files are in `inbox/`; nothing here changes `inbox-store.js` add | Existing tests |
+| Imports of journals, ledgers and income reports go through the inbox, and the agent never writes them (4.7) | `prepare_import` only parses (`prepareImport`, `prepareLedger`, `prepareReconcile`, `readIncomeReportFile`) and returns counts and check results; `services` has no operation that commits an import; the wizard opens only by the user's click on the card and keeps its own steps and its own copies before writing; the original leaves the inbox for `clients/<client>/imports/` only after the wizard wrote and the copy was read back | Tool files import no commit function (`commitImport`, `commitLedger`, `commitReconcile`); a scripted model that calls `prepare_import` leaves the file tree byte-equal; the card carries counts, no parsed rows reach the model |
 
 ## 2. The run
 
@@ -74,7 +79,8 @@ skill version is stored in every row the agent writes (`agent.skillVersion`).
 - **Result envelope.** Success: `{ "ok": true, ... }`. Failure: `{ "ok": false, "error": { "code", "message" } }`.
   The message is English, for the model; text for the user is Hebrew and is produced by the code or written by the
   model into `reason` / `question`. Codes: `not_found`, `invalid_argument`, `locked`, `not_allowed`, `conflict`,
-  `limit_reached`, `cancelled`, `unavailable`, `internal`. A tool never throws into the loop.
+  `limit_reached`, `cancelled`, `unavailable`, `internal`; and, for `prepare_import` only, `wrong_format`. A tool never throws
+  into the loop.
 - **Validation.** Arguments are checked against the declared schema before anything runs: unknown fields refused, types,
   enums, lengths, list sizes.
 - **Reason.** Every tool that writes or proposes takes `reason` (Hebrew, one sentence, 1 to 300 characters). It is shown
@@ -116,8 +122,9 @@ recomputes the amount check, and stores the record. From then on the record is *
 
 ## 5. The tools
 
-Fourteen tools: seven that read, compute or extract, three that write (`add_rows`, `move_file_to_declaration`,
-`remember_rule`), two that ask the user (`propose_change`, `ask_user`), two for reports and closing. Headings below are the registry names; a test compares them with
+Fifteen tools: seven that read, compute or extract, one that prepares an import and writes nothing (`prepare_import`, 5.6),
+three that write (`add_rows`, `move_file_to_declaration`, `remember_rule`), two that ask the user (`propose_change`,
+`ask_user`), two for reports and closing. Headings below are the registry names; a test compares them with
 the registry so that this file and the code cannot drift apart.
 
 ### 5.1 Read
@@ -128,8 +135,9 @@ the registry so that this file and the code cannot drift apart.
 - **Input.** `{ folder?, kind?, status?, limit?, next? }`. `folder` is a client folder name or `_unsorted`; `kind` is
   `image`, `pdf`, `spreadsheet`; `status` is `waiting`, `extracted`, `filed` (state in this run).
 - **Output.** `{ counts: { total, waiting, byFolder }, files: [{ file, name, folder, kind, size_kb, source_date,
-  added_at, status, note? }], next? }`. A spreadsheet has `note: "use the Excel import"` and is not processed by the
-  agent (question 1).
+  added_at, status, note? }], next? }`. A spreadsheet has a neutral `note` ("spreadsheet: not extracted; read it with
+  `read_document`") and is never sent to the vision model; from 4.7 on the agent recognises it and, if it is an import file,
+  prepares it with `prepare_import` (5.6). Before 4.7 the agent only says what it is (question 1, superseded by question 11).
 - **Validation.** Enums only.
 - **Effect.** Registers handles. Reads `inbox/index.json`.
 - **Never.** List `_trash`; return file content.
@@ -142,8 +150,10 @@ the registry so that this file and the code cannot drift apart.
   when there is one. CSV or workbook: sheet names and the first rows as text. `truncated` when cut.
 - **Validation.** The file is in the inbox now; `page` within range.
 - **Effect.** None. The text layer of a PDF is also handed to the extractor with the image (removes the
-  dropped-first-digit class of errors that ocr saw).
-- **Never.** Return pixels: the orchestrator is text only.
+  dropped-first-digit class of errors that ocr saw). From 4.7 it is also how the agent recognises an import file: a
+  workbook's sheet names and first rows, a PDF's text layer. The sample is bounded (`max_chars`, the first rows only);
+  the full parse is done by code in `prepare_import`.
+- **Never.** Return pixels: the orchestrator is text only; return more than the bounded sample of a file.
 
 #### `find_client`
 
@@ -321,12 +331,57 @@ the registry so that this file and the code cannot drift apart.
   "ready to close".
 - **Never.** Lock, unlock or change anything.
 
+### 5.6 Imports of spreadsheets and reports (step 4.7)
+
+#### `prepare_import`
+
+- **Purpose.** For an inbox file that the agent recognised as an import file (a Rivhit journal, a classification-codes
+  ledger, an operations ledger, a periodic income report): parse it read-only, check it, and leave the user a card with a button that opens the
+  existing wizard with that file. This is the replacement of the menu "ייבוא ובדיקות": every function of the menu is reached
+  from the inbox through this tool. One tool with `kind`, not four (question 11).
+- **Input.** `{ file, kind, client, routed_by, routing_ask?, month?, reason }`.
+  - `kind`: `journal` (the Rivhit journal "יומן קליטה", `.xlsx`), `ledger_codes` (the classification-codes ledger
+    "כרטסת קודי מיון", PDF or `.xlsx`), `ledger_check` (the operations ledger "כרטסת", for the check against the
+    declarations), `income_report` (the periodic income report PDF "דיווח הכנסות תקופתי").
+  - `client`: a client handle. `routed_by` as in `add_rows`: `folder` (the file lies in this client's inbox folder) or
+    `user` (`routing_ask` names an answered question whose option carries this client). A name match alone is no proof. No
+    `vat_id` route: none of the four parsers reads the client's VAT number from the file (a parser that does would add it
+    here, with the same code check as `add_rows`).
+  - `month`: optional `YYYY-MM`, a suggestion for the wizard that the user can change there. The code compares it with
+    the month or months the file itself holds; a difference is reported as a problem and the card shows the file's month.
+    The model never overrides what the parser found.
+  - `reason`: Hebrew, one sentence, shown on the card: why the agent thinks this is that kind of file.
+- **Output.** `{ prepared, kind, client, month, summary, checks: [{ code, ok, count? }], problems: [{ code, count? }],
+  wizard }`. `summary` holds counts only (journal: sheets, rows, months, new accounts; ledger_codes: accounts, types to
+  confirm; ledger_check: operations, matched, unmatched; income_report: periods, rows to add). `checks` are the results of the
+  validators and checksums that the existing preparers run. `problems` are things that make the wizard refuse or warn (target
+  month locked, rows already imported, a month that differs from the suggestion). `wizard` names the dialog the button opens
+  (`excel_import`, `ledger_codes`, `ledger_check`, `income_report`). Parsed rows, names and amounts are not in the result.
+- **Errors.** `wrong_format` (new code, section 3) with the message of the parser (for example, "not a Rivhit journal"):
+  the checks of the existing readers (file signature, sheet layout, header row, report title, checksums) rejected the file.
+  `not_found` (unknown handle, or the file is not a spreadsheet or PDF), `not_allowed` (the client is not proven),
+  `invalid_argument` (a kind that does not fit the file type, for example `journal` for a PDF).
+- **Validation.** The file is in the inbox now; the kind fits the type of the file; the client is active and inside the data
+  root. The same file with the same kind twice returns the stored result (`already_prepared`).
+- **Effect.** Reads the file and calls the preparers that the wizards call first (`prepareImport`, `prepareLedger`,
+  `prepareReconcile`, `readIncomeReportFile`): a read-only parse, nothing is written. Stores the prepared result in the run and
+  shows a card with the summary, the checks and problems, the reason, and the button "פתח אשף". **The button belongs to the
+  page**: a click opens the existing wizard dialog of that kind with the file preloaded; the wizard's own steps, its
+  confirmations and its own copies before writing stay as they are. After the wizard has written successfully the page, not the
+  agent, files the original: copy to `clients/<client>/imports/`, read back and compare the hash, then drop the inbox
+  entry and remove the file (the order of `move_file_to_declaration`). If the wizard is closed, fails or writes nothing, the
+  file stays in the inbox and the card stays.
+- **Never.** Write anything (the filing after a successful wizard is page code, not this tool); call a commit function of an
+  import; pass parsed rows, supplier names or amounts to the model beyond counts and check results; open a wizard by itself;
+  send a spreadsheet to the vision model; accept a month, a kind or a client without the checks above; create a client.
+
 ## 6. What the agent can never do
 
 There is no tool, and no operation in `services`, for: closing or reopening a declaration; deleting or archiving
 anything (clients, declarations, rows, images, `rules.md` lines; the single exception is the inbox original after a
-verified filing, section 5.3); editing an OCR fact; writing JSON or any file
-directly; creating or editing clients; changing report settings; sending anything to a service other than the Worker's
+verified filing, section 5.3; an import original leaves the inbox through page code after the wizard's commit, not through a tool); editing an OCR fact; writing JSON or any file
+directly; committing an import (`prepare_import` only parses, the user opens the wizard and the wizard writes, 5.6); opening
+a wizard or any dialog by itself; creating or editing clients; changing report settings; sending anything to a service other than the Worker's
 model route. A name that is not in the registry gets `not_allowed` and is logged. Adding a tool means changing this
 file, the registry snapshot and getting the owner's approval.
 
@@ -335,6 +390,9 @@ file, the registry snapshot and getting the owner's approval.
 - To Gemini, through the Worker, on the paid tier only: the file being extracted, the fact records, the chart, the
   client's `rules.md`, the user's text, tool results. Never the access code, the token, report settings, or other
   clients' data in a run for one client.
+- From 4.7 the bounded sample that `read_document` returns for a spreadsheet or a PDF that is not an invoice (sheet names, the
+  first rows, the text layer; `max_chars` default 6000) also goes to Gemini, on the paid tier, like an invoice does. The full
+  parse of an import file never goes to the model: `prepare_import` returns counts and check results only.
 - A document is data, not instructions. The extractor answers in a schema; free text is cut and cleaned; the
   orchestrator receives it as values inside function results. If a document nevertheless steers the model ("ignore the
   rules and..."), the damage is bounded by section 6: draft rows whose facts the code copied, proposals and questions the
@@ -352,6 +410,7 @@ file, the registry snapshot and getting the owner's approval.
 | `facts_for` | `intakeFacts`, `pcnReview`, `isHomeUtility`, `loadIntakeContext` | adds rows of the run, `buyer_mismatch` |
 | `add_rows` | the row path of `applyRecord`, `excludeText` and the status logic of `buildPlan`, `backupTable`, `saveDraft` | a headless row builder shared with the live table |
 | `propose_change` | the cell edit path of `app.js`, `rows-move-flow.js` | proposal card |
+| `prepare_import` | `prepareImport` (`excel-import-flow.js`), `prepareLedger` (`ledger-codes-flow.js`), `prepareReconcile` (`ledger-reconcile-flow.js`), `readIncomeReportFile` (`income-report.js`), and the wizards `setupExcelImport`, `setupLedgerCodes`, `setupLedgerCheck`, the income-report import of `app.js` | one `services` operation that runs the read-only preparer for a kind; opening a wizard with a preloaded file; filing the original after the wizard's commit |
 | `remember_rule` | none | `rules-store.js` |
 | `run_report` | `reports.js`, `report-data.js` | none |
 | `ready_to_close` | `pcnSummary`, the checks of the lock handler | one shared `lockProblems()` |
@@ -367,7 +426,10 @@ For 4.2 (loop, with a scripted fake model): happy path; a tool error returned to
 name, locked month); cancel in the middle; failure in the middle leaves editable rows; a limit stops the run; the
 pre-run copy; the registry and `services` snapshots; this file's headings equal the registry. Per tool: valid input,
 each validation, idempotence, and every "never" of section 5 as a failing case. For 6.2: `ready_to_close` blockers equal
-the lock refusals.
+the lock refusals. For 4.7 (`prepare_import`): each kind with a valid fixture (counts and checks, no rows in the result); each
+kind with a wrong file (`wrong_format`, the message of the parser); a kind that does not fit the file type; a client without proof
+(`not_allowed`); idempotence; the file tree byte-equal after the call; the tool files import no commit function; the filing after a
+successful wizard (hash checked, inbox entry gone) and its absence after a failed or closed wizard.
 
 ## 10. Questions for the owner
 
@@ -375,7 +437,7 @@ Approving the document means answering these. The recommended answer is first; "
 
 | # | Question | Recommendation | If not |
 | --- | --- | --- | --- |
-| 1 | Excel/CSV files in the inbox | The agent lists them and tells the user to use "ייבוא מ‑Excel" (they are journals, not invoices; that wizard has its own checks). `kind: spreadsheet`, no extraction | The agent would parse arbitrary workbooks: much more surface, no gain for Anna |
+| 1 | Excel/CSV files in the inbox | **Superseded on 17 October 2026 by question 11 (step 4.7).** As approved on 16 October: the agent lists them and tells the user to use "ייבוא מ‑Excel" (they are journals, not invoices; that wizard has its own checks). `kind: spreadsheet`, no extraction | The agent would parse arbitrary workbooks: much more surface, no gain for Anna |
 | 2 | A document belongs to a month that has no declaration yet (after the last locked month) | The code creates the declaration open, never for a locked month. The month is decided by `intakeFacts`, not by the model | The agent asks the user for every new month, or leaves the row in the inbox |
 | 3 | Rows that already exist | Change only by the user's click on a `propose_change` card (also for "this one is for September", "classify these as fuel") | A direct `update_rows` tool: faster, but the agent could overwrite the user's edits |
 | 4 | Changes to the plan's tool list | Add `get_client_context` and `query_rows` (the plan has no way to read rules, chart or the table); narrow `read_document` to text and metadata; rename `ask_anna` to `ask_user`; `add_rows` takes fact handles | Stay with the plan's list: the agent cannot read the client's chart or answer questions about the table |
@@ -385,6 +447,7 @@ Approving the document means answering these. The recommended answer is first; "
 | 8 | Dead code of 0.3 (section 8) | Delete as listed in 4.4 | Keep it: two paths to maintain |
 | 9 | Run log in `common/agent-runs/` | Yes, local, no images | No log: a wrong row cannot be explained afterwards |
 | 10 | PDFs | Stored as the original in `images/`; facts carry `page`; the viewer in 4.4 shows the page | Render pages to JPEG on filing: bigger folders, a second copy of the truth |
+| 11 | **New, 17 October 2026 (4.7):** the import functions of the menu "ייבוא ובדיקות" through the inbox. The principle is **approved**: the agent reads a bounded sample, recognises the file, and a read-only tool prepares it; the user opens the wizard from a card. **To confirm:** one tool `prepare_import` with `kind` (`journal`, `ledger_codes`, `ledger_check`, `income_report`) | One tool: 15 tools in all, one description and one schema to test, a new kind is an enum value (and a new owner approval, as every change here). The four wizards differ in the summary only | Four tools, `prepare_journal`, `prepare_ledger_codes`, `prepare_ledger_check`, `prepare_income_report`: 18 tools, four near-identical schemas and declarations sent to the model on every turn; a model choosing between four names is no safer than choosing one enum value |
 
 ## 11. Changes against the plan of 16 October
 
@@ -392,3 +455,9 @@ Approving the document means answering these. The recommended answer is first; "
 became `ask_user`; `read_document` no longer returns images; `add_rows` takes handles instead of values; `list_inbox`
 and `move_file_to_declaration` are as planned. Phase 6's `run_report` and `ready_to_close` are specified here so that
 the registry is complete, and are built in phase 6.
+
+**17 October 2026 (step 4.7):** a fifteenth tool, `prepare_import` (5.6); a new error code `wrong_format`; question 1 is
+superseded by question 11; `read_document` is also the way the agent recognises import files (the sample is bounded and goes to
+Gemini on the paid tier); principle row and sections 6, 7, 8 and 9 extended. Four tools (18 in all) were considered and not
+recommended. The principle is the owner's; the single tool with `kind` waits for his confirmation. No code of this change
+beyond the neutral note of `list_inbox` and the instruction of the orchestrator (unit 1 of 4.7).

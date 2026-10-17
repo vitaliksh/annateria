@@ -22,7 +22,9 @@ test("list_inbox: counts, kinds, the note on spreadsheets, stable handles", asyn
   assert.deepEqual(first.counts, { total: 3, waiting: 3, byFolder: { Levi: 2, _unsorted: 1 } });
   const byName = Object.fromEntries(first.files.map((file) => [file.name, file]));
   assert.deepEqual([byName["photo.jpg"].kind, byName["policy.pdf"].kind, byName["journal.xlsx"].kind], ["image", "pdf", "spreadsheet"]);
-  assert.equal(byName["journal.xlsx"].note, "use the Excel import");
+  assert.equal(byName["journal.xlsx"].note, "spreadsheet: not extracted; read it with read_document to see what it is");
+  assert.doesNotMatch(byName["journal.xlsx"].note, /Excel import/, "the note no longer sends the user to a menu");
+  assert.equal(byName["policy.pdf"].note, undefined);
   assert.equal(byName["photo.jpg"].folder, "_unsorted");
   assert.deepEqual(Object.keys(byName["photo.jpg"]).sort(), ["added_at", "file", "folder", "kind", "name", "size_kb", "source_date", "status"]);
   assert.match(byName["photo.jpg"].file, /^F[1-9]$/);

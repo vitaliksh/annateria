@@ -23,7 +23,7 @@ const BUILT_TOOLS = [
   "read_document",
 ];
 // Tools of docs/AGENT_TOOLS.md that no step has built yet. Each step that builds one moves it to BUILT_TOOLS.
-const PENDING_TOOLS = ["ready_to_close", "remember_rule", "run_report"];
+const PENDING_TOOLS = ["prepare_import", "ready_to_close", "remember_rule", "run_report"];
 
 const documented = [...doc.matchAll(/^#### `([a-z_]+)`$/gm)].map((match) => match[1]);
 
@@ -32,7 +32,7 @@ test("the registry holds exactly the tools built so far", () => {
 });
 
 test("the document and the registry cannot drift: every documented tool is built or pending, and nothing else exists", () => {
-  assert.equal(documented.length, 14);
+  assert.equal(documented.length, 15);
   assert.deepEqual([...BUILT_TOOLS, ...PENDING_TOOLS].sort(), [...documented].sort());
 });
 

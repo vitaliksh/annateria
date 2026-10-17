@@ -39,7 +39,7 @@ export default {
   async run(args, ctx) {
     const entry = ctx.handles.get("F", args.file);
     const kind = kindOf(entry);
-    if (kind === "spreadsheet") throw new ToolError("not_allowed", "Spreadsheets are not processed by the agent; the user imports them with the Excel import.");
+    if (kind === "spreadsheet") throw new ToolError("not_allowed", "Spreadsheets are never read with the vision model; use read_document to see what the file is.");
     const strong = args.model === "strong";
     const stored = ctx.run.extractions.get(args.file);
     if (stored && !strong) return present(args.file, stored, ctx);
