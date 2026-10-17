@@ -8,8 +8,9 @@ import findClient from "./find-client.js";
 import getClientContext from "./get-client-context.js";
 import listInbox from "./list-inbox.js";
 import moveFile from "./move-file.js";
+import prepareImport from "./prepare-import.js";
 import proposeChange from "./propose-change.js";
 import queryRows from "./query-rows.js";
 import readDocument from "./read-document.js";
 
-export const TOOLS = [listInbox, readDocument, extractDocument, findClient, getClientContext, queryRows, factsFor, askUser, addRows, moveFile, proposeChange];
+export const TOOLS = [listInbox, readDocument, extractDocument, findClient, getClientContext, queryRows, factsFor, askUser, addRows, moveFile, proposeChange, prepareImport];

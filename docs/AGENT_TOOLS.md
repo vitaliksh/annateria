@@ -5,8 +5,8 @@ step 4.1). It describes the *application agent* (the assistant inside the web ap
 development agents that work on the code.
 
 **Amendment of 17 October 2026 (step 4.7, section 5.6):** the tool `prepare_import` and the rule that all imports go through the
-inbox. The owner approved the principle (the agent recognises an import file, only prepares it, the user opens the wizard);
-the form "one tool with `kind`" instead of four tools is a refinement that he still has to confirm (section 10, question 11).
+inbox. The owner approved the principle (the agent recognises an import file, only prepares it, the user opens the wizard) and,
+the same day, the form "one tool with `kind`" instead of four tools (section 10, question 11).
 
 What this document fixes: the run, the conventions every tool follows, the facts that extraction returns, and for each
 tool its inputs, outputs, validation, effects and what it may never do. What it leaves to later steps: the Hebrew
@@ -371,6 +371,14 @@ the registry so that this file and the code cannot drift apart.
   agent, files the original: copy to `clients/<client>/imports/`, read back and compare the hash, then drop the inbox
   entry and remove the file (the order of `move_file_to_declaration`). If the wizard is closed, fails or writes nothing, the
   file stays in the inbox and the card stays.
+- **Built so far (4.7.2, 17 October 2026).** `kind: journal` only; the enum of the schema lists the kinds that exist and widens with
+  4.7.3 to 4.7.5 (a kind that is not in it is `invalid_argument`). The tool calls the service `imports.prepare`, which runs
+  `prepareImport` and `inspectImportTarget` (adapter `agent/adapters/imports.js`) and hands back counts, checks and problems for
+  the model and the totals for the card only. The card is `ctx.ui.importCard`; its button asks the page to open the wizard (the
+  page opens the card's client first, because the wizards work on the open client); the filing is `fileImportOriginal` in
+  `inbox-store.js`, run by the page when the wizard reports that it wrote. `problems` carry the parser's codes (`draft-rows`,
+  `footer-mismatch` with its `key`, ...) and, from the adapter, `month_differs`, `month_locked`, `month_has_rows`,
+  `types_suggested`; `severity` is `error` or `warning`.
 - **Never.** Write anything (the filing after a successful wizard is page code, not this tool); call a commit function of an
   import; pass parsed rows, supplier names or amounts to the model beyond counts and check results; open a wizard by itself;
   send a spreadsheet to the vision model; accept a month, a kind or a client without the checks above; create a client.
@@ -410,7 +418,7 @@ file, the registry snapshot and getting the owner's approval.
 | `facts_for` | `intakeFacts`, `pcnReview`, `isHomeUtility`, `loadIntakeContext` | adds rows of the run, `buyer_mismatch` |
 | `add_rows` | the row path of `applyRecord`, `excludeText` and the status logic of `buildPlan`, `backupTable`, `saveDraft` | a headless row builder shared with the live table |
 | `propose_change` | the cell edit path of `app.js`, `rows-move-flow.js` | proposal card |
-| `prepare_import` | `prepareImport` (`excel-import-flow.js`), `prepareLedger` (`ledger-codes-flow.js`), `prepareReconcile` (`ledger-reconcile-flow.js`), `readIncomeReportFile` (`income-report.js`), and the wizards `setupExcelImport`, `setupLedgerCodes`, `setupLedgerCheck`, the income-report import of `app.js` | one `services` operation that runs the read-only preparer for a kind; opening a wizard with a preloaded file; filing the original after the wizard's commit |
+| `prepare_import` (adapter `agent/adapters/imports.js`) | `prepareImport` (`excel-import-flow.js`), `prepareLedger` (`ledger-codes-flow.js`), `prepareReconcile` (`ledger-reconcile-flow.js`), `readIncomeReportFile` (`income-report.js`), and the wizards `setupExcelImport`, `setupLedgerCodes`, `setupLedgerCheck`, the income-report import of `app.js` | one `services` operation that runs the read-only preparer for a kind; opening a wizard with a preloaded file; filing the original after the wizard's commit |
 | `remember_rule` | none | `rules-store.js` |
 | `run_report` | `reports.js`, `report-data.js` | none |
 | `ready_to_close` | `pcnSummary`, the checks of the lock handler | one shared `lockProblems()` |
@@ -447,7 +455,7 @@ Approving the document means answering these. The recommended answer is first; "
 | 8 | Dead code of 0.3 (section 8) | Delete as listed in 4.4 | Keep it: two paths to maintain |
 | 9 | Run log in `common/agent-runs/` | Yes, local, no images | No log: a wrong row cannot be explained afterwards |
 | 10 | PDFs | Stored as the original in `images/`; facts carry `page`; the viewer in 4.4 shows the page | Render pages to JPEG on filing: bigger folders, a second copy of the truth |
-| 11 | **New, 17 October 2026 (4.7):** the import functions of the menu "ייבוא ובדיקות" through the inbox. The principle is **approved**: the agent reads a bounded sample, recognises the file, and a read-only tool prepares it; the user opens the wizard from a card. **To confirm:** one tool `prepare_import` with `kind` (`journal`, `ledger_codes`, `ledger_check`, `income_report`) | One tool: 15 tools in all, one description and one schema to test, a new kind is an enum value (and a new owner approval, as every change here). The four wizards differ in the summary only | Four tools, `prepare_journal`, `prepare_ledger_codes`, `prepare_ledger_check`, `prepare_income_report`: 18 tools, four near-identical schemas and declarations sent to the model on every turn; a model choosing between four names is no safer than choosing one enum value |
+| 11 | **New, 17 October 2026 (4.7):** the import functions of the menu "ייבוא ובדיקות" through the inbox. The principle is **approved**: the agent reads a bounded sample, recognises the file, and a read-only tool prepares it; the user opens the wizard from a card. **Confirmed by the owner on 17 October 2026:** one tool `prepare_import` with `kind` (`journal`, `ledger_codes`, `ledger_check`, `income_report`) | One tool: 15 tools in all, one description and one schema to test, a new kind is an enum value (and a new owner approval, as every change here). The four wizards differ in the summary only | Four tools, `prepare_journal`, `prepare_ledger_codes`, `prepare_ledger_check`, `prepare_income_report`: 18 tools, four near-identical schemas and declarations sent to the model on every turn; a model choosing between four names is no safer than choosing one enum value |
 
 ## 11. Changes against the plan of 16 October
 
@@ -459,5 +467,5 @@ the registry is complete, and are built in phase 6.
 **17 October 2026 (step 4.7):** a fifteenth tool, `prepare_import` (5.6); a new error code `wrong_format`; question 1 is
 superseded by question 11; `read_document` is also the way the agent recognises import files (the sample is bounded and goes to
 Gemini on the paid tier); principle row and sections 6, 7, 8 and 9 extended. Four tools (18 in all) were considered and not
-recommended. The principle is the owner's; the single tool with `kind` waits for his confirmation. No code of this change
-beyond the neutral note of `list_inbox` and the instruction of the orchestrator (unit 1 of 4.7).
+recommended. The principle and the single tool with `kind` are the owner's decisions of 17 October. Code: 4.7.1 changed the neutral note
+of `list_inbox` and the instruction of the orchestrator; 4.7.2 built the tool for `journal`.

@@ -1,8 +1,8 @@
 // `services`: the only way for an agent tool to reach data (docs/AGENT_TOOLS.md, sections 1 and 6). It offers reading: the inbox
 // index, what is inside a file, the client's profile, chart, rules and rows, the intake context of the duplicate search, and
-// the vision call of extraction; asking whether a declaration is open and copying a table before the agent writes; and the few things
-// the agent may write: a new open declaration, rows into an open one, the image of those rows, and the move of an inbox original into
-// the images of a declaration. It has no operation that closes, reopens, deletes or archives anything; a test lists its keys and
+// the vision call of extraction and the read-only preparer of import files; asking whether a declaration is open and
+// copying a table before the agent writes; and the few things the agent may write: a new open declaration, rows into an open one,
+// the image of those rows, and the move of an inbox original into the images of a declaration. It has no operation that closes, reopens, deletes or archives anything; a test lists its keys and
 // fails when such a word appears.
 // Tools do not import file stores: they only see what is here.
 import { backupTable } from "../table-backup.js";
@@ -13,6 +13,7 @@ import { loadIntakeContext } from "../intake-index.js";
 import { copyToDeclarationImages, moveOutOfInbox, readInboxFile, readInboxIndex } from "../inbox-store.js";
 import { readRules } from "../rules-store.js";
 import { createDocumentReader } from "./adapters/documents.js";
+import { createImportReader } from "./adapters/imports.js";
 
 // getDataRoot(): the data root handle (changes when the user picks another). getClients(): the workspace's active clients
 // ({ id, clientName, directory, parent, entryName, config, declarations }). getLiveTable(): the table open in the page,
@@ -21,7 +22,8 @@ import { createDocumentReader } from "./adapters/documents.js";
 // onDeclarationCreated(clientId, month) is told when a declaration was made (the sidebar must show it).
 // builtInChart(): { code: { name, type } } used when neither the client nor the root has a chart. reserved(): codes a chart may
 // not reuse. documents: reads inside files (adapters/documents.js). extraction: the vision call (adapters/extraction.js), or null.
-export function createServices({ getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), documents = createDocumentReader(), extraction = null, onDeclarationCreated = () => {} }) {
+// imports: the read-only preparers of the import wizards (adapters/imports.js).
+export function createServices({ getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), documents = createDocumentReader(), extraction = null, imports = createImportReader(), onDeclarationCreated = () => {} }) {
   const homeClients = () => (getClients() ?? []).filter((client) => client.parent && client.entryName);
   const find = (clientId) => {
     const client = homeClients().find((item) => item.id === clientId);
@@ -45,6 +47,10 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
     }),
     documents: Object.freeze({
       inspect: async (entry, options) => documents.inspect(await readInboxFile(dataRoot(), entry), entry, options),
+    }),
+    imports: Object.freeze({
+      // Parses an import file of the inbox read-only: { summary, checks, problems, totals }. Writes nothing; the wizard does the import.
+      prepare: async (entry, { kind, clientId, month }) => imports.prepare(await readInboxFile(dataRoot(), entry), { kind, dataRoot: dataRoot(), client: find(clientId), reserved: reserved(), month }),
     }),
     extraction: Object.freeze({
       run: async (entry, options) => {

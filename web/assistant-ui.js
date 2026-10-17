@@ -2,6 +2,7 @@
 // with the conversation: what the user asked, what the agent answered, question cards with buttons, proposal cards, notes. This file
 // only draws and reports clicks: what a button does (start a run, cancel, open a report) is decided by the caller through onCommand.
 // All text from the agent is put in with textContent; nothing it says is ever HTML.
+import { problemText } from "./excel-import-ui.js";
 import { formatMonth } from "./month-format.js";
 
 export const TOOL_LABELS = {
@@ -16,6 +17,7 @@ export const TOOL_LABELS = {
   propose_change: "מכין הצעה",
   add_rows: "מוסיף שורות לטבלה",
   move_file_to_declaration: "מתייק את המקור",
+  prepare_import: "בודק קובץ לייבוא",
 };
 
 export const FIELD_LABELS = {
@@ -25,6 +27,17 @@ export const FIELD_LABELS = {
 };
 
 export const COMMAND_LABELS = { process: "בדוק מסמכים חדשים", left: "מה נשאר?" };
+
+// The card of an import file (prepare_import): what the file is, what was found in it, and the button that opens the wizard.
+const IMPORT_KINDS = { journal: "יומן קליטה (Rivhit)" };
+const IMPORT_PROBLEMS = {
+  month_locked: () => "ההצהרה לחודש הזה נעולה, אי אפשר לייבא אליה.",
+  month_has_rows: (item) => `בחודש הזה כבר יש ${item.count} שורות; באשף אפשר להחליף אותן (עותק של הטבלה הישנה יישמר).`,
+  month_differs: () => "החודש שהוצע שונה מהחודש בכותרת הקובץ; האשף ישתמש בחודש שבקובץ.",
+  types_suggested: (item) => `ל-${item.count} קודי מיון הוצע סוג אחר כדי שהסכומים בסוף הקובץ יתאימו; האשף מראה זאת.`,
+};
+const money = (value) => value.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const importProblemText = (item) => (IMPORT_PROBLEMS[item.code] ?? problemText)(item) ?? item.code;
 
 const ADDED_STATES = ["created", "moved_month", "already_added"];
 
@@ -253,6 +266,38 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
     open(true);
   }
 
+  // A file prepared by the agent. The button asks the page to open the wizard (onCommand type "import"); the page reports back what
+  // happened to the file through `report`. The card stays after the run, so the button can be pressed later.
+  function importCard(card) {
+    const box = element("div", "assistant-card");
+    box.dataset.kind = "import";
+    box.append(element("p", "card-text", card.reason));
+    box.append(element("p", "card-about muted", `${IMPORT_KINDS[card.kind] ?? card.kind} · ${card.file.name} · לקוח «${card.client.name}»`));
+    const { summary, totals } = card;
+    const list = element("ul", "card-changes");
+    const lines = [`${summary.rows} שורות${totals ? ` · נטו ${money(totals.net)} · מע״מ ${money(totals.vat)} · ברוטו ${money(totals.gross)}` : ""}`];
+    if (summary.month) lines.push(`חודש בקובץ: ${formatMonth(summary.month)}`);
+    if (summary.new_accounts) lines.push(`${summary.new_accounts} שמות קודי מיון חדשים (באשף יש להגדיר להם קוד וסוג)`);
+    for (const item of card.problems) lines.push(`${item.severity === "error" ? "שגיאה" : "אזהרה"}: ${importProblemText(item)}`);
+    for (const line of lines) list.append(element("li", "", line));
+    box.append(list);
+    const status = element("p", "card-answer muted", "");
+    const actions = element("div", "card-options");
+    const wizard = button("פתח אשף", "small");
+    wizard.addEventListener("click", () => {
+      if (busy) { status.textContent = "יש להמתין לסיום הריצה."; return; }
+      status.textContent = "";
+      onCommand({
+        type: "import", card,
+        report: ({ text, done = false }) => { status.textContent = text; if (done) { wizard.disabled = true; box.dataset.state = "answered"; } },
+      });
+    });
+    actions.append(wizard);
+    box.append(actions, status);
+    add(box);
+    open(true);
+  }
+
   toggle.addEventListener("click", () => open(body.hidden));
   minimizeButton.addEventListener("click", () => open(false));
   // The two quick requests, from the buttons of the dock or from elsewhere (the inbox dialog). False when a run is on.
@@ -276,5 +321,5 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
   });
 
   open(false);
-  return { open, setBusy, addMessage, trigger: start, setProgress, showPlaced, ui: { ask, propose }, isBusy: () => busy };
+  return { open, setBusy, addMessage, trigger: start, setProgress, showPlaced, ui: { ask, propose, importCard }, isBusy: () => busy };
 }

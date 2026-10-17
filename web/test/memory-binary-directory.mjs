@@ -8,7 +8,7 @@ export function binaryDirectory(name = "root", state = { failures: [] }) {
     return {
       kind: "file",
       name: childName,
-      getFile: async () => ({ size: file.bytes.length, arrayBuffer: async () => file.bytes.slice().buffer, text: async () => new TextDecoder().decode(file.bytes) }),
+      getFile: async () => ({ name: childName, size: file.bytes.length, arrayBuffer: async () => file.bytes.slice().buffer, text: async () => new TextDecoder().decode(file.bytes) }),
       createWritable: async () => {
         let next = file.bytes;
         return {

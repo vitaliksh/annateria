@@ -56,8 +56,8 @@ async function clientEntry(root, entryName, { clientName = entryName, vatId = ""
 
 // Levi: 01/2026 locked, 02/2026 open with three rows, own chart. Cohen: a home client, no declarations. Pcn: a PCN client with one
 // invoice above the ceiling. The inbox holds a photo (unsorted) and a PDF and a workbook (Levi).
-// options: documents (readers for the inside of files), extraction (the vision adapter), liveTable.
-export async function world({ documents, extraction, liveTable = () => null } = {}) {
+// options: documents (readers for the inside of files), extraction (the vision adapter), imports (the import preparers), liveTable.
+export async function world({ documents, extraction, imports, liveTable = () => null } = {}) {
   const root = binaryDirectory("data");
   const levi = await clientEntry(root, "Levi", {
     clientName: "Levi Plumbing Ltd", vatId: "514123456", months: ["2026-01", "2026-02"], locked: ["2026-01"],
@@ -79,19 +79,20 @@ export async function world({ documents, extraction, liveTable = () => null } = 
   const clients = [levi, cohen, pcn];
   await addToInbox(root, [file("photo.jpg", "jpeg-bytes", "image/jpeg")], { now: "2026-10-16T08:00:00.000Z" });
   await addToInbox(root, [file("policy.pdf", "pdf-bytes", "application/pdf"), file("journal.xlsx", "xlsx-bytes")], { folder: "Levi", now: "2026-10-16T08:01:00.000Z" });
-  const services = createServices({ getDataRoot: () => root, getClients: () => clients, getLiveTable: liveTable, documents: documents ?? createDocumentReader(), extraction });
+  const services = createServices({ getDataRoot: () => root, getClients: () => clients, getLiveTable: liveTable, documents: documents ?? createDocumentReader(), extraction, imports });
   return { root, levi, cohen, pcn, clients, services, putFile: (path, content) => putFile(root, path, content) };
 }
 
 // A panel that records what it was shown. `answers` is a list of answers, or a function (card) => answer | Promise.
 export function recordingUi({ answers = [] } = {}) {
   const ui = {
-    cards: [], proposals: [],
+    cards: [], proposals: [], importCards: [],
     ask: async (card) => {
       ui.cards.push(card);
       return typeof answers === "function" ? answers(card) : answers.shift();
     },
     propose: async (proposal) => { ui.proposals.push(proposal); },
+    importCard: async (card) => { ui.importCards.push(card); },
   };
   return ui;
 }

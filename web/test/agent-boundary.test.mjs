@@ -19,11 +19,11 @@ const FORBIDDEN_TOOL = /^(close|reopen|delete|archive|remove|finalize|unlock|loc
 const FORBIDDEN_OPERATION = /close|reopen|delete|archive|remove|finalize|unlock|erase|clear|write|save/i;
 
 const BUILT_TOOLS = [
-  "add_rows", "ask_user", "extract_document", "facts_for", "find_client", "get_client_context", "list_inbox", "move_file_to_declaration", "propose_change", "query_rows",
-  "read_document",
+  "add_rows", "ask_user", "extract_document", "facts_for", "find_client", "get_client_context", "list_inbox", "move_file_to_declaration", "prepare_import", "propose_change",
+  "query_rows", "read_document",
 ];
 // Tools of docs/AGENT_TOOLS.md that no step has built yet. Each step that builds one moves it to BUILT_TOOLS.
-const PENDING_TOOLS = ["prepare_import", "ready_to_close", "remember_rule", "run_report"];
+const PENDING_TOOLS = ["ready_to_close", "remember_rule", "run_report"];
 
 const documented = [...doc.matchAll(/^#### `([a-z_]+)`$/gm)].map((match) => match[1]);
 
@@ -55,7 +55,7 @@ test("`services` offers a fixed list of operations, none of which changes a decl
   const operations = Object.entries(services).flatMap(([group, members]) => Object.keys(members).map((name) => `${group}.${name}`));
   assert.deepEqual(operations.sort(), [
     "clients.chart", "clients.list", "clients.profile", "declarations.create", "declarations.state", "documents.inspect", "extraction.run",
-    "files.copyToDeclaration", "files.moveOutOfInbox", "inbox.readIndex", "intake.context", "rows.append", "rows.attachImage", "rows.list", "rules.read",
+    "files.copyToDeclaration", "files.moveOutOfInbox", "imports.prepare", "inbox.readIndex", "intake.context", "rows.append", "rows.attachImage", "rows.list", "rules.read",
     "tables.copyBeforeAgent",
   ]);
   for (const operation of operations) assert.doesNotMatch(operation, FORBIDDEN_OPERATION, operation);
@@ -76,6 +76,7 @@ const ALLOWED_OUTSIDE = {
   "agent/fact-record.js": ["intake-facts.js", "workspace-core.js"],
   "agent/facts.js": ["intake-facts.js", "home-utilities.js", "pcn-review.js"],
   "agent/adapters/documents.js": ["pdf-import.js"],
+  "agent/adapters/imports.js": ["excel-import-flow.js", "excel-import-store.js"],
 };
 
 test("every source of the agent imports outside its folder only what is listed here: tools and the loop see pure helpers or nothing, only services.js reaches the stores", () => {
@@ -102,4 +103,23 @@ test("no source of the agent touches the network, a picker or a file directly; o
     }
     if (!file.includes(`${join("agent", "adapters")}`)) assert.doesNotMatch(text, /(?<![\w-])document\.(createElement|querySelector|getElementById|body)/, `${file} touches the DOM`);
   }
+});
+
+// The names a source imports, as written between the braces of its import statements.
+const importedNames = (file) => [...readFileSync(file, "utf8").matchAll(/import\s*\{([^}]*)\}\s*from/g)]
+  .flatMap((match) => match[1].split(",").map((name) => name.trim().split(/\s+as\s+/)[0]).filter(Boolean));
+// What commits an import or writes the files of the wizards: the agent only prepares (docs/AGENT_TOOLS.md, 5.6).
+const WIZARD_WRITERS = /^(commit\w*|importRowsIntoDeclaration|finalizeDeclaration|save\w*Chart\w*|saveChartOfAccounts)$/;
+
+test("prepare_import cannot commit an import: nothing in the agent imports a commit or chart-saving function of the wizards", () => {
+  const files = [...sources(agentDirectory), ...sources(join(agentDirectory, "tools")), ...sources(join(agentDirectory, "adapters"))];
+  for (const file of files) {
+    for (const name of importedNames(file)) assert.doesNotMatch(name, WIZARD_WRITERS, `${relative(webDirectory, file)} imports ${name}`);
+  }
+  assert.deepEqual(importedNames(join(agentDirectory, "adapters", "imports.js")).sort(), ["inspectImportTarget", "prepareImport"]);
+});
+
+test("the guard of the previous test would catch a commit", () => {
+  for (const name of ["commitImport", "commitLedger", "commitReconcile", "importRowsIntoDeclaration", "saveClientChart", "saveChartOfAccounts"]) assert.match(name, WIZARD_WRITERS, name);
+  for (const name of ["prepareImport", "inspectImportTarget", "readClientChart", "saveDraft"]) assert.doesNotMatch(name, WIZARD_WRITERS, name);
 });

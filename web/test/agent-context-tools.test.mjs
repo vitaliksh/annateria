@@ -238,7 +238,7 @@ test("a proposal names the row by its number, even when the row shares its docum
 test("the instruction has the agent read import files and name the wizard of the menu, and never extract a spreadsheet (4.7.1)", async () => {
   const { ORCHESTRATOR_PROMPT, AGENT_VERSION } = await import("../agent/prompts.js");
   const { default: listInbox } = await import("../agent/tools/list-inbox.js");
-  assert.equal(AGENT_VERSION, "stand-in-2026-10-17d");
+  assert.equal(AGENT_VERSION, "stand-in-2026-10-17e");
   assert.ok(ORCHESTRATOR_PROMPT.includes("read every spreadsheet, and every PDF that does not look like an invoice"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("with read_document, and never extract a spreadsheet with the vision model"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("say plainly when you cannot tell what a file is"));
@@ -249,7 +249,8 @@ test("the instruction has the agent read import files and name the wizard of the
   const menu = html.match(/<details[^>]*id="add-documents-menu">([\s\S]*?)<\/details>/)[1];
   const summary = menu.match(/<summary[^>]*>([^<]+)<\/summary>/)[1];
   assert.ok(ORCHESTRATOR_PROMPT.includes(`menu "${summary}"`));
-  for (const id of ["import-excel", "check-ledger", "import-income-report"]) {
+  // The journal goes through prepare_import now; the menu items that remain for the other kinds are quoted.
+  for (const id of ["check-ledger", "import-income-report"]) {
     const label = menu.match(new RegExp(`id="${id}"[^>]*>([^<]+)</button>`))[1];
     assert.ok(ORCHESTRATOR_PROMPT.includes(`"${label}"`), `${id}: ${label}`);
   }
@@ -278,4 +279,17 @@ test("the instruction tells the model what the user can and cannot do: no handle
   assert.match(proposeChange.description, /applies the ones that stay ticked/);
   assert.doesNotMatch(proposeChange.description, /the card cannot be applied/);
   assert.match(queryRows.description, /position is the row number of the # column/);
+});
+
+test("the instruction sends a journal to prepare_import and never lets the model say that something was imported (4.7.2)", async () => {
+  const { ORCHESTRATOR_PROMPT } = await import("../agent/prompts.js");
+  const { default: prepareImport } = await import("../agent/tools/prepare-import.js");
+  assert.ok(ORCHESTRATOR_PROMPT.includes("is prepared with prepare_import, kind journal"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("you import nothing, the user opens the wizard, so never say that a file was imported"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("its counts and problems, never numbers of your own"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes('the button "פתח אשף"'));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("prepare an import file for the user's wizard (prepare_import)"));
+  assert.doesNotMatch(ORCHESTRATOR_PROMPT, /you cannot import them yet/);
+  assert.match(prepareImport.description, /write nothing and the wizard opens only when the user clicks/);
+  assert.deepEqual(prepareImport.schema.properties.kind.enum, ["journal"], "only the kinds that are built");
 });

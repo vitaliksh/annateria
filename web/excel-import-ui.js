@@ -66,6 +66,8 @@ const TARGET_TEXTS = {
 };
 
 // onBeforeCommit(month) lets the host stop editing the target declaration before the rows are written.
+// Besides the button, the wizard can be opened with a file that is already at hand (openWith, used by the card of the assistant, step
+// 4.7.2): the steps are the same, only the choosing of the file is skipped.
 export function setupExcelImport({ button, dialog, getContext, onImported, onError, loadLibrary, onBeforeCommit, onOpenCodes }) {
   const part = (id) => dialog.querySelector(`#${id}`);
   const [file, details, summary, problems, month, unknownBox, unknownList, closeNow, errorLine, run] = [
@@ -84,6 +86,8 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
   let context = null;
   let target = null;
   let targetCheck = 0;
+  let loaded = null; // the file that `prepared` was read from
+  let preset = null; // { file, onCommitted } of a wizard opened with openWith: what to do once the rows are written
 
   // The dialog keeps one size; the step only decides which panel and which buttons are shown (see dialogs.css).
   const STEP_ORDER = ["file", "check", "month", "done"];
@@ -124,6 +128,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
 
   const reset = () => {
     prepared = null;
+    loaded = null;
     file.value = "";
     details.hidden = true;
     errorLine.textContent = "";
@@ -247,6 +252,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
   button.addEventListener("click", () => {
     context = getContext();
     if (!context) return onError("יש לבחור תחילה תיקיית נתונים ולקוח לפני ייבוא מ-Excel.");
+    preset = null;
     reset();
     dialog.showModal();
   });
@@ -265,8 +271,14 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
     nextButton.disabled = true;
     setStep("file");
     if (!file.files?.length) return;
+    await load(file.files[0]);
+  });
+
+  // Reads the file and shows its check. `suggestedMonth` fills the month only when the file itself has none.
+  async function load(selected, suggestedMonth = "") {
     try {
-      prepared = await prepareImport(file.files[0], {
+      loaded = selected;
+      prepared = await prepareImport(selected, {
         dataRoot: context.dataRoot,
         reserved: context.reserved,
         loadLibrary,
@@ -274,11 +286,25 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
         clientDirectory: context.client.directory,
       });
       render();
+      if (suggestedMonth && !prepared.suggestedMonth) {
+        month.value = formatMonth(suggestedMonth);
+        refreshTarget();
+      }
     } catch (error) {
       prepared = null;
       errorLine.textContent = error.message;
     }
-  });
+  }
+
+  // What the host does with the original once the rows are written; a failure is told to the user and never undoes the import.
+  async function afterCommit(iso) {
+    if (!preset || loaded !== preset.file) return "";
+    try {
+      return (await preset.onCommitted({ month: iso })) ?? "";
+    } catch (error) {
+      return `הקובץ לא הועבר מתיבת הקלט: ${error.message}`;
+    }
+  }
 
   run.addEventListener("click", async () => {
     const iso = parseMonthText(month.value);
@@ -300,8 +326,9 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
         client: context.client,
         reserved: context.reserved,
       });
+      const filed = await afterCommit(iso);
       await onImported(result, iso);
-      resultLine.textContent = `יובאו ${prepared.rows.length} שורות להצהרה ${formatMonth(iso)}${closeNow.checked ? " וההצהרה ננעלה" : ""}.`;
+      resultLine.textContent = `יובאו ${prepared.rows.length} שורות להצהרה ${formatMonth(iso)}${closeNow.checked ? " וההצהרה ננעלה" : ""}.${filed ? ` ${filed}` : ""}`;
       setStep("done");
     } catch (error) {
       errorLine.textContent = error.message;
@@ -309,5 +336,17 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
     }
   });
   // The client's codes changed (ledger loaded): start the wizard over, the file read so far used the old chart.
-  return { refreshCodes: () => context && reset() };
+  return {
+    refreshCodes: () => context && reset(),
+    // Opens the wizard with `selected` (a File) already read, for the open client. onCommitted({ month }) runs after the rows were
+    // written and resolves with a line for the user (or nothing); it runs only if the file read is still this one.
+    async openWith(selected, { onCommitted, month: suggestedMonth } = {}) {
+      context = getContext();
+      if (!context) return onError("יש לבחור תחילה תיקיית נתונים ולקוח לפני ייבוא מ-Excel.");
+      reset();
+      preset = onCommitted ? { file: selected, onCommitted } : null;
+      dialog.showModal();
+      await load(selected, suggestedMonth);
+    },
+  };
 }

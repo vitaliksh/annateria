@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import {
-  UNSORTED, addToInbox, copyToDeclarationImages, declarationImageHashes, ensureInbox, inboxCounts, isInboxFolder, moveOutOfInbox, moveToTrash, nextImageNumber, readInboxFile,
+  UNSORTED, addToInbox, copyToClientImports, copyToDeclarationImages, declarationImageHashes, ensureInbox, fileImportOriginal, inboxCounts, isInboxFolder, moveOutOfInbox, moveToTrash, nextImageNumber, readInboxFile,
   readInboxIndex, reconcileInbox, refusalReason, safeFileName, sha256Hex,
 } from "../inbox-store.js";
 import { binaryDirectory, listPaths, putFile, readFileBytes } from "./memory-binary-directory.mjs";
@@ -410,4 +410,46 @@ test("addToInbox does not call the same bytes a duplicate of a file that is no l
   const again = await addToInbox(root, [fileOf("scan again.jpg", "photo bytes")], { folder: "Levi", now: NOW });
   assert.deepEqual([again.added.length, again.duplicates.length], [1, 0]);
   assert.equal((await readInboxIndex(root)).files.filter((entry) => entry.hash === entries[0].hash).length, 1, "one entry for those bytes");
+});
+
+// The original of an import that a wizard wrote (step 4.7.2): copied to clients/<client>/imports/, checked, then out of the inbox.
+async function importWorld() {
+  const root = binaryDirectory();
+  await addToInbox(root, [fileOf("journal.xlsx", "journal bytes")], { folder: "Levi", now: NOW });
+  const [entry] = (await readInboxIndex(root)).files;
+  const levi = await (await root.getDirectoryHandle("clients", { create: true })).getDirectoryHandle("Levi", { create: true });
+  return { root, entry, levi };
+}
+
+test("fileImportOriginal copies the original into imports/, reads it back, and only then takes it out of the inbox", async () => {
+  const { root, entry, levi } = await importWorld();
+  assert.deepEqual(await fileImportOriginal(root, entry, levi), { importFile: "journal.xlsx" });
+  assert.equal(new TextDecoder().decode(await readFileBytes(root, "clients/Levi/imports/journal.xlsx")), "journal bytes");
+  assert.equal((await readInboxIndex(root)).files.length, 0);
+  assert.equal((await listPaths(root)).includes("inbox/Levi/journal.xlsx"), false);
+});
+
+test("copyToClientImports never overwrites: a taken name gets a number; the original stays until moveOutOfInbox", async () => {
+  const { root, entry, levi } = await importWorld();
+  await putFile(root, "clients/Levi/imports/journal.xlsx", bytesOf("an older journal"));
+  assert.deepEqual(await copyToClientImports(root, entry, levi), { importFile: "journal (2).xlsx" });
+  assert.equal(new TextDecoder().decode(await readFileBytes(root, "clients/Levi/imports/journal.xlsx")), "an older journal");
+  assert.equal((await readInboxIndex(root)).files.length, 1, "the inbox still holds it");
+});
+
+test("fileImportOriginal refuses a file that is not what the index says and leaves everything where it was", async () => {
+  const { root, entry, levi } = await importWorld();
+  await putFile(root, "inbox/Levi/journal.xlsx", bytesOf("changed bytes!"));
+  await assert.rejects(() => fileImportOriginal(root, entry, levi), /שונה ממה שנרשם/);
+  assert.equal((await readInboxIndex(root)).files.length, 1);
+  assert.equal((await listPaths(root)).some((path) => path.startsWith("clients/Levi/imports/")), false);
+});
+
+test("a filed import original is a duplicate of the same bytes dropped again, and the answer says where it is", async () => {
+  const { root, entry, levi } = await importWorld();
+  await fileImportOriginal(root, entry, levi);
+  const again = await addToInbox(root, [fileOf("copy.xlsx", "journal bytes")], { folder: "Levi", now: NOW });
+  assert.equal(again.added.length, 0);
+  assert.deepEqual(again.duplicates.map((item) => [item.name, item.reason, item.of]), [["copy.xlsx", "declaration", { client: "Levi", month: null, file: "journal.xlsx", imports: true }]]);
+  assert.equal((await declarationImageHashes(root, new Set([13]))).get(sha("journal bytes")).imports, true);
 });

@@ -143,8 +143,9 @@ async function writeInboxIndex(inbox, index) {
   try { await writable.write(JSON.stringify(index, null, 2)); } finally { await writable.close(); }
 }
 
-// SHA-256 of the images of every declaration of every client whose size is in `sizes`. Equal bytes mean equal size,
-// so only files of a matching size are read. Returns Map(hash -> { client, month, file }).
+// SHA-256 of the images of every declaration of every client, and of the import originals in clients/<client>/imports/ (step 4.7),
+// whose size is in `sizes`. Equal bytes mean equal size, so only files of a matching size are read.
+// Returns Map(hash -> { client, month, file }); for an import original `month` is null and `imports` is true.
 export async function declarationImageHashes(dataRoot, sizes) {
   const found = new Map();
   let clients;
@@ -154,6 +155,14 @@ export async function declarationImageHashes(dataRoot, sizes) {
   };
   for await (const [client, clientHandle] of clients.entries()) {
     if (clientHandle.kind !== "directory") continue;
+    const imports = await child(clientHandle, "imports");
+    for await (const [file, handle] of imports ? imports.entries() : []) {
+      if (handle.kind !== "file") continue;
+      const source = await handle.getFile();
+      if (!sizes.has(source.size)) continue;
+      const hash = await sha256Hex(await source.arrayBuffer());
+      if (!found.has(hash)) found.set(hash, { client, month: null, file, imports: true });
+    }
     const declarations = await child(clientHandle, "declarations");
     if (!declarations) continue;
     for await (const [month, declarationHandle] of declarations.entries()) {
@@ -328,6 +337,28 @@ async function copyToDeclarationImagesNow(dataRoot, entry, declarationDirectory)
   const imageFile = `${String(imageIndex).padStart(3, "0")}.${extension}`;
   await storeFile(images, imageFile, bytes);
   return { imageFile, imageIndex };
+}
+
+// Copies the original of an inbox entry into clients/<client>/imports/ under its stored name (a taken name gets " (2)": nothing is
+// overwritten) and reads the copy back. The original stays where it is; moveOutOfInbox takes it out afterwards. Resolves with
+// { importFile }. Refuses a file that is no longer what the index says it is. (Step 4.7: the original of an import the wizard wrote.)
+export const copyToClientImports = (...args) => oneAtATime(() => copyToClientImportsNow(...args));
+async function copyToClientImportsNow(dataRoot, entry, clientDirectory) {
+  const file = await readInboxFile(dataRoot, entry);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes.length !== entry.size || (await sha256Hex(bytes)) !== entry.hash) throw new Error("הקובץ בתיבת הקלט שונה ממה שנרשם באינדקס.");
+  const imports = await clientDirectory.getDirectoryHandle("imports", { create: true });
+  const importFile = uniqueName(entry.storedName, await directoryNames(imports));
+  await storeFile(imports, importFile, bytes);
+  return { importFile };
+}
+
+// Files the original of an import that the wizard has written: copy into clients/<client>/imports/, read back and compared, and only
+// then out of the inbox. A failure before the last step leaves the file in the inbox. Resolves with { importFile }.
+export async function fileImportOriginal(dataRoot, entry, clientDirectory) {
+  const { importFile } = await copyToClientImports(dataRoot, entry, clientDirectory);
+  await moveOutOfInbox(dataRoot, entry);
+  return { importFile };
 }
 
 // Takes a file that now has its copy in a declaration out of the inbox: the entry leaves the index first, then the file is removed.

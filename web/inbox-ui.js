@@ -97,7 +97,7 @@ export function setupInbox({
   }
 
   const folderLabel = (folder) => (folder === UNSORTED ? "ללא שיוך" : homeClients().find((client) => client.entryName === folder)?.clientName ?? folder);
-  const where = (of) => of.folder ? `בתיבת הקלט (${folderLabel(of.folder)})` : `בהצהרה ${of.month} של «${of.client}»`;
+  const where = (of) => of.folder ? `בתיבת הקלט (${folderLabel(of.folder)})` : of.imports ? `בקבצים שיובאו של «${of.client}»` : `בהצהרה ${of.month} של «${of.client}»`;
 
   // Unassigned first, then the clients in the order of the sidebar, then folders that no client owns any more.
   function groups() {

@@ -19,11 +19,12 @@ export function createContext({ services, ui = {}, signal = new AbortController(
   // listed: file handle -> { name, folder, kind } of every file that list_inbox showed.
   // routes: file handle -> the answered question that sent the file to a client (ask_user), so that it is never asked twice.
   // fileStatus: file handle -> waiting | extracted | filed. extractions: file handle -> { tries, records } (the fact store).
+  // prepared: "file|kind|client" -> what prepare_import answered, so that the same file is not prepared twice (and no second card is shown).
   // addedEntries, factsUsed and addedFacts (fact handle -> what add_rows made of it) are filled by add_rows: rows made in this run are seen by the duplicate search, and facts
   // that already became a row cannot be extracted again.
   const run = {
     id: runId, asked: new Map(), routes: new Map(), listed: new Map(), questions: 0, copies: new Set(), fileStatus: new Map(), toolCalls: 0,
-    extractions: new Map(), extractCount: 0, extractSlots: createSemaphore(limits.parallelExtractions ?? LIMITS.parallelExtractions), addedEntries: [], factsUsed: new Set(), addedFacts: new Map(),
+    extractions: new Map(), extractCount: 0, extractSlots: createSemaphore(limits.parallelExtractions ?? LIMITS.parallelExtractions), addedEntries: [], factsUsed: new Set(), addedFacts: new Map(), prepared: new Map(),
   };
   return {
     handles: createHandles(), services, ui, signal, run, limits, log,

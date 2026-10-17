@@ -22,6 +22,7 @@ import { setupJournalToolbar } from "./journal-toolbar.js";
 import { summarise } from "./journal-summary.js";
 import { readUiSettings, saveUiSettings } from "./ui-settings.js";
 import { setupExcelImport } from "./excel-import-ui.js";
+import { fileImportOriginal, readInboxFile, readInboxIndex } from "./inbox-store.js";
 import { setupReports } from "./reports-ui.js";
 import { setupBackup } from "./backup-ui.js";
 import { setupAccess } from "./access-ui.js";
@@ -676,6 +677,41 @@ async function runAssistant(kind, text) {
     inboxUi?.refreshCounts();
   }
 }
+// The button of an import card (step 4.7.2): opens the Excel-import wizard with the file from the inbox, for the client of the card.
+// The wizard works on the open client, so that client is opened first. Once the wizard has written the rows, the original goes from
+// the inbox to clients/<client>/imports/ (copied, read back, compared, then taken out); the agent has no part in this.
+async function openImportWizard({ card, report }) {
+  try {
+    const entry = (await readInboxIndex(dataRoot)).files.find((item) => item.hash === card.file.hash);
+    if (!entry) return report({ text: "הקובץ כבר אינו בתיבת הקלט.", done: true });
+    const client = workspaceControls?.getClients().active.find((item) => item.id === card.client.id);
+    if (!client) return report({ text: "הלקוח לא נמצא ברשימת הלקוחות." });
+    if (committedWorkspace?.config.clientId !== client.config.clientId) {
+      const latest = (client.declarations ?? []).map((item) => item.declaration).filter((item) => !item.archived).sort((a, b) => a.month.localeCompare(b.month)).at(-1);
+      if (!latest) return report({ text: "ללקוח אין הצהרה. יש ליצור הצהרה ולפתוח אותה, ואז ללחוץ שוב." });
+      await workspaceControls.openDeclaration(client.id, latest.month);
+      if (committedWorkspace?.config.clientId !== client.config.clientId) return report({ text: "הלקוח לא נפתח, האשף לא נפתח." });
+    }
+    const file = await readInboxFile(dataRoot, entry);
+    report({ text: "האשף נפתח." });
+    await excelImport.openWith(file, {
+      month: card.month ?? "",
+      onCommitted: async () => {
+        try {
+          const { importFile } = await fileImportOriginal(dataRoot, entry, client.directory);
+          inboxUi?.refreshCounts();
+          report({ text: "הייבוא בוצע. המקור הועבר לתיקיית imports של הלקוח.", done: true });
+          return `המקור הועבר לתיקיית imports של הלקוח (${importFile}).`;
+        } catch (error) {
+          report({ text: `הייבוא בוצע, אך המקור נשאר בתיבת הקלט: ${error.message}` });
+          throw error;
+        }
+      },
+    });
+  } catch (error) {
+    report({ text: `לא ניתן לפתוח את האשף: ${error.message}` });
+  }
+}
 // The edits of a proposal go through the functions of the table, as if the user typed them.
 const proposalOps = {
   locked: () => tableLocked,
@@ -714,6 +750,7 @@ const assistant = setupAssistant({
   onCommand: (command) => {
     if (command.type === "cancel") assistantRun?.abort();
     else if (command.type === "report") reports.open();
+    else if (command.type === "import") openImportWizard(command);
     else if (command.type === "open") workspaceControls?.openDeclaration(command.clientId, command.month).catch((error) => showError(`לא ניתן לפתוח הצהרה: ${error.message}`));
     else runAssistant(command.type, command.text);
   },

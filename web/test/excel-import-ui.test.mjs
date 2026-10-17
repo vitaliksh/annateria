@@ -35,7 +35,7 @@ async function setup({ context = true, confirm = () => true } = {}) {
   const client = { directory: memoryDirectory("client"), config: { clientId: "c1" } };
   const calls = { errors: [], imported: [], before: [] };
   const { setupExcelImport } = await import("../excel-import-ui.js");
-  setupExcelImport({
+  const wizard = setupExcelImport({
     button: window.document.querySelector("#import-excel"),
     dialog,
     getContext: () => (context ? { dataRoot, client, reserved: {} } : null),
@@ -51,7 +51,7 @@ async function setup({ context = true, confirm = () => true } = {}) {
     for (let i = 0; i < 50 && dialog.querySelector("#excel-import-details").hidden; i += 1) await new Promise((r) => setTimeout(r, 10));
   };
   const q = (id) => dialog.querySelector(`#${id}`);
-  return { window, dialog, dataRoot, client, calls, pick, q, open: () => window.document.querySelector("#import-excel").click() };
+  return { window, dialog, dataRoot, client, calls, pick, q, wizard, open: () => window.document.querySelector("#import-excel").click() };
 }
 
 test("диалог импорта: без выбранного клиента показывает ошибку и не открывается", async () => {
@@ -278,4 +278,77 @@ test("диалог импорта: на первом шаге видно, ест
   assert.match(q("excel-import-codes").textContent, /נטענו מהכרטסת \(1 קודים\)/);
   assert.equal(q("excel-import-codes-open").textContent.includes("כרטסת"), true);
   assert.equal(calls.errors.length, 0);
+});
+
+// --- the wizard opened with a file at hand (step 4.7.2: the card of the assistant) ---
+const wait = async (condition) => { for (let i = 0; i < 100 && !condition(); i += 1) await new Promise((r) => setTimeout(r, 10)); };
+const withoutMonth = (grid) => grid.map((line) => line.map((cell) => (typeof cell === "string" && cell.startsWith("לחודש") ? "" : cell)));
+
+test("openWith: the wizard opens at the check with the file already read; once the rows are written the host is told, once", async () => {
+  const { dialog, calls, q, wizard, dataRoot } = await setup();
+  const committed = [];
+  await wizard.openWith(xlsxFile(buildJournalGrid({ month: 8 })), { onCommitted: async ({ month }) => { committed.push(month); return "המקור הועבר."; } });
+  assert.equal(dialog.open, true);
+  assert.equal(dialog.dataset.step, "check");
+  assert.match(q("excel-import-summary").textContent, new RegExp(`^${SAMPLE_ROWS.length} שורות`));
+  assert.equal(q("excel-import-month").value, "08/2026");
+  assert.deepEqual(committed, [], "nothing happens before the user writes");
+  await wait(() => !q("excel-import-run").disabled);
+  q("excel-import-run").click();
+  await wait(() => calls.imported.length);
+  assert.deepEqual(committed, ["2026-08"]);
+  assert.equal(dialog.dataset.step, "done");
+  assert.match(q("excel-import-result").textContent, /^יובאו \d+ שורות להצהרה 08\/2026\. המקור הועבר\.$/);
+  assert.equal((await readChartOfAccounts(dataRoot))[203].name, "אחזקה");
+});
+
+test("openWith: a failure of the host after the write is told to the user and never undoes the import", async () => {
+  const { calls, q, wizard, client } = await setup();
+  await wizard.openWith(xlsxFile(buildJournalGrid({ month: 8 })), { onCommitted: async () => { throw new Error("הדיסק מלא"); } });
+  await wait(() => !q("excel-import-run").disabled);
+  q("excel-import-run").click();
+  await wait(() => calls.imported.length);
+  assert.match(q("excel-import-result").textContent, /הקובץ לא הועבר מתיבת הקלט: הדיסק מלא/);
+  assert.equal((await loadDeclaration(client.directory, "2026-08")).draft.rows.length, SAMPLE_ROWS.length);
+});
+
+test("openWith: another file chosen by hand, or the wizard opened from the menu, is not the file of the card and is never filed", async () => {
+  const picked = await setup();
+  const committed = [];
+  await picked.wizard.openWith(xlsxFile(buildJournalGrid({ month: 8 })), { onCommitted: async () => { committed.push("picked"); } });
+  await picked.pick(buildJournalGrid({ month: 9 }));
+  await wait(() => !picked.q("excel-import-run").disabled);
+  picked.q("excel-import-run").click();
+  await wait(() => picked.calls.imported.length);
+  assert.equal(picked.calls.imported[0].month, "2026-09");
+  const reopened = await setup();
+  await reopened.wizard.openWith(xlsxFile(buildJournalGrid({ month: 8 })), { onCommitted: async () => { committed.push("reopened"); } });
+  reopened.open();
+  await reopened.pick(buildJournalGrid({ month: 8 }));
+  await wait(() => !reopened.q("excel-import-run").disabled);
+  reopened.q("excel-import-run").click();
+  await wait(() => reopened.calls.imported.length);
+  assert.deepEqual(committed, []);
+});
+
+test("openWith: the month suggested by the agent fills the month only when the file has none", async () => {
+  const { q, wizard } = await setup();
+  await wizard.openWith(xlsxFile(withoutMonth(buildJournalGrid({ month: 8 }))), { month: "2026-05" });
+  assert.equal(q("excel-import-month").value, "05/2026");
+  const dated = await setup();
+  await dated.wizard.openWith(xlsxFile(buildJournalGrid({ month: 8 })), { month: "2026-05" });
+  assert.equal(dated.q("excel-import-month").value, "08/2026");
+});
+
+test("openWith: without a client the wizard does not open and says so; a file that is no journal is refused by the wizard itself", async () => {
+  const none = await setup({ context: false });
+  await none.wizard.openWith(xlsxFile(buildJournalGrid()), { onCommitted: async () => {} });
+  assert.notEqual(none.dialog.open, true);
+  assert.equal(none.calls.errors.length, 1);
+  const bad = await setup();
+  await bad.wizard.openWith(xlsxFile([["a", "b"], [1, 2]]));
+  assert.equal(bad.dialog.open, true);
+  await wait(() => !bad.q("excel-import-details").hidden);
+  assert.equal(bad.q("excel-import-run").disabled, true, "the wizard refuses what is not a journal, as it always did");
+  assert.match(bad.q("excel-import-problems").textContent, /שגיאה/);
 });

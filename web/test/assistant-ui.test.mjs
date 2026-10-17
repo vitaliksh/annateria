@@ -302,3 +302,58 @@ test("after a run the dock offers a button for each month that got rows; a click
   buttons[1].click();
   assert.deepEqual(commands.at(-1), { type: "open", clientId: "id-Levi", month: "2026-03" });
 });
+
+// --- the card of an import file (prepare_import, step 4.7.2) ---
+const importCard = (extra = {}) => ({
+  id: "I1", kind: "journal", reason: "זה יומן קליטה של ריבהיט", month: null, file: { name: "journal-08.xlsx", hash: "a".repeat(64), folder: "Levi" }, client: { id: "c1", name: "Levi" },
+  summary: { rows: 8, known_accounts: 6, new_accounts: 2, month: "2026-08", own_chart: false }, checks: [], problems: [],
+  totals: { net: 13520.5, vat: 1280.31, gross: 15840.19 }, ...extra,
+});
+
+test("the card of an import file says what the file is, what was found and what is wrong, and does nothing by itself", () => {
+  const { assistant, q, commands } = setup();
+  assistant.ui.importCard(importCard({ problems: [
+    { code: "footer-mismatch", severity: "error", count: 1, key: "totalVat" },
+    { code: "month_has_rows", severity: "warning", count: 3 },
+    { code: "draft-rows", severity: "warning", count: 8 },
+  ] }));
+  const card = q(".assistant-card[data-kind='import']");
+  assert.ok(card);
+  const text = card.textContent;
+  for (const part of ["זה יומן קליטה של ריבהיט", "יומן קליטה (Rivhit)", "journal-08.xlsx", "«Levi»", "8 שורות", "15,840.19", "08/2026", "2 שמות קודי מיון חדשים"]) assert.ok(text.includes(part), part);
+  assert.match(text, /שגיאה: סכום «סה״כ מע״מ לחודש» בסוף הקובץ אינו תואם/);
+  assert.match(text, /אזהרה: בחודש הזה כבר יש 3 שורות/);
+  assert.match(text, /אזהרה: ל-8 שורות סטטוס «טיוטא»/);
+  assert.equal(q("#assistant-body").hidden, false, "the panel opens");
+  assert.deepEqual(commands, [], "no wizard before the click");
+});
+
+test("the button of the card asks the page to open the wizard, and the page tells the card what happened", () => {
+  const { assistant, q, commands } = setup();
+  const data = importCard();
+  assistant.ui.importCard(data);
+  const button = [...q(".assistant-card[data-kind='import']").querySelectorAll("button")].find((item) => item.textContent === "פתח אשף");
+  button.click();
+  assert.equal(commands.length, 1);
+  assert.deepEqual([commands[0].type, commands[0].card.id, commands[0].card.file.hash], ["import", "I1", "a".repeat(64)]);
+  commands[0].report({ text: "האשף נפתח." });
+  assert.equal(q(".assistant-card[data-kind='import'] .card-answer").textContent, "האשף נפתח.");
+  assert.equal(button.disabled, false, "the wizard can be opened again if it was closed without writing");
+  commands[0].report({ text: "הייבוא בוצע.", done: true });
+  assert.equal(button.disabled, true);
+  assert.equal(q(".assistant-card[data-kind='import']").dataset.state, "answered");
+});
+
+test("the button of the card waits while a run is on", () => {
+  const { assistant, q, commands } = setup();
+  assistant.ui.importCard(importCard());
+  assistant.setBusy(true);
+  [...q(".assistant-card[data-kind='import']").querySelectorAll("button")].find((item) => item.textContent === "פתח אשף").click();
+  assert.deepEqual(commands, []);
+  assert.match(q(".assistant-card[data-kind='import'] .card-answer").textContent, /להמתין לסיום הריצה/);
+});
+
+test("prepare_import has a label for the progress line", () => {
+  assert.equal(TOOL_LABELS.prepare_import, "בודק קובץ לייבוא");
+  assert.equal(progressLabel({ type: "call", name: "prepare_import" }, {}), "בודק קובץ לייבוא");
+});
