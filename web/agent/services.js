@@ -1,23 +1,27 @@
 // `services`: the only way for an agent tool to reach data (docs/AGENT_TOOLS.md, sections 1 and 6). It offers reading: the inbox
 // index, what is inside a file, the client's profile, chart, rules and rows, the intake context of the duplicate search, and
-// the vision call of extraction; plus asking whether a declaration is open and copying a table before the agent writes. It has
-// no operation that closes, reopens, deletes or archives anything; a test lists its keys and fails when such a word appears.
+// the vision call of extraction; asking whether a declaration is open and copying a table before the agent writes; and the few things
+// the agent may write: a new open declaration, rows into an open one, the image of those rows, and the move of an inbox original into
+// the images of a declaration. It has no operation that closes, reopens, deletes or archives anything; a test lists its keys and
+// fails when such a word appears.
 // Tools do not import file stores: they only see what is here.
 import { backupTable } from "../bookkeeper-flow.js";
 import { readClientChart, readEffectiveChart } from "../chart-of-accounts.js";
-import { loadDeclaration } from "../declaration-store.js";
+import { createDeclaration, getDeclarationDirectory, listDeclarations, loadDeclaration, saveDraft } from "../declaration-store.js";
 import { entryFromRow } from "../intake-facts.js";
 import { loadIntakeContext } from "../intake-index.js";
-import { readInboxFile, readInboxIndex } from "../inbox-store.js";
+import { copyToDeclarationImages, moveOutOfInbox, readInboxFile, readInboxIndex } from "../inbox-store.js";
 import { readRules } from "../rules-store.js";
 import { createDocumentReader } from "./adapters/documents.js";
 
 // getDataRoot(): the data root handle (changes when the user picks another). getClients(): the workspace's active clients
 // ({ id, clientName, directory, parent, entryName, config, declarations }). getLiveTable(): the table open in the page,
-// { clientId, month, rows } in the draft-table format, or null: its rows count as they are on screen, saved or not.
+// { clientId, month, rows, append(snapshots) -> positions, attachImage({ fileHash, imageFile, imageIndex }) -> count, flush() } in the
+// draft-table format, or null: its rows count as they are on screen, saved or not, and rows for that month are added through it.
+// onDeclarationCreated(clientId, month) is told when a declaration was made (the sidebar must show it).
 // builtInChart(): { code: { name, type } } used when neither the client nor the root has a chart. reserved(): codes a chart may
 // not reuse. documents: reads inside files (adapters/documents.js). extraction: the vision call (adapters/extraction.js), or null.
-export function createServices({ getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), documents = createDocumentReader(), extraction = null }) {
+export function createServices({ getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), documents = createDocumentReader(), extraction = null, onDeclarationCreated = () => {} }) {
   const homeClients = () => (getClients() ?? []).filter((client) => client.parent && client.entryName);
   const find = (clientId) => {
     const client = homeClients().find((item) => item.id === clientId);
@@ -49,7 +53,7 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
       },
     }),
     clients: Object.freeze({
-      list: () => homeClients().map((client) => ({ clientId: client.id, clientName: client.clientName, vatId: client.config?.vatId ?? "" })),
+      list: () => homeClients().map((client) => ({ clientId: client.id, clientName: client.clientName, vatId: client.config?.vatId ?? "", folder: client.entryName })),
       // { clientId, name, activity, kind, pcnRequired, vatId, vatPeriod, advancesPeriod, declarations: [{ month, status, rows }] }
       // `rows` counts the active rows of the saved table.
       profile: async (clientId) => {
@@ -83,6 +87,13 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
         const item = find(clientId).declarations?.find((entry) => entry.declaration.month === month);
         return item ? stateOf(item.declaration) : "missing";
       },
+      // Makes an open declaration for a month that has none. Refuses a month that exists.
+      create: async (clientId, month) => {
+        const client = find(clientId);
+        await createDeclaration(client.directory, { clientId: client.config.clientId ?? clientId, month });
+        client.declarations = await listDeclarations(client.directory);
+        onDeclarationCreated(clientId, month);
+      },
     }),
     rows: Object.freeze({
       // [{ month, status, rows }] oldest month first; the rows of the table open in the page are the ones on screen.
@@ -97,6 +108,37 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
         }
         return result;
       },
+      // Adds rows (snapshots) at the end of an open table; resolves with their numbers in the table (1-based). The table open in the
+      // page takes them through the page, any other goes straight into its draft file.
+      append: async (clientId, month, snapshots) => {
+        const live = liveFor(clientId);
+        if (live?.month === month) return live.append(snapshots);
+        const client = find(clientId);
+        const { directory, declaration, draft } = await loadDeclaration(client.directory, month);
+        await saveDraft(directory, declaration, [...draft.rows, ...snapshots]);
+        return snapshots.map((_, index) => draft.rows.length + index + 1);
+      },
+      // Gives the rows made from one file their image; resolves with the number of rows that got it.
+      attachImage: async (clientId, month, fileHash, image) => {
+        const live = liveFor(clientId);
+        if (live?.month === month) return live.attachImage({ fileHash, ...image });
+        const client = find(clientId);
+        const { directory, declaration, draft } = await loadDeclaration(client.directory, month);
+        let count = 0;
+        const rows = draft.rows.map((row) => {
+          if (row.agent?.file !== fileHash) return row;
+          count += 1;
+          return { ...row, imageFile: image.imageFile, imageIndex: image.imageIndex };
+        });
+        if (count) await saveDraft(directory, declaration, rows);
+        return count;
+      },
+    }),
+    files: Object.freeze({
+      // Copies an inbox original into the images of a declaration and reads the copy back: { imageFile, imageIndex }.
+      copyToDeclaration: async (entry, clientId, month) => copyToDeclarationImages(dataRoot(), entry, await getDeclarationDirectory(find(clientId).directory, month)),
+      // After the copy: the entry leaves the inbox index and the original leaves the inbox folder.
+      moveOutOfInbox: (entry) => moveOutOfInbox(dataRoot(), entry),
     }),
     intake: Object.freeze({
       // { entries, lockedThrough, declarations } for the duplicate search: every active row of every declaration, the open table as on screen.
@@ -113,7 +155,12 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
       read: (clientId) => readRules(find(clientId).directory),
     }),
     tables: Object.freeze({
-      copyBeforeAgent: (clientId, month, now) => backupTable(find(clientId), month, now),
+      // The open table is saved first, so that the copy holds what is on screen.
+      copyBeforeAgent: async (clientId, month, now) => {
+        const live = liveFor(clientId);
+        if (live?.month === month) await live.flush?.();
+        return backupTable(find(clientId), month, now);
+      },
     }),
   });
 }

@@ -263,3 +263,47 @@ export async function moveToTrash(dataRoot, hashes, { now = new Date().toISOStri
   }
   return result;
 }
+
+// --- filing an original into a declaration (the agent tool move_file_to_declaration, docs/AGENT_TOOLS.md, 5.3) ---
+
+// The next number of the images of a declaration: 001.jpg, 002.pdf, ... (the highest number plus one, whatever the extension).
+export async function nextImageNumber(imagesDirectory) {
+  let highest = 0;
+  for await (const [name] of imagesDirectory.entries()) {
+    const match = /^(\d{3,})\./.exec(name);
+    if (match) highest = Math.max(highest, Number(match[1]));
+  }
+  return highest + 1;
+}
+
+// Copies the original of an inbox entry into <declaration>/images/NNN.<ext> and reads the copy back. The original stays where it is.
+// Resolves with { imageFile, imageIndex }. Refuses a file that is no longer what the index says it is.
+export async function copyToDeclarationImages(dataRoot, entry, declarationDirectory) {
+  const file = await readInboxFile(dataRoot, entry);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes.length !== entry.size || (await sha256Hex(bytes)) !== entry.hash) throw new Error("הקובץ בתיבת הקלט שונה ממה שנרשם באינדקס.");
+  const images = await declarationDirectory.getDirectoryHandle("images", { create: true });
+  const imageIndex = await nextImageNumber(images);
+  const extension = /^[a-z0-9]{1,5}$/.test(entry.storedName.split(".").pop().toLowerCase()) ? entry.storedName.split(".").pop().toLowerCase() : "bin";
+  const imageFile = `${String(imageIndex).padStart(3, "0")}.${extension}`;
+  await storeFile(images, imageFile, bytes);
+  return { imageFile, imageIndex };
+}
+
+// Takes a file that now has its copy in a declaration out of the inbox: the entry leaves the index first, then the file is removed.
+// A repeated call does nothing. Resolves with true when something was taken out.
+export async function moveOutOfInbox(dataRoot, entry) {
+  const inbox = await inboxDirectory(dataRoot);
+  const index = await readInboxIndex(dataRoot);
+  const present = index.files.some((item) => item.hash === entry.hash);
+  if (present) {
+    index.files = index.files.filter((item) => item.hash !== entry.hash);
+    await writeInboxIndex(inbox, index);
+  }
+  try {
+    await (await inbox.getDirectoryHandle(entry.folder)).removeEntry(entry.storedName);
+  } catch (error) {
+    if (!isMissing(error)) throw error;
+  }
+  return present;
+}

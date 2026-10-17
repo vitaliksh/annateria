@@ -67,7 +67,7 @@ test("a whole run on the Gemini adapter: the thought signature goes back in the 
   assert.equal(second[1].parts[0].functionCall.id, "fc-1");
   assert.equal(second[1].parts[1].thoughtSignature, undefined, "the second parallel call has none, and none is made up");
   assert.deepEqual(second[2].parts.map((part) => [part.functionResponse.id, part.functionResponse.name]), [["fc-1", "list_inbox"], [undefined, "find_client"]]);
-  assert.equal(client.sent[1].request.tools[0].functionDeclarations.length, 9);
+  assert.equal(client.sent[1].request.tools[0].functionDeclarations.length, 11);
 });
 
 test("a registry without tools sends no declarations", async () => {

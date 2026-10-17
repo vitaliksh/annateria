@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { UNSORTED, addToInbox, declarationImageHashes, ensureInbox, inboxCounts, isInboxFolder, moveToTrash, readInboxFile, readInboxIndex, refusalReason, safeFileName, sha256Hex } from "../inbox-store.js";
+import {
+  UNSORTED, addToInbox, copyToDeclarationImages, declarationImageHashes, ensureInbox, inboxCounts, isInboxFolder, moveOutOfInbox, moveToTrash, nextImageNumber, readInboxFile,
+  readInboxIndex, refusalReason, safeFileName, sha256Hex,
+} from "../inbox-store.js";
 import { binaryDirectory, listPaths, putFile, readFileBytes } from "./memory-binary-directory.mjs";
 
 const bytesOf = (text) => new TextEncoder().encode(text);
@@ -304,4 +307,75 @@ test("a damaged trash record stops the read", async () => {
   const root = binaryDirectory();
   await putFile(root, "inbox/index.json", JSON.stringify({ schemaVersion: 1, files: [], trashed: [{ name: "x" }] }));
   await assert.rejects(() => readInboxIndex(root), /אינו תקין/);
+});
+
+// --- filing an original into a declaration ---
+
+async function filedWorld() {
+  const root = binaryDirectory();
+  await addToInbox(root, [fileOf("scan.JPG", "photo bytes", { type: "image/jpeg" }), fileOf("policy.pdf", "pdf bytes", { type: "application/pdf" })], { folder: "Levi", now: NOW });
+  const index = await readInboxIndex(root);
+  const levi = await (await root.getDirectoryHandle("clients", { create: true })).getDirectoryHandle("Levi", { create: true });
+  const declaration = await (await levi.getDirectoryHandle("declarations", { create: true })).getDirectoryHandle("2026-02", { create: true });
+  return { root, entries: index.files, declaration };
+}
+
+test("nextImageNumber is the highest number of the images plus one, whatever the extension, and ignores other names", async () => {
+  const empty = binaryDirectory("images");
+  assert.equal(await nextImageNumber(empty), 1);
+  await putFile(empty, "001.jpg", bytesOf("a"));
+  await putFile(empty, "007.pdf", bytesOf("b"));
+  await putFile(empty, "source-2026-10-13T15-17-12-ab.pdf", bytesOf("c"));
+  await putFile(empty, "notes.txt", bytesOf("d"));
+  await putFile(empty, "12.jpg", bytesOf("e"));
+  assert.equal(await nextImageNumber(empty), 8);
+  await putFile(empty, "1234.png", bytesOf("f"));
+  assert.equal(await nextImageNumber(empty), 1235, "more than three digits");
+});
+
+test("copyToDeclarationImages copies the original as NNN.<extension>, checks the copy, and leaves the original where it is", async () => {
+  const { root, entries, declaration } = await filedWorld();
+  const [scan, policy] = entries;
+  assert.deepEqual(await copyToDeclarationImages(root, scan, declaration), { imageFile: "001.jpg", imageIndex: 1 });
+  assert.deepEqual(await copyToDeclarationImages(root, policy, declaration), { imageFile: "002.pdf", imageIndex: 2 });
+  assert.equal(new TextDecoder().decode(await readFileBytes(root, "clients/Levi/declarations/2026-02/images/001.jpg")), "photo bytes");
+  assert.equal(new TextDecoder().decode(await readFileBytes(root, "inbox/Levi/scan.JPG")), "photo bytes", "the original is still in the inbox");
+  assert.equal((await readInboxIndex(root)).files.length, 2);
+});
+
+test("copyToDeclarationImages refuses a file that is not what the index says; a failed write leaves no partial copy", async () => {
+  const { root, entries, declaration } = await filedWorld();
+  await putFile(root, "inbox/Levi/scan.JPG", bytesOf("other bytes!"));
+  await assert.rejects(() => copyToDeclarationImages(root, entries[0], declaration), /שונה ממה שנרשם/);
+  await putFile(root, "inbox/Levi/scan.JPG", bytesOf("photo bytes"));
+  root.state.failures.push({ match: /^001\.jpg$/, name: "NotAllowedError", times: 1 });
+  await assert.rejects(() => copyToDeclarationImages(root, entries[0], declaration), /simulated/);
+  assert.deepEqual((await listPaths(root)).filter((path) => path.includes("/images/")), []);
+});
+
+test("an extension that is not plain letters or digits becomes .bin", async () => {
+  const { root, entries, declaration } = await filedWorld();
+  const odd = { ...entries[0], storedName: "scan.j p g!" };
+  await putFile(root, "inbox/Levi/scan.j p g!", bytesOf("photo bytes"));
+  assert.equal((await copyToDeclarationImages(root, odd, declaration)).imageFile, "001.bin");
+});
+
+test("moveOutOfInbox takes the entry out of the index and the file out of the folder; a second call does nothing; a file already gone is fine", async () => {
+  const { root, entries } = await filedWorld();
+  assert.equal(await moveOutOfInbox(root, entries[0]), true);
+  assert.deepEqual((await readInboxIndex(root)).files.map((entry) => entry.name), ["policy.pdf"]);
+  assert.deepEqual((await listPaths(root)).filter((path) => path.startsWith("inbox/Levi/")), ["inbox/Levi/policy.pdf"]);
+  assert.equal(await moveOutOfInbox(root, entries[0]), false);
+  const inbox = await (await root.getDirectoryHandle("inbox")).getDirectoryHandle("Levi");
+  await inbox.removeEntry("policy.pdf");
+  assert.equal(await moveOutOfInbox(root, entries[1]), true, "the entry leaves the index even if the file was removed by hand");
+  assert.deepEqual((await readInboxIndex(root)).files, []);
+});
+
+test("after the original moved to a declaration the same file cannot be added to the inbox again: it is a duplicate of that image", async () => {
+  const { root, entries, declaration } = await filedWorld();
+  await copyToDeclarationImages(root, entries[0], declaration);
+  await moveOutOfInbox(root, entries[0]);
+  const again = await addToInbox(root, [fileOf("scan again.jpg", "photo bytes")], { now: NOW });
+  assert.deepEqual([again.added.length, again.duplicates.map((item) => [item.reason, item.of.file])], [0, [["declaration", "001.jpg"]]]);
 });

@@ -39,7 +39,9 @@ function valueText(field, value) {
 }
 
 // onCommand({ type: "process" | "left" | "report" | "cancel" | "text", text? }) is called for a click or a sent line.
-export function setupAssistant({ root, onCommand }) {
+// onApply(proposal, kept) is called when the user applies a proposal (kept: the numbers of the changes that stayed ticked); it resolves with
+// { applied, refused: [{ change, reason }] }. Without it a proposal card only shows the changes.
+export function setupAssistant({ root, onCommand, onApply = null }) {
   const part = (id) => root.querySelector(`#${id}`);
   const [toggle, progress, body, feed, form, input, sendButton, processButton, leftButton, reportButton, cancelButton] = [
     "assistant-toggle", "assistant-progress", "assistant-body", "assistant-feed", "assistant-form", "assistant-input", "assistant-send",
@@ -138,17 +140,52 @@ export function setupAssistant({ root, onCommand }) {
     });
   }
 
-  // A suggestion of the agent for existing rows, each with its row number (the # column of the table). Applying it from here comes with
-  // step 4.4; today the card only shows it.
+  // A suggestion of the agent for existing rows, each with its row number (the # column of the table). With onApply the user keeps or
+  // unticks each change and applies the rest; the card then says what was done and what was refused, and why.
   function propose(proposal) {
     const box = element("div", "assistant-card");
     box.dataset.kind = "proposal";
-    box.append(element("p", "card-text", proposal.title), element("p", "card-about muted", `הצעה ללקוח «${proposal.client.name}» — עדיין לא הוחלה`));
+    const status = element("p", "card-about muted", `הצעה ללקוח «${proposal.client.name}» — עדיין לא הוחלה`);
+    box.append(element("p", "card-text", proposal.title), status);
     const list = element("ul", "card-changes");
+    const ticks = [];
     for (const change of proposal.changes) {
-      list.append(element("li", "", `שורה ${change.position} (${formatMonth(change.month)}) · ${FIELD_LABELS[change.field] ?? change.field}: ${valueText(change.field, change.value)} — ${change.reason}`));
+      const item = element("li");
+      const text = `שורה ${change.position} (${formatMonth(change.month)}) · ${FIELD_LABELS[change.field] ?? change.field}: ${valueText(change.field, change.value)} — ${change.reason}`;
+      if (onApply) {
+        const label = element("label", "check-line");
+        const tick = Object.assign(doc.createElement("input"), { type: "checkbox", checked: true });
+        ticks.push(tick);
+        label.append(tick, ` ${text}`);
+        item.append(label);
+      } else item.textContent = text;
+      list.append(item);
     }
     box.append(list);
+    if (onApply) {
+      const actions = element("div", "card-options");
+      const apply = button("החל", "small");
+      const reject = button("דחה", "link small");
+      const finish = (text) => { lock(box); box.dataset.state = "answered"; status.textContent = text; };
+      apply.addEventListener("click", async () => {
+        const kept = ticks.flatMap((tick, index) => (tick.checked ? [index] : []));
+        if (!kept.length) return;
+        lock(box);
+        let result;
+        try {
+          result = await onApply(proposal, kept);
+        } catch (error) {
+          finish(`לא ניתן להחיל: ${error.message}`);
+          return;
+        }
+        finish(`הוחלו ${result.applied.length} מתוך ${kept.length} שינויים`);
+        for (const { change, reason } of result.refused) box.append(element("p", "card-answer", `שורה ${change.position}: ${reason}`));
+        scrollDown();
+      });
+      reject.addEventListener("click", () => finish("ההצעה נדחתה"));
+      actions.append(apply, reject);
+      box.append(actions);
+    }
     add(box);
     open(true);
   }

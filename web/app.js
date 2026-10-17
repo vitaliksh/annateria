@@ -31,6 +31,7 @@ import { setupInbox } from "./inbox-ui.js";
 import { progressLabel, setupAssistant } from "./assistant-ui.js";
 import { buildMessage, createAssistantFlow, resultNote } from "./assistant-flow.js";
 import { setupModelSettings } from "./model-settings-ui.js";
+import { applyProposal } from "./proposal-apply.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
 import { isHomeUtility } from "./home-utilities.js";
@@ -534,6 +535,41 @@ pcnJournal = setupPcnReview({
   getContext: () => (committedWorkspace ? { pcnRequired: Boolean(committedWorkspace.config.pcnRequired) } : null),
 });
 // The table shows only the last four digits of a reference: a typed reference replaces the full one read by OCR.
+// The rows of the agent for the table that is open: they go in at the end like rows of any other source. Resolves with their numbers.
+function appendSnapshots(snapshots) {
+  const first = records.querySelectorAll("tr[data-document-id]").length;
+  for (const snapshot of snapshots) restoreRow(snapshot, null);
+  refreshRows();
+  queueDraftSave();
+  pcnJournal?.refresh();
+  return snapshots.map((_, index) => first + index + 1);
+}
+// Gives a row its original (a photo or a PDF) and the button that opens it.
+function setRowImage(row, blob, imageFile, imageIndex) {
+  row.dataset.imageFile = imageFile;
+  row.dataset.imageIndex = String(imageIndex);
+  row.documentImage = blob;
+  row.imageUrl = URL.createObjectURL(blob);
+  const open = document.createElement("button");
+  open.type = "button";
+  open.className = "photo-button";
+  open.textContent = isPdfRow(row) ? `PDF #${imageIndex}` : `תמונה #${imageIndex}`;
+  open.addEventListener("click", () => openPhoto(row.imageUrl, imageIndex, row));
+  row.cells[13].replaceChildren(open);
+  imageCount = Math.max(imageCount, imageIndex);
+}
+// After the agent filed an original: every row of the open table made from that file gets it. Resolves with how many did.
+async function attachRowImages({ fileHash, imageFile, imageIndex }) {
+  const blob = await readSourceImage(currentDeclarationDirectory, imageFile);
+  let count = 0;
+  for (const row of records.querySelectorAll("tr[data-document-id]")) {
+    if ((row.dataset.agent ? JSON.parse(row.dataset.agent).file : null) !== fileHash) continue;
+    setRowImage(row, blob, imageFile, imageIndex);
+    count += 1;
+  }
+  queueDraftSave();
+  return count;
+}
 records.addEventListener("input", (event) => {
   const cell = event.target.closest?.("td"),
     row = cell?.parentElement;
@@ -612,8 +648,12 @@ const assistantFlow = createAssistantFlow({
   getClients: () => workspaceControls?.getClients().active ?? [],
   getLiveTable: () =>
     committedWorkspace && currentDeclaration
-      ? { clientId: committedWorkspace.config.clientId, month: currentDeclaration.month, rows: [...records.querySelectorAll("tr[data-document-id]")].map(rowSnapshot) }
+      ? {
+          clientId: committedWorkspace.config.clientId, month: currentDeclaration.month, rows: [...records.querySelectorAll("tr[data-document-id]")].map(rowSnapshot),
+          append: async (snapshots) => appendSnapshots(snapshots), attachImage: attachRowImages, flush: saveCurrentDraft,
+        }
       : null,
+  onDeclarationCreated: () => { workspaceControls?.refreshFromUserAction().catch(() => {}); },
   builtInChart: () => Object.fromEntries(Object.entries(builtInMapping).map(([code, name]) => [code, { name, type: "expense" }])),
   reserved: () => ({ ...builtInMapping, ...customMapping }),
 });
@@ -647,8 +687,41 @@ async function runAssistant(kind, text) {
     assistant.setBusy(false);
   }
 }
+// The edits of a proposal go through the functions of the table, as if the user typed them.
+const proposalOps = {
+  locked: () => tableLocked,
+  month: () => currentDeclaration?.month ?? null,
+  rows: () => [...records.querySelectorAll("tr[data-document-id]")],
+  setText(row, cell, text) {
+    row.cells[cell].textContent = text === "" ? "—" : text;
+    if (cell === 3) addFieldSwapButton(row);
+  },
+  setReference(row, full) { row.dataset.fullReference = full; },
+  setAmount(row, column, value) {
+    row.cells[column].querySelector("input").value = Number(value).toFixed(2);
+    manualAmountChanged(row, column);
+  },
+  setAccount(row, code) {
+    row.cells[1].replaceChildren(classificationSelect(code));
+    applyBusinessRule(row);
+  },
+  setPercent(row, role, value) {
+    row.cells[role === "vat" ? 11 : 12].querySelector("select").value = String(value);
+    recalculateRow(row);
+  },
+  setInclude: setExportIncluded,
+  edited(row) {
+    updateDuplicateState(row);
+    queueDraftSave();
+    pcnJournal?.refresh();
+  },
+};
+function applyProposalToTable(proposal, kept) {
+  return applyProposal({ ...proposal, changes: kept.map((index) => proposal.changes[index]) }, proposalOps);
+}
 const assistant = setupAssistant({
   root: document.querySelector("#assistant"),
+  onApply: async (proposal, kept) => applyProposalToTable(proposal, kept),
   onCommand: (command) => {
     if (command.type === "cancel") assistantRun?.abort();
     else if (command.type === "report") reports.open();
@@ -954,8 +1027,27 @@ function updateImageTransform() {
   dialogImage.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
 }
 let imagePopup = null;
-function openPhoto(imageUrl, imageIndex) {
+let imagePopupKind = "image";
+// The name of a stored original ends with its kind (001.pdf, 002.jpg), which is what the browser's guess of the type is built from.
+const isPdfRow = (row) => /\.pdf$/i.test(row?.dataset.imageFile || "") || row?.documentImage?.type === "application/pdf";
+// The original of a row that is a PDF opens in the viewer of the browser, at the page the agent read the row from.
+function openPdf(imageUrl, row) {
+  const page = Number(row.dataset.agent ? JSON.parse(row.dataset.agent).page : 0) || 1;
+  const url = `${imageUrl}#page=${page}`;
+  if (imagePopup && !imagePopup.closed && imagePopupKind === "pdf") imagePopup.location.href = url;
+  else {
+    if (imagePopup && !imagePopup.closed) imagePopup.close();
+    imagePopup = window.open(url, "rivhit-document-image", "popup=yes,width=1000,height=800,resizable=yes");
+  }
+  if (!imagePopup) return showError("הדפדפן חסם את חלון המסמך. יש לאפשר חלונות קופצים לאתר זה.");
+  imagePopupKind = "pdf";
+  imagePopup.focus();
+}
+function openPhoto(imageUrl, imageIndex, row = null) {
   if (!imageUrl) return;
+  if (isPdfRow(row)) return openPdf(imageUrl, row);
+  if (imagePopup && !imagePopup.closed && imagePopupKind === "pdf") imagePopup.close();
+  imagePopupKind = "image";
   if (!imagePopup || imagePopup.closed)
     imagePopup = window.open(
       "",
@@ -1102,7 +1194,7 @@ function addPendingRecord(imageUrl, receivedAt, documentId, imageIndex, insertAf
   open.type = "button";
   open.className = "photo-button";
   open.textContent = `תמונה #${imageIndex}`;
-  open.addEventListener("click", () => openPhoto(imageUrl, imageIndex));
+  open.addEventListener("click", () => openPhoto(row.imageUrl || imageUrl, imageIndex, row));
   photo.append(open);
   row.append(photo);
   row.append(emptyCell("ממתין ל‑Gemini", "agent-opinion"), emptyCell(), emptyCell("התקבל", "state received"));
@@ -1233,6 +1325,7 @@ function rowSnapshot(row) {
     autoExclude: row.dataset.autoExclude || "",
     wouldInclude: row.dataset.wouldInclude || "",
     pcnApproved: row.dataset.pcnApproved || "",
+    agent: row.dataset.agent ? JSON.parse(row.dataset.agent) : undefined,
     highlights: row.highlights || [],
     active: Boolean(row.cells[17].querySelector("input")?.checked),
     agentOpinion: row.cells[14].textContent.trim(),
@@ -1261,6 +1354,7 @@ function restoreRow(saved, blob) {
   for (const [key, field] of [["documentKind", "documentKind"], ["fullReference", "reference"], ["documentTitle", "documentTitle"], ["periodFrom", "periodFrom"], ["periodTo", "periodTo"], ["processing", "processing"], ["autoExclude", "autoExclude"], ["wouldInclude", "wouldInclude"], ["pcnApproved", "pcnApproved"]])
     if (saved[field]) row.dataset[key] = saved[field];
   row.highlights = Array.isArray(saved.highlights) ? saved.highlights : [];
+  if (saved.agent) row.dataset.agent = JSON.stringify(saved.agent);
   row.replaceChild(editableCell(values[1]), row.cells[1]);
   row.replaceChild(editableCell(displayDate(values[0])), row.cells[2]);
   values.slice(2, 12).forEach((value, index) => row.replaceChild(editableCell(value), row.cells[index + 3]));
@@ -1279,12 +1373,12 @@ function restoreRow(saved, blob) {
   const include = row.cells[17].querySelector("input");
   include.disabled = false;
   setExportIncluded(row, saved.active);
+  // A row of the agent has no marked regions by design: its own status stands.
+  const needsMarks = saved.active && !row.highlights.length && !saved.agent;
   setStatus(
     row,
-    saved.active && !row.highlights.length
-      ? "מוכן, חסרים סימונים"
-      : saved.statusText || (saved.active ? "מוכן לייצוא" : "לא מיועד לייצוא"),
-    saved.active && !row.highlights.length ? "review" : saved.statusClass || (saved.active ? "ready" : "review"),
+    needsMarks ? "מוכן, חסרים סימונים" : saved.statusText || (saved.active ? "מוכן לייצוא" : "לא מיועד לייצוא"),
+    needsMarks ? "review" : saved.statusClass || (saved.active ? "ready" : "review"),
   );
   updateDuplicateState(row);
 }

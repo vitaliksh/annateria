@@ -15,9 +15,10 @@ works, "בדיקת חיבור ל‑AI" gets an answer from Gemini.
 **Done:** step **4.1 Tool contract**: `docs/AGENT_TOOLS.md` is **approved** (16 October 2026, all ten recommendations of its section 10 taken). It is the
 specification for 4.2 onwards; a change to it needs the owner's approval.
 
-**Done:** steps **4.2 Orchestrator loop**, **4.2b Remaining tools** and **4.3 Assistant panel**; the first real run of the dock worked (see "First real run" below). **Next, for the owner:**
-the same with files: put a few documents into "תיבת קלט" and press "בדוק מסמכים חדשים", which is the first run of the vision call (`extract_document`). **Next step:** 4.4 live rows (`add_rows`,
-`move_file_to_declaration`, the apply button of proposals). Phase 3 is in the backlog. The owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
+**Done:** steps 4.1 to **4.4** (the agent reads, checks, adds rows, files the originals, and its proposals can be applied); 4.5 (routing) is built with 4.4. **Next, for the
+owner:** the same run as before, now with files: put a document of a client into "תיבת קלט" (best in the folder of that client), press "בדוק מסמכים חדשים" or "בדוק עם העוזר", and look at
+the table: a row, its status, its original (the PDF button), and the cards. **Next step:** 4.6 client memory (`remember_rule`, `rules.md`), then phase 5 (skills and eval). The
+owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (the Cloudflare plan now matters: see "General check of 16 October"): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
 project; give Anna her access code if not done; tell me the Cloudflare plan (Free or Paid) so it can be recorded.
@@ -53,7 +54,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 630 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 682 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -80,6 +81,8 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   the Gemini declaration from one schema), `handles.js`, `limits.js`, `run-log.js`, `gemini.js` (the model of the loop over `model-client.js`), `services.js` (the only way for
   a tool to reach data), `tools/` (nine so far: `list_inbox`, `read_document`, `extract_document`, `find_client`, `get_client_context`, `query_rows`, `facts_for`, `ask_user`, `propose_change`),
   `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `web/assistant-ui.js` (the dock), `web/assistant-flow.js` (runs the agent for the dock), `assistant.css`, `web/model-settings-ui.js` (the model selects of the settings), `fact-record.js`, `prompts.js`, `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
+- **Rows of the agent (4.4):** `row-builder.js` (the row from a fact and a decision), `proposal-apply.js` (the apply button), `agent/facts.js`, `agent/answers.js`; the page side is
+  `appendSnapshots`, `setRowImage`, `attachRowImages`, `openPdf`, `proposalOps` in `app.js`.
 - **Inbox:** `inbox-store.js` (originals dropped by the user, `inbox/index.json`, SHA-256 dedup against the inbox and all declaration
   images; the Windows file-name rules and the accepted file types live here), `inbox-ui.js` + `inbox.css` (`#inbox-dialog`: drop target, picker,
   client choice, result lines; opened by `#open-inbox`). The backup already copies `inbox/` with the rest of the root.
@@ -120,6 +123,8 @@ Phase 1 is mostly new code: `web/access.js`, `web/access-ui.js`, `web/model-clie
 ## Changes to inherited code (phase 2)
 
 - 2.1: `web/package.json` (check list) and `web/test/memory-binary-directory.mjs` (additive `removeEntry`). No production module changed.
+- 4.4: `web/app.js` (`rowSnapshot` and `restoreRow` carry `agent`; an agent row has its own status and not "marks missing"; `appendSnapshots`, `setRowImage`, `attachRowImages`, `openPdf`, `isPdfRow`, `proposalOps`,
+  the live table and `onDeclarationCreated` of the assistant flow), `web/workspace.js` (the dead call in `refreshFromUserAction` removed), `web/index.html` unchanged, `web/package.json`, `web/test/app-harness.mjs` (more exposed names).
 - Model choice: `web/ui-settings.js` (`models`, the overrides), `web/index.html` (three selects in the settings dialog), `web/app.js` (`modelSettings`; the connection check and the flow use it), `web/package.json`.
 - 4.3: `web/app.js` (two imports, `assistantFlow`, `runAssistant`, `setupAssistant` after the AI check), `web/index.html` (the `#assistant` section, `assistant.css`), `web/shell.css` (a fourth grid row), `web/package.json`.
 - 4.2b: `web/intake-facts.js` (`intakeFacts` takes an optional `targetMonth`; no caller passes it yet except `facts_for`).
@@ -200,6 +205,16 @@ made**, and no code in `app.js` starts it. Decisions on the way:
 - The tests that keep the contract: `test/agent-boundary.test.mjs` (the tool list equals the headings of the document: built plus `PENDING_TOOLS`; no tool name starting with an
   action verb; `services` has five operations and none that closes, deletes or writes; tool files import only the error class and pure helpers; only `services.js` reaches
   the stores; no `fetch`, DOM or file API in the agent), `agent-run.test.mjs` (the loop), `agent-tools.test.mjs`, `agent-core.test.mjs`, `agent-gemini.test.mjs`.
+
+### What 4.4 added (17 October 2026)
+
+- **Flow of one document:** `extract_document` -> `find_client` (or the folder) -> `facts_for` -> `add_rows` -> `move_file_to_declaration`. Handles, not ids; every value of the row is copied by the code from the fact.
+- **A row is told apart by month and number** (`position`, the # column), never by `documentId`: the groups of one invoice share one. `apply` checks that the row at that number still has the `documentId` of the proposal, and refuses otherwise.
+- **Where the row goes:** the open table takes it through the page (`restoreRow`, then the page saves its draft as for any edit); another month is written into its `draft-table.json` with the same format. The table is copied first, once per run and month (`draft-table.before-agent-<time>.json`); for the open table it is saved before the copy.
+- **Image of a row:** after `move_file_to_declaration` the rows made from that file (`agent.file` is the SHA-256) get `imageFile` and `imageIndex`; a PDF opens in the viewer of the browser at `agent.page` (`#page=N`, **not yet seen in a real Chrome**), a photo as before. The type of a stored original is taken from its name (`NNN.pdf`), because the file system hands out the type by extension anyway.
+- **Filing is safe by order:** copy and read back, then the rows get the image, then the entry leaves the index, then the file is removed from the inbox. A failure before the last step leaves the original in the inbox. The same bytes can no longer be added again: they are now a duplicate of an image of the declaration.
+- **Real data check, on a scratch copy outside the repository** (deleted after): see the decision log of 17 October. The scripts live in the session scratchpad, not in the repository; the row builder parity check (read only) compared percentages and amounts of 27 real rows and found no difference.
+- **Contract deviations to approve:** `docs/AGENT_TOOLS.md` is unchanged; the code differs from it in four points (decision log, 17 October). `docs/AGENT_TOOLS.md` should be amended once the owner approves them.
 
 ### General check of 16 October 2026 (before the first PDFs)
 

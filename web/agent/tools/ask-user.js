@@ -1,6 +1,8 @@
 // ask_user (docs/AGENT_TOOLS.md, 5.4): a short question with buttons. The call waits for the answer; a dismissed question
 // comes back as `dismissed` and the agent goes on. The record of the question (with the rule text that was shown, when the
-// card offered "remember for this client") is what remember_rule later relies on.
+// card offered "remember for this client") is what remember_rule later relies on. An option may carry a client handle or a month:
+// a click on it is then the decision of the user about the client (or the month) of the files the question is about, and add_rows
+// accepts nothing else as that decision.
 import { ToolError } from "../errors.js";
 
 const normal = (text) => text.trim().replace(/\s+/g, " ").toLowerCase();
@@ -19,7 +21,14 @@ export default {
       question: { type: "string", minLength: 1, maxLength: 200 },
       options: {
         type: "array", minItems: 2, maxItems: 6,
-        items: { type: "object", required: ["id", "label"], properties: { id: { type: "string", minLength: 1, maxLength: 20 }, label: { type: "string", minLength: 1, maxLength: 40 } } },
+        items: {
+          type: "object", required: ["id", "label"],
+          properties: {
+            id: { type: "string", minLength: 1, maxLength: 20 }, label: { type: "string", minLength: 1, maxLength: 40 },
+            client: { type: "string", maxLength: 12, description: "Client handle: choosing this button means the files belong to this client." },
+            month: { type: "string", maxLength: 7, description: "YYYY-MM: choosing this button means the files go to this month." },
+          },
+        },
       },
       allow_other: { type: "boolean", description: "Let the user type another answer." },
       about: {
@@ -46,12 +55,21 @@ export default {
     const files = (args.about?.files ?? []).map((handle) => ({ file: handle, ...ctx.handles.get("F", handle) }));
     const rows = (args.about?.rows ?? []).map((handle) => ({ row: handle, ...ctx.handles.get("R", handle) }));
     const client = args.remember ? ctx.handles.get("C", args.remember.client) : null;
+    const monthOf = (month) => {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new ToolError("invalid_argument", "month must look like 2026-03.");
+      return month;
+    };
+    const options = args.options.map((option) => ({
+      id: option.id, label: option.label,
+      ...(option.client ? { clientId: ctx.handles.get("C", option.client).clientId } : {}),
+      ...(option.month ? { month: monthOf(option.month) } : {}),
+    }));
 
     ctx.run.questions += 1;
-    const record = { question: args.question, options: args.options, clientId: client?.clientId ?? null, rule: args.remember?.rule ?? null, answer: null, remembered: false };
+    const record = { question: args.question, options, fileHandles: args.about?.files ?? [], clientId: client?.clientId ?? null, rule: args.remember?.rule ?? null, answer: null, remembered: false };
     const ask = ctx.handles.create("Q", ctx.run.questions, record);
     const card = {
-      id: ask, question: args.question, options: args.options, allowOther: args.allow_other,
+      id: ask, question: args.question, options: args.options.map(({ id, label }) => ({ id, label })), allowOther: args.allow_other,
       about: { files: files.map(({ file, name, folder }) => ({ file, name, folder })), rows: rows.map(({ row }) => ({ row })) },
       remember: client ? { client: client.name, rule: args.remember.rule } : null,
     };

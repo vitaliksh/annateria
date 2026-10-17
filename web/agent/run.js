@@ -17,11 +17,11 @@ const isAbort = (error) => error?.name === "AbortError";
 // run and the two guards every write goes through.
 export function createContext({ services, ui = {}, signal = new AbortController().signal, limits = LIMITS, now = () => new Date().toISOString(), log = null, runId = crypto.randomUUID() }) {
   // fileStatus: file handle -> waiting | extracted | filed. extractions: file handle -> { tries, records } (the fact store).
-  // addedEntries and factsUsed are filled by add_rows (4.4): rows made in this run are seen by the duplicate search, and facts
+  // addedEntries, factsUsed and addedFacts (fact handle -> what add_rows made of it) are filled by add_rows: rows made in this run are seen by the duplicate search, and facts
   // that already became a row cannot be extracted again.
   const run = {
     id: runId, asked: new Map(), questions: 0, copies: new Set(), fileStatus: new Map(), toolCalls: 0,
-    extractions: new Map(), extractCount: 0, extractSlots: createSemaphore(limits.parallelExtractions ?? LIMITS.parallelExtractions), addedEntries: [], factsUsed: new Set(),
+    extractions: new Map(), extractCount: 0, extractSlots: createSemaphore(limits.parallelExtractions ?? LIMITS.parallelExtractions), addedEntries: [], factsUsed: new Set(), addedFacts: new Map(),
   };
   return {
     handles: createHandles(), services, ui, signal, run, limits, log,

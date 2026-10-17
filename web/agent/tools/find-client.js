@@ -32,7 +32,7 @@ export default {
     for (const client of await ctx.services.clients.list()) {
       const match = vat && digits(client.vatId) === vat ? "vat_id" : args.name ? nameMatch(args.name, client.clientName) : null;
       if (!match) continue;
-      const handle = ctx.handles.create("C", client.clientId, { clientId: client.clientId, name: client.clientName, vatId: client.vatId ?? "" });
+      const handle = ctx.handles.create("C", client.clientId, { clientId: client.clientId, name: client.clientName, vatId: client.vatId ?? "", folder: client.folder ?? "" });
       matches.push({ client: handle, name: client.clientName, vat_id: client.vatId ?? "", match });
     }
     matches.sort((a, b) => ORDER[a.match] - ORDER[b.match] || a.name.localeCompare(b.name, "he"));

@@ -39,7 +39,7 @@ export function resultNote(result) {
 }
 
 // modelClient: createModelClient(...). getClients(), getDataRoot(), getLiveTable(): see agent/services.js. getModels(): the model of each role.
-export function createAssistantFlow({ modelClient, getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), getModels = () => MODELS, system = ORCHESTRATOR_PROMPT, now, reader = createDocumentReader() }) {
+export function createAssistantFlow({ modelClient, getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), getModels = () => MODELS, system = ORCHESTRATOR_PROMPT, now, reader = createDocumentReader(), onDeclarationCreated }) {
   const readText = async (file) => (await reader.inspect(file, { type: "application/pdf", storedName: file.name || "file.pdf" }, { maxChars: TEXT_LAYER_CHARS })).text ?? "";
   const registry = createDefaultRegistry();
 
@@ -49,7 +49,7 @@ export function createAssistantFlow({ modelClient, getDataRoot, getClients, getL
       // The models are looked up for every run: the user may have changed them in the settings.
       const models = getModels();
       const extraction = createExtractionAdapter({ client: modelClient, models, readText });
-      const services = createServices({ getDataRoot, getClients, getLiveTable, builtInChart, reserved, documents: reader, extraction });
+      const services = createServices({ getDataRoot, getClients, getLiveTable, builtInChart, reserved, documents: reader, extraction, onDeclarationCreated });
       const model = createGeminiModel({ client: modelClient, model: models.orchestrator });
       const result = await runAgent({ model, system, registry, message, services, ui, signal, onEvent, onProgress, ...(now ? { now } : {}) });
       try {

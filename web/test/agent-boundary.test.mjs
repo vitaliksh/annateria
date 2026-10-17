@@ -18,9 +18,12 @@ const doc = readFileSync(join(webDirectory, "..", "docs", "AGENT_TOOLS.md"), "ut
 const FORBIDDEN_TOOL = /^(close|reopen|delete|archive|remove|finalize|unlock|lock|write|erase|clear|drop|save|create_client|edit_client|set_)/;
 const FORBIDDEN_OPERATION = /close|reopen|delete|archive|remove|finalize|unlock|erase|clear|write|save/i;
 
-const BUILT_TOOLS = ["ask_user", "extract_document", "facts_for", "find_client", "get_client_context", "list_inbox", "propose_change", "query_rows", "read_document"];
+const BUILT_TOOLS = [
+  "add_rows", "ask_user", "extract_document", "facts_for", "find_client", "get_client_context", "list_inbox", "move_file_to_declaration", "propose_change", "query_rows",
+  "read_document",
+];
 // Tools of docs/AGENT_TOOLS.md that no step has built yet. Each step that builds one moves it to BUILT_TOOLS.
-const PENDING_TOOLS = ["add_rows", "move_file_to_declaration", "ready_to_close", "remember_rule", "run_report"];
+const PENDING_TOOLS = ["ready_to_close", "remember_rule", "run_report"];
 
 const documented = [...doc.matchAll(/^#### `([a-z_]+)`$/gm)].map((match) => match[1]);
 
@@ -51,8 +54,9 @@ test("`services` offers a fixed list of operations, none of which changes a decl
   const services = createServices({ getDataRoot: () => null, getClients: () => [] });
   const operations = Object.entries(services).flatMap(([group, members]) => Object.keys(members).map((name) => `${group}.${name}`));
   assert.deepEqual(operations.sort(), [
-    "clients.chart", "clients.list", "clients.profile", "declarations.state", "documents.inspect", "extraction.run", "inbox.readIndex",
-    "intake.context", "rows.list", "rules.read", "tables.copyBeforeAgent",
+    "clients.chart", "clients.list", "clients.profile", "declarations.create", "declarations.state", "documents.inspect", "extraction.run",
+    "files.copyToDeclaration", "files.moveOutOfInbox", "inbox.readIndex", "intake.context", "rows.append", "rows.attachImage", "rows.list", "rules.read",
+    "tables.copyBeforeAgent",
   ]);
   for (const operation of operations) assert.doesNotMatch(operation, FORBIDDEN_OPERATION, operation);
   assert.equal(Object.isFrozen(services) && Object.values(services).every(Object.isFrozen), true);
@@ -63,10 +67,14 @@ const importsOf = (file) => [...readFileSync(file, "utf8").matchAll(/(?:from|imp
 // Imports that leave the agent folder, as paths relative to web/.
 const outsideImports = (file) => importsOf(file).map((specifier) => relative(webDirectory, join(dirname(file), specifier)).replaceAll("\\", "/")).filter((path) => path.startsWith("..") || !path.startsWith("agent/"));
 
-const PURE = ["intake-facts.js", "pcn-review.js", "row-calculations.js", "home-utilities.js", "reports.js", "month-format.js", "month-distribution.js", "workspace-core.js"];
+const PURE = [
+  "intake-facts.js", "pcn-review.js", "row-calculations.js", "home-utilities.js", "reports.js", "month-format.js", "month-distribution.js", "workspace-core.js",
+  "row-builder.js",
+];
 const ALLOWED_OUTSIDE = {
   "agent/services.js": ["bookkeeper-flow.js", "chart-of-accounts.js", "declaration-store.js", "inbox-store.js", "intake-facts.js", "intake-index.js", "rules-store.js"],
   "agent/fact-record.js": ["intake-facts.js", "workspace-core.js"],
+  "agent/facts.js": ["intake-facts.js", "home-utilities.js", "pcn-review.js"],
   "agent/adapters/documents.js": ["pdf-import.js"],
 };
 

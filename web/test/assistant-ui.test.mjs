@@ -9,11 +9,11 @@ import { FIELD_LABELS, TOOL_LABELS, progressLabel, setupAssistant } from "../ass
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "index.html"), "utf8");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
-function setup() {
+function setup({ onApply } = {}) {
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/annateria/" });
   const commands = [];
   const root = window.document.querySelector("#assistant");
-  const assistant = setupAssistant({ root, onCommand: (command) => commands.push(command) });
+  const assistant = setupAssistant({ root, onCommand: (command) => commands.push(command), ...(onApply ? { onApply } : {}) });
   const q = (selector) => root.querySelector(selector);
   const messages = () => [...root.querySelectorAll(".assistant-message")].map((node) => [node.dataset.kind, node.textContent]);
   return { window, root, assistant, commands, q, messages, click: (selector) => q(selector).click() };
@@ -170,7 +170,7 @@ test("a proposal card lists the changes in Hebrew with the row number, the month
     "שורה 32 (02/2026) · מספר הקצאה: (ריק) — מחיקה",
   ]);
   assert.equal(q("#assistant-body").hidden, false);
-  assert.equal(q(".assistant-card[data-kind='proposal'] button"), null, "applying comes with step 4.4");
+  assert.equal(q(".assistant-card[data-kind='proposal'] button"), null, "without a handler the card only shows the changes");
 });
 
 test("the progress line names what the agent is doing and counts the documents read", () => {
@@ -197,4 +197,57 @@ test("the button of the dock says what it does and what it does not do", () => {
   const { q } = setup();
   assert.equal(q("#assistant-process").textContent, "בדוק מסמכים חדשים");
   assert.match(q("#assistant-process").title, /בודק אותם ומציג סיכום.*לא מוסיף שורות/);
+});
+
+const proposal = () => ({
+  id: "P1", client: { id: "id-Levi", name: "Levi Plumbing" }, title: "תיקון",
+  changes: [
+    { row: "R1", documentId: "d-1", month: "2026-02", position: 3, field: "date", value: "2026-02-20", reason: "ראשון" },
+    { row: "R2", documentId: "d-2", month: "2026-02", position: 9, field: "purpose", value: "x", reason: "שני" },
+    { row: "R3", documentId: "d-3", month: "2026-02", position: 12, field: "include", value: false, reason: "שלישי" },
+  ],
+});
+
+test("a proposal with a handler: each change is ticked, apply sends the ticked ones and the card says what was done and what was refused", async () => {
+  const calls = [];
+  const { assistant, q, root } = setup({ onApply: async (given, kept) => { calls.push([given.id, kept]); return { applied: [given.changes[kept[0]]], refused: [{ change: given.changes[kept[1]], reason: "הטבלה השתנתה" }] }; } });
+  assistant.ui.propose(proposal());
+  const ticks = [...root.querySelectorAll(".card-changes input")];
+  assert.deepEqual(ticks.map((tick) => tick.checked), [true, true, true]);
+  assert.match(q(".card-changes li").textContent, /שורה 3 \(02\/2026\) · תאריך: 2026-02-20 — ראשון/);
+  ticks[2].click();
+  const [apply, reject] = [...root.querySelectorAll(".assistant-card[data-kind='proposal'] .card-options button")];
+  assert.deepEqual([apply.textContent, reject.textContent], ["החל", "דחה"]);
+  apply.click();
+  await tick();
+  assert.deepEqual(calls, [["P1", [0, 1]]]);
+  assert.match(q(".assistant-card[data-kind='proposal'] .card-about").textContent, /הוחלו 1 מתוך 2 שינויים/);
+  assert.equal(q(".card-answer").textContent, "שורה 9: הטבלה השתנתה");
+  assert.equal([...root.querySelectorAll(".assistant-card button, .assistant-card input")].every((node) => node.disabled), true);
+  apply.click();
+  await tick();
+  assert.equal(calls.length, 1, "a card is applied once");
+});
+
+test("a proposal can be turned down, applied with nothing ticked (nothing happens), or fail with a message", async () => {
+  let called = 0;
+  const rejected = setup({ onApply: async () => { called += 1; return { applied: [], refused: [] }; } });
+  rejected.assistant.ui.propose(proposal());
+  rejected.root.querySelector(".card-options .link").click();
+  assert.match(rejected.q(".card-about").textContent, /ההצעה נדחתה/);
+  assert.equal(called, 0);
+
+  const none = setup({ onApply: async () => { called += 1; return { applied: [], refused: [] }; } });
+  none.assistant.ui.propose(proposal());
+  for (const tick of none.root.querySelectorAll(".card-changes input")) tick.click();
+  none.root.querySelector(".card-options button").click();
+  await tick();
+  assert.equal(called, 0);
+  assert.equal(none.q(".assistant-card[data-kind='proposal'] button").disabled, false, "the card stays open");
+
+  const failing = setup({ onApply: async () => { throw new Error("disk full"); } });
+  failing.assistant.ui.propose(proposal());
+  failing.root.querySelector(".card-options button").click();
+  await tick();
+  assert.match(failing.q(".card-about").textContent, /לא ניתן להחיל: disk full/);
 });

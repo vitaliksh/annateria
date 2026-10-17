@@ -29,7 +29,7 @@ const FIELDS = {
 
 export default {
   name: "propose_change",
-  description: "Suggest changes to rows that already exist (a correction of what the document says, another account, another month, include or exclude). It only shows the user a card with the proposed changes: in this version the card cannot be applied, so tell the user to make the change by hand in the table, with the row number (position), the field and the value. `value` is always text: a number as 123.45, a date as 2026-03-14, a yes/no as true or false.",
+  description: "Suggest changes to rows that already exist (a correction of what the document says, another account, another month, include or exclude). The user sees a card with the changes and applies the ones that stay ticked with the button \"החל\", or turns it down; nothing changes before that. A change of month cannot be applied from the card (the user moves rows with the dialog for spreading rows over months), and a change is refused when the table of its month is not the open one or has changed since. `value` is always text: a number as 123.45, a date as 2026-03-14, a yes/no as true or false.",
   schema: {
     type: "object",
     required: ["client", "title", "changes"],
