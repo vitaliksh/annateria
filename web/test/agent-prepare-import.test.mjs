@@ -7,6 +7,8 @@ import { addToInbox } from "../inbox-store.js";
 import { createDocumentReader } from "../agent/adapters/documents.js";
 import { createImportReader } from "../agent/adapters/imports.js";
 import { buildJournalGrid, SAMPLE_ROWS } from "./excel-journal-fixture.mjs";
+import { ledgerGrid, ledgerPdfPages } from "./ledger-fixture.mjs";
+import { fakePdfJs } from "./income-report-fixture.mjs";
 import { createDefaultRegistry } from "../agent/index.js";
 import { runAgent } from "../agent/run.js";
 import { call, file, reply, say, scriptedModel, recordingUi, toolContext, world } from "./agent-fixtures.mjs";
@@ -83,7 +85,8 @@ test("prepare_import: a file that is not a journal is wrong_format with the mess
 test("prepare_import: a kind that does not fit the type of the file, and kinds that are not built yet, are invalid arguments", async () => {
   const s = await session();
   assert.equal((await prepare({ ...s, handle: s.handles["policy.pdf"] })).error.code, "invalid_argument");
-  assert.equal((await prepare(s, { kind: "ledger_codes" })).error.code, "invalid_argument");
+  assert.equal((await prepare(s, { kind: "ledger_check" })).error.code, "invalid_argument");
+  assert.equal((await prepare(s, { kind: "ledger_codes" })).error.code, "wrong_format", "a journal is no classification-codes ledger");
   assert.equal((await prepare(s, { kind: "income_report" })).error.code, "invalid_argument");
   assert.equal((await prepare(s, { month: "2026-13" })).error.code, "invalid_argument");
   assert.equal((await prepare(s, { file: "F99" })).error.code, "not_found");
@@ -187,4 +190,45 @@ test("prepare_import: the client the user picked from the list of a choose_clien
   assert.equal(s.ctx.handles.get("C", levi).clientId, "id-Levi", "the list is sorted by name: Cohen, Levi, Pcn");
   const ok = await prepare(s, { client: levi, routed_by: "user", routing_ask: asked.ask });
   assert.deepEqual([ok.ok, ok.state], [true, "prepared"]);
+});
+
+// --- kind ledger_codes (step 4.7.3) ---
+
+async function ledgerSession({ name = "codes.xlsx", owner = "Cohen", pdf = false } = {}) {
+  const tools = await toolContext({ imports: createImportReader({ loadLibrary, loadPdf: fakePdfJs(ledgerPdfPages()) }) });
+  const content = pdf ? new TextEncoder().encode("%PDF-1.4 synthetic") : workbook(ledgerGrid());
+  await addToInbox(tools.w.root, [file(name, content, pdf ? "application/pdf" : "")], { folder: owner, now: "2026-10-16T08:06:00.000Z" });
+  const handles = await tools.files();
+  return { ...tools, handles, handle: handles[name], levi: await tools.client(owner) };
+}
+const codes = (s, extra = {}) => prepare(s, { kind: "ledger_codes", reason: "כרטסת קודי מיון של הלקוח", ...extra });
+
+test("prepare_import ledger_codes: a ledger workbook gives the number of codes and the plan, a card, and changes nothing", async () => {
+  const s = await ledgerSession();
+  const before = await snapshot(s.w.root);
+  const result = await codes(s);
+  assert.equal(result.ok, true);
+  assert.deepEqual([result.kind, result.wizard, result.state], ["ledger_codes", "ledger_codes", "prepared"]);
+  assert.ok(result.summary.accounts > 0);
+  assert.deepEqual([result.summary.had_own_chart, result.summary.rows_to_remap, result.summary.months_to_remap], [false, 0, []]);
+  assert.deepEqual(result.checks.map((check) => check.code), ["codes_found", "all_lines_read", "imported_rows_remapped"]);
+  assert.deepEqual(await snapshot(s.w.root), before);
+  assert.equal(JSON.stringify(result).includes('הנה"ח'), false, "no account name reaches the model");
+  assert.equal(s.ui.importCards[0].kind, "ledger_codes");
+});
+
+test("prepare_import ledger_codes: a PDF ledger is read too; a client with codes of its own is warned that they are replaced", async () => {
+  const s = await ledgerSession({ name: "codes.pdf", owner: "Levi", pdf: true });
+  const result = await codes(s);
+  assert.equal(result.ok, true);
+  assert.equal(result.summary.had_own_chart, true);
+  assert.deepEqual(result.problems.find((item) => item.code === "replaces_own_chart"), { code: "replaces_own_chart", severity: "warning", count: 1 });
+});
+
+test("prepare_import ledger_codes: a file without codes is wrong_format with the message of the reader", async () => {
+  const s = await session({ grid: [["a", "b"], [1, 2]], name: "not-codes.xlsx", owner: "Cohen" });
+  const result = await prepare(s, { kind: "ledger_codes" });
+  assert.equal(result.error.code, "wrong_format");
+  assert.match(result.error.message, /לא נמצאו קודי מיון/);
+  assert.equal(s.ui.importCards.length, 0);
 });

@@ -373,3 +373,15 @@ test("the question about the client has a list of the other clients; choosing on
   assert.equal(list.disabled, true);
   assert.match(box.textContent, /נבחר: Pcn/);
 });
+
+test("the card of a classification-codes ledger says how many codes and which imported rows get new codes", () => {
+  const { assistant, q } = setup();
+  assistant.ui.importCard(importCard({
+    kind: "ledger_codes", totals: null, file: { name: "codes.pdf", hash: "b".repeat(64), folder: "Levi" },
+    summary: { accounts: 42, had_own_chart: true, rows_to_remap: 7, months_to_remap: ["2026-01", "2026-03"], month: null },
+    problems: [{ code: "replaces_own_chart", severity: "warning", count: 1 }, { code: "locked_months_not_remapped", severity: "warning", count: 2 }],
+  }));
+  const text = q(".assistant-card[data-kind='import']").textContent;
+  for (const part of ["כרטסת קודי מיון (Rivhit)", "42 קודי מיון בכרטסת", "7 שורות שיובאו מ-Excel יקבלו את הקודים החדשים (01/2026, 03/2026)", "יוחלפו בקודים שבכרטסת", "ב-2 הצהרות נעולות"]) assert.ok(text.includes(part), part);
+  assert.equal(text.includes("undefined"), false);
+});

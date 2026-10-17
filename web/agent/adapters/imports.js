@@ -1,8 +1,10 @@
 // The backend of prepare_import (docs/AGENT_TOOLS.md, 5.6): runs the read-only preparer of the existing import wizard on an inbox
 // file and boils the result down to what the model may see (counts and check results) and what the card shows to the user (the
-// same, plus the totals). Nothing here writes: only `prepareImport` and `inspectImportTarget` are used, never a commit function.
+// same, plus the totals). Nothing here writes: only the preparers (`prepareImport`, `prepareLedger`) and `inspectImportTarget` are used,
+// never a commit function.
 import { prepareImport } from "../../excel-import-flow.js";
 import { inspectImportTarget } from "../../excel-import-store.js";
+import { prepareLedger } from "../../ledger-codes-flow.js";
 
 export class ImportError extends Error {
   constructor(code, message) {
@@ -29,8 +31,8 @@ function groupProblems(prepared) {
   return [...groups.values()];
 }
 
-// loadLibrary: loads SheetJS (tests pass their own). Only the journal is built so far (step 4.7.2).
-export function createImportReader({ loadLibrary } = {}) {
+// loadLibrary: loads SheetJS, loadPdf: pdf.js (tests pass their own). Built so far: journal (4.7.2), ledger_codes (4.7.3).
+export function createImportReader({ loadLibrary, loadPdf } = {}) {
   async function journal(file, { dataRoot, client, reserved, month }) {
     let prepared;
     try {
@@ -72,10 +74,39 @@ export function createImportReader({ loadLibrary } = {}) {
     };
   }
 
+  // The classification-codes ledger of Rivhit (PDF or .xlsx): its codes become the client's own chart in the dialog; rows imported
+  // from Excel are moved to the new codes there. Here only the plan is made (prepareLedger reads the declarations, writes nothing).
+  async function ledgerCodes(file, { dataRoot, client, reserved }) {
+    let prepared;
+    try {
+      prepared = await prepareLedger(file, { dataRoot, client, reserved, loadLibrary, loadPdf });
+    } catch (error) {
+      throw new ImportError("wrong_format", error.message);
+    }
+    const accounts = Object.keys(prepared.accounts).length;
+    const { plan, skipped } = prepared;
+    const problems = [];
+    if (prepared.hadOwnChart) problems.push({ code: "replaces_own_chart", severity: "warning", count: 1 });
+    if (skipped.length) problems.push({ code: "lines_skipped", severity: "warning", count: skipped.length });
+    if (plan.unresolved.length) problems.push({ code: "rows_not_remapped", severity: "warning", count: plan.unresolved.length });
+    if (plan.locked.length) problems.push({ code: "locked_months_not_remapped", severity: "warning", count: plan.locked.length });
+    return {
+      summary: { accounts, had_own_chart: prepared.hadOwnChart, rows_to_remap: plan.changed, months_to_remap: plan.months, month: null },
+      checks: [
+        { code: "codes_found", ok: true, count: accounts },
+        { code: "all_lines_read", ok: skipped.length === 0, ...(skipped.length ? { count: skipped.length } : {}) },
+        { code: "imported_rows_remapped", ok: plan.unresolved.length === 0 && plan.locked.length === 0 },
+      ],
+      problems,
+      totals: null,
+    };
+  }
+
   return {
     // file: the File of the inbox entry. options: { kind, dataRoot, client, reserved, month }. Resolves with { summary, checks, problems, totals }.
     async prepare(file, options) {
       if (options.kind === "journal") return journal(file, options);
+      if (options.kind === "ledger_codes") return ledgerCodes(file, options);
       throw new ImportError("wrong_format", `The kind ${options.kind} is not available yet.`);
     },
   };

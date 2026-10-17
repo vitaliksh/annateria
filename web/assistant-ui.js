@@ -29,11 +29,15 @@ export const FIELD_LABELS = {
 export const COMMAND_LABELS = { process: "בדוק מסמכים חדשים", left: "מה נשאר?" };
 
 // The card of an import file (prepare_import): what the file is, what was found in it, and the button that opens the wizard.
-const IMPORT_KINDS = { journal: "יומן קליטה (Rivhit)" };
+const IMPORT_KINDS = { journal: "יומן קליטה (Rivhit)", ledger_codes: "כרטסת קודי מיון (Rivhit)" };
 const IMPORT_PROBLEMS = {
   month_locked: () => "ההצהרה לחודש הזה נעולה, אי אפשר לייבא אליה.",
   month_has_rows: (item) => `בחודש הזה כבר יש ${item.count} שורות; באשף אפשר להחליף אותן (עותק של הטבלה הישנה יישמר).`,
   month_differs: () => "החודש שהוצע שונה מהחודש בכותרת הקובץ; האשף ישתמש בחודש שבקובץ.",
+  replaces_own_chart: () => "ללקוח כבר יש קודי מיון משלו; הם יוחלפו בקודים שבכרטסת.",
+  lines_skipped: (item) => `${item.count} שורות בכרטסת לא נקראו; האשף מראה אילו ולמה.`,
+  rows_not_remapped: (item) => `ל-${item.count} סוגים של שורות שיובאו מ-Excel אין קוד בכרטסת; השורות האלה לא יעודכנו.`,
+  locked_months_not_remapped: (item) => `ב-${item.count} הצהרות נעולות יש שורות שיובאו מ-Excel; הן לא יעודכנו.`,
   types_suggested: (item) => `ל-${item.count} קודי מיון הוצע סוג אחר כדי שהסכומים בסוף הקובץ יתאימו; האשף מראה זאת.`,
 };
 const money = (value) => value.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -296,9 +300,15 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
     box.append(isolated("card-about muted", [`${IMPORT_KINDS[card.kind] ?? card.kind} · `, { name: card.file.name }, ` · לקוח «${card.client.name}»`]));
     const { summary, totals } = card;
     const list = element("ul", "card-changes");
-    const lines = [`${summary.rows} שורות${totals ? ` · נטו ${money(totals.net)} · מע״מ ${money(totals.vat)} · ברוטו ${money(totals.gross)}` : ""}`];
-    if (summary.month) lines.push(`חודש בקובץ: ${formatMonth(summary.month)}`);
-    if (summary.new_accounts) lines.push(`${summary.new_accounts} שמות קודי מיון חדשים (באשף יש להגדיר להם קוד וסוג)`);
+    const lines = [];
+    if (card.kind === "ledger_codes") {
+      lines.push(`${summary.accounts} קודי מיון בכרטסת`);
+      if (summary.rows_to_remap) lines.push(`${summary.rows_to_remap} שורות שיובאו מ-Excel יקבלו את הקודים החדשים (${summary.months_to_remap.map(formatMonth).join(", ")}); עותק של כל טבלה יישמר.`);
+    } else {
+      lines.push(`${summary.rows} שורות${totals ? ` · נטו ${money(totals.net)} · מע״מ ${money(totals.vat)} · ברוטו ${money(totals.gross)}` : ""}`);
+      if (summary.month) lines.push(`חודש בקובץ: ${formatMonth(summary.month)}`);
+      if (summary.new_accounts) lines.push(`${summary.new_accounts} שמות קודי מיון חדשים (באשף יש להגדיר להם קוד וסוג)`);
+    }
     for (const item of card.problems) lines.push(`${item.severity === "error" ? "שגיאה" : "אזהרה"}: ${importProblemText(item)}`);
     for (const line of lines) list.append(element("li", "", line));
     box.append(list);

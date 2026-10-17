@@ -105,3 +105,41 @@ test("диалог כרטסת: неверный файл показывает о
   assert.equal(await readClientChart(client.directory), null);
   assert.equal(calls.saved.length, 0);
 });
+
+// --- the dialog opened with a file at hand (step 4.7.3: the card of the assistant) ---
+test("openWith: the dialog opens with the ledger read; after the save the host is told once, and a failure is only reported", async () => {
+  const { dialog, calls, ledger, q, client } = await setup();
+  const committed = [];
+  await ledger.openWith(xlsxFile(ledgerGrid(SECTIONS)), { onCommitted: async () => { committed.push("filed"); return "המקור הועבר."; } });
+  assert.equal(dialog.open, true);
+  assert.equal(q("ledger-codes-details").hidden, false);
+  assert.deepEqual(committed, [], "nothing before the user saves");
+  q("ledger-codes-save").click();
+  for (let i = 0; i < 50 && !calls.saved.length; i += 1) await settle();
+  assert.deepEqual(committed, ["filed"]);
+  assert.match(q("ledger-codes-summary").textContent, /המקור הועבר\.$/);
+  assert.equal(Object.keys(await readClientChart(client.directory)).length, 7);
+  const failing = await setup();
+  await failing.ledger.openWith(xlsxFile(ledgerGrid(SECTIONS)), { onCommitted: async () => { throw new Error("הדיסק מלא"); } });
+  failing.q("ledger-codes-save").click();
+  for (let i = 0; i < 50 && !failing.calls.saved.length; i += 1) await settle();
+  assert.match(failing.q("ledger-codes-summary").textContent, /הקובץ לא הועבר מתיבת הקלט: הדיסק מלא/);
+  assert.ok(await readClientChart(failing.client.directory), "the codes are saved anyway");
+});
+
+test("openWith: a file chosen by hand afterwards, or the dialog opened as before, is never filed", async () => {
+  const { calls, ledger, q, pick } = await setup();
+  const committed = [];
+  await ledger.openWith(xlsxFile(ledgerGrid(SECTIONS)), { onCommitted: async () => { committed.push("x"); } });
+  await pick(xlsxFile(ledgerGrid(SECTIONS), "other.xlsx"));
+  q("ledger-codes-save").click();
+  for (let i = 0; i < 50 && !calls.saved.length; i += 1) await settle();
+  const again = await setup();
+  await again.ledger.openWith(xlsxFile(ledgerGrid(SECTIONS)), { onCommitted: async () => { committed.push("y"); } });
+  again.ledger.open();
+  await again.pick(xlsxFile(ledgerGrid(SECTIONS)));
+  again.q("ledger-codes-save").click();
+  for (let i = 0; i < 50 && !again.calls.saved.length; i += 1) await settle();
+  assert.equal(again.calls.saved.length, 1);
+  assert.deepEqual(committed, []);
+});

@@ -238,7 +238,7 @@ test("a proposal names the row by its number, even when the row shares its docum
 test("the instruction has the agent read import files and name the wizard of the menu, and never extract a spreadsheet (4.7.1)", async () => {
   const { ORCHESTRATOR_PROMPT, AGENT_VERSION } = await import("../agent/prompts.js");
   const { default: listInbox } = await import("../agent/tools/list-inbox.js");
-  assert.equal(AGENT_VERSION, "stand-in-2026-10-17g");
+  assert.equal(AGENT_VERSION, "stand-in-2026-10-17h");
   assert.ok(ORCHESTRATOR_PROMPT.includes("read every spreadsheet, and every PDF that does not look like an invoice"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("with read_document, and never extract a spreadsheet with the vision model"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("say plainly when you cannot tell what a file is"));
@@ -291,7 +291,7 @@ test("the instruction sends a journal to prepare_import and never lets the model
   assert.ok(ORCHESTRATOR_PROMPT.includes("prepare an import file for the user's wizard (prepare_import)"));
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /you cannot import them yet/);
   assert.match(prepareImport.description, /write nothing and the wizard opens only when the user clicks/);
-  assert.deepEqual(prepareImport.schema.properties.kind.enum, ["journal"], "only the kinds that are built");
+  assert.deepEqual(prepareImport.schema.properties.kind.enum, ["journal", "ledger_codes"], "only the kinds that are built");
 });
 
 test("the instruction asks which client with choose_client and gives no buttons of its own", async () => {
@@ -302,4 +302,11 @@ test("the instruction asks which client with choose_client and gives no buttons 
   assert.ok(ORCHESTRATOR_PROMPT.includes("The answer gives the handle of the chosen client in client"));
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /a last button without a client for "different clients"/);
   assert.match(askUser.description, /set choose_client true/);
+});
+
+test("the instruction sends a classification-codes ledger to prepare_import and leaves only the other two kinds to the menu (4.7.3)", async () => {
+  const { ORCHESTRATOR_PROMPT } = await import("../agent/prompts.js");
+  assert.ok(ORCHESTRATOR_PROMPT.includes('a classification-codes ledger ("כרטסת קודי מיון", PDF or .xlsx'));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("with kind ledger_codes"));
+  assert.doesNotMatch(ORCHESTRATOR_PROMPT, /classification-codes ledger is opened from the client card/);
 });

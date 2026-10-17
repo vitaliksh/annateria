@@ -17,7 +17,7 @@ specification for 4.2 onwards; a change to it needs the owner's approval.
 
 **Done:** steps 4.1 to **4.4** (the agent reads, checks, adds rows, files the originals, and its proposals can be applied); 4.5 (routing) is built with 4.4. **Next, for the
 owner:** the same run as before, now with files: put a document of a client into "תיבת קלט" (best in the folder of that client), press "בדוק מסמכים חדשים" or "בדוק עם העוזר", and look at
-the table: a row, its status, its original (the PDF button), and the cards. **Next step:** block 4.7 (all imports through the inbox; 4.7.1 and 4.7.2 are built, waiting for the owner's real run; next 4.7.3 `ledger_codes`), then 4.6 client memory (`remember_rule`, `rules.md`), then phase 5 (skills and eval). The
+the table: a row, its status, its original (the PDF button), and the cards. **Next step:** block 4.7 (all imports through the inbox; 4.7.1 and 4.7.2 accepted; 4.7.3 `ledger_codes` built, waiting for the owner's real run; next 4.7.4 `ledger_check`), then 4.6 client memory (`remember_rule`, `rules.md`), then phase 5 (skills and eval). The
 owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (the Cloudflare plan now matters: see "General check of 16 October"): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
@@ -54,7 +54,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 722 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 729 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 

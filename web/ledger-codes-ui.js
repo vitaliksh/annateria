@@ -27,9 +27,12 @@ export function setupLedgerCodes({ dialog, getContext, onSaved, onError, onBefor
   ].map(part);
   let context = null;
   let prepared = null;
+  let loaded = null; // the file that `prepared` was read from
+  let preset = null; // { file, onCommitted } of a dialog opened with openWith (the card of the assistant, step 4.7.3)
 
   const reset = () => {
     prepared = null;
+    loaded = null;
     file.value = "";
     details.hidden = true;
     errorLine.textContent = "";
@@ -69,14 +72,29 @@ export function setupLedgerCodes({ dialog, getContext, onSaved, onError, onBefor
     details.hidden = true;
     save.disabled = true;
     if (!file.files?.length) return;
+    await load(file.files[0]);
+  });
+
+  async function load(selected) {
     try {
-      prepared = await prepareLedger(file.files[0], { ...context, loadLibrary, loadPdf });
+      loaded = selected;
+      prepared = await prepareLedger(selected, { ...context, loadLibrary, loadPdf });
       render();
     } catch (error) {
       prepared = null;
       errorLine.textContent = error.message;
     }
-  });
+  }
+
+  // What the host does with the original once the codes are saved; a failure is told and never undoes the save.
+  async function afterCommit() {
+    if (!preset || loaded !== preset.file) return "";
+    try {
+      return (await preset.onCommitted()) ?? "";
+    } catch (error) {
+      return `הקובץ לא הועבר מתיבת הקלט: ${error.message}`;
+    }
+  }
 
   save.addEventListener("click", async () => {
     if (!prepared) return;
@@ -86,9 +104,10 @@ export function setupLedgerCodes({ dialog, getContext, onSaved, onError, onBefor
       const types = Object.fromEntries([...list.querySelectorAll("[data-code]")].map((row) => [row.dataset.code, row.querySelector("select").value]));
       const detached = await onBeforeWrite?.(prepared.plan.months);
       const result = await commitLedger(prepared, { types, client: context.client, reserved: context.reserved });
+      const filed = await afterCommit();
       await onSaved?.(result, detached);
       errorLine.textContent = "";
-      summary.textContent = `נשמרו ${Object.keys(result.chart).length} קודי מיון של הלקוח${result.plan.changed ? `, עודכנו ${result.plan.changed} שורות` : ""}.`;
+      summary.textContent = `נשמרו ${Object.keys(result.chart).length} קודי מיון של הלקוח${result.plan.changed ? `, עודכנו ${result.plan.changed} שורות` : ""}.${filed ? ` ${filed}` : ""}`;
       prepared = null;
       list.replaceChildren();
       notes.replaceChildren();
@@ -103,8 +122,19 @@ export function setupLedgerCodes({ dialog, getContext, onSaved, onError, onBefor
     open() {
       context = getContext();
       if (!context) return onError("יש לבחור תחילה תיקיית נתונים ולקוח לפני טעינת קודי מיון.");
+      preset = null;
       reset();
       dialog.showModal();
+    },
+    // Opens the dialog with `selected` (a File) already read, for the open client. onCommitted() runs after the codes were saved
+    // and resolves with a line for the user; it runs only if the file read is still this one.
+    async openWith(selected, { onCommitted } = {}) {
+      context = getContext();
+      if (!context) return onError("יש לבחור תחילה תיקיית נתונים ולקוח לפני טעינת קודי מיון.");
+      reset();
+      preset = onCommitted ? { file: selected, onCommitted } : null;
+      dialog.showModal();
+      await load(selected);
     },
   };
 }
