@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import {
   UNSORTED, addToInbox, copyToDeclarationImages, declarationImageHashes, ensureInbox, inboxCounts, isInboxFolder, moveOutOfInbox, moveToTrash, nextImageNumber, readInboxFile,
-  readInboxIndex, refusalReason, safeFileName, sha256Hex,
+  readInboxIndex, reconcileInbox, refusalReason, safeFileName, sha256Hex,
 } from "../inbox-store.js";
 import { binaryDirectory, listPaths, putFile, readFileBytes } from "./memory-binary-directory.mjs";
 
@@ -390,4 +390,24 @@ test("calls made at the same time do not lose each other's changes: ten files le
   await Promise.all(entries.map((entry) => moveOutOfInbox(root, entry)));
   assert.deepEqual((await readInboxIndex(root)).files, [], "no entry is left in the index");
   assert.deepEqual((await listPaths(root)).filter((path) => path.startsWith("inbox/_unsorted/")), [], "no file is left in the folder");
+});
+
+test("an index entry whose file is gone is dropped by reconcileInbox, and its bytes can be added again", async () => {
+  const { root, entries } = await filedWorld();
+  assert.deepEqual(await reconcileInbox(root), [], "nothing is missing: nothing is dropped");
+  const folder = await (await root.getDirectoryHandle("inbox")).getDirectoryHandle("Levi");
+  await folder.removeEntry(entries[0].storedName);
+  assert.equal((await readInboxIndex(root)).files.length, 2, "the entry is still in the index");
+  assert.deepEqual((await reconcileInbox(root)).map((entry) => entry.name), [entries[0].name]);
+  assert.deepEqual((await readInboxIndex(root)).files.map((entry) => entry.name), [entries[1].name]);
+  assert.deepEqual(await reconcileInbox(root), [], "a second call has nothing to do");
+});
+
+test("addToInbox does not call the same bytes a duplicate of a file that is no longer there", async () => {
+  const { root, entries } = await filedWorld();
+  const folder = await (await root.getDirectoryHandle("inbox")).getDirectoryHandle("Levi");
+  await folder.removeEntry(entries[0].storedName);
+  const again = await addToInbox(root, [fileOf("scan again.jpg", "photo bytes")], { folder: "Levi", now: NOW });
+  assert.deepEqual([again.added.length, again.duplicates.length], [1, 0]);
+  assert.equal((await readInboxIndex(root)).files.filter((entry) => entry.hash === entries[0].hash).length, 1, "one entry for those bytes");
 });

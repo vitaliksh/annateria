@@ -9,6 +9,7 @@ import { validate } from "../schema.js";
 function asToolError(error) {
   if (error instanceof ToolError) return error;
   if (error?.name === "AbortError") return new ToolError("cancelled", "The run was cancelled.");
+  if (error?.name === "NotFoundError") return new ToolError("not_found", "The file is listed in the inbox but is not in its folder any more.");
   if (error?.name === "ExtractionError") return new ToolError(["too_large", "unsupported_type"].includes(error.code) ? "invalid_argument" : "unavailable", error.message);
   if (error?.name === "ModelError") return new ToolError("unavailable", `The model did not answer (${error.code}).`);
   return new ToolError("unavailable", "The file could not be read.");

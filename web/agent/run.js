@@ -16,12 +16,13 @@ const isAbort = (error) => error?.name === "AbortError";
 // What a tool receives: the handle table, the services, the user interface of the panel, the abort signal, the counters of the
 // run and the two guards every write goes through.
 export function createContext({ services, ui = {}, signal = new AbortController().signal, limits = LIMITS, now = () => new Date().toISOString(), log = null, runId = crypto.randomUUID() }) {
+  // listed: file handle -> { name, folder, kind } of every file that list_inbox showed.
   // routes: file handle -> the answered question that sent the file to a client (ask_user), so that it is never asked twice.
   // fileStatus: file handle -> waiting | extracted | filed. extractions: file handle -> { tries, records } (the fact store).
   // addedEntries, factsUsed and addedFacts (fact handle -> what add_rows made of it) are filled by add_rows: rows made in this run are seen by the duplicate search, and facts
   // that already became a row cannot be extracted again.
   const run = {
-    id: runId, asked: new Map(), routes: new Map(), questions: 0, copies: new Set(), fileStatus: new Map(), toolCalls: 0,
+    id: runId, asked: new Map(), routes: new Map(), listed: new Map(), questions: 0, copies: new Set(), fileStatus: new Map(), toolCalls: 0,
     extractions: new Map(), extractCount: 0, extractSlots: createSemaphore(limits.parallelExtractions ?? LIMITS.parallelExtractions), addedEntries: [], factsUsed: new Set(), addedFacts: new Map(),
   };
   return {
@@ -76,10 +77,16 @@ export async function runAgent({
     }
     return [...counts].map(([key, count]) => ({ clientId: key.split("|")[0], month: key.split("|")[1], count })).sort((a, b) => a.month.localeCompare(b.month));
   };
+  // The files of the inbox that were shown but not filed, once the run has done any work on files: [{ name, folder }].
+  const left = () => {
+    const worked = placed().length || [...run.fileStatus.values()].includes("filed");
+    return worked ? [...run.listed].filter(([handle, file]) => file.kind !== "spreadsheet" && run.fileStatus.get(handle) !== "filed").map(([, file]) => ({ name: file.name, folder: file.folder })) : [];
+  };
   const finish = (status, extra = {}) => {
     log.add({ kind: "end", status, turns, toolCalls: run.toolCalls, ...extra });
     const added = placed();
-    return { status, turns, toolCalls: run.toolCalls, questions: run.questions, runId, log, ...(added.length ? { added } : {}), ...extra };
+    const unfiled = left();
+    return { status, turns, toolCalls: run.toolCalls, questions: run.questions, runId, log, ...(added.length ? { added } : {}), ...(unfiled.length ? { left: unfiled } : {}), ...extra };
   };
 
   async function askModel() {

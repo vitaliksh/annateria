@@ -2,7 +2,9 @@
 // the list of what is waiting there (thumbnails, remove one file, clear all) and the counts shown in the sidebar.
 // No AI is involved. This file chooses the folder, filters the file types, runs the actions and says what happened.
 import { confirmDialog } from "./confirm-dialog.js";
-import { ACCEPTED_EXTENSIONS, UNSORTED, addToInbox, ensureInbox, inboxCounts, moveToTrash, readInboxFile, readInboxIndex, refusalReason } from "./inbox-store.js";
+import {
+  ACCEPTED_EXTENSIONS, UNSORTED, addToInbox, ensureInbox, inboxCounts, moveToTrash, readInboxFile, readInboxIndex, reconcileInbox, refusalReason,
+} from "./inbox-store.js";
 
 const PLATE_CLASS = { info: "plate-info", success: "plate-success", warning: "plate-warning", error: "plate-error" };
 const DIRECTORY_REASON = "תיקייה: יש לגרור קבצים ולא תיקיות";
@@ -48,7 +50,7 @@ async function canvasThumbnail(file, entry, doc) {
 // hands the files to the assistant.
 export function setupInbox({
   dialog, openButton, getDataRoot, getClients, onError = () => {}, onCounts = () => {}, onCheck = () => {},
-  add = addToInbox, ensure = ensureInbox, readIndex = readInboxIndex, trash = moveToTrash, readFile = readInboxFile,
+  add = addToInbox, ensure = ensureInbox, readIndex = readInboxIndex, reconcile = reconcileInbox, trash = moveToTrash, readFile = readInboxFile,
   makeThumbnail = null, confirm = confirmDialog, now = () => new Date().toISOString(),
 }) {
   const part = (id) => dialog.querySelector(`#${id}`);
@@ -159,6 +161,7 @@ export function setupInbox({
   async function refreshCounts() {
     const root = getDataRoot();
     try {
+      if (root) await reconcile(root);
       index = root ? await readIndex(root) : { files: [] };
     } catch (error) {
       index = { files: [] };

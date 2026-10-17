@@ -25,6 +25,14 @@ export function buildMessage({ kind, text = "", today, active = null, previous =
   return lines.join("\n\n");
 }
 
+// The files that the run did not file, from the run itself and not from what the model says (it may call everything processed).
+export function leftNote(result) {
+  const left = result.left ?? [];
+  if (!left.length) return null;
+  const names = left.slice(0, 12).map((file) => file.name).join(", ");
+  return { kind: "note", text: `נשארו בתיבת הקלט ${left.length} קבצים שלא טופלו: ${names}${left.length > 12 ? " ועוד" : ""}` };
+}
+
 const LIMIT_TEXT = { turns: "הריצה הגיעה למספר הצעדים המרבי.", "tool calls": "הריצה הגיעה למספר הפעולות המרבי.", time: "הריצה נמשכה יותר מדי זמן ונעצרה." };
 
 // { kind: "assistant" | "note" | "error", text } for the end of a run.

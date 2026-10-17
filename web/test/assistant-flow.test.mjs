@@ -101,3 +101,11 @@ test("the text layer of a PDF found by the document reader is sent along with th
   const note = modelClient.requests.find((item) => item.request.generationConfig.responseMimeType).request.contents[0].parts[0].text;
   assert.ok(note.includes("Text layer of the PDF") && note.endsWith("TEXT LAYER OF THE POLICY"), note);
 });
+
+test("leftNote names the files the run did not file, and says nothing when none is left", async () => {
+  const { leftNote } = await import("../assistant-flow.js");
+  assert.equal(leftNote({ status: "completed" }), null);
+  assert.deepEqual(leftNote({ left: [{ name: "004.jpg", folder: "_unsorted" }, { name: "005.jpg", folder: "_unsorted" }] }), { kind: "note", text: "נשארו בתיבת הקלט 2 קבצים שלא טופלו: 004.jpg, 005.jpg" });
+  const many = leftNote({ left: Array.from({ length: 14 }, (_, n) => ({ name: `f${n}.jpg`, folder: "_unsorted" })) });
+  assert.match(many.text, /14 קבצים.*f11\.jpg ועוד$/);
+});

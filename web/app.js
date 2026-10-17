@@ -29,7 +29,7 @@ import { checkModelConnection, createModelClient } from "./model-client.js";
 import { setupTransfer } from "./transfer-ui.js";
 import { setupInbox } from "./inbox-ui.js";
 import { progressLabel, setupAssistant } from "./assistant-ui.js";
-import { buildMessage, createAssistantFlow, resultNote } from "./assistant-flow.js";
+import { buildMessage, createAssistantFlow, leftNote, resultNote } from "./assistant-flow.js";
 import { setupModelSettings } from "./model-settings-ui.js";
 import { applyProposal } from "./proposal-apply.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
@@ -659,6 +659,8 @@ async function runAssistant(kind, text) {
     });
     const note = resultNote(result);
     assistant.addMessage(note.kind, note.text);
+    const unfiled = leftNote(result);
+    if (unfiled) assistant.addMessage(unfiled.kind, unfiled.text);
     if (result.status === "completed") assistantLastAnswer = result.text;
     assistant.showPlaced(result.added ?? []);
     if (result.logError) assistant.addMessage("note", `לא ניתן לשמור את יומן הריצה: ${result.logError}`);
@@ -667,6 +669,7 @@ async function runAssistant(kind, text) {
   } finally {
     assistantRun = null;
     assistant.setBusy(false);
+    inboxUi?.refreshCounts();
   }
 }
 // The edits of a proposal go through the functions of the table, as if the user typed them.

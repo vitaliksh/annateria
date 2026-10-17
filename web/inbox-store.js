@@ -67,6 +67,32 @@ function oneAtATime(task) {
   return result;
 }
 
+// Drops the index entries whose file is no longer in its folder (a lost update, a file removed by hand) and writes the index when
+// something was dropped. Resolves with the entries that were dropped. The caller holds the queue.
+async function pruneMissing(inbox, index) {
+  const present = [], dropped = [];
+  for (const entry of index.files) {
+    let found = true;
+    try {
+      await (await inbox.getDirectoryHandle(entry.folder)).getFileHandle(entry.storedName);
+    } catch (error) {
+      if (!isMissing(error)) throw error;
+      found = false;
+    }
+    (found ? present : dropped).push(entry);
+  }
+  if (dropped.length) {
+    index.files = present;
+    await writeInboxIndex(inbox, index);
+  }
+  return dropped;
+}
+
+export const reconcileInbox = (dataRoot) => oneAtATime(async () => {
+  const inbox = await inboxDirectory(dataRoot);
+  return pruneMissing(inbox, await readInboxIndex(dataRoot));
+});
+
 async function inboxDirectory(dataRoot) { return dataRoot.getDirectoryHandle(INBOX_NAME, { create: true }); }
 
 // Creates inbox/_unsorted/ and one folder per client. Names that cannot be folders are skipped and returned.
@@ -180,7 +206,9 @@ async function addToInboxNow(dataRoot, files, { folder = UNSORTED, now = new Dat
   if (!isInboxFolder(folder)) throw new Error("שם תיקייה לא חוקי בתיבת הקלט.");
   await ensureInbox(dataRoot);
   const inbox = await inboxDirectory(dataRoot), directory = await inbox.getDirectoryHandle(folder, { create: true });
-  const index = await readInboxIndex(dataRoot), byHash = new Map(index.files.map((entry) => [entry.hash, entry]));
+  const index = await readInboxIndex(dataRoot);
+  await pruneMissing(inbox, index);
+  const byHash = new Map(index.files.map((entry) => [entry.hash, entry]));
   const declarationHashes = await declarationImageHashes(dataRoot, new Set(files.map((file) => file.size)));
   const taken = await directoryNames(directory), result = { added: [], duplicates: [], failed: [] };
   for (const file of files) {

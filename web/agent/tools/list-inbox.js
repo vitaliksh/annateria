@@ -20,6 +20,7 @@ export default {
     const index = await ctx.services.inbox.readIndex();
     const all = index.files.map((entry) => {
       const handle = ctx.handles.create("F", entry.hash, entry);
+      ctx.run.listed.set(handle, { name: entry.name, folder: entry.folder, kind: kindOf(entry) });
       return { entry, handle, status: ctx.run.fileStatus.get(handle) ?? "waiting" };
     });
     const counts = { total: all.length, waiting: all.filter((item) => item.status === "waiting").length, byFolder: {} };

@@ -38,7 +38,7 @@ test("add_rows: an invoice for the client becomes a ready row at the end of the 
   const row = rows[3];
   assert.deepEqual(row.values, ["20/02/26", "202", "paper", "Paper Shop", "512345679", "2002", "", "236.00", "200.00", "36.00", "100", "100"]);
   assert.deepEqual([row.active, row.statusText, row.statusClass, row.reference, row.documentKind, row.agentOpinion, row.confidence], [true, "מוכן לייצוא", "ready", "INV-2002", "expense_invoice", "חשבונית משרדית", "92%"]);
-  assert.deepEqual([row.agent.run, row.agent.version, row.agent.fact, row.agent.page, row.agent.reasons], [ctx.run.id, "stand-in-2026-10-17b", fact, null, []]);
+  assert.deepEqual([row.agent.run, row.agent.version, row.agent.fact, row.agent.page, row.agent.reasons], [ctx.run.id, "stand-in-2026-10-17c", fact, null, []]);
   assert.equal(row.agent.file.length, 64);
   assert.equal(ctx.handles.get("R", added.row).position, 4);
   assert.equal(ctx.run.factsUsed.has(fact), true);
@@ -403,4 +403,42 @@ test("a whole run: two moves called in one turn are done one after the other; bo
   assert.equal(new Set(rows.map((row) => row.imageFile)).size, rows.length, "every picture has its own number");
   assert.equal((await readInboxIndex(w.root)).files.some((entry) => entry.folder === "_unsorted"), false, "nothing of the run is left in the inbox");
   assert.equal((await readInboxIndex(w.root)).files.some((entry) => entry.name === "policy.pdf"), false);
+});
+
+test("a run that filed a file says which files it left in the inbox, from the run and not from the model", async () => {
+  const { runAgent } = await import("../agent/run.js");
+  const { scriptedModel, reply, say } = await import("./agent-fixtures.mjs");
+  const w = await world({ extraction: scriptedExtraction([answers(rawRecord({ document_number: "L-1" }))]) });
+  const last = (request, name) => request.contents.at(-1).parts.map((part) => part.functionResponse).find((item) => item.name === name)?.response;
+  let photo = null;
+  const model = scriptedModel([
+    reply(call("list_inbox", {})),
+    (request) => reply(call("extract_document", { file: (photo = last(request, "list_inbox").files.find((file) => file.name === "photo.jpg").file) }), call("find_client", { name: "Levi" })),
+    (request) => reply(call("add_rows", { client: last(request, "find_client").matches[0].client, rows: [decision(last(request, "extract_document").documents[0].fact)] })),
+    () => reply(call("move_file_to_declaration", { file: photo, client: "C1", months: ["2026-02"] })),
+    () => reply(say("everything is processed")),
+  ]);
+  const ids = (await (await import("../inbox-store.js")).readInboxIndex(w.root)).files.map((file) => file.name);
+  assert.ok(ids.includes("photo.jpg") && ids.includes("policy.pdf") && ids.includes("journal.xlsx"));
+  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, ui: recordingUi() });
+  assert.deepEqual([result.status, result.text], ["completed", "everything is processed"]);
+  assert.deepEqual(result.left.map((file) => file.name), ["policy.pdf"], "the spreadsheet is not counted, the filed photo is gone");
+});
+
+test("a run that did no work on files reports nothing as left", async () => {
+  const { runAgent } = await import("../agent/run.js");
+  const { scriptedModel, reply, say } = await import("./agent-fixtures.mjs");
+  const w = await world();
+  const model = scriptedModel([reply(call("list_inbox", {})), reply(say("three files wait"))]);
+  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "what is left", services: w.services, ui: recordingUi() });
+  assert.equal(result.left, undefined);
+});
+
+test("extract_document: a file that is listed but gone from its folder is named as missing, not as unreadable", async () => {
+  const { w, dispatch, handles } = await session([[rawRecord()]]);
+  const folder = await (await w.root.getDirectoryHandle("inbox")).getDirectoryHandle("_unsorted");
+  await folder.removeEntry("photo.jpg");
+  const result = await dispatch("extract_document", { file: handles["photo.jpg"] });
+  assert.deepEqual([result.ok, result.error.code], [false, "not_found"]);
+  assert.match(result.error.message, /not in its folder/);
 });
