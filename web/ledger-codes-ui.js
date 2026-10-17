@@ -45,7 +45,7 @@ export function setupLedgerCodes({ dialog, getContext, onSaved, onError, onBefor
     const { accounts, skipped, plan, hadOwnChart } = prepared;
     summary.textContent = `נמצאו ${Object.keys(accounts).length} קודי מיון בכרטסת.`;
     const lines = [];
-    if (hadOwnChart) lines.push(element("li", "ללקוח כבר יש קודי מיון משלו; הם יוחלפו בקודים שבכרטסת."));
+    if (hadOwnChart) lines.push(element("li", "ללקוח כבר יש קודי מיון משלו; הם יוחלפו בקודים שבכרטסת (עותק שלהם יישמר בתיקיית הלקוח)."));
     if (plan.changed) {
       lines.push(element("li", `בהצהרות ${plan.months.map(formatMonth).join(", ")} יעודכנו הקודים של ${plan.changed} שורות שיובאו מ-Excel. עותק של כל טבלה נשמר לפני השינוי.`));
     }
@@ -107,7 +107,7 @@ export function setupLedgerCodes({ dialog, getContext, onSaved, onError, onBefor
       const filed = await afterCommit();
       await onSaved?.(result, detached);
       errorLine.textContent = "";
-      summary.textContent = `נשמרו ${Object.keys(result.chart).length} קודי מיון של הלקוח${result.plan.changed ? `, עודכנו ${result.plan.changed} שורות` : ""}.${filed ? ` ${filed}` : ""}`;
+      summary.textContent = `נשמרו ${Object.keys(result.chart).length} קודי מיון של הלקוח${result.plan.changed ? `, עודכנו ${result.plan.changed} שורות` : ""}.${result.chartCopy ? " הקודים הקודמים נשמרו בעותק." : ""}${filed ? ` ${filed}` : ""}`;
       prepared = null;
       list.replaceChildren();
       notes.replaceChildren();

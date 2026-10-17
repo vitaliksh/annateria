@@ -138,6 +138,26 @@ export async function readClientChart(clientDirectory, reserved = {}) {
   }
 }
 
+// Keeps the client's own chart next to it before it is replaced (classification-codes.before-<time>.json), as the tables keep their
+// draft-table.before-... copies. Resolves with the name of the copy, or null when the client has no chart of its own.
+export async function backupClientChart(clientDirectory, now = new Date().toISOString()) {
+  let text;
+  try {
+    text = await (await (await clientDirectory.getFileHandle(clientFilename)).getFile()).text();
+  } catch (error) {
+    if (error.name === "NotFoundError") return null;
+    throw error;
+  }
+  const name = `classification-codes.before-${now.replace(/[:.]/g, "-")}.json`;
+  const writable = await (await clientDirectory.getFileHandle(name, { create: true })).createWritable();
+  try {
+    await writable.write(text);
+  } finally {
+    await writable.close();
+  }
+  return name;
+}
+
 export async function saveClientChart(clientDirectory, accounts, { source = "ledger", reserved = {}, now = new Date().toISOString() } = {}) {
   if (!clientDirectory) throw new Error("יש לבחור תחילה לקוח.");
   const normalised = normaliseChart({ accounts }, reserved);

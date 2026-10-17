@@ -77,3 +77,19 @@ test("קודי כרטסת: תרשים של לקוח אחר לא משתנה, וב
   assert.equal(await readClientChart(memoryDirectory("other")), null);
   assert.equal((await readClientChart(client.directory))[900].type, "equipment");
 });
+
+test("codes ledger: the codes a client had are kept in a copy before they are replaced; a client without codes of its own gets none", async () => {
+  const dataRoot = memoryDirectory("root");
+  await saveChartOfAccounts(dataRoot, SEED_CHART_OF_ACCOUNTS);
+  const client = { directory: memoryDirectory("client"), config: { clientId: "c1" } };
+  const first = await commitLedger(await prepareLedger(ledgerFile(SECTIONS), { dataRoot, client, loadLibrary }), { client, now: NOW });
+  assert.equal(first.chartCopy, null, "nothing to keep the first time");
+  const before = await (await (await client.directory.getFileHandle("classification-codes.json")).getFile()).text();
+  const fewer = [{ title: "הכנסות", accounts: [["110", "הכנסות"]] }, { title: "הוצאות הנהלה וכלליות", accounts: [["301", "אחזקה"]] }];
+  const later = "2026-10-07T09:30:00.000Z";
+  const second = await commitLedger(await prepareLedger(ledgerFile(fewer), { dataRoot, client, loadLibrary }), { client, now: later });
+  assert.equal(second.chartCopy, "classification-codes.before-2026-10-07T09-30-00-000Z.json");
+  const copy = await (await (await client.directory.getFileHandle(second.chartCopy)).getFile()).text();
+  assert.equal(copy, before, "the copy holds the old file byte for byte");
+  assert.equal(Object.keys(await readClientChart(client.directory)).length, 2, "the new codes are saved");
+});

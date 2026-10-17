@@ -1,5 +1,6 @@
 // Steps of loading a client's classification ledger without any DOM: prepare (read + plan) and commit (write).
 import {
+  backupClientChart,
   chartForClient,
   readChartOfAccounts,
   readClientChart,
@@ -81,7 +82,7 @@ export async function prepareLedger(file, { dataRoot, client, reserved = {}, loa
   };
 }
 
-// `types` maps code -> type chosen in the dialog. Backups and remapped tables are written first, the chart last; the
+// `types` maps code -> type chosen in the dialog. Backups and remapped tables are written first, then a copy of the old chart, the chart last; the
 // plan is computed in memory beforehand so a failure leaves the originals next to their copies.
 export async function commitLedger(prepared, { types = {}, client, reserved = {}, now = new Date().toISOString() }) {
   const accounts = Object.fromEntries(
@@ -90,6 +91,8 @@ export async function commitLedger(prepared, { types = {}, client, reserved = {}
   const plan = await planRemap(client.directory, prepared.previous, accounts);
   for (const item of plan.declarations) await backupDraft(item.directory, item.draft, now);
   for (const item of plan.declarations) await saveDraft(item.directory, item.declaration, item.rows, now);
+  // The codes the client had are kept in a copy before they are replaced; without the copy nothing is replaced.
+  const chartCopy = await backupClientChart(client.directory, now);
   const chart = await saveClientChart(client.directory, accounts, { source: "ledger", reserved, now });
-  return { chart, plan };
+  return { chart, plan, chartCopy };
 }

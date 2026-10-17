@@ -291,3 +291,17 @@ test("prepare_import ledger_check: a ledger of which almost nothing is in the ta
   assert.equal(empty.ok, true);
   assert.equal(empty.problems.some((item) => item.code === "maybe_other_client"), false);
 });
+
+test("prepare_import ledger_codes: an operations ledger (dated movements) is refused as wrong_format and pointed to ledger_check", async () => {
+  const tools = await toolContext({ imports: createImportReader({ loadLibrary, loadPdf: fakePdfJs(ledgerRowsPdfPages()) }) });
+  await addToInbox(tools.w.root, [file("ops.xlsx", workbook(ledgerRowsGrid())), file("ops.pdf", new TextEncoder().encode("%PDF-1.4 ops"), "application/pdf")], { folder: "Cohen", now: "2026-10-16T08:09:00.000Z" });
+  const handles = await tools.files();
+  const cohen = await tools.client("Cohen");
+  for (const name of ["ops.xlsx", "ops.pdf"]) {
+    const result = await prepare({ ...tools, handle: handles[name], levi: cohen }, { kind: "ledger_codes" });
+    assert.equal(result.error?.code, "wrong_format", name);
+    assert.match(result.error.message, /operations ledger with \d+ dated movements.*use kind ledger_check/);
+  }
+  assert.equal(tools.ui.importCards.length, 0);
+  assert.equal((await prepare({ ...tools, handle: handles["ops.xlsx"], levi: cohen }, { kind: "ledger_check" })).ok, true, "the same file as ledger_check is fine");
+});

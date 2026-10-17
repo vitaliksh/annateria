@@ -76,7 +76,7 @@ const ALLOWED_OUTSIDE = {
   "agent/fact-record.js": ["intake-facts.js", "workspace-core.js"],
   "agent/facts.js": ["intake-facts.js", "home-utilities.js", "pcn-review.js"],
   "agent/adapters/documents.js": ["pdf-import.js"],
-  "agent/adapters/imports.js": ["excel-import-flow.js", "excel-import-store.js", "ledger-codes-flow.js", "ledger-reconcile-flow.js"],
+  "agent/adapters/imports.js": ["excel-import-flow.js", "excel-import-store.js", "ledger-codes-flow.js", "ledger-reconcile-flow.js", "ledger-rows.js"],
 };
 
 test("every source of the agent imports outside its folder only what is listed here: tools and the loop see pure helpers or nothing, only services.js reaches the stores", () => {
@@ -116,7 +116,7 @@ test("prepare_import cannot commit an import: nothing in the agent imports a com
   for (const file of files) {
     for (const name of importedNames(file)) assert.doesNotMatch(name, WIZARD_WRITERS, `${relative(webDirectory, file)} imports ${name}`);
   }
-  assert.deepEqual(importedNames(join(agentDirectory, "adapters", "imports.js")).sort(), ["inspectImportTarget", "prepareImport", "prepareLedger", "prepareReconcile"]);
+  assert.deepEqual(importedNames(join(agentDirectory, "adapters", "imports.js")).sort(), ["inspectImportTarget", "prepareImport", "prepareLedger", "prepareReconcile", "readLedgerFile"]);
 });
 
 test("the guard of the previous test would catch a commit", () => {

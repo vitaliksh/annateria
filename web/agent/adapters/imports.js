@@ -6,6 +6,7 @@ import { prepareImport } from "../../excel-import-flow.js";
 import { inspectImportTarget } from "../../excel-import-store.js";
 import { prepareLedger } from "../../ledger-codes-flow.js";
 import { prepareReconcile } from "../../ledger-reconcile-flow.js";
+import { readLedgerFile as readOperationsLedger } from "../../ledger-rows.js";
 
 export class ImportError extends Error {
   constructor(code, message) {
@@ -79,6 +80,12 @@ export function createImportReader({ loadLibrary, loadPdf } = {}) {
   // The classification-codes ledger of Rivhit (PDF or .xlsx): its codes become the client's own chart in the dialog; rows imported
   // from Excel are moved to the new codes there. Here only the plan is made (prepareLedger reads the declarations, writes nothing).
   async function ledgerCodes(file, { dataRoot, client, reserved }) {
+    // An operations ledger has code headers too, so the reader of codes takes it (seen 17 October: the agent called the same file
+    // ledger_check once and ledger_codes once, and the client's codes were replaced by the 21 codes that had movements). A file with
+    // dated movements is refused here.
+    const movements = await readOperationsLedger(file, { loadLibrary, loadPdf })
+      .then((ledger) => ledger.blocks.reduce((sum, block) => sum + block.rows.length, 0), () => 0);
+    if (movements) throw new ImportError("wrong_format", `This is an operations ledger with ${movements} dated movements, not a classification-codes ledger: use kind ledger_check.`);
     let prepared;
     try {
       prepared = await prepareLedger(file, { dataRoot, client, reserved, loadLibrary, loadPdf });
