@@ -71,11 +71,10 @@ test("a refused call (close, delete, unknown) is answered not_allowed and change
 
 test("cancel while a question waits for the user ends the run as cancelled", async () => {
   const controller = new AbortController();
-  const ui = { ask: () => new Promise(() => {}), propose: async () => {} };
+  // The abort comes once the question is shown (a fixed delay from the start was a race on a busy machine).
+  const ui = { ask: () => { setTimeout(() => controller.abort(), 5); return new Promise(() => {}); }, propose: async () => {} };
   const model = scriptedModel([reply(call("ask_user", { question: "Which client?", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }], allow_other: false })), reply(say("never reached"))]);
-  const pending = run({ model, ui, signal: controller.signal });
-  setTimeout(() => controller.abort(), 20);
-  const { result } = await pending;
+  const { result } = await run({ model, ui, signal: controller.signal });
   assert.equal(result.status, "cancelled");
   assert.equal(model.requests.length, 1);
   const logged = result.log.entries.find((entry) => entry.kind === "tool");

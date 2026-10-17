@@ -250,7 +250,7 @@ test("ask_user choose_client: the code builds the question about the client: can
   const asked = await dispatch("ask_user", { question: "לאיזה לקוח שייכים המסמכים?", choose_client: true, clients: [levi], allow_other: false, about });
   assert.equal(asked.ok, true);
   const [card] = ui.cards;
-  assert.deepEqual(card.options, [{ id: "client1", label: "Levi Plumbing Ltd" }, { id: "mixed", label: "לקוחות שונים" }]);
+  assert.deepEqual(card.options, [{ id: "client1", label: "Levi Plumbing Ltd", hint: "name_partial" }, { id: "mixed", label: "לקוחות שונים" }], "the button says how the client was found");
   assert.deepEqual(card.more.map((item) => [item.id, item.label]), [["list1", "Cohen Studio"], ["client1", "Levi Plumbing Ltd"], ["list2", "Pcn Trading"]], "the candidate is in the list too");
   // The user picked Cohen from the list: the model gets Cohen's handle, and the files are routed to Cohen.
   assert.equal(asked.answer.id, "list1");
@@ -263,7 +263,7 @@ test("ask_user choose_client: one file has no 'different clients' button; 'diffe
   const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
   const cohen = (await dispatch("find_client", { name: "Cohen" })).matches[0].client;
   const one = await dispatch("ask_user", { question: "Whose is the photo?", choose_client: true, clients: [cohen, cohen], allow_other: false, about: { files: [handles["photo.jpg"]] } });
-  assert.deepEqual(ui.cards[0].options, [{ id: "client1", label: "Cohen Studio" }], "a candidate given twice is one button");
+  assert.deepEqual(ui.cards[0].options, [{ id: "client1", label: "Cohen Studio", hint: "name_partial" }], "a candidate given twice is one button");
   assert.equal(ctx.handles.get("C", one.client).clientId, "id-Cohen");
   const mixed = await dispatch("ask_user", { question: "Whose are these?", choose_client: true, allow_other: false, about: { files: [handles["policy.pdf"], handles["journal.xlsx"]] } });
   assert.deepEqual(ui.cards[1].options, [{ id: "mixed", label: "לקוחות שונים" }], "no candidates: only the list and 'different clients'");
@@ -299,4 +299,24 @@ test("ask_user: a question about the client of files with buttons of the model's
   const files = Object.fromEntries((await fine.dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
   const ok = await fine.dispatch("ask_user", { question: "האם זו הוצאה של העסק?", about: { files: [files["photo.jpg"]] }, allow_other: false, options: [{ id: "yes", label: "כן, הוצאה" }, { id: "no", label: "לא" }] });
   assert.equal(ok.ok, true);
+});
+
+test("ask_user choose_client: the client open in the page is the first button, marked as open; others say how find_client matched", async () => {
+  const w = await (await import("./agent-fixtures.mjs")).world({ liveTable: () => ({ clientId: "id-Pcn", month: "2026-02", rows: [] }) });
+  const { createContext } = await import("../agent/run.js");
+  const { createDefaultRegistry } = await import("../agent/index.js");
+  const { recordingUi } = await import("./agent-fixtures.mjs");
+  const ui = recordingUi({ answers: [{ type: "option", id: "client2" }] });
+  const ctx = createContext({ services: w.services, ui });
+  const registry = createDefaultRegistry();
+  const dispatch = (name, args = {}) => registry.dispatch({ name, args }, ctx);
+  const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
+  const levi = (await dispatch("find_client", { vat_id: "514123456" })).matches[0].client;
+  await dispatch("find_client", { name: "Levi" });
+  const asked = await dispatch("ask_user", { question: "לאיזה לקוח שייך הקובץ?", choose_client: true, clients: [levi], allow_other: false, about: { files: [handles["photo.jpg"]] } });
+  assert.deepEqual(ui.cards[0].options, [
+    { id: "client1", label: "Pcn Trading", hint: "open" },
+    { id: "client2", label: "Levi Plumbing Ltd", hint: "vat_id" },
+  ], "the open client comes first; Levi keeps its best match (the VAT number), not the later name match");
+  assert.equal(ctx.handles.get("C", asked.client).clientId, "id-Levi");
 });

@@ -54,7 +54,7 @@ test("`services` offers a fixed list of operations, none of which changes a decl
   const services = createServices({ getDataRoot: () => null, getClients: () => [] });
   const operations = Object.entries(services).flatMap(([group, members]) => Object.keys(members).map((name) => `${group}.${name}`));
   assert.deepEqual(operations.sort(), [
-    "clients.chart", "clients.list", "clients.profile", "declarations.create", "declarations.state", "documents.inspect", "extraction.run",
+    "clients.chart", "clients.list", "clients.open", "clients.profile", "declarations.create", "declarations.state", "documents.inspect", "extraction.run",
     "files.copyToDeclaration", "files.moveOutOfInbox", "imports.prepare", "inbox.readIndex", "intake.context", "rows.append", "rows.attachImage", "rows.list", "rules.read",
     "tables.copyBeforeAgent",
   ]);

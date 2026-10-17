@@ -59,6 +59,8 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
       },
     }),
     clients: Object.freeze({
+      // The client whose table is open in the page, or null.
+      open: () => getLiveTable()?.clientId ?? null,
       list: () => homeClients().map((client) => ({ clientId: client.id, clientName: client.clientName, vatId: client.config?.vatId ?? "", folder: client.entryName })),
       // { clientId, name, activity, kind, pcnRequired, vatId, vatPeriod, advancesPeriod, declarations: [{ month, status, rows }] }
       // `rows` counts the active rows of the saved table.

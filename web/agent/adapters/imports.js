@@ -117,6 +117,11 @@ export function createImportReader({ loadLibrary, loadPdf } = {}) {
     const count = (problem) => missing.filter((operation) => operation.problem === problem).length;
     const addable = missing.filter((operation) => !operation.problem);
     const problems = [];
+    // Almost nothing found although the tables have rows in the months of the ledger: the ledger is probably of another client (seen
+    // on 17 October: 14 of 224 found; the same file against the client the agent had offered: 220 of 224).
+    const months = new Set(missing.map((operation) => operation.month));
+    const rowsInMonths = prepared.matched + extra.filter((item) => months.has(item.month)).length;
+    if (prepared.operations >= 10 && prepared.matched < prepared.operations * 0.2 && rowsInMonths >= 3) problems.push({ code: "maybe_other_client", severity: "error", count: 1 });
     if (missing.length) problems.push({ code: "operations_missing", severity: "warning", count: missing.length });
     if (count("unknown-class")) problems.push({ code: "missing_unknown_class", severity: "warning", count: count("unknown-class") });
     if (count("locked")) problems.push({ code: "missing_in_locked_month", severity: "warning", count: count("locked") });

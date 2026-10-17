@@ -34,6 +34,8 @@ export default {
       if (!match) continue;
       const handle = ctx.handles.create("C", client.clientId, { clientId: client.clientId, name: client.clientName, vatId: client.vatId ?? "", folder: client.folder ?? "" });
       matches.push({ client: handle, name: client.clientName, vat_id: client.vatId ?? "", match });
+      const best = ctx.run.clientMatches?.get(client.clientId);
+      if (!best || ORDER[match] < ORDER[best]) ctx.run.clientMatches?.set(client.clientId, match);
     }
     matches.sort((a, b) => ORDER[a.match] - ORDER[b.match] || a.name.localeCompare(b.name, "he"));
     return { matches: matches.slice(0, 5) };

@@ -268,3 +268,26 @@ test("prepare_import ledger_check: a PDF ledger gives the same counts as the wor
   assert.equal(fromPdf.ok, true);
   assert.deepEqual(fromPdf.summary, fromXlsx.summary);
 });
+
+test("prepare_import ledger_check: a ledger of which almost nothing is in the tables, though they have rows in its months, is flagged", async () => {
+  // Levi's tables have rows in 01 and 02/2026; a ledger of 2026 with operations in those months that none of them match.
+  const blocks = [{ section: "הוצאות הנהלה וכלליות", code: "202", name: "משרדיות", rows: Array.from({ length: 12 }, (_, index) => ({
+    month: 1 + (index % 2), line: String(index + 1), date: `2026-0${1 + (index % 2)}-1${index % 9}`, details: `Shop ${index}`, ref1: String(900 + index),
+    gross: -(118 + index), net: -(100 + index), vat: -18,
+  })) }];
+  const tools = await toolContext({ imports: createImportReader({ loadLibrary }) });
+  await addToInbox(tools.w.root, [file("other.xlsx", workbook(ledgerRowsGrid(blocks)))], { folder: "Levi", now: "2026-10-16T08:08:00.000Z" });
+  const handles = await tools.files();
+  const s = { ...tools, handles, handle: handles["other.xlsx"], levi: await tools.client("Levi") };
+  const result = await check(s);
+  assert.equal(result.ok, true);
+  assert.equal(result.summary.matched, 0);
+  assert.deepEqual(result.problems[0], { code: "maybe_other_client", severity: "error", count: 1 });
+  // A client whose tables have nothing in the ledger's months is not flagged: there is nothing to compare with.
+  const cohen = await toolContext({ imports: createImportReader({ loadLibrary }) });
+  await addToInbox(cohen.w.root, [file("other.xlsx", workbook(ledgerRowsGrid(blocks)))], { folder: "Cohen", now: "2026-10-16T08:08:00.000Z" });
+  const cohenFiles = await cohen.files();
+  const empty = await check({ ...cohen, handle: cohenFiles["other.xlsx"], levi: await cohen.client("Cohen") });
+  assert.equal(empty.ok, true);
+  assert.equal(empty.problems.some((item) => item.code === "maybe_other_client"), false);
+});

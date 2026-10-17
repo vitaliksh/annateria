@@ -38,12 +38,15 @@ const IMPORT_PROBLEMS = {
   lines_skipped: (item) => `${item.count} שורות בכרטסת לא נקראו; האשף מראה אילו ולמה.`,
   rows_not_remapped: (item) => `ל-${item.count} סוגים של שורות שיובאו מ-Excel אין קוד בכרטסת; השורות האלה לא יעודכנו.`,
   locked_months_not_remapped: (item) => `ב-${item.count} הצהרות נעולות יש שורות שיובאו מ-Excel; הן לא יעודכנו.`,
+  maybe_other_client: () => "כמעט אף פעולה בכרטסת לא נמצאה בהצהרות, אף שיש בהן שורות באותם חודשים: ייתכן שהכרטסת של לקוח אחר. יש לבדוק לפני הוספה.",
   operations_missing: (item) => `${item.count} פעולות מהכרטסת חסרות בהצהרות; באשף אפשר לסמן אותן ולהוסיף.`,
   missing_unknown_class: (item) => `ל-${item.count} מהפעולות החסרות אין קוד מיון אצל הלקוח; יש לטעון קודם את כרטסת קודי המיון.`,
   missing_in_locked_month: (item) => `${item.count} מהפעולות החסרות שייכות להצהרות נעולות ולא יתווספו.`,
   rows_not_in_ledger: (item) => `ל-${item.count} שורות בהצהרות אין התאמה בכרטסת; האשף מציג אותן.`,
   types_suggested: (item) => `ל-${item.count} קודי מיון הוצע סוג אחר כדי שהסכומים בסוף הקובץ יתאימו; האשף מראה זאת.`,
 };
+// Why a client is offered as a button of the question "which client?" (choose_client).
+const CLIENT_HINTS = { open: "הלקוח הפתוח כעת", vat_id: "מספר העוסק במסמך זהה", name_exact: "נמצא לפי שם זהה", name_partial: "נמצא לפי שם דומה, לא בטוח" };
 const money = (value) => value.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const importProblemText = (item) => (IMPORT_PROBLEMS[item.code] ?? problemText)(item) ?? item.code;
 
@@ -207,6 +210,8 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
       dismiss.addEventListener("click", () => finish({ type: "dismissed" }, "דילוג"));
       options.append(dismiss);
       box.append(options);
+      const hints = card.options.filter((option) => CLIENT_HINTS[option.hint]).map((option) => `${option.label}: ${CLIENT_HINTS[option.hint]}`);
+      if (hints.length) box.append(element("p", "card-about muted", hints.join(" · ")));
       // The question "which client?" (choose_client): every client that is not a button is in this list.
       if (card.more?.length) {
         const other = element("div", "card-other");

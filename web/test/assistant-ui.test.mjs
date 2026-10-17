@@ -397,3 +397,19 @@ test("the card of an operations ledger says how many operations are in the table
   for (const part of ["כרטסת עם פעולות (Rivhit)", "120 פעולות בכרטסת לשנת 2026: 115 קיימות בהצהרות, 5 חסרות", "3 מהחסרות אפשר להוסיף באשף (1 הצהרות ייווצרו)", "אין קוד מיון אצל הלקוח", "אין התאמה בכרטסת"]) assert.ok(text.includes(part), part);
   assert.equal(text.includes("undefined"), false);
 });
+
+test("the question about the client says why each button is offered", () => {
+  const { assistant, q } = setup();
+  assistant.ui.ask(card({ question: "לאיזה לקוח?", options: [{ id: "client1", label: "Pcn", hint: "open" }, { id: "client2", label: "Levi", hint: "name_partial" }, { id: "mixed", label: "לקוחות שונים" }], more: [] }));
+  assert.match(q(".assistant-card[data-kind='question']").textContent, /Pcn: הלקוח הפתוח כעת · Levi: נמצא לפי שם דומה, לא בטוח/);
+});
+
+test("an import card that may be of another client shows that first, as an error", () => {
+  const { assistant, q } = setup();
+  assistant.ui.importCard(importCard({
+    kind: "ledger_check", totals: null, summary: { year: 2026, operations: 224, matched: 14, missing: 210, can_add: 210, months_created: 2, extra: 42, month: null },
+    problems: [{ code: "maybe_other_client", severity: "error", count: 1 }, { code: "operations_missing", severity: "warning", count: 210 }],
+  }));
+  const items = [...q(".assistant-card[data-kind='import'] .card-changes").children].map((item) => item.textContent);
+  assert.match(items.find((item) => item.startsWith("שגיאה")), /ייתכן שהכרטסת של לקוח אחר/);
+});

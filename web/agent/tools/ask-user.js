@@ -16,16 +16,21 @@ const CLIENT_WORDS = /לקוח|client/i;
 const PLACEHOLDER_LABEL = /^(לקוח|בחירה|אפשרות|option|choice|client)\s*[א-תA-Za-z0-9]?['׳"]?$/i;
 
 // choose_client: the question "which client?" is built by the code, so the user always reads names and every choice carries its
-// client. The candidates of the model (the open client first) become buttons; every other active client is in a list; several
-// files get a button "different clients" (no client: the agent then asks per file).
+// client. The client open in the page and the candidates of the model become buttons, each with the reason it is offered (open,
+// or how find_client matched it); every active client is in the list; several files get a button "different clients" (no client:
+// the agent then asks per file).
 async function clientOptions(args, ctx, fileCount) {
   const all = await ctx.services.clients.list();
   const handleOf = (client) => ctx.handles.create("C", client.clientId, { clientId: client.clientId, name: client.clientName, vatId: client.vatId ?? "", folder: client.folder ?? "" });
-  const candidates = [...new Set((args.clients ?? []).map((handle) => ctx.handles.get("C", handle).clientId))].slice(0, CLIENT_BUTTONS);
+  const open = (await ctx.services.clients.open?.()) ?? null;
+  const offered = (args.clients ?? []).map((handle) => ctx.handles.get("C", handle).clientId);
+  const candidates = [...new Set([...(open && all.some((item) => item.clientId === open) ? [open] : []), ...offered])].slice(0, CLIENT_BUTTONS);
+  const hintOf = (clientId) => (clientId === open ? "open" : ctx.run.clientMatches?.get(clientId) ?? null);
   const options = candidates.map((clientId, index) => {
     const client = all.find((item) => item.clientId === clientId);
     if (!client) throw new ToolError("not_found", "A candidate is not an active client.");
-    return { id: `client${index + 1}`, label: client.clientName, client: handleOf(client) };
+    const hint = hintOf(clientId);
+    return { id: `client${index + 1}`, label: client.clientName, client: handleOf(client), ...(hint ? { hint } : {}) };
   });
   const rest = all.filter((client) => !candidates.includes(client.clientId)).sort((a, b) => a.clientName.localeCompare(b.clientName, "he"));
   rest.forEach((client, index) => options.push({ id: `list${index + 1}`, label: client.clientName, client: handleOf(client), listed: true }));
@@ -113,6 +118,7 @@ export default {
       ...(option.client ? { clientId: clients.get(option.id).clientId } : {}),
       ...(option.month ? { month: monthOf(option.month) } : {}),
       ...(option.listed ? { listed: true } : {}),
+      ...(option.hint ? { hint: option.hint } : {}),
     }));
 
     ctx.run.questions += 1;
@@ -121,7 +127,7 @@ export default {
     const card = {
       id: ask, question: args.question, allowOther: args.allow_other,
       // Buttons; with choose_client the clients that are not candidates are in a list (`more`) instead.
-      options: options.filter((option) => !option.listed).map(({ id, label }) => ({ id, label })),
+      options: options.filter((option) => !option.listed).map(({ id, label, hint }) => ({ id, label, ...(hint ? { hint } : {}) })),
       // The list holds every client, the ones on the buttons too, so that the user finds any client there (owner, 17 October).
       ...(args.choose_client ? { more: options.filter((option) => option.clientId).map(({ id, label }) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, "he")) } : {}),
       about: { files: files.map(({ file, name, folder }) => ({ file, name, folder })), rows: rows.map(({ row }) => ({ row })) },

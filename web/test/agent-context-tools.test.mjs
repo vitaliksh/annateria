@@ -238,7 +238,7 @@ test("a proposal names the row by its number, even when the row shares its docum
 test("the instruction has the agent read import files and name the wizard of the menu, and never extract a spreadsheet (4.7.1)", async () => {
   const { ORCHESTRATOR_PROMPT, AGENT_VERSION } = await import("../agent/prompts.js");
   const { default: listInbox } = await import("../agent/tools/list-inbox.js");
-  assert.equal(AGENT_VERSION, "stand-in-2026-10-17j");
+  assert.equal(AGENT_VERSION, "stand-in-2026-10-17k");
   assert.ok(ORCHESTRATOR_PROMPT.includes("read every spreadsheet, and every PDF that does not look like an invoice"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("with read_document, and never extract a spreadsheet with the vision model"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("say plainly when you cannot tell what a file is"));
@@ -316,4 +316,9 @@ test("the instruction sends an operations ledger to prepare_import and leaves on
   assert.ok(ORCHESTRATOR_PROMPT.includes('an operations ledger ("כרטסת" with dated movements per account, PDF or .xlsx) with kind ledger_check'));
   assert.ok(ORCHESTRATOR_PROMPT.includes('A periodic income report ("דיווח הכנסות תקופתי", PDF) cannot be prepared yet'));
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /בדיקה מול כרטסת…/);
+});
+
+test("the instruction says to warn first when a ledger is probably of another client", async () => {
+  const { ORCHESTRATOR_PROMPT } = await import("../agent/prompts.js");
+  assert.ok(ORCHESTRATOR_PROMPT.includes("If its problems include maybe_other_client, say first that the ledger is probably of another client"));
 });
