@@ -122,3 +122,40 @@ test("בדיקה מול כרטסת: קובץ לא תקין מציג שגיאה, 
   assert.equal(dialog.open, true);
   assert.equal(calls.saved.length, 0);
 });
+
+// --- the dialog opened with a file at hand (step 4.7.4: the card of the assistant) ---
+test("openWith: the check opens with the ledger read; after the operations are added the host is told once; a failure is only reported", async () => {
+  const { dialog, calls, check, q } = await setup();
+  const committed = [];
+  await check.openWith(ledgerFile([MISSING]), { onCommitted: async () => { committed.push("filed"); return "המקור הועבר."; } });
+  assert.equal(dialog.open, true);
+  assert.equal(q("ledger-check-list").children.length, 1);
+  assert.deepEqual(committed, []);
+  q("ledger-check-add").click();
+  for (let i = 0; i < 50 && !calls.saved.length; i += 1) await settle();
+  assert.deepEqual(committed, ["filed"]);
+  assert.match(q("ledger-check-summary").textContent, /המקור הועבר\.$/);
+  const failing = await setup();
+  await failing.check.openWith(ledgerFile([MISSING]), { onCommitted: async () => { throw new Error("הדיסק מלא"); } });
+  failing.q("ledger-check-add").click();
+  for (let i = 0; i < 50 && !failing.calls.saved.length; i += 1) await settle();
+  assert.match(failing.q("ledger-check-summary").textContent, /הקובץ לא הועבר מתיבת הקלט: הדיסק מלא/);
+  assert.equal((await loadDeclaration(failing.client.directory, "2026-01")).draft.rows.length, SAMPLE_ROWS.length + 1, "the operation is added anyway");
+});
+
+test("openWith: a file chosen by hand afterwards, or the dialog opened from the menu, is never filed", async () => {
+  const { calls, check, q, pick } = await setup();
+  const committed = [];
+  await check.openWith(ledgerFile([MISSING]), { onCommitted: async () => { committed.push("x"); } });
+  await pick(ledgerFile([MISSING]));
+  q("ledger-check-add").click();
+  for (let i = 0; i < 50 && !calls.saved.length; i += 1) await settle();
+  const again = await setup();
+  await again.check.openWith(ledgerFile([MISSING]), { onCommitted: async () => { committed.push("y"); } });
+  again.open();
+  await again.pick(ledgerFile([MISSING]));
+  again.q("ledger-check-add").click();
+  for (let i = 0; i < 50 && !again.calls.saved.length; i += 1) await settle();
+  assert.equal(again.calls.saved.length, 1);
+  assert.deepEqual(committed, []);
+});

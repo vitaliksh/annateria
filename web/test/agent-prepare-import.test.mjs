@@ -7,7 +7,7 @@ import { addToInbox } from "../inbox-store.js";
 import { createDocumentReader } from "../agent/adapters/documents.js";
 import { createImportReader } from "../agent/adapters/imports.js";
 import { buildJournalGrid, SAMPLE_ROWS } from "./excel-journal-fixture.mjs";
-import { ledgerGrid, ledgerPdfPages } from "./ledger-fixture.mjs";
+import { ledgerGrid, ledgerPdfPages, ledgerRowsGrid, ledgerRowsPdfPages } from "./ledger-fixture.mjs";
 import { fakePdfJs } from "./income-report-fixture.mjs";
 import { createDefaultRegistry } from "../agent/index.js";
 import { runAgent } from "../agent/run.js";
@@ -85,7 +85,7 @@ test("prepare_import: a file that is not a journal is wrong_format with the mess
 test("prepare_import: a kind that does not fit the type of the file, and kinds that are not built yet, are invalid arguments", async () => {
   const s = await session();
   assert.equal((await prepare({ ...s, handle: s.handles["policy.pdf"] })).error.code, "invalid_argument");
-  assert.equal((await prepare(s, { kind: "ledger_check" })).error.code, "invalid_argument");
+  assert.equal((await prepare(s, { kind: "ledger_check" })).error.code, "wrong_format", "a journal is no operations ledger");
   assert.equal((await prepare(s, { kind: "ledger_codes" })).error.code, "wrong_format", "a journal is no classification-codes ledger");
   assert.equal((await prepare(s, { kind: "income_report" })).error.code, "invalid_argument");
   assert.equal((await prepare(s, { month: "2026-13" })).error.code, "invalid_argument");
@@ -231,4 +231,40 @@ test("prepare_import ledger_codes: a file without codes is wrong_format with the
   assert.equal(result.error.code, "wrong_format");
   assert.match(result.error.message, /לא נמצאו קודי מיון/);
   assert.equal(s.ui.importCards.length, 0);
+});
+
+// --- kind ledger_check (step 4.7.4) ---
+async function checkSession({ pdf = false } = {}) {
+  const tools = await toolContext({ imports: createImportReader({ loadLibrary, loadPdf: fakePdfJs(ledgerRowsPdfPages()) }) });
+  const name = pdf ? "ledger.pdf" : "ledger.xlsx";
+  const content = pdf ? new TextEncoder().encode("%PDF-1.4 synthetic") : workbook(ledgerRowsGrid());
+  await addToInbox(tools.w.root, [file(name, content, pdf ? "application/pdf" : "")], { folder: "Levi", now: "2026-10-16T08:07:00.000Z" });
+  const handles = await tools.files();
+  return { ...tools, handles, handle: handles[name], levi: await tools.client("Levi") };
+}
+const check = (s) => prepare(s, { kind: "ledger_check", reason: "כרטסת עם פעולות לבדיקה מול ההצהרות" });
+
+test("prepare_import ledger_check: the ledger is compared with the declarations of its year; counts only, a card, nothing written", async () => {
+  const s = await checkSession();
+  const before = await snapshot(s.w.root);
+  const result = await check(s);
+  assert.equal(result.ok, true);
+  assert.deepEqual([result.kind, result.wizard], ["ledger_check", "ledger_check"]);
+  const { summary } = result;
+  assert.equal(summary.year, 2026);
+  assert.ok(summary.operations > 0);
+  assert.equal(summary.matched + summary.missing, summary.operations);
+  assert.ok(summary.can_add <= summary.missing);
+  assert.deepEqual(result.checks.map((item) => item.code), ["operations_found", "all_in_declarations"]);
+  if (summary.missing) assert.equal(result.problems.find((item) => item.code === "operations_missing").count, summary.missing);
+  assert.deepEqual(await snapshot(s.w.root), before);
+  assert.equal(s.ui.importCards[0].kind, "ledger_check");
+  assert.equal(/"details"|"name"|"date"/.test(JSON.stringify(result)), false, "no operation reaches the model");
+});
+
+test("prepare_import ledger_check: a PDF ledger gives the same counts as the workbook", async () => {
+  const fromXlsx = await check(await checkSession());
+  const fromPdf = await check(await checkSession({ pdf: true }));
+  assert.equal(fromPdf.ok, true);
+  assert.deepEqual(fromPdf.summary, fromXlsx.summary);
 });

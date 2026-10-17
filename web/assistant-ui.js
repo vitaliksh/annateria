@@ -29,7 +29,7 @@ export const FIELD_LABELS = {
 export const COMMAND_LABELS = { process: "בדוק מסמכים חדשים", left: "מה נשאר?" };
 
 // The card of an import file (prepare_import): what the file is, what was found in it, and the button that opens the wizard.
-const IMPORT_KINDS = { journal: "יומן קליטה (Rivhit)", ledger_codes: "כרטסת קודי מיון (Rivhit)" };
+const IMPORT_KINDS = { journal: "יומן קליטה (Rivhit)", ledger_codes: "כרטסת קודי מיון (Rivhit)", ledger_check: "כרטסת עם פעולות (Rivhit), לבדיקה מול ההצהרות" };
 const IMPORT_PROBLEMS = {
   month_locked: () => "ההצהרה לחודש הזה נעולה, אי אפשר לייבא אליה.",
   month_has_rows: (item) => `בחודש הזה כבר יש ${item.count} שורות; באשף אפשר להחליף אותן (עותק של הטבלה הישנה יישמר).`,
@@ -38,6 +38,10 @@ const IMPORT_PROBLEMS = {
   lines_skipped: (item) => `${item.count} שורות בכרטסת לא נקראו; האשף מראה אילו ולמה.`,
   rows_not_remapped: (item) => `ל-${item.count} סוגים של שורות שיובאו מ-Excel אין קוד בכרטסת; השורות האלה לא יעודכנו.`,
   locked_months_not_remapped: (item) => `ב-${item.count} הצהרות נעולות יש שורות שיובאו מ-Excel; הן לא יעודכנו.`,
+  operations_missing: (item) => `${item.count} פעולות מהכרטסת חסרות בהצהרות; באשף אפשר לסמן אותן ולהוסיף.`,
+  missing_unknown_class: (item) => `ל-${item.count} מהפעולות החסרות אין קוד מיון אצל הלקוח; יש לטעון קודם את כרטסת קודי המיון.`,
+  missing_in_locked_month: (item) => `${item.count} מהפעולות החסרות שייכות להצהרות נעולות ולא יתווספו.`,
+  rows_not_in_ledger: (item) => `ל-${item.count} שורות בהצהרות אין התאמה בכרטסת; האשף מציג אותן.`,
   types_suggested: (item) => `ל-${item.count} קודי מיון הוצע סוג אחר כדי שהסכומים בסוף הקובץ יתאימו; האשף מראה זאת.`,
 };
 const money = (value) => value.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -301,7 +305,10 @@ export function setupAssistant({ root, onCommand, onApply = null }) {
     const { summary, totals } = card;
     const list = element("ul", "card-changes");
     const lines = [];
-    if (card.kind === "ledger_codes") {
+    if (card.kind === "ledger_check") {
+      lines.push(`${summary.operations} פעולות בכרטסת לשנת ${summary.year}: ${summary.matched} קיימות בהצהרות, ${summary.missing} חסרות`);
+      if (summary.can_add) lines.push(`${summary.can_add} מהחסרות אפשר להוסיף באשף${summary.months_created ? ` (${summary.months_created} הצהרות ייווצרו)` : ""}.`);
+    } else if (card.kind === "ledger_codes") {
       lines.push(`${summary.accounts} קודי מיון בכרטסת`);
       if (summary.rows_to_remap) lines.push(`${summary.rows_to_remap} שורות שיובאו מ-Excel יקבלו את הקודים החדשים (${summary.months_to_remap.map(formatMonth).join(", ")}); עותק של כל טבלה יישמר.`);
     } else {

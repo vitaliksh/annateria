@@ -238,7 +238,7 @@ test("a proposal names the row by its number, even when the row shares its docum
 test("the instruction has the agent read import files and name the wizard of the menu, and never extract a spreadsheet (4.7.1)", async () => {
   const { ORCHESTRATOR_PROMPT, AGENT_VERSION } = await import("../agent/prompts.js");
   const { default: listInbox } = await import("../agent/tools/list-inbox.js");
-  assert.equal(AGENT_VERSION, "stand-in-2026-10-17i");
+  assert.equal(AGENT_VERSION, "stand-in-2026-10-17j");
   assert.ok(ORCHESTRATOR_PROMPT.includes("read every spreadsheet, and every PDF that does not look like an invoice"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("with read_document, and never extract a spreadsheet with the vision model"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("say plainly when you cannot tell what a file is"));
@@ -250,7 +250,7 @@ test("the instruction has the agent read import files and name the wizard of the
   const summary = menu.match(/<summary[^>]*>([^<]+)<\/summary>/)[1];
   assert.ok(ORCHESTRATOR_PROMPT.includes(`menu "${summary}"`));
   // The journal goes through prepare_import now; the menu items that remain for the other kinds are quoted.
-  for (const id of ["check-ledger", "import-income-report"]) {
+  for (const id of ["import-income-report"]) {
     const label = menu.match(new RegExp(`id="${id}"[^>]*>([^<]+)</button>`))[1];
     assert.ok(ORCHESTRATOR_PROMPT.includes(`"${label}"`), `${id}: ${label}`);
   }
@@ -291,7 +291,7 @@ test("the instruction sends a journal to prepare_import and never lets the model
   assert.ok(ORCHESTRATOR_PROMPT.includes("prepare an import file for the user's wizard (prepare_import)"));
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /you cannot import them yet/);
   assert.match(prepareImport.description, /write nothing and the wizard opens only when the user clicks/);
-  assert.deepEqual(prepareImport.schema.properties.kind.enum, ["journal", "ledger_codes"], "only the kinds that are built");
+  assert.deepEqual(prepareImport.schema.properties.kind.enum, ["journal", "ledger_codes", "ledger_check"], "only the kinds that are built");
 });
 
 test("the instruction asks which client with choose_client and gives no buttons of its own", async () => {
@@ -304,9 +304,16 @@ test("the instruction asks which client with choose_client and gives no buttons 
   assert.match(askUser.description, /set choose_client true/);
 });
 
-test("the instruction sends a classification-codes ledger to prepare_import and leaves only the other two kinds to the menu (4.7.3)", async () => {
+test("the instruction sends a classification-codes ledger to prepare_import (4.7.3)", async () => {
   const { ORCHESTRATOR_PROMPT } = await import("../agent/prompts.js");
   assert.ok(ORCHESTRATOR_PROMPT.includes('a classification-codes ledger ("כרטסת קודי מיון", PDF or .xlsx'));
   assert.ok(ORCHESTRATOR_PROMPT.includes("with kind ledger_codes"));
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /classification-codes ledger is opened from the client card/);
+});
+
+test("the instruction sends an operations ledger to prepare_import and leaves only the income report to the menu (4.7.4)", async () => {
+  const { ORCHESTRATOR_PROMPT } = await import("../agent/prompts.js");
+  assert.ok(ORCHESTRATOR_PROMPT.includes('an operations ledger ("כרטסת" with dated movements per account, PDF or .xlsx) with kind ledger_check'));
+  assert.ok(ORCHESTRATOR_PROMPT.includes('A periodic income report ("דיווח הכנסות תקופתי", PDF) cannot be prepared yet'));
+  assert.doesNotMatch(ORCHESTRATOR_PROMPT, /בדיקה מול כרטסת…/);
 });

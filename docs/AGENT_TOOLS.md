@@ -375,7 +375,10 @@ the registry so that this file and the code cannot drift apart.
   file stays in the inbox and the card stays.
 - **Built so far (17 October 2026).** `kind: journal` (4.7.2) and `kind: ledger_codes` (4.7.3, PDF or `.xlsx`, `prepareLedger`: the
   summary has the number of codes, whether the client's own codes are replaced and how many imported rows get new codes; problems
-  `replaces_own_chart`, `lines_skipped`, `rows_not_remapped`, `locked_months_not_remapped`; the button opens the ledger-codes dialog); the enum of the schema lists the kinds that exist and widens with
+  `replaces_own_chart`, `lines_skipped`, `rows_not_remapped`, `locked_months_not_remapped`; the button opens the ledger-codes dialog)
+  and `kind: ledger_check` (4.7.4, the operations ledger, PDF or `.xlsx`, `prepareReconcile`: year, operations, matched, missing, how
+  many can be added and how many declarations would be created, rows of the tables without a match; problems `operations_missing`,
+  `missing_unknown_class`, `missing_in_locked_month`, `rows_not_in_ledger`; the button opens the ledger-check dialog); the enum of the schema lists the kinds that exist and widens with
   4.7.3 to 4.7.5 (a kind that is not in it is `invalid_argument`). The tool calls the service `imports.prepare`, which runs
   `prepareImport` and `inspectImportTarget` (adapter `agent/adapters/imports.js`) and hands back counts, checks and problems for
   the model and the totals for the card only. The card is `ctx.ui.importCard`; its button asks the page to open the wizard (the

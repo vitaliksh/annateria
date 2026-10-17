@@ -1,10 +1,11 @@
 // The backend of prepare_import (docs/AGENT_TOOLS.md, 5.6): runs the read-only preparer of the existing import wizard on an inbox
 // file and boils the result down to what the model may see (counts and check results) and what the card shows to the user (the
-// same, plus the totals). Nothing here writes: only the preparers (`prepareImport`, `prepareLedger`) and `inspectImportTarget` are used,
-// never a commit function.
+// same, plus the totals). Nothing here writes: only the preparers (`prepareImport`, `prepareLedger`, `prepareReconcile`) and
+// `inspectImportTarget` are used, never a commit function.
 import { prepareImport } from "../../excel-import-flow.js";
 import { inspectImportTarget } from "../../excel-import-store.js";
 import { prepareLedger } from "../../ledger-codes-flow.js";
+import { prepareReconcile } from "../../ledger-reconcile-flow.js";
 
 export class ImportError extends Error {
   constructor(code, message) {
@@ -31,7 +32,8 @@ function groupProblems(prepared) {
   return [...groups.values()];
 }
 
-// loadLibrary: loads SheetJS, loadPdf: pdf.js (tests pass their own). Built so far: journal (4.7.2), ledger_codes (4.7.3).
+// loadLibrary: loads SheetJS, loadPdf: pdf.js (tests pass their own). Built so far: journal (4.7.2), ledger_codes (4.7.3),
+// ledger_check (4.7.4).
 export function createImportReader({ loadLibrary, loadPdf } = {}) {
   async function journal(file, { dataRoot, client, reserved, month }) {
     let prepared;
@@ -102,11 +104,43 @@ export function createImportReader({ loadLibrary, loadPdf } = {}) {
     };
   }
 
+  // The operations ledger (a "כרטסת" with dated movements per code) against the declarations of its year: how many operations are in
+  // the tables, how many are missing and could be added in the dialog. prepareReconcile only reads and compares.
+  async function ledgerCheck(file, { dataRoot, client, reserved }) {
+    let prepared;
+    try {
+      prepared = await prepareReconcile(file, { dataRoot, client, reserved, loadLibrary, loadPdf });
+    } catch (error) {
+      throw new ImportError("wrong_format", error.message);
+    }
+    const { missing, extra } = prepared;
+    const count = (problem) => missing.filter((operation) => operation.problem === problem).length;
+    const addable = missing.filter((operation) => !operation.problem);
+    const problems = [];
+    if (missing.length) problems.push({ code: "operations_missing", severity: "warning", count: missing.length });
+    if (count("unknown-class")) problems.push({ code: "missing_unknown_class", severity: "warning", count: count("unknown-class") });
+    if (count("locked")) problems.push({ code: "missing_in_locked_month", severity: "warning", count: count("locked") });
+    if (extra.length) problems.push({ code: "rows_not_in_ledger", severity: "warning", count: extra.length });
+    return {
+      summary: {
+        year: prepared.year, operations: prepared.operations, matched: prepared.matched, missing: missing.length, can_add: addable.length,
+        months_created: new Set(addable.filter((operation) => operation.creates).map((operation) => operation.month)).size, extra: extra.length, month: null,
+      },
+      checks: [
+        { code: "operations_found", ok: true, count: prepared.operations },
+        { code: "all_in_declarations", ok: missing.length === 0 && extra.length === 0 },
+      ],
+      problems,
+      totals: null,
+    };
+  }
+
   return {
     // file: the File of the inbox entry. options: { kind, dataRoot, client, reserved, month }. Resolves with { summary, checks, problems, totals }.
     async prepare(file, options) {
       if (options.kind === "journal") return journal(file, options);
       if (options.kind === "ledger_codes") return ledgerCodes(file, options);
+      if (options.kind === "ledger_check") return ledgerCheck(file, options);
       throw new ImportError("wrong_format", `The kind ${options.kind} is not available yet.`);
     },
   };

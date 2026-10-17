@@ -385,3 +385,15 @@ test("the card of a classification-codes ledger says how many codes and which im
   for (const part of ["כרטסת קודי מיון (Rivhit)", "42 קודי מיון בכרטסת", "7 שורות שיובאו מ-Excel יקבלו את הקודים החדשים (01/2026, 03/2026)", "יוחלפו בקודים שבכרטסת", "ב-2 הצהרות נעולות"]) assert.ok(text.includes(part), part);
   assert.equal(text.includes("undefined"), false);
 });
+
+test("the card of an operations ledger says how many operations are in the tables and how many are missing", () => {
+  const { assistant, q } = setup();
+  assistant.ui.importCard(importCard({
+    kind: "ledger_check", totals: null, file: { name: "ledger.pdf", hash: "c".repeat(64), folder: "Levi" },
+    summary: { year: 2026, operations: 120, matched: 115, missing: 5, can_add: 3, months_created: 1, extra: 2, month: null },
+    problems: [{ code: "operations_missing", severity: "warning", count: 5 }, { code: "missing_unknown_class", severity: "warning", count: 2 }, { code: "rows_not_in_ledger", severity: "warning", count: 2 }],
+  }));
+  const text = q(".assistant-card[data-kind='import']").textContent;
+  for (const part of ["כרטסת עם פעולות (Rivhit)", "120 פעולות בכרטסת לשנת 2026: 115 קיימות בהצהרות, 5 חסרות", "3 מהחסרות אפשר להוסיף באשף (1 הצהרות ייווצרו)", "אין קוד מיון אצל הלקוח", "אין התאמה בכרטסת"]) assert.ok(text.includes(part), part);
+  assert.equal(text.includes("undefined"), false);
+});

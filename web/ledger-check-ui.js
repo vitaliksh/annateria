@@ -27,6 +27,8 @@ export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, o
   ].map(part);
   let context = null;
   let prepared = null;
+  let loaded = null; // the file that `prepared` was read from
+  let preset = null; // { file, onCommitted } of a dialog opened with openWith (the card of the assistant, step 4.7.4)
 
   const selectedIndexes = () => new Set([...list.querySelectorAll("input:checked")].map((box) => Number(box.dataset.index)));
   const updateAdd = () => {
@@ -37,6 +39,7 @@ export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, o
 
   const reset = () => {
     prepared = null;
+    loaded = null;
     file.value = "";
     details.hidden = true;
     errorLine.textContent = "";
@@ -78,14 +81,29 @@ export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, o
     details.hidden = true;
     add.disabled = true;
     if (!file.files?.length) return;
+    await load(file.files[0]);
+  });
+
+  async function load(selected) {
     try {
-      prepared = await prepareReconcile(file.files[0], { ...context, loadLibrary, loadPdf });
+      loaded = selected;
+      prepared = await prepareReconcile(selected, { ...context, loadLibrary, loadPdf });
       render();
     } catch (error) {
       prepared = null;
       errorLine.textContent = error.message;
     }
-  });
+  }
+
+  // What the host does with the original once the operations are added; a failure is told and never undoes the addition.
+  async function afterCommit() {
+    if (!preset || loaded !== preset.file) return "";
+    try {
+      return (await preset.onCommitted()) ?? "";
+    } catch (error) {
+      return `הקובץ לא הועבר מתיבת הקלט: ${error.message}`;
+    }
+  }
 
   add.addEventListener("click", async () => {
     if (!prepared) return;
@@ -96,8 +114,9 @@ export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, o
       const months = [...new Set(prepared.missing.filter((operation, index) => selected.has(index)).map((operation) => operation.month))];
       const detached = await onBeforeWrite?.(months);
       const result = await commitReconcile(prepared, { selected, client: context.client });
+      const filed = await afterCommit();
       await onSaved?.(result, detached);
-      summary.textContent = `נוספו ${result.added} פעולות להצהרות ${result.months.map(formatMonth).join(", ")}. עותק של כל טבלה נשמר לפני השינוי.`;
+      summary.textContent = `נוספו ${result.added} פעולות להצהרות ${result.months.map(formatMonth).join(", ")}. עותק של כל טבלה נשמר לפני השינוי.${filed ? ` ${filed}` : ""}`;
       summary.className = "summary-line plate-success";
       prepared = null;
       list.replaceChildren();
@@ -112,9 +131,22 @@ export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, o
   const open = () => {
     context = getContext();
     if (!context) return onError("יש לבחור תחילה תיקיית נתונים ולקוח לפני בדיקה מול כרטסת.");
+    preset = null;
     reset();
     dialog.showModal();
   };
   button?.addEventListener("click", open);
-  return { open };
+  return {
+    open,
+    // Opens the dialog with `selected` (a File) already read, for the open client. onCommitted() runs after operations were added
+    // and resolves with a line for the user; it runs only if the file read is still this one.
+    async openWith(selected, { onCommitted } = {}) {
+      context = getContext();
+      if (!context) return onError("יש לבחור תחילה תיקיית נתונים ולקוח לפני בדיקה מול כרטסת.");
+      reset();
+      preset = onCommitted ? { file: selected, onCommitted } : null;
+      dialog.showModal();
+      await load(selected);
+    },
+  };
 }

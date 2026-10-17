@@ -677,13 +677,13 @@ async function runAssistant(kind, text) {
     inboxUi?.refreshCounts();
   }
 }
-// The button of an import card (step 4.7): opens the wizard of its kind (Excel import, classification codes) with the file from the
+// The button of an import card (step 4.7): opens the wizard of its kind (Excel import, classification codes, ledger check) with the file from the
 // inbox, for the client of the card.
 // The wizard works on the open client, so that client is opened first. Once the wizard has written the rows, the original goes from
 // the inbox to clients/<client>/imports/ (copied, read back, compared, then taken out); the agent has no part in this.
 async function openImportWizard({ card, report }) {
   try {
-    const wizard = { journal: excelImport, ledger_codes: ledgerCodes }[card.kind];
+    const wizard = { journal: excelImport, ledger_codes: ledgerCodes, ledger_check: ledgerCheck }[card.kind];
     if (!wizard) return report({ text: "אין אשף לסוג הקובץ הזה." });
     const entry = (await readInboxIndex(dataRoot)).files.find((item) => item.hash === card.file.hash);
     if (!entry) return report({ text: "הקובץ כבר אינו בתיבת הקלט.", done: true });
