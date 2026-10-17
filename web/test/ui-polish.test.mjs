@@ -85,7 +85,9 @@ test("icon buttons and navigation items get tooltips without overwriting existin
 test("an open-menu button opens its menu", () => {
   const { document } = page();
   setupMenuOpeners(document);
-  const menu = document.querySelector("#add-documents-menu");
+  // index.html has no such button since 4.7.6; the mechanism stays for the next one.
+  document.body.insertAdjacentHTML("beforeend", '<details class="menu" id="test-menu"><summary>m</summary></details><button type="button" data-open-menu="test-menu">open</button>');
+  const menu = document.querySelector("#test-menu");
   assert.equal(menu.open, false);
   document.querySelector("[data-open-menu]").click();
   assert.equal(menu.open, true);

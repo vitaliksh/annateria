@@ -7,15 +7,16 @@ column chooser, reports as a page, and one dialog template.
 
 Status (see [`../docs/WORK_PLAN.md`](../docs/WORK_PLAN.md)): the transports inherited from ocr (Telegram upload sessions,
 QR codes, passkey / Windows Hello, the Rivhit TXT export) are removed. Files arrive without AI: the **inbox**
-(`תיבת קלט`: drop target and picker, `inbox/` in the data folder, de-duplicated by SHA-256) plus the Excel import and the
-income-report PDF import. The **assistant dock** (`עוזר`, `assistant-ui.js`, `web/agent/`) reads the inbox with Gemini through
+(`תיבת קלט`: drop target and picker, `inbox/` in the data folder, de-duplicated by SHA-256); import files go there too, and
+the assistant prepares them for their wizard (step 4.7, `prepare_import`). The **assistant dock** (`עוזר`, `assistant-ui.js`, `web/agent/`) reads the inbox with Gemini through
 the Worker (`../worker`, which alone holds the key), checks documents with the rules of the software and answers questions
 about the tables; it does not write rows yet (step 4.4). The models are chosen in the settings. Specification of the agent:
 [`../docs/AGENT_TOOLS.md`](../docs/AGENT_TOOLS.md).
 
 ## Excel migration and reports
 
-The journal can import Rivhit's printed journal (`.xlsx`, one file per month) through **ייבוא מ‑Excel**: parsing is
+The journal can import Rivhit's printed journal (`.xlsx`, one file per month) through the Excel-import wizard, which the card of the
+assistant opens for a journal put into the inbox (the menu item **ייבוא מ‑Excel** is gone since step 4.7.6): parsing is
 deterministic, amounts are stored as source values, and the classification names are mapped through a per-root chart of
 accounts (`common/chart-of-accounts.json`). **דוחות** produces the VAT, advances, profit-and-loss and classification
 ledger reports from the declarations in the local folder; the PDF comes from the browser's print dialog. SheetJS is

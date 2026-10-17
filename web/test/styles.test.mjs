@@ -31,7 +31,7 @@ test("colours live in tokens.css only", () => {
 
 test("the shell has the top bar, a scrolling workspace and a status bar with the ids app.js expects", () => {
   const shell = html.slice(html.indexOf('<div class="app-shell">'), html.indexOf('<div id="report-print"'));
-  for (const id of ["open-workspaces-drawer", "current-client", "declaration-badge", "open-reports", "import-excel", "close-declaration", "reopen-declaration", "journal-title", "count", "records", "upload-requirements", "status", "breadcrumb", "clients-view", "client-view", "journal-view", "reports-view", "nav-reports"]) {
+  for (const id of ["open-workspaces-drawer", "current-client", "declaration-badge", "open-reports", "empty-open-inbox", "close-declaration", "reopen-declaration", "journal-title", "count", "records", "upload-requirements", "status", "breadcrumb", "clients-view", "client-view", "journal-view", "reports-view", "nav-reports"]) {
     assert.ok(shell.includes(`id="${id}"`), id);
   }
   assert.match(shell, /<header class="topbar">/);

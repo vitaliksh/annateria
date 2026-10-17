@@ -29,3 +29,20 @@ test("the refresh after a user action only rescans the clients", () => {
   const line = text.split("\n").find((item) => item.includes("const refreshFromUserAction"));
   assert.ok(line.includes("await scanClientsFromRoot(); };"), line);
 });
+
+test("the menu \"ייבוא ובדיקות\" is gone (4.7.6): every import goes through the inbox, and every kind of prepare_import has a wizard", async () => {
+  const html = readFileSync(join(web, "index.html"), "utf8");
+  for (const id of ["add-documents-menu", "import-income-report", "import-excel", "check-ledger"]) {
+    assert.equal(html.includes(`id="${id}"`), false, id);
+    for (const file of sources(web)) assert.equal(readFileSync(file, "utf8").includes(`#${id}`), false, `${file} mentions #${id}`);
+  }
+  assert.ok(html.includes('id="empty-open-inbox"'), "the empty table points to the inbox");
+  const app = readFileSync(join(web, "app.js"), "utf8");
+  const map = app.match(/const wizard = \{([^}]+)\}\[card\.kind\]/)[1];
+  const { default: prepareImport } = await import("../agent/tools/prepare-import.js");
+  const kinds = prepareImport.schema.properties.kind.enum;
+  assert.deepEqual(kinds, ["journal", "ledger_codes", "ledger_check", "income_report"]);
+  for (const kind of kinds) assert.match(map, new RegExp(`\\b${kind}: \\w+`), kind);
+  // The dialogs themselves stay: the cards open them, the codes dialog also opens from the client card.
+  for (const id of ["excel-import-dialog", "ledger-codes-dialog", "ledger-check-dialog"]) assert.ok(html.includes(`id="${id}"`), id);
+});

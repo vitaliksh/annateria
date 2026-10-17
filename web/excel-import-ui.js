@@ -66,7 +66,7 @@ const TARGET_TEXTS = {
 };
 
 // onBeforeCommit(month) lets the host stop editing the target declaration before the rows are written.
-// Besides the button, the wizard can be opened with a file that is already at hand (openWith, used by the card of the assistant, step
+// Besides the button (none since 4.7.6: the menu is gone), the wizard can be opened with a file that is already at hand (openWith, used by the card of the assistant, step
 // 4.7.2): the steps are the same, only the choosing of the file is skipped.
 export function setupExcelImport({ button, dialog, getContext, onImported, onError, loadLibrary, onBeforeCommit, onOpenCodes }) {
   const part = (id) => dialog.querySelector(`#${id}`);
@@ -249,7 +249,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
     refreshTarget();
   };
 
-  button.addEventListener("click", () => {
+  button?.addEventListener("click", () => {
     context = getContext();
     if (!context) return onError("יש לבחור תחילה תיקיית נתונים ולקוח לפני ייבוא מ-Excel.");
     preset = null;

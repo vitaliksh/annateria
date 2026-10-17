@@ -12,8 +12,9 @@ the sidebar is `date · short commit`).
 
 Phases 0 and 1 are done: the code of the ocr project is copied and cleaned, the page is published, and the Worker is
 deployed with the access code (`/v1/auth`) and the Gemini proxy (`/v1/model`). The login dialog and the settings button
-"בדיקת חיבור ל‑AI" work on the published page. The app still has **no photo intake and no assistant**; rows come from the
-Excel import and the income-report PDF import. Next: phase 2 (inbox) and phase 3 (model choice). Where to start:
+"בדיקת חיבור ל‑AI" work on the published page. Everything comes in through the **inbox** (`תיבת קלט`): the assistant turns
+invoices into rows, and recognises import files (Rivhit journal, classification-codes ledger, operations ledger, income report),
+for which it leaves a card that opens the existing wizard (step 4.7; the menu "ייבוא ובדיקות" is gone). Where to start:
 [`docs/HANDOFF.md`](docs/HANDOFF.md), section "Start here"; the plan: [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
 
 ## Layout
@@ -29,7 +30,7 @@ Excel import and the income-report PDF import. Next: phase 2 (inbox) and phase 3
 
 ```powershell
 py -m http.server 8000 --directory web      # open http://127.0.0.1:8000, pick a COPY of a data folder
-cd web;    npm ci; npm test; npm run check  # 747 tests
+cd web;    npm ci; npm test; npm run check  # 748 tests
 cd worker; npm ci; npm test; npm run check  # 54 tests (check = wrangler dry run)
 ```
 

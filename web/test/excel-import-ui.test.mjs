@@ -35,8 +35,10 @@ async function setup({ context = true, confirm = () => true } = {}) {
   const client = { directory: memoryDirectory("client"), config: { clientId: "c1" } };
   const calls = { errors: [], imported: [], before: [] };
   const { setupExcelImport } = await import("../excel-import-ui.js");
+  // The menu that held the button is gone (4.7.6); the tests give the wizard a button of their own.
+  const button = window.document.body.appendChild(window.document.createElement("button"));
   const wizard = setupExcelImport({
-    button: window.document.querySelector("#import-excel"),
+    button,
     dialog,
     getContext: () => (context ? { dataRoot, client, reserved: {} } : null),
     onImported: async (result, month) => { calls.imported.push({ result, month }); },
@@ -51,7 +53,7 @@ async function setup({ context = true, confirm = () => true } = {}) {
     for (let i = 0; i < 50 && dialog.querySelector("#excel-import-details").hidden; i += 1) await new Promise((r) => setTimeout(r, 10));
   };
   const q = (id) => dialog.querySelector(`#${id}`);
-  return { window, dialog, dataRoot, client, calls, pick, q, wizard, open: () => window.document.querySelector("#import-excel").click() };
+  return { window, dialog, dataRoot, client, calls, pick, q, wizard, open: () => button.click() };
 }
 
 test("диалог импорта: без выбранного клиента показывает ошибку и не открывается", async () => {

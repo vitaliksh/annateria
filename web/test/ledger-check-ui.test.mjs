@@ -53,8 +53,10 @@ async function setup({ context = true } = {}) {
   await importRowsIntoDeclaration({ clientDirectory: client.directory, clientId: "c1", month: "2026-01", rows, now: "2026-10-01T10:00:00.000Z" });
   const calls = { errors: [], saved: [], before: [] };
   const { setupLedgerCheck } = await import("../ledger-check-ui.js");
+  // The menu that held the button is gone (4.7.6); the tests give the dialog a button of their own.
+  const button = window.document.body.appendChild(window.document.createElement("button"));
   const check = setupLedgerCheck({
-    button: window.document.querySelector("#check-ledger"),
+    button,
     dialog,
     getContext: () => (context ? { dataRoot, client, reserved: {} } : null),
     onBeforeWrite: async (months) => { calls.before.push(months); return months[0] ?? null; },
@@ -68,7 +70,7 @@ async function setup({ context = true } = {}) {
     q("ledger-check-file").dispatchEvent(new window.Event("change"));
     for (let i = 0; i < 50 && q("ledger-check-details").hidden && !q("ledger-check-error").textContent; i += 1) await settle();
   };
-  return { window, dialog, client, calls, check, q, pick, open: () => window.document.querySelector("#check-ledger").click() };
+  return { window, dialog, client, calls, check, q, pick, open: () => button.click() };
 }
 
 test("בדיקה מול כרטסת: בלי לקוח שגיאה והדיאלוג לא נפתח", async () => {

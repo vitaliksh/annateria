@@ -1,5 +1,5 @@
 import { setupWorkspaceControls } from "./workspace.js";
-import { pdfSourceFileName, validatePdfFile } from "./pdf-import.js";
+import { pdfSourceFileName } from "./pdf-import.js";
 import {
   finalizeDeclaration,
   reopenLockedDeclaration,
@@ -54,8 +54,7 @@ const journalColumns = setupJournalColumns({
 });
 const api = (window.ANNATERIA_API || "").replace(/\/$/, ""),
   builtInMapping = { ...(window.RIVHIT_MAPPING || {}) };
-const importIncomeReportButton = document.querySelector("#import-income-report"),
-  status = document.querySelector("#status"),
+const status = document.querySelector("#status"),
   records = document.querySelector("#records"),
   count = document.querySelector("#count"),
   emptyRow = document.querySelector("#empty-row"),
@@ -142,7 +141,6 @@ function showExportResult({ title, message, error = false }) {
 function updateStartAvailability() {
   const open = currentDeclaration?.status === "open";
   const actions = declarationActions({ dataRoot, declaration: currentDeclaration, workspaceCommitted: committedWorkspace });
-  importIncomeReportButton.disabled = !actions.canStart;
   closeDeclarationButton.disabled = !actions.canClose;
   declarationBadge.hidden = !currentDeclaration;
   declarationBadge.textContent = actions.open ? "פתוחה" : "נעולה";
@@ -400,7 +398,6 @@ setupJournalToolbar({
   },
 });
 const excelImport = setupExcelImport({
-  button: document.querySelector("#import-excel"),
   dialog: document.querySelector("#excel-import-dialog"),
   getContext: () =>
     dataRoot && committedWorkspace
@@ -449,7 +446,6 @@ const ledgerCodes = setupLedgerCodes({
   onError: showError,
 });
 const ledgerCheck = setupLedgerCheck({
-  button: document.querySelector("#check-ledger"),
   dialog: document.querySelector("#ledger-check-dialog"),
   getContext: () =>
     dataRoot && committedWorkspace
@@ -1191,28 +1187,8 @@ async function importIncomeReportFile(file, report = null) {
   status.textContent = rows[0].agentOpinion;
   offerDistribution();
 }
-function chooseIncomeReport() {
-  if (!currentDeclarationDirectory || currentDeclaration?.status !== "open") return showError("יש לבחור הצהרה פתוחה.");
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = "application/pdf,.pdf";
-  input.addEventListener(
-    "change",
-    async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      try {
-        validatePdfFile(file);
-        await importIncomeReportFile(file);
-      } catch (error) {
-        showError(error.message);
-      }
-    },
-    { once: true },
-  );
-  input.click();
-}
-importIncomeReportButton.addEventListener("click", chooseIncomeReport);
+// The empty table points to the inbox: every document and every import file comes in there (step 4.7.6).
+document.querySelector("#empty-open-inbox").addEventListener("click", () => document.querySelector("#open-inbox").click());
 function addPendingRecord(imageUrl, receivedAt, documentId, imageIndex, insertAfter = null, imageBlob = null) {
   emptyRow?.remove();
   recordCount += 1;

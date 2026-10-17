@@ -17,7 +17,7 @@ specification for 4.2 onwards; a change to it needs the owner's approval.
 
 **Done:** steps 4.1 to **4.4** (the agent reads, checks, adds rows, files the originals, and its proposals can be applied); 4.5 (routing) is built with 4.4. **Next, for the
 owner:** the same run as before, now with files: put a document of a client into "תיבת קלט" (best in the folder of that client), press "בדוק מסמכים חדשים" or "בדוק עם העוזר", and look at
-the table: a row, its status, its original (the PDF button), and the cards. **Next step:** block 4.7 (all imports through the inbox; 4.7.1 to 4.7.3 accepted; 4.7.4 and 4.7.5 built, waiting for the owner's real runs; next 4.7.6 (remove the menu)), then 4.6 client memory (`remember_rule`, `rules.md`), then phase 5 (skills and eval). The
+the table: a row, its status, its original (the PDF button), and the cards. **Next step:** block 4.7 (all imports through the inbox; 4.7.1 to 4.7.3 accepted; 4.7.5 accepted; 4.7.4 waits for a run with the right client; 4.7.6 (the menu removed) built, waiting for the owner's look; then 4.6), then 4.6 client memory (`remember_rule`, `rules.md`), then phase 5 (skills and eval). The
 owner decides the order; do not start the next step without his "yes" (`AGENTS.md`).
 
 **Open items for the owner** (the Cloudflare plan now matters: see "General check of 16 October"): set a monthly spend cap in AI Studio ("Set spend cap") and use a separate API key for this
@@ -54,7 +54,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 747 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 748 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -247,7 +247,7 @@ latest declaration of the card's client (which may ask "switch to another declar
 - **Output limit:** the thinking of the model counts against `maxOutputTokens`; raised to 16,384 (assistant) and 32,768 (extraction, the most the Worker allows). Thinking is also most of the cost of a run; a lower thinking level for extraction would cut it, but the parameter was not verified, so it is not used.
 - **Style:** about 320 lines of the new modules (agent, inbox, assistant) are longer than the ~120 characters of `AGENTS.md`, mostly comments, prompts and tool descriptions. A formatting-only commit would fix it; proposed to the owner, not done.
 - **Run logs hold data:** `common/agent-runs/*.json` keep the arguments and a shortened result of every tool call (supplier names, amounts). They are local, in the backup, and must be treated like the rest of the data root; nothing deletes them.
-- **PDF through the dock:** put the PDF in `תיבת קלט`, press "בדוק מסמכים חדשים". The old **דוח הכנסות (PDF)** import (menu "ייבוא ובדיקות") is another feature and does not use the agent.
+- **PDF through the dock:** put the PDF in `תיבת קלט`, press "בדוק מסמכים חדשים". An income report goes the same way since 4.7.5: the agent prepares it and its card adds it to the month of the report; the menu "ייבוא ובדיקות" is gone (4.7.6).
 
 ### First real run (16 October 2026)
 
