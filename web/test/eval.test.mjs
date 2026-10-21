@@ -43,7 +43,9 @@ const PLANS = {
   "insurance-letter": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "206" },
   "vehicle-insurance": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "214" },
   "tax-payment": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "not_expense", needsReview: true },
-  "loose-fit": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "220", needsReview: true },
+  "internet-maintenance": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "220" },
+  "licence-fee": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "214" },
+  "parking-fine": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "not_expense" },
   "close-month": { client: "Pcn Trading", closing: "2026-09" },
 };
 

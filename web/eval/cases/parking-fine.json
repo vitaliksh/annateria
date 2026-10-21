@@ -1,6 +1,6 @@
 {
-  "name": "loose-fit",
-  "about": "An internet bill for a client whose chart has no account for it is marked for review, even when a general account is chosen.",
+  "name": "parking-fine",
+  "about": "A parking fine is not an expense: a row without an account, not active (the bookkeeper, 21 October 2026).",
   "today": "2026-10-20",
   "clients": [
     {
@@ -79,19 +79,20 @@
   ],
   "inbox": [
     {
-      "name": "internet-sep.pdf",
+      "name": "fine.jpg",
       "folder": "Levi",
       "records": [
         {
-          "supplier_name": "Fast Net",
-          "supplier_vat_id": "515300085",
-          "document_title": "חשבונית מס - שירותי אינטרנט",
-          "document_number": "FN-20931",
-          "date": "2026-09-01",
-          "net": 100,
-          "vat": 18,
-          "total": 118,
-          "purpose": "מנוי אינטרנט חודשי",
+          "kind": "payment_confirmation",
+          "document_title": "הודעת תשלום קנס חניה",
+          "supplier_name": "עיריית תל אביב",
+          "document_number": "PK-778812",
+          "date": "2026-09-16",
+          "net": 250,
+          "vat": 0,
+          "total": 250,
+          "vat_percent": 0,
+          "purpose": "קנס חניה",
           "buyer_name": "Levi Plumbing Ltd",
           "buyer_vat_id": "515300010"
         }
@@ -101,12 +102,14 @@
   "expect": {
     "rows": [
       {
-        "reference": "FN-20931",
-        "client": "Levi"
+        "reference": "PK-778812",
+        "client": "Levi",
+        "account": "",
+        "active": false
       }
     ],
     "notReady": [
-      "FN-20931"
+      "PK-778812"
     ]
   }
 }

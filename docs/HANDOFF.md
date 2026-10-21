@@ -5,7 +5,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 ## Start here (state at the end of 17 October 2026)
 
-**State.** `main` is pushed up to 3d7ff58 (5.2, the rules of ocr in the skills); step 6.2 (the check before closing a month) is committed after it, not pushed until the owner says so. Web 800 tests, Worker 54, `npm run check` green. The published page serves
+**State.** `main` is pushed up to 3d7ff58 (5.2, the rules of ocr in the skills); 6.2 (the check before closing a month) and the billing message are pushed (49b194f); step 5.4 (Anna's answers in the skills) is committed after it, not pushed until the owner says so. Web 802 tests, Worker 54, `npm run check` green. The published page serves
 `skills/*/SKILL.md` (checked: 200, `text/markdown`). Accepted by the owner: phases 0, 1 and 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6.
 Built and pushed, with a real run seen: 5.1.
 
@@ -27,8 +27,9 @@ or "שורה N (MM/YYYY)"; `run.js` applies it to the text of a completed run (t
 **Next steps (order agreed by the owner, 21 October 2026): 5.3 "Eval set" before 5.2**, so that the changed rules of 5.2 are checked by the eval.
 5.3 is done (section "Step 5.3: the eval" below): the owner's first run passed 76 of 76 checks. 5.2 is done (section "Step 5.2" below): 108 of 108.
 
-**Next: 5.4 "Questions for Anna": her answers arrived (21 October 2026, through the owner) and are to be put into the skills** (section
-"Anna's answers" below), then the eval. 6.1 (`run_report`) is in the backlog (owner: nice-to-have, later). 6.2 is built (section "Step 6.2").
+**5.4 done (21 October 2026):** Anna's answers (section "Anna's answers" below) are in `classification` v3; the full eval after it: **134 of 134**
+(16 cases x 2, also the cases that had failed on Gemini's 402). **Next:** the owner's look at the lock button on the published page (6.2);
+then phase 7 (sync through Google Drive, starting with the spike 7.1), unless the owner picks the postponed 66.67% fix first. 6.1 (`run_report`) is in the backlog (owner: nice-to-have, later). 6.2 is built (section "Step 6.2").
 
 **Gemini answers 402 (21 October 2026, about 14:50 local time onwards).** Found with `wrangler tail` (the Worker logs only the status):
 `Gemini answered 402`, i.e. payment required; the spend cap of AI Studio is not set (the owner's screenshot: "₪18.10 / -"), so it is the
@@ -55,7 +56,14 @@ raise `metadata.version`, run `npm test`: the failure prints the line to paste i
 the old prompts (`web/test/fixtures/legacy-prompts.json`, in `skills.test.mjs`) guards 5.1 only: 5.2 changes the rules on purpose, so remove that
 fixture and its test in the same commit and say so. Run `npm run eval` before and after each rule change and put both summaries (pass counts, no case data) in the decision log; add a case for each rule that gets one.
 
-### Anna's answers (21 October 2026, through the owner; to put into the skills in 5.4)
+### Anna's answers (21 October 2026, through the owner; put into the skills in 5.4)
+
+In `classification` v3: taxes and National Insurance are not expenses (confirmed, no needs_review for that reason any more); a vehicle
+licence fee is an expense on the vehicle account; a fine and a donation are not expenses; internet and software without an own account go to
+the maintenance account and are a fit, not a loose one; a foreign currency: needs_review, the reason says to convert at the rate of the date
+of receipt (the software does not convert). Eval: `loose-fit` became `internet-maintenance` (account 220), new `licence-fee` and
+`parking-fine`. The date and PCN answers agree with what the code does: no change. Not built: converting a foreign currency (the rate of
+the date of receipt would need an exchange-rate source, for example the Bank of Israel; an outside service, ask the owner first).
 
 1. Payments of VAT and income-tax advances to the tax authority: not an expense, "no need to write it"; the owner chose to keep the
    current behaviour: a row that is not active (excluded from the reports), not_expense, with its reason. 2. National Insurance (ביטוח לאומי):
@@ -111,7 +119,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 800 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 802 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 

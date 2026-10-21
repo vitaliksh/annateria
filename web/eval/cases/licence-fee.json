@@ -1,0 +1,114 @@
+{
+  "name": "licence-fee",
+  "about": "The yearly licence fee of a vehicle is an expense on the vehicle account (the bookkeeper, 21 October 2026).",
+  "today": "2026-10-20",
+  "clients": [
+    {
+      "folder": "Levi",
+      "name": "Levi Plumbing Ltd",
+      "vatId": "515300010",
+      "kind": "office",
+      "activity": "plumbing",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "206": {
+          "name": "ביטוח עסק",
+          "type": "outsideVatBase"
+        },
+        "214": {
+          "name": "רכב רשוי וביטוח",
+          "type": "expense"
+        },
+        "215": {
+          "name": "תוכנה",
+          "type": "expense"
+        },
+        "220": {
+          "name": "אחזקה ותיקונים",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Cohen",
+      "name": "Cohen Studio",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "graphic design",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "230": {
+          "name": "חשמל",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Pcn",
+      "name": "Pcn Trading",
+      "vatId": "515300028",
+      "kind": "office",
+      "activity": "trading",
+      "pcn": true,
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "240": {
+          "name": "ציוד",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    }
+  ],
+  "inbox": [
+    {
+      "name": "rishui.pdf",
+      "folder": "Levi",
+      "records": [
+        {
+          "kind": "payment_confirmation",
+          "document_title": "אישור תשלום אגרת רישוי רכב 12-345-67",
+          "supplier_name": "משרד התחבורה",
+          "document_number": "RS-55120",
+          "date": "2026-09-11",
+          "net": 1460,
+          "vat": 0,
+          "total": 1460,
+          "vat_percent": 0,
+          "purpose": "אגרת רישוי שנתית לרכב",
+          "buyer_name": "Levi Plumbing Ltd",
+          "buyer_vat_id": "515300010"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "rows": [
+      {
+        "reference": "RS-55120",
+        "client": "Levi",
+        "account": "214"
+      }
+    ],
+    "filed": [
+      "rishui.pdf"
+    ]
+  }
+}
