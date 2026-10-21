@@ -150,7 +150,7 @@ export async function runAgent({
     if (!calls.length) {
       if (!text.trim()) return finish("failed", { error: "The model gave an empty answer." });
       contents.push({ role: "model", parts });
-      return finish("completed", { text, truncated: reply?.finishReason === "MAX_TOKENS" });
+      return finish("completed", { text: ctx.handles.readable(text), truncated: reply?.finishReason === "MAX_TOKENS" });
     }
     contents.push({ role: "model", parts });
     if (run.toolCalls + calls.length > limits.toolCalls) return finish("limit_reached", { reason: "tool calls" });

@@ -105,7 +105,9 @@ closed in `agent/skills.js` (a file that is not on it is never loaded). Today: `
 
 - **Handles, not ids.** The model sees short run-local handles: files `F1`, facts `F1.1` (first document in file 1),
   rows `R1`, clients `C1`, questions `Q1`, proposals `P1`. The code keeps the map to real ids (SHA-256, `documentId`,
-  `clientId`). An unknown handle is `not_found`. The model cannot invent a hash or a row.
+  `clientId`). An unknown handle is `not_found`. The model cannot invent a hash or a row. Handles never reach the user:
+  in the final answer the code replaces every issued `C`, `F`, `F1.1` and `R` handle by the client name, the file name or
+  "שורה N (MM/YYYY)" (`handles.readable`); `Q`, `P` and `I` have no name and stay as written.
 - **Result envelope.** Success: `{ "ok": true, ... }`. Failure: `{ "ok": false, "error": { "code", "message" } }`.
   The message is English, for the model; text for the user is Hebrew and is produced by the code or written by the
   model into `reason` / `question`. Codes: `not_found`, `invalid_argument`, `locked`, `not_allowed`, `conflict`,

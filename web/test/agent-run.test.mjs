@@ -33,6 +33,12 @@ test("happy path: the model calls a tool, gets its result, then answers", async 
   assert.deepEqual([response.id, response.name, response.response.ok, response.response.counts.total], ["c1", "list_inbox", true, 3]);
 });
 
+test("the final answer shows names, not the handles the model wrote", async () => {
+  const model = scriptedModel([reply(call("find_client", { vat_id: "514123456" })), reply(say("הלקוח C1 נמצא."))]);
+  const { result } = await run({ model });
+  assert.equal(result.text, "הלקוח Levi Plumbing Ltd נמצא.");
+});
+
 test("parallel calls are answered together, in the order they were made", async () => {
   const model = scriptedModel([
     reply(call("find_client", { vat_id: "514123456" }, { signature: "SIG" }), call("list_inbox", {})),

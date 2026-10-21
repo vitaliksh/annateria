@@ -5,7 +5,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 ## Start here (state at the end of 17 October 2026)
 
-**State.** `main` is pushed up to c777be3 (step 5.1, the skills). Web 775 tests, Worker 54, `npm run check` green. The published page serves
+**State.** `main` is pushed up to c777be3 (step 5.1, the skills); the handle fix below is committed after it, not pushed until the owner says so. Web 777 tests, Worker 54, `npm run check` green. The published page serves
 `skills/*/SKILL.md` (checked: 200, `text/markdown`). Accepted by the owner: phases 0, 1 and 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6.
 Built and pushed, with a real run seen: 5.1.
 
@@ -17,10 +17,16 @@ buyer by `alias`).
 `base-2026-10-17o` and the three versions), the new row carries `agent.skills`, the client was routed by `alias` without a question, 7 tool
 calls all ok, the original was filed (hash equal to the picture of the row, inbox empty), the amounts reconcile. **One defect seen:** the final
 text of the model contained the internal handle "C1" although the instruction forbids handles. That run used `gemini-3.5-flash-lite`, chosen in
-the settings (the default is `gemini-3.8-flash`); the rule exists only as text in the prompt, as before 5.1. *Proposed, not built, needs the
-owner's yes:* the code replaces handles in the final text by names (a rule that only the prompt states is not a rule, `AGENT_TOOLS.md` section 1).
+the settings (the default is `gemini-3.8-flash`); the rule existed only as text in the prompt. **Fixed (owner's yes, 21 October 2026):**
+`handles.readable` (`web/agent/handles.js`) replaces issued `C`, `F`, `F1.1` and `R` handles in the final answer by the client name, the file name
+or "שורה N (MM/YYYY)"; `run.js` applies it to the text of a completed run (the run log keeps the replaced text too). **Changed existing code:**
+`agent/handles.js` (new method, imports `month-format.js`), `agent/run.js` (one line), `test/agent-boundary.test.mjs` (`handles.js` may import
+`month-format.js`). **Not covered:** `Q`, `P`, `I` handles (no name to show); the text of `ask_user` questions and the `reason` of rows and proposals
+(only the final answer is cleaned); a supplier name that happens to equal an issued handle (e.g. "F1") would be replaced. **Not verified:** a real run.
 
-**Next step: 5.2 "Port the rules".** Move the rules of ocr into the skills (the owner decides when to start; do not start without his "yes"):
+**Next steps (order agreed by the owner, 21 October 2026): 5.3 "Eval set" before 5.2**, so that the changed rules of 5.2 are checked by the eval.
+
+**Then 5.2 "Port the rules".** Move the rules of ocr into the skills (the owner decides when to start; do not start without his "yes"):
 read `D:\projects\ocr\agent-prompts\bookkeeper-agent.md` and `gemini-pass-1.md` (read only) and `ocr/docs/HANDOFF.md` ("Two-agent redesign",
 "PCN clients", "Anna's first notes"); put what is a rule of the work into the skills, keep in code what code already does (duplicates, year,
 periods, utilities 25%, allocation ceiling): the skill tells the agent to use the tool, not to compute. Create `pcn-allocation` (it gets its first
@@ -29,7 +35,7 @@ raise `metadata.version`, run `npm test`: the failure prints the line to paste i
 the old prompts (`web/test/fixtures/legacy-prompts.json`, in `skills.test.mjs`) guards 5.1 only: 5.2 changes the rules on purpose, so remove that
 fixture and its test in the same commit and say so. A rule change should run the eval first (5.3 builds it); until then say what was not checked.
 
-**Open proposals** (cards, not started): handles in the final text (above); the status "מוכן, חסרים סימונים" of rows that are not the agent's
+**Open proposals** (cards, not started): the status "מוכן, חסרים סימונים" of rows that are not the agent's
 (inherited from ocr); the flaky `backup-ui.test.mjs` "both copies fresh turn the dot green" (a fixed wait of 8 ticks, fails now and then on a busy machine).
 
 **Practical notes.** The owner's real data root is `D:\ANNATERIA` on his PC (`clients/`, `inbox/`, `common/agent-runs/<runId>.json`); read it only when he
@@ -71,7 +77,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 765 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 777 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 

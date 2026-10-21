@@ -74,6 +74,18 @@ test("handles are stable per key, run-local, checked by prefix and refuse what w
   assert.throws(() => handles.get("C", "F1"), /Unknown handle/);
 });
 
+test("readable replaces issued client, file, fact and row handles by names and leaves everything else", () => {
+  const handles = createHandles();
+  handles.create("C", "client-1", { clientId: "client-1", name: "Levi Plumbing Ltd" });
+  handles.create("F", "hash-a", { name: "invoice-17.pdf", folder: "_unsorted" });
+  handles.createFact("F1", 2, { total: 1 });
+  handles.create("R", "client-1|2026-03|12", { clientId: "client-1", month: "2026-03", documentId: "d-1", position: 12 });
+  handles.create("Q", 1, { question: "?" });
+  assert.equal(handles.readable("C1: F1, F1.2 ו־R1."), "Levi Plumbing Ltd: invoice-17.pdf, invoice-17.pdf ו־שורה 12 (03/2026).");
+  assert.equal(handles.readable("Q1, C2, F9, R4, R1.2, CF1, C10x, AC1 stay"), "Q1, C2, F9, R4, R1.2, CF1, C10x, AC1 stay");
+  assert.equal(handles.readable("ללקוחC1"), "ללקוחLevi Plumbing Ltd", "a Hebrew letter is not a word character, so the handle still counts");
+});
+
 const tool = (extra = {}) => ({ name: "echo", description: "Echo.", schema: { type: "object", required: ["text"], properties: { text: { type: "string" } } }, run: async (args) => ({ said: args.text }), ...extra });
 
 test("dispatch runs a valid call and wraps the data in the envelope", async () => {

@@ -74,6 +74,7 @@ const PURE = [
 const ALLOWED_OUTSIDE = {
   "agent/services.js": ["chart-of-accounts.js", "table-backup.js", "declaration-store.js", "inbox-store.js", "intake-facts.js", "intake-index.js", "rules-store.js", "aliases-store.js"],
   "agent/aliases.js": ["client-alias.js"],
+  "agent/handles.js": ["month-format.js"],
   "agent/fact-record.js": ["intake-facts.js", "workspace-core.js"],
   "agent/facts.js": ["intake-facts.js", "home-utilities.js", "pcn-review.js"],
   "agent/adapters/documents.js": ["pdf-import.js"],
