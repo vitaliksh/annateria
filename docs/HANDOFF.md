@@ -28,8 +28,9 @@ or "שורה N (MM/YYYY)"; `run.js` applies it to the text of a completed run (t
 5.3 is done (section "Step 5.3: the eval" below): the owner's first run passed 76 of 76 checks. 5.2 is done (section "Step 5.2" below): 108 of 108.
 
 **5.4 done (21 October 2026):** Anna's answers (section "Anna's answers" below) are in `classification` v3; the full eval after it: **134 of 134**
-(16 cases x 2, also the cases that had failed on Gemini's 402). **Next:** the owner's look at the lock button on the published page (6.2);
-then phase 7 (sync through Google Drive, starting with the spike 7.1), unless the owner picks the postponed 66.67% fix first. 6.1 (`run_report`) is in the backlog (owner: nice-to-have, later). 6.2 is built (section "Step 6.2").
+(16 cases x 2, also the cases that had failed on Gemini's 402). 6.2 is done (the owner checked the lock button
+on the published page). **Next:** phase 7 (sync through Google Drive, starting with the spike 7.1), unless the owner picks the postponed
+66.67% fix first. 6.1 (`run_report`) is in the backlog (owner: nice-to-have, later). 6.2 is built (section "Step 6.2").
 
 **Gemini answers 402 (21 October 2026, about 14:50 local time onwards).** Found with `wrangler tail` (the Worker logs only the status):
 `Gemini answered 402`, i.e. payment required; the spend cap of AI Studio is not set (the owner's screenshot: "₪18.10 / -"), so it is the
@@ -372,9 +373,8 @@ New skill `month-closing-checklist` (v1): the agent never closes, answers from t
 stay open); `eval-core.mjs` takes `request` (the words of the user) and the checks `called` and `stillOpen`. **Changed existing code:**
 `app.js` (the lock handler calls `lockProblems`; the unused `reportRows` is gone; `pcnJournal.refresh()` keeps the plate up to date as the
 old `lockProblem()` did), `pcn-review-ui.js` (`lockProblem` takes its text from `lockProblemText`), `agent/tools/index.js`, `agent/skills.js`,
-the comment of `agent/prompts.js`, `eval/eval-core.mjs`, `package.json`; tests that count the tools (12 → 13). **Not verified:** the lock
-button on the published page (a month without an active row, a PCN row; the messages should be the same as before); the full eval (see
-"Eval of 21 October, 14:43" above).
+the comment of `agent/prompts.js`, `eval/eval-core.mjs`, `package.json`; tests that count the tools (12 → 13). **Checked:** the full eval
+after 5.4 (134/134, `close-month` included) and the lock button on the published page, by the owner ("OK").
 
 ### Step 5.2 (21 October 2026): the rules of ocr in the skills
 
