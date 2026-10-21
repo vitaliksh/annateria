@@ -1,14 +1,18 @@
 {
   "classification": {
-    "version": 1,
-    "sha256": "3165ae0e866acf4e2aef51326f56d35ad7612f93a3b1677938770ee49393b839"
+    "version": 2,
+    "sha256": "4af98a2aa2fd5d0d396987db5b3405a167916fd5ac243098b361f45579255f9f"
   },
   "invoice-extraction": {
     "version": 1,
     "sha256": "4f4a4132fb112370161bc02172942d06eb225fc1ac857d2bcf22e11a18211a4d"
   },
-  "periods-and-duplicates": {
+  "pcn-allocation": {
     "version": 1,
-    "sha256": "dcebde8e3428bfdf7fa5809c1962efc0bfaa5859ee4e93dd94253d179c9ace37"
+    "sha256": "bccf3f14bed1e8f15acd072a98d12a7b324130d8bd0c48bb0b5cc31b9f65c0bd"
+  },
+  "periods-and-duplicates": {
+    "version": 2,
+    "sha256": "518cb8cd098ba0568f21e62b1dc5c9aca68dcdee1fc7bea4c63cf1880648ded7"
   }
 }

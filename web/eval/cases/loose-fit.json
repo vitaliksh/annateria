@@ -1,0 +1,112 @@
+{
+  "name": "loose-fit",
+  "about": "An internet bill for a client whose chart has no account for it is marked for review, even when a general account is chosen.",
+  "today": "2026-10-20",
+  "clients": [
+    {
+      "folder": "Levi",
+      "name": "Levi Plumbing Ltd",
+      "vatId": "515300010",
+      "kind": "office",
+      "activity": "plumbing",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "206": {
+          "name": "ביטוח עסק",
+          "type": "outsideVatBase"
+        },
+        "214": {
+          "name": "רכב רשוי וביטוח",
+          "type": "expense"
+        },
+        "215": {
+          "name": "תוכנה",
+          "type": "expense"
+        },
+        "220": {
+          "name": "אחזקה ותיקונים",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Cohen",
+      "name": "Cohen Studio",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "graphic design",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "230": {
+          "name": "חשמל",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Pcn",
+      "name": "Pcn Trading",
+      "vatId": "515300028",
+      "kind": "office",
+      "activity": "trading",
+      "pcn": true,
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "240": {
+          "name": "ציוד",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    }
+  ],
+  "inbox": [
+    {
+      "name": "internet-sep.pdf",
+      "folder": "Levi",
+      "records": [
+        {
+          "supplier_name": "Fast Net",
+          "supplier_vat_id": "515300085",
+          "document_title": "חשבונית מס - שירותי אינטרנט",
+          "document_number": "FN-20931",
+          "date": "2026-09-01",
+          "net": 100,
+          "vat": 18,
+          "total": 118,
+          "purpose": "מנוי אינטרנט חודשי",
+          "buyer_name": "Levi Plumbing Ltd",
+          "buyer_vat_id": "515300010"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "rows": [
+      {
+        "reference": "FN-20931",
+        "client": "Levi"
+      }
+    ],
+    "notReady": [
+      "FN-20931"
+    ]
+  }
+}

@@ -40,6 +40,10 @@ const PLANS = {
   "pcn-no-allocation": { client: "Pcn Trading", routedBy: "vat_id", decision: "expense", account: "240" },
   "foreign-currency": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "215", needsReview: true },
   "private-purchase": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "not_expense" },
+  "insurance-letter": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "206" },
+  "vehicle-insurance": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "214" },
+  "tax-payment": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "not_expense", needsReview: true },
+  "loose-fit": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "220", needsReview: true },
 };
 
 function idealSteps(plan) {

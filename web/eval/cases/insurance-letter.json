@@ -1,0 +1,117 @@
+{
+  "name": "insurance-letter",
+  "about": "An insurer letter confirming the yearly payment of the business policy is an expense on the business-insurance account.",
+  "today": "2026-10-20",
+  "clients": [
+    {
+      "folder": "Levi",
+      "name": "Levi Plumbing Ltd",
+      "vatId": "515300010",
+      "kind": "office",
+      "activity": "plumbing",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "206": {
+          "name": "ביטוח עסק",
+          "type": "outsideVatBase"
+        },
+        "214": {
+          "name": "רכב רשוי וביטוח",
+          "type": "expense"
+        },
+        "215": {
+          "name": "תוכנה",
+          "type": "expense"
+        },
+        "220": {
+          "name": "אחזקה ותיקונים",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Cohen",
+      "name": "Cohen Studio",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "graphic design",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "230": {
+          "name": "חשמל",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Pcn",
+      "name": "Pcn Trading",
+      "vatId": "515300028",
+      "kind": "office",
+      "activity": "trading",
+      "pcn": true,
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "240": {
+          "name": "ציוד",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    }
+  ],
+  "inbox": [
+    {
+      "name": "policy-letter.pdf",
+      "folder": "Levi",
+      "records": [
+        {
+          "kind": "payment_confirmation",
+          "document_title": "אישור תשלום לפוליסה",
+          "supplier_name": "Safe Insurance",
+          "supplier_vat_id": "515300077",
+          "document_number": "POL-4410",
+          "date": "2026-09-05",
+          "period_from": "2026-09-01",
+          "period_to": "2027-08-31",
+          "net": 2400,
+          "vat": 0,
+          "total": 2400,
+          "vat_percent": 0,
+          "purpose": "ביטוח עסק שנתי",
+          "buyer_name": "Levi Plumbing Ltd",
+          "buyer_vat_id": "515300010"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "rows": [
+      {
+        "reference": "POL-4410",
+        "client": "Levi",
+        "account": "206"
+      }
+    ],
+    "filed": [
+      "policy-letter.pdf"
+    ]
+  }
+}

@@ -1,5 +1,5 @@
-// The skills of the agent (step 5.1): the format of every file, the version ledger, the loading, and that moving the rules out of
-// agent/prompts.js changed no word of what the model is told.
+// The skills of the agent (steps 5.1 and 5.2): the format of every file, the version ledger, the loading, and which model call gets
+// which skill. (The test that 5.1 moved the old prompts without a changed word went with 5.2, which changes the rules on purpose.)
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -9,15 +9,14 @@ import { SKILL_ROLES, SkillsUnavailableError, fetchSkillFromSite, instructionFor
 import { createAssistantFlow, resultNote } from "../assistant-flow.js";
 import { recordingUi, world } from "./agent-fixtures.mjs";
 import { listPaths, readFileBytes } from "./memory-binary-directory.mjs";
-import { SKILLS_DIR, diskFetch, diskSkills, extractionInstruction, orchestratorInstruction } from "./skills-fixture.mjs";
+import { SKILLS_DIR, diskFetch, diskSkills } from "./skills-fixture.mjs";
 
 const fixture = async (name) => JSON.parse(await readFile(new URL(`./fixtures/${name}`, import.meta.url), "utf8"));
-const flat = (text) => text.replace(/\s+/g, " ").trim();
 const valid = (extra = "") => `---\nname: demo-skill\ndescription: Does a thing and says when to use it.\nmetadata:\n  version: 2\n${extra}---\nThe text.\n`;
 
 test("the skills folder holds exactly the skills of the closed list, and every file is in the Agent Skills format", async () => {
   const folders = (await readdir(SKILLS_DIR, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
-  assert.deepEqual(folders, Object.keys(SKILL_ROLES).sort(), "pcn-allocation and month-closing-checklist get their content in 5.2 and 6.2");
+  assert.deepEqual(folders, Object.keys(SKILL_ROLES).sort(), "month-closing-checklist gets its content in 6.2");
   for (const name of folders) {
     const skill = parseSkill(await diskFetch(name), name);
     assert.deepEqual([skill.name, Number.isInteger(skill.version) && skill.version >= 1], [name, true], name);
@@ -61,25 +60,15 @@ test("a skill whose text changed must have a higher metadata.version, and the le
   }
 });
 
-test("moving the rules into skills changed no word: the extraction call gets the old prompt exactly, the orchestrator gets all the old text", async () => {
-  const legacy = await fixture("legacy-prompts.json");
-  assert.equal(flat(legacy.orchestratorChunks.join(" ")), flat(legacy.orchestrator), "the fixture lost no text");
-  assert.equal(await extractionInstruction(), legacy.extraction, "invoice-extraction is the extraction prompt, word for word");
-  const orchestrator = flat(await orchestratorInstruction());
-  const missing = legacy.orchestratorChunks.filter((chunk) => !orchestrator.includes(chunk));
-  assert.deepEqual(missing, [], "paragraphs and sentences of the old orchestrator prompt that are not in the new instruction");
-  assert.ok(orchestrator.length < flat(legacy.orchestrator).length + 1000, "only short glue was added");
-});
-
 test("each model call gets only its skills: the orchestrator never reads the extraction prompt, the vision call never reads the rules of the books", async () => {
   const skills = await diskSkills();
   const orchestrator = instructionFor("orchestrator", skills);
   const extraction = instructionFor("extraction", skills);
   assert.ok(orchestrator.startsWith(BASE_PROMPT));
-  assert.ok(orchestrator.includes("SKILL classification") && orchestrator.includes("SKILL periods-and-duplicates"));
+  for (const name of ["classification", "periods-and-duplicates", "pcn-allocation"]) assert.ok(orchestrator.includes(`SKILL ${name}`), name);
   assert.equal(orchestrator.includes("You only read; you never classify"), false);
   assert.equal(extraction.includes("THE SOFTWARE COMPUTES") || extraction.includes("decision expense"), false);
-  assert.deepEqual(skillVersions(skills), { "invoice-extraction": 1, classification: 1, "periods-and-duplicates": 1 });
+  assert.deepEqual(skillVersions(skills), { "invoice-extraction": 1, classification: 2, "periods-and-duplicates": 2, "pcn-allocation": 1 });
   assert.equal(BASE_PROMPT.includes("decision expense (a tax invoice"), false, "the base prompt keeps only the mechanics");
 });
 
@@ -148,6 +137,6 @@ test("the run log names the version of the instruction and of each skill", async
   const path = (await listPaths(w.root)).find((item) => item.startsWith("common/agent-runs/"));
   const log = JSON.parse(new TextDecoder().decode(await readFileBytes(w.root, path)));
   assert.equal(log.runId, result.runId);
-  assert.deepEqual(log.agent, { version: "base-2026-10-17o", skills: { "invoice-extraction": 1, classification: 1, "periods-and-duplicates": 1 } });
+  assert.deepEqual(log.agent, { version: "base-2026-10-17o", skills: { "invoice-extraction": 1, classification: 2, "periods-and-duplicates": 2, "pcn-allocation": 1 } });
   assert.ok(Array.isArray(log.entries));
 });

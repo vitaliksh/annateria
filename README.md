@@ -30,7 +30,7 @@ for which it leaves a card that opens the existing wizard (step 4.7; the menu "×
 
 ```powershell
 py -m http.server 8000 --directory web      # open http://127.0.0.1:8000, pick a COPY of a data folder
-cd web;    npm ci; npm test; npm run check  # 790 tests
+cd web;    npm ci; npm test; npm run check  # 793 tests
 cd web;    npm run eval                     # the agent on synthetic cases, real model: costs money (docs/HANDOFF.md)
 cd worker; npm ci; npm test; npm run check  # 54 tests (check = wrangler dry run)
 ```

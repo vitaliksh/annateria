@@ -5,7 +5,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 ## Start here (state at the end of 17 October 2026)
 
-**State.** `main` is pushed up to da29029 (the handle fix below); step 5.3 (the eval, 5d0d3df) is pushed and done. Web 790 tests, Worker 54, `npm run check` green. The published page serves
+**State.** `main` is pushed up to da29029 (the handle fix below); step 5.3 (the eval) is pushed and done; step 5.2 (the rules of ocr in the skills) is committed after it, not pushed until the owner says so. Web 793 tests, Worker 54, `npm run check` green. The published page serves
 `skills/*/SKILL.md` (checked: 200, `text/markdown`). Accepted by the owner: phases 0, 1 and 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6.
 Built and pushed, with a real run seen: 5.1.
 
@@ -25,9 +25,11 @@ or "שורה N (MM/YYYY)"; `run.js` applies it to the text of a completed run (t
 (only the final answer is cleaned); a supplier name that happens to equal an issued handle (e.g. "F1") would be replaced. **Not verified:** a real run.
 
 **Next steps (order agreed by the owner, 21 October 2026): 5.3 "Eval set" before 5.2**, so that the changed rules of 5.2 are checked by the eval.
-5.3 is done (section "Step 5.3: the eval" below): the owner's first run passed 76 of 76 checks; that is the baseline. **Next: 5.2.**
+5.3 is done (section "Step 5.3: the eval" below): the owner's first run passed 76 of 76 checks. 5.2 is done (section "Step 5.2" below): 108 of 108.
 
-**Then 5.2 "Port the rules".** Move the rules of ocr into the skills (the owner decides when to start; do not start without his "yes"):
+**Next: 5.4 "Questions for Anna"** needs Anna herself (the open questions are listed in section "Step 5.2"); without her, phase 6 (6.1 `run_report`) can start. The owner decides.
+
+**How 5.2 was done (kept as the recipe for a rule change).** Move the rules of ocr into the skills (the owner decides when to start; do not start without his "yes"):
 read `D:\projects\ocr\agent-prompts\bookkeeper-agent.md` and `gemini-pass-1.md` (read only) and `ocr/docs/HANDOFF.md` ("Two-agent redesign",
 "PCN clients", "Anna's first notes"); put what is a rule of the work into the skills, keep in code what code already does (duplicates, year,
 periods, utilities 25%, allocation ceiling): the skill tells the agent to use the tool, not to compute. Create `pcn-allocation` (it gets its first
@@ -78,7 +80,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 790 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 793 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -105,8 +107,8 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   the Gemini declaration from one schema), `handles.js`, `limits.js`, `run-log.js`, `gemini.js` (the model of the loop over `model-client.js`), `services.js` (the only way for
   a tool to reach data), `tools/` (nine so far: `list_inbox`, `read_document`, `extract_document`, `find_client`, `get_client_context`, `query_rows`, `facts_for`, `ask_user`, `propose_change`),
   `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `web/assistant-ui.js` (the dock), `web/assistant-flow.js` (runs the agent for the dock), `assistant.css`, `web/model-settings-ui.js` (the model selects of the settings), `fact-record.js`, `prompts.js` (the base prompt and `AGENT_VERSION`), `skills.js` (parse, load and assemble the skills), `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
-- **Skills (5.1):** `web/skills/<name>/SKILL.md` (three so far), `web/agent/skills.js`; tests `test/skills.test.mjs`, helper `test/skills-fixture.mjs`, ledger
-  `test/fixtures/skill-hashes.json`, the old prompts `test/fixtures/legacy-prompts.json` (removed with 5.2).
+- **Skills (5.1, 5.2):** `web/skills/<name>/SKILL.md` (four: `invoice-extraction`, `classification`, `periods-and-duplicates`, `pcn-allocation`), `web/agent/skills.js`; tests `test/skills.test.mjs`, helper `test/skills-fixture.mjs`, ledger
+  `test/fixtures/skill-hashes.json`.
 - **Eval (5.3):** `web/eval/eval-core.mjs` (builds a case, runs it through `createAssistantFlow`, checks), `web/eval/run-eval.mjs` (`npm run eval`),
   `web/eval/cases/*.json` (synthetic cases); tests `test/eval.test.mjs`.
 - **Rows of the agent (4.4):** `row-builder.js` (the row from a fact and a decision), `proposal-apply.js` (the apply button), `agent/facts.js`, `agent/answers.js`; the page side is
@@ -317,6 +319,30 @@ error (the real `runAssistant` needs a data root and a Worker; the message text 
 local static server: three files loaded with status 200, and with one file removed the run did not start and no model was called); a run with real Gemini
 after the move (the text is the same, but the order of the paragraphs in the instruction changed: the skills now follow the base prompt); the deployed
 site serving `.md` files (GitHub Pages is expected to; checked after the push).
+
+### Step 5.2 (21 October 2026): the rules of ocr in the skills
+
+Read (read only): `ocr/agent-prompts/bookkeeper-agent.md`, `gemini-pass-1.md` and `ocr/docs/HANDOFF.md` ("Two-agent redesign", "PCN clients",
+"Anna's first notes"). Most rules were already in the skills since 5.1 in a short form; what was missing went in: **`classification` v2** (judge
+by the title and the facts, not the kind alone; an insurer's letter about a payment or a renewal is an expense; which account: the client's chart
+first, business insurance, vehicle policy, fuel, utilities by name, outsideVatBase and equipment accounts are valid, an account also for an
+excluded row; **a loose fit is not ready**: the closest general account with needs_review; what the reason says), **`periods-and-duplicates` v2**
+(what the software does with dates, in words, so the agent can explain it: the year of the declaration, a period of three months or more goes
+to the month of receipt, closed months, the duplicate window; an exclusion is soft; a misread year on a blurred receipt: ask to check the date;
+a late VAT deduction), **`pcn-allocation` v1** (new: the ceiling and the check are computed by the software, `facts_for` `pcn`; above the
+ceiling needs_review and the bookkeeper's check, which the agent cannot give; a missing number: ask the supplier; the agent never writes or
+changes a number, a correction only through `propose_change`). Kept in code, as before: duplicates, year, periods, 25% of utilities,
+allocation ceiling. **`invoice-extraction` unchanged**: the eval does not cover the vision call yet, so a change there could not be checked;
+the ocr extraction prompt and the skill agree except for the bounding boxes (not used here) and the "24 months" hint for two-digit years.
+**Eval:** four new cases (`insurance-letter`, `vehicle-insurance`, `tax-payment`, `loose-fit`). With the old skills the owner's run gave 14 of 16
+(`loose-fit` failed both times: internet charged to office supplies and marked ready); with the new skills the full run gave **108 of 108**
+(13 cases x 2, `gemini-3.8-flash`, about 2.05 M tokens in and 85 k out, about 1.9 USD by my arithmetic). **Removed:** the 5.1 test that held the
+old prompts and its fixture `legacy-prompts.json` (5.2 changes the rules on purpose). **Changed existing code:** `agent/skills.js`
+(`SKILL_ROLES` gets `pcn-allocation`), the comment in `agent/prompts.js`; `AGENT_VERSION` is unchanged (the base prompt did not change).
+**Not verified:** the wording of the reasons (the eval checks results, not words); the PCN rules with a real PCN client; anything with Anna.
+**Still to confirm with Anna (step 5.4):** tax-authority and National Insurance payments are not expenses, and a licence fee, a fine or a
+donation is unclear (both marked "not yet confirmed" in the skill); a period counts from three months; a document without VAT needs no
+allocation number; the old ceilings apply to old invoices of the year; one tick per row of a split invoice; VAT deduction within six months.
 
 ### Step 5.3 (21 October 2026): the eval
 

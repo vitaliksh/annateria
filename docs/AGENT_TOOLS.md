@@ -95,9 +95,9 @@ closed in `agent/skills.js` (a file that is not on it is never loaded). Today: `
 - *Versions.* Every row the agent writes stores `agent.skills` (name → version) next to `agent.version` (`AGENT_VERSION`, the version of the
   base prompt); the run log carries both in its header. A change of the text of a skill raises its `metadata.version`: `test/skills.test.mjs`
   keeps a hash of every file (`test/fixtures/skill-hashes.json`) and fails when the text changed and the version did not.
-- *Tests.* The tests read the files from disk (`test/skills-fixture.mjs`). One test holds the prompts as they were before 5.1
-  (`test/fixtures/legacy-prompts.json`) and checks that the extraction skill equals the old extraction prompt word for word and that the
-  orchestrator's instruction still contains every paragraph and sentence of the old one; step 5.2 rewrites the rules and removes it.
+- *Tests.* The tests read the files from disk (`test/skills-fixture.mjs`). The test that held the prompts as they were before 5.1 was removed
+  with 5.2, which changed the rules on purpose; since then a rule is checked by the eval (`npm run eval`, `web/eval/`), run before and after
+  every change of a skill.
 - *Agent Skills format outside the app.* The files can also be used by Claude Code or Codex for debugging. Note that `metadata.version` is an
   integer here, while the open specification describes metadata values as strings.
 
