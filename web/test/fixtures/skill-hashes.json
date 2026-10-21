@@ -7,6 +7,10 @@
     "version": 1,
     "sha256": "4f4a4132fb112370161bc02172942d06eb225fc1ac857d2bcf22e11a18211a4d"
   },
+  "month-closing-checklist": {
+    "version": 1,
+    "sha256": "cbcfaf9b7572ce1c5b10459f731cedb946e3348026b0b6c661a547606f7ae5b1"
+  },
   "pcn-allocation": {
     "version": 1,
     "sha256": "bccf3f14bed1e8f15acd072a98d12a7b324130d8bd0c48bb0b5cc31b9f65c0bd"

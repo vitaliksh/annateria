@@ -2,6 +2,7 @@
 // the allocation-number ceiling gets a yellow row and a box that the bookkeeper ticks; a missing allocation number is
 // marked in its cell, the allocation column is shown while such a client is open, and a plate counts what is left.
 // The host passes snapshot(row) (rowSnapshot of app.js) and getContext(): null (no open declaration) or { pcnRequired }.
+import { lockProblemText } from "./lock-check.js";
 import { approvalKey, pcnReview, pcnSummary } from "./pcn-review.js";
 
 const STATUS_CELL = 16;
@@ -114,9 +115,7 @@ export function setupPcnReview({ records, plate, getContext, snapshot, columns =
   function lockProblem() {
     refresh();
     const { blocked } = pcnSummary(reviews);
-    return blocked
-      ? `יש ${blocked} ${plural(blocked, "שורה", "שורות")} מעל סף מספר ההקצאה שלא אושרו או שחסר להן מספר הקצאה. יש להשלים לפני הנעילה.`
-      : "";
+    return blocked ? lockProblemText({ code: "pcn_blocked", count: blocked }) : "";
   }
   return { refresh, lockProblem };
 }

@@ -69,7 +69,7 @@ test("a run through the flow: the orchestrator model, the tools and the extracti
   const [first, second, extraction, last] = modelClient.requests;
   assert.deepEqual([first.model, second.model, extraction.model, last.model], [MODELS.orchestrator, MODELS.orchestrator, MODELS.extraction, MODELS.orchestrator]);
   assert.deepEqual(first.request.systemInstruction, { parts: [{ text: await orchestratorInstruction() }] });
-  assert.equal(first.request.tools[0].functionDeclarations.length, 12);
+  assert.equal(first.request.tools[0].functionDeclarations.length, 13);
   assert.deepEqual(extraction.request.systemInstruction, { parts: [{ text: await extractionInstruction() }] });
   const sent = extraction.request.contents[0].parts[1].inlineData;
   assert.deepEqual([sent.mimeType, sent.data], ["image/jpeg", Buffer.from("jpeg-bytes").toString("base64")], "the real file of the inbox goes to the vision call");

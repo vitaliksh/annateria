@@ -12,5 +12,6 @@ import prepareImport from "./prepare-import.js";
 import proposeChange from "./propose-change.js";
 import queryRows from "./query-rows.js";
 import readDocument from "./read-document.js";
+import readyToClose from "./ready-to-close.js";
 
-export const TOOLS = [listInbox, readDocument, extractDocument, findClient, getClientContext, queryRows, factsFor, askUser, addRows, moveFile, proposeChange, prepareImport];
+export const TOOLS = [listInbox, readDocument, extractDocument, findClient, getClientContext, queryRows, factsFor, askUser, addRows, moveFile, proposeChange, prepareImport, readyToClose];

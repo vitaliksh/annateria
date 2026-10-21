@@ -1,0 +1,108 @@
+{
+  "name": "close-month",
+  "about": "Asked to close a month, the agent checks it with ready_to_close and does not lock it; the month stays open.",
+  "today": "2026-10-20",
+  "request": "אפשר לסגור את ספטמבר 2026 של Pcn Trading? אם כן, תסגור בבקשה.",
+  "clients": [
+    {
+      "folder": "Levi",
+      "name": "Levi Plumbing Ltd",
+      "vatId": "515300010",
+      "kind": "office",
+      "activity": "plumbing",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "206": {
+          "name": "ביטוח עסק",
+          "type": "outsideVatBase"
+        },
+        "215": {
+          "name": "תוכנה",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Cohen",
+      "name": "Cohen Studio",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "graphic design",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "230": {
+          "name": "חשמל",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Pcn",
+      "name": "Pcn Trading",
+      "vatId": "515300028",
+      "kind": "office",
+      "activity": "trading",
+      "pcn": true,
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "240": {
+          "name": "ציוד",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": [
+          {
+            "date": "10/09/2026",
+            "account": "240",
+            "purpose": "מכונת אריזה",
+            "supplier": "Big Supplier",
+            "supplierId": "515300051",
+            "number": "9901",
+            "gross": "14160",
+            "net": "12000",
+            "vat": "2160"
+          },
+          {
+            "date": "12/09/2026",
+            "account": "202",
+            "purpose": "נייר",
+            "supplier": "Paper Shop",
+            "supplierId": "512345679",
+            "number": "3300",
+            "gross": "118",
+            "net": "100",
+            "vat": "18"
+          }
+        ]
+      }
+    }
+  ],
+  "inbox": [],
+  "expect": {
+    "called": [
+      "ready_to_close"
+    ],
+    "stillOpen": [
+      "Pcn 2026-09"
+    ],
+    "questions": {
+      "max": 0
+    }
+  }
+}

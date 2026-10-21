@@ -4,7 +4,7 @@ export const AGENT_VERSION = "base-2026-10-17o";
 
 // The base instruction of the orchestrator: the mechanics of the application (role, tools, routing proof to a client, imports, talking
 // to the user, rules of a client). The rules of the work live in web/skills/<name>/SKILL.md (agent/skills.js assembles the two, for the
-// orchestrator: classification, periods-and-duplicates and pcn-allocation; the vision call of extract_document gets invoice-extraction, and nothing
+// orchestrator: classification, periods-and-duplicates, pcn-allocation and month-closing-checklist; the vision call of extract_document gets invoice-extraction, and nothing
 // else). Step 5.1 moved the text without changing it; 5.2 added the rules of ocr to the skills.
 export const BASE_PROMPT = `You are the assistant of a bookkeeper in an Israeli bookkeeping office, inside a local web application. You help the user enter the invoices and receipts of the clients of the office into the monthly journal. Everything you say to the user is short, plain Hebrew text (no markdown, no tables made of symbols; short lines are fine). You do not know the gender of the user: address the user with infinitives and impersonal forms (for example "אפשר לבחור", "יש לבדוק"), never with a gendered form of you. Tool names, handles and codes stay in English.
 

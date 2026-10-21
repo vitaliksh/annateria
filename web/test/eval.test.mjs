@@ -44,9 +44,18 @@ const PLANS = {
   "vehicle-insurance": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "214" },
   "tax-payment": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "not_expense", needsReview: true },
   "loose-fit": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "220", needsReview: true },
+  "close-month": { client: "Pcn Trading", closing: "2026-09" },
 };
 
+// Asked to close a month: find the client, check the month, answer. There is no tool that locks.
+const closingSteps = (plan) => [
+  () => [call("find_client", { name: plan.client })],
+  (request) => [call("ready_to_close", { client: lastResponses(request, "find_client")[0].matches[0].client, month: plan.closing })],
+  () => [{ text: "אי אפשר לסגור עדיין: יש שורה שממתינה לאישור." }],
+];
+
 function idealSteps(plan) {
+  if (plan.closing) return closingSteps(plan);
   let files = [];
   let client = null;
   let ask = null;

@@ -37,6 +37,7 @@ import { appendRule } from "./rules-store.js";
 import { addAlias } from "./aliases-store.js";
 import { setupClientRules } from "./client-rules-ui.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
+import { lockProblemText, lockProblems } from "./lock-check.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
 import { isHomeUtility } from "./home-utilities.js";
 import {
@@ -1454,13 +1455,11 @@ closeDeclarationButton.addEventListener("click", async () => {
   )
     return showError("יש לבחור הצהרה פתוחה לפני הסגירה.");
   const allRows = [...records.querySelectorAll("tr[data-document-id]")],
-    snapshots = allRows.map((row, index) => ({ ...rowSnapshot(row), tableRow: index + 1 })),
-    reportRows = allRows
-      .map((row, index) => ({ ...snapshots[index], imageBlob: row.documentImage }))
-      .filter((row) => row.active);
-  if (!reportRows.length) return showError("יש לסמן לפחות שורה פעילה לפני נעילת ההצהרה.");
-  const pcnProblem = pcnJournal?.lockProblem();
-  if (pcnProblem) return showError(pcnProblem);
+    snapshots = allRows.map((row, index) => ({ ...rowSnapshot(row), tableRow: index + 1 }));
+  // The same check as ready_to_close of the agent (lock-check.js); the first problem is the message.
+  pcnJournal?.refresh();
+  const [lockProblem] = lockProblems(snapshots, { pcnRequired: Boolean(committedWorkspace.config.pcnRequired) });
+  if (lockProblem) return showError(lockProblemText(lockProblem));
   const closeMessage = "לנעול את ההצהרה? הטבלה תינעל והשורות יצטרפו להיסטוריה. אפשר לפתוח מחדש עם ציון סיבה.";
   if (!(await confirmDialog(closeMessage, { title: "נעילת הצהרה", confirmLabel: "נעילה" }))) return;
   closeDeclarationButton.disabled = true;

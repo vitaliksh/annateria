@@ -20,10 +20,10 @@ const FORBIDDEN_OPERATION = /close|reopen|delete|archive|remove|finalize|unlock|
 
 const BUILT_TOOLS = [
   "add_rows", "ask_user", "extract_document", "facts_for", "find_client", "get_client_context", "list_inbox", "move_file_to_declaration", "prepare_import", "propose_change",
-  "query_rows", "read_document",
+  "query_rows", "read_document", "ready_to_close",
 ];
 // Tools of docs/AGENT_TOOLS.md that no step has built yet. Each step that builds one moves it to BUILT_TOOLS.
-const PENDING_TOOLS = ["ready_to_close", "run_report"];
+const PENDING_TOOLS = ["run_report"];
 
 const documented = [...doc.matchAll(/^#### `([a-z_]+)`$/gm)].map((match) => match[1]);
 
@@ -69,7 +69,7 @@ const outsideImports = (file) => importsOf(file).map((specifier) => relative(web
 
 const PURE = [
   "intake-facts.js", "pcn-review.js", "row-calculations.js", "home-utilities.js", "reports.js", "month-format.js", "month-distribution.js", "workspace-core.js",
-  "row-builder.js", "rule-text.js", "client-alias.js",
+  "row-builder.js", "rule-text.js", "client-alias.js", "lock-check.js",
 ];
 const ALLOWED_OUTSIDE = {
   "agent/services.js": ["chart-of-accounts.js", "table-backup.js", "declaration-store.js", "inbox-store.js", "intake-facts.js", "intake-index.js", "rules-store.js", "aliases-store.js"],

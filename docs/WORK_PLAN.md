@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status: **plan agreed 16 October 2026; phases 0, 1 and 2 done (steps 0.1–2.4); phase 4 started (4.1 to 4.5 done; block 4.7 done but for the tick of 4.7.4; 4.6.1 and 4.6.2 pushed, 4.6.2 accepted; 5.1 done and pushed (c777be3), next 5.3, then 5.2 (owner, 21 October); 5.3 done 21 October (owner's first run: all checks passed); 5.2 done 21 October (eval 108/108), next 5.4 (needs Anna) or phase 6; 4.5 accepted; block 4.7 "all imports through the inbox" added 17 October, before 4.6); phase 3 in the backlog.** This file is the single source of truth for what is
+Status: **plan agreed 16 October 2026; phases 0, 1 and 2 done (steps 0.1–2.4); phase 4 started (4.1 to 4.5 done; block 4.7 done but for the tick of 4.7.4; 4.6.1 and 4.6.2 pushed, 4.6.2 accepted; 5.1 done and pushed (c777be3), next 5.3, then 5.2 (owner, 21 October); 5.3 done 21 October (owner's first run: all checks passed); 5.2 done 21 October (eval 108/108); Anna's answers for 5.4 arrived 21 October; 6.1 in the backlog; 6.2 built 21 October; 4.5 accepted; block 4.7 "all imports through the inbox" added 17 October, before 4.6); phase 3 in the backlog.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -254,10 +254,13 @@ Goal: Anna's rules live in skills, are tested, and update with Ctrl+F5.
 ## Phase 6 — Reports and closing through the assistant
 
 - [ ] **6.1** `run_report` opens the existing reports (VAT, advances, profit and loss, ledger) for a client and
-  period; the numbers come only from `reports.js`.
+  period; the numbers come only from `reports.js`. **BACKLOG** (owner, 21 October 2026: a nice-to-have, later; the reports
+  stay reachable from the sidebar and the dock button "דוח").
 - [ ] **6.2** `ready_to_close` produces a checklist (rows with ⚠, PCN rows without approval, inbox files left for
   this month, duplicates); the **close** stays the existing button with its confirmation.
   *Done when:* the agent cannot close a month even if asked (test), and the checklist matches the lock refusals.
+  (Built 21 October 2026: `lock-check.js` is the one check of the lock button and of `ready_to_close`; skill `month-closing-checklist`;
+  eval case `close-month`. Unticked until the owner's eval run and his look at the lock button on the published page.)
 
 ## Phase 7 — Sync between the two PCs and backup
 
@@ -361,3 +364,4 @@ model behind the same proxy.
 | 2026-10-21 | **5.3 built: the eval** (design agreed by the owner: through the Worker with his access code `ANNATERIA_CODE`, decisions only, the vision call replaced by the facts of the case). 9 synthetic cases in `web/eval/cases/`, runner `npm run eval`, report outside the repository. Every case also runs offline in `npm test` with a scripted agent that decides as the owner would, so a case the code cannot satisfy is caught; this found that a 2025 document for a client with no closed month goes to a new 2025-11 declaration as ready (the year gate is relative to the target month; existing behaviour, not changed). `assistant-flow.js` takes an optional `extraction`. Not run against the real model yet. |
 | 2026-10-21 | **5.3 done: first real eval by the owner** (`gemini-3.8-flash`, 9 cases x 2): **76 of 76 checks passed**; every run completed, one question only in `unknown-buyer` (as expected), 7 to 10 model turns per run. Tokens: about 1.19 M in and 53 k out (thinking included), i.e. about 1.1 USD at the price of 16 October (0.75 / 3.75 USD per M): my arithmetic, not a bill. This is the baseline for 5.2. |
 | 2026-10-21 | **5.2 done: the rules of ocr in the skills.** `classification` v2 (title over kind, insurer letters are expenses, account choice by the client's chart, a loose fit is not ready, an account also for excluded rows, the reason), `periods-and-duplicates` v2 (the date rules in words, soft exclusion, a misread year, late deduction), new `pcn-allocation` v1 (the software computes the ceiling; the agent marks for review and never writes a number). `invoice-extraction` unchanged (not covered by the eval). Eval with four new cases: old skills 14/16 on the new cases (`loose-fit` failed), new skills 108/108 on all 13 cases x 2 (about 1.9 USD, my arithmetic). The 5.1 test of the old prompts is removed. |
+| 2026-10-21 | **6.1 to the backlog** (owner: a nice-to-have, later). **6.2 built:** `lock-check.js` is the one check of the lock button and of the new read-only tool `ready_to_close` (13 tools); skill `month-closing-checklist` v1; eval case `close-month`. Eval of 14:43: `close-month` 2/2; from the middle of the run Gemini refused every call (Worker code `rejected`), probably the spend cap; 91/118 overall, the failures are not about the rules. **Anna's answers** recorded in `HANDOFF.md` (for 5.4). **66.67% of a vehicle with a client's own chart** found not applied (codes 806/807/812 only); the owner postponed the fix. |

@@ -10,6 +10,7 @@ export const SKILL_ROLES = {
   classification: "orchestrator",
   "periods-and-duplicates": "orchestrator",
   "pcn-allocation": "orchestrator",
+  "month-closing-checklist": "orchestrator",
 };
 
 export class SkillsUnavailableError extends Error {

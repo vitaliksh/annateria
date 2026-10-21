@@ -150,16 +150,24 @@ export async function runCase(spec, { modelClient, fetchSkill, getModels, signal
     modelClient, getDataRoot: () => root, getClients: () => clients, fetchSkill, now: () => `${spec.today}T09:00:00.000Z`, extraction,
     ...(getModels ? { getModels } : {}),
   });
-  const result = await flow.run({ message: buildMessage({ kind: "process", today: spec.today }), ui, signal, onProgress });
+  // A case is "process the inbox" unless it gives the words of the user (request).
+  const message = spec.request ? buildMessage({ kind: "text", text: spec.request, today: spec.today }) : buildMessage({ kind: "process", today: spec.today });
+  const result = await flow.run({ message, ui, signal, onProgress });
   const left = (await readInboxIndex(root)).files.map((entry) => entry.name);
-  return { result, cards, proposals, extracted: extraction.calls, rows: result.runId ? await agentRows(clients, result.runId) : [], left };
+  const called = (result.log?.entries ?? []).filter((entry) => entry.kind === "tool").map((entry) => entry.name);
+  const states = {};
+  for (const client of clients) {
+    for (const { declaration } of await listDeclarations(client.directory)) states[`${client.entryName} ${declaration.month}`] = declaration.status;
+  }
+  return { result, cards, proposals, extracted: extraction.calls, rows: result.runId ? await agentRows(clients, result.runId) : [], left, called, states };
 }
 
 const check = (name, ok, detail = "") => ({ name, ok: Boolean(ok), detail: ok ? "" : detail });
 const FIELDS = ["client", "month", "account", "status", "active", "expensePercent"];
 
 // expect: { rows: [{ reference, client?, month?, account?, status?, active?, expensePercent? }], inactive: [reference],
-// notReady: [reference], questions: { max?, min?, chooseClient? }, filed: [file name], kept: [file name] }. Every case also checks that
+// notReady: [reference], questions: { max?, min?, chooseClient? }, filed: [file name], kept: [file name], called: [tool name],
+// stillOpen: ["<client folder> YYYY-MM"] }. Every case also checks that
 // the run completed and that the answer holds no handle.
 export function checkCase(spec, outcome) {
   const { result, rows, cards, left } = outcome;
@@ -200,5 +208,7 @@ export function checkCase(spec, outcome) {
   }
   for (const name of expect.filed ?? []) checks.push(check(`filed ${name}`, !left.includes(name), "still in the inbox"));
   for (const name of expect.kept ?? []) checks.push(check(`kept ${name}`, left.includes(name), "left the inbox"));
+  for (const name of expect.called ?? []) checks.push(check(`called ${name}`, outcome.called.includes(name), `called: ${outcome.called.join(", ")}`));
+  for (const key of expect.stillOpen ?? []) checks.push(check(`still open ${key}`, outcome.states[key] === "open", `${outcome.states[key]}`));
   return checks;
 }

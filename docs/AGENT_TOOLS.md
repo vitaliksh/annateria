@@ -360,6 +360,11 @@ the registry so that this file and the code cannot drift apart.
 
 #### `ready_to_close`
 
+*Built 21 October 2026 (step 6.2); what differs from the text below: `summary` has no `duplicates_open` (a row
+that is a possible duplicate is marked for review and counted in `review`) and has `inbox_unsorted`; a blocker and the warning
+`rows_to_review` carry `positions` (the # column) instead of row handles; a locked month answers `state: "locked"`, `ready: false`.
+The shared function is `lockProblems(rows, { pcnRequired })` in `web/lock-check.js`.*
+
 - **Purpose.** Tell the user whether a month can be locked and what is in the way.
 - **Input.** `{ client, month }`.
 - **Output.** `{ ready, blockers: [{ code, count, rows? }], warnings: [{ code, count }], summary: { rows, active,

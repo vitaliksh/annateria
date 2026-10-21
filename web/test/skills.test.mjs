@@ -16,7 +16,7 @@ const valid = (extra = "") => `---\nname: demo-skill\ndescription: Does a thing 
 
 test("the skills folder holds exactly the skills of the closed list, and every file is in the Agent Skills format", async () => {
   const folders = (await readdir(SKILLS_DIR, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
-  assert.deepEqual(folders, Object.keys(SKILL_ROLES).sort(), "month-closing-checklist gets its content in 6.2");
+  assert.deepEqual(folders, Object.keys(SKILL_ROLES).sort(), "the closed list of agent/skills.js");
   for (const name of folders) {
     const skill = parseSkill(await diskFetch(name), name);
     assert.deepEqual([skill.name, Number.isInteger(skill.version) && skill.version >= 1], [name, true], name);
@@ -65,10 +65,10 @@ test("each model call gets only its skills: the orchestrator never reads the ext
   const orchestrator = instructionFor("orchestrator", skills);
   const extraction = instructionFor("extraction", skills);
   assert.ok(orchestrator.startsWith(BASE_PROMPT));
-  for (const name of ["classification", "periods-and-duplicates", "pcn-allocation"]) assert.ok(orchestrator.includes(`SKILL ${name}`), name);
+  for (const name of ["classification", "periods-and-duplicates", "pcn-allocation", "month-closing-checklist"]) assert.ok(orchestrator.includes(`SKILL ${name}`), name);
   assert.equal(orchestrator.includes("You only read; you never classify"), false);
   assert.equal(extraction.includes("THE SOFTWARE COMPUTES") || extraction.includes("decision expense"), false);
-  assert.deepEqual(skillVersions(skills), { "invoice-extraction": 1, classification: 2, "periods-and-duplicates": 2, "pcn-allocation": 1 });
+  assert.deepEqual(skillVersions(skills), { "invoice-extraction": 1, classification: 2, "periods-and-duplicates": 2, "pcn-allocation": 1, "month-closing-checklist": 1 });
   assert.equal(BASE_PROMPT.includes("decision expense (a tax invoice"), false, "the base prompt keeps only the mechanics");
 });
 
@@ -137,6 +137,6 @@ test("the run log names the version of the instruction and of each skill", async
   const path = (await listPaths(w.root)).find((item) => item.startsWith("common/agent-runs/"));
   const log = JSON.parse(new TextDecoder().decode(await readFileBytes(w.root, path)));
   assert.equal(log.runId, result.runId);
-  assert.deepEqual(log.agent, { version: "base-2026-10-17o", skills: { "invoice-extraction": 1, classification: 2, "periods-and-duplicates": 2, "pcn-allocation": 1 } });
+  assert.deepEqual(log.agent, { version: "base-2026-10-17o", skills: { "invoice-extraction": 1, classification: 2, "periods-and-duplicates": 2, "pcn-allocation": 1, "month-closing-checklist": 1 } });
   assert.ok(Array.isArray(log.entries));
 });

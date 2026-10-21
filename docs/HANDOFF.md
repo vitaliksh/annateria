@@ -5,7 +5,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 ## Start here (state at the end of 17 October 2026)
 
-**State.** `main` is pushed up to da29029 (the handle fix below); step 5.3 (the eval) is pushed and done; step 5.2 (the rules of ocr in the skills) is committed after it, not pushed until the owner says so. Web 793 tests, Worker 54, `npm run check` green. The published page serves
+**State.** `main` is pushed up to 3d7ff58 (5.2, the rules of ocr in the skills); step 6.2 (the check before closing a month) is committed after it, not pushed until the owner says so. Web 800 tests, Worker 54, `npm run check` green. The published page serves
 `skills/*/SKILL.md` (checked: 200, `text/markdown`). Accepted by the owner: phases 0, 1 and 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6.
 Built and pushed, with a real run seen: 5.1.
 
@@ -27,7 +27,19 @@ or "שורה N (MM/YYYY)"; `run.js` applies it to the text of a completed run (t
 **Next steps (order agreed by the owner, 21 October 2026): 5.3 "Eval set" before 5.2**, so that the changed rules of 5.2 are checked by the eval.
 5.3 is done (section "Step 5.3: the eval" below): the owner's first run passed 76 of 76 checks. 5.2 is done (section "Step 5.2" below): 108 of 108.
 
-**Next: 5.4 "Questions for Anna"** needs Anna herself (the open questions are listed in section "Step 5.2"); without her, phase 6 (6.1 `run_report`) can start. The owner decides.
+**Next: 5.4 "Questions for Anna": her answers arrived (21 October 2026, through the owner) and are to be put into the skills** (section
+"Anna's answers" below), then the eval. 6.1 (`run_report`) is in the backlog (owner: nice-to-have, later). 6.2 is built (section "Step 6.2").
+
+**Eval of 21 October, 14:43 (after 6.2):** 91 of 118 checks. `close-month` passed both runs, and every case before the middle of the run
+passed; from `previous-year` #2 on every model call ended with the Worker's `rejected` (Gemini answered a 4xx other than 429), in cases
+that had passed an hour before. Probably the spend cap of AI Studio (about 5 USD of eval runs that day; not verified, the Worker does not log
+Gemini's answer). The owner checks AI Studio; then run the failed cases again (`--case previous-year,private-purchase,tax-payment,unknown-buyer,vat-route,vehicle-insurance`).
+
+**Open item, postponed by the owner (21 October 2026): 66.67% VAT of a vehicle with the client's own chart.** The 2/3 VAT recognition
+(vehicle upkeep, fuel, mobile phone) is decided by the built-in Rivhit codes 806, 807 and 812 only (`LIMITED_VAT_CODES` in `row-builder.js`,
+the same list in `applyBusinessRule` of `app.js`). A client with its own chart has other codes (a test client: 214 "רכב רשוי וביטוח"), so the
+VAT of its vehicle expenses is recognised in full. Anna confirmed the rule (66.67% for a car). Fix proposed, as was done for the 25% of a home:
+decide by the name of the account; the owner said "not now".
 
 **How 5.2 was done (kept as the recipe for a rule change).** Move the rules of ocr into the skills (the owner decides when to start; do not start without his "yes"):
 read `D:\projects\ocr\agent-prompts\bookkeeper-agent.md` and `gemini-pass-1.md` (read only) and `ocr/docs/HANDOFF.md` ("Two-agent redesign",
@@ -37,6 +49,20 @@ content here; add it to `SKILL_ROLES` in `web/agent/skills.js`); `month-closing-
 raise `metadata.version`, run `npm test`: the failure prints the line to paste into `web/test/fixtures/skill-hashes.json`. The test that holds
 the old prompts (`web/test/fixtures/legacy-prompts.json`, in `skills.test.mjs`) guards 5.1 only: 5.2 changes the rules on purpose, so remove that
 fixture and its test in the same commit and say so. Run `npm run eval` before and after each rule change and put both summaries (pass counts, no case data) in the decision log; add a case for each rule that gets one.
+
+### Anna's answers (21 October 2026, through the owner; to put into the skills in 5.4)
+
+1. Payments of VAT and income-tax advances to the tax authority: not an expense, "no need to write it"; the owner chose to keep the
+   current behaviour: a row that is not active (excluded from the reports), not_expense, with its reason. 2. National Insurance (ביטוח לאומי):
+   not an expense. 3. Vehicle licence fee (אגרת רישוי): an expense (the vehicle account); a fine: not an expense; a donation: not an expense.
+4. A yearly insurance goes to the month the document was received (the owner confirmed that "Bituah" in her answer means an ordinary
+   insurance); electricity, telephone, water go by the date of the invoice. 5. VAT deduction: within 6 months (as the code does). 6. A water
+   bill that becomes a tax invoice only after payment: the month the invoice is received. 7. A document without VAT above the ceiling needs no
+   allocation number: yes (as the code does). 8. The ceiling follows the date of the invoice: yes (as the code does). 9. One tick per row or
+   per invoice: her (voice) answer was about the amounts instead: gross = the total with VAT, VAT = the VAT of the invoice times the
+   recognised percent (66.67% for a car), net = gross minus VAT; this is what `recognisedAmounts` does; the tick stays per row.
+10. Internet or software without an own account: the maintenance account (אחזקה). 11. An invoice in a foreign currency: in shekels at the
+   rate of the date the invoice was received (the software does not convert yet: a row for review, saying so).
 
 **Open proposals** (cards, not started): the status "מוכן, חסרים סימונים" of rows that are not the agent's
 (inherited from ocr); the flaky `backup-ui.test.mjs` "both copies fresh turn the dot green" (a fixed wait of 8 ticks, fails now and then on a busy machine).
@@ -80,7 +106,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 793 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 800 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -117,6 +143,7 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   rule), `client-rules-ui.js` (the dialog "כללים של הלקוח" of the client card, with the confirmed buyers), `client-alias.js` (pure: the rule of
   proof of an alias), `aliases-store.js` (`clients/<client>/aliases.json`: `readAliases` for the agent, `addAlias` / `removeAlias` for the page),
   `agent/aliases.js` (`holdersOf`).
+- **Closing (6.2):** `lock-check.js` (the one check of the lock button and of `ready_to_close`), `agent/tools/ready-to-close.js`.
 - **Inbox:** `inbox-store.js` (originals dropped by the user, `inbox/index.json`, SHA-256 dedup against the inbox and all declaration
   images; the Windows file-name rules and the accepted file types live here), `inbox-ui.js` + `inbox.css` (`#inbox-dialog`: drop target, picker,
   client choice, result lines; opened by `#open-inbox`). The backup already copies `inbox/` with the rest of the root.
@@ -319,6 +346,22 @@ error (the real `runAssistant` needs a data root and a Worker; the message text 
 local static server: three files loaded with status 200, and with one file removed the run did not start and no model was called); a run with real Gemini
 after the move (the text is the same, but the order of the paragraphs in the instruction changed: the skills now follow the base prompt); the deployed
 site serving `.md` files (GitHub Pages is expected to; checked after the push).
+
+### Step 6.2 (21 October 2026): the check before closing a month
+
+`web/lock-check.js` (pure): `lockProblems(rows, { pcnRequired })` gives the refusals of the lock button (`no_active_row`, `pcn_blocked`
+with a count) and `lockProblemText` their messages, word for word the old ones. The lock button of the journal and the new tool
+`ready_to_close` (`agent/tools/ready-to-close.js`, the 13th tool, read only) both call it, so the agent's "ready to close" cannot disagree with
+the button. The tool answers `{ month, state, ready, blockers, warnings, summary }`: blockers with the row numbers (# column), warnings
+`rows_to_review`, `inbox_waiting` (files in the inbox folder of the client), `inbox_unsorted`; a locked month answers `state: "locked"`.
+New skill `month-closing-checklist` (v1): the agent never closes, answers from the tool only, and tells the user to lock with
+"נעילת הצהרה" in the menu ⋯. Eval: new case `close-month` (the user asks to close; the agent must call `ready_to_close` and the month must
+stay open); `eval-core.mjs` takes `request` (the words of the user) and the checks `called` and `stillOpen`. **Changed existing code:**
+`app.js` (the lock handler calls `lockProblems`; the unused `reportRows` is gone; `pcnJournal.refresh()` keeps the plate up to date as the
+old `lockProblem()` did), `pcn-review-ui.js` (`lockProblem` takes its text from `lockProblemText`), `agent/tools/index.js`, `agent/skills.js`,
+the comment of `agent/prompts.js`, `eval/eval-core.mjs`, `package.json`; tests that count the tools (12 → 13). **Not verified:** the lock
+button on the published page (a month without an active row, a PCN row; the messages should be the same as before); the full eval (see
+"Eval of 21 October, 14:43" above).
 
 ### Step 5.2 (21 October 2026): the rules of ocr in the skills
 
