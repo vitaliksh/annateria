@@ -3,15 +3,46 @@
 Facts a new developer or agent needs that the code does not say. Keep it true: update it in the commit that changes
 the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must not be broken are in `../AGENTS.md`.
 
-## Start here (state at the end of 17 October 2026)
+## Start here (state at the end of 21 October 2026)
 
-**State.** `main` is pushed up to 3d7ff58 (5.2, the rules of ocr in the skills); 6.2 (the check before closing a month) and the billing message are pushed (49b194f); step 5.4 (Anna's answers in the skills) is committed after it, not pushed until the owner says so. Web 802 tests, Worker 54, `npm run check` green. The published page serves
-`skills/*/SKILL.md` (checked: 200, `text/markdown`). Accepted by the owner: phases 0, 1 and 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6.
-Built and pushed, with a real run seen: 5.1.
+**State.** The code on `main` is at 24be377 (5.4); the commits after it change only the docs (plan, hand-over).
+Web 802 tests, Worker 54 (`2026.10.21.1`, Cloudflare `1dfbbce9`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
+4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2. 6.1 (`run_report`) is in the backlog. Phase 3 is in the backlog.
 
-**Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (the operations ledger of
-the right client through the card), and the phase check of 4.6 (a second similar month asks fewer questions: a later run routes the confirmed
-buyer by `alias`).
+**Done on 21 October 2026 (details in the sections below and the decision log):** handles never reach the user (`handles.readable`); the
+eval (5.3, `npm run eval`, 16 synthetic cases, last full run **134 of 134**); the rules of ocr in the skills (5.2) and Anna's answers (5.4,
+`classification` v3, new `pcn-allocation`); the check before closing a month (6.2: `lock-check.js` shared by the lock button and the new
+read-only tool `ready_to_close`, skill `month-closing-checklist`); Gemini's 402 found and given a clear Hebrew message (Worker `2026.10.21.1`).
+
+**Next: phase 7, sync between the two PCs through Google Drive, starting with the spike 7.1** (needs the owner: two Google accounts or two PCs
+and a shared folder). Read the phase in `WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first; ocr tried a shared Drive folder for transfer files and
+dropped it, and overwriting files in Drive failed there, so the spike decides go or no-go before any code.
+
+**Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
+through the card), the phase check of 4.6 (a second similar month asks fewer questions).
+
+**Open items (not started; the owner decides):**
+- **66.67% VAT of a vehicle with a client's own chart** (postponed by the owner on 21 October): the 2/3 rule is applied only for the built-in
+  codes 806, 807, 812 (`LIMITED_VAT_CODES` in `row-builder.js`, the same list in `applyBusinessRule` of `app.js`); a client chart has other codes
+  (a test client: 214 "רכב רשוי וביטוח"), so its vehicle VAT is recognised in full. Anna confirmed 66.67% for a car. Proposed fix: decide by the
+  name of the account, as was done for the 25% of a home.
+- **Foreign currency:** Anna enters it in shekels at the rate of the date of receipt; the software does not convert (the row is for review).
+  Converting needs an exchange-rate source (for example the Bank of Israel): an outside service, ask the owner first.
+- **App help skill** (owner's reminder): the agent answers questions about the app itself (`WORK_PLAN.md`, "Later").
+- The eval runner writes its report only at the end: a crash in the middle leaves nothing. Small fix: write the report after every case.
+- Cards from before: the status "מוכן, חסרים סימונים" of rows that are not the agent's (inherited from ocr); the flaky `backup-ui.test.mjs`
+  "both copies fresh turn the dot green" (a fixed wait of 8 ticks).
+
+**How to run the eval** (costs money, about 2.3 USD for the full run of 16 cases x 2 with `gemini-3.8-flash`; use `--case a,b --repeat 1` while
+working on one rule): in `web`, `$env:ANNATERIA_CODE = Read-Host "code"`, `npm run eval`, `Remove-Item Env:ANNATERIA_CODE`. The report goes to
+`%TEMP%annateria-evaleval-<time>.json` (synthetic data only). Never edit a skill while the owner's eval is running: the runner reads the skills
+from disk for every case. **How to find a Gemini error:** the Worker logs only the status; `npx wrangler tail annateria --format json` (in
+`worker`) shows "Gemini answered <status>"; its events also carry the caller's IP and city, so keep only time, outcome, path and the log line,
+and delete the raw output.
+
+**Talking to the owner** (his request of 21 October 2026): short, simple replies without jargon; he is not a developer and not a bookkeeper.
+
+### Log of 21 October 2026
 
 **First real run after 5.1 (17 October 2026, 18:52; read from the run log and the data, structure only):** the skills loaded (the log header has
 `base-2026-10-17o` and the three versions), the new row carries `agent.skills`, the client was routed by `alias` without a question, 7 tool
@@ -24,14 +55,6 @@ or "שורה N (MM/YYYY)"; `run.js` applies it to the text of a completed run (t
 `month-format.js`). **Not covered:** `Q`, `P`, `I` handles (no name to show); the text of `ask_user` questions and the `reason` of rows and proposals
 (only the final answer is cleaned); a supplier name that happens to equal an issued handle (e.g. "F1") would be replaced. **Not verified:** a real run.
 
-**Next steps (order agreed by the owner, 21 October 2026): 5.3 "Eval set" before 5.2**, so that the changed rules of 5.2 are checked by the eval.
-5.3 is done (section "Step 5.3: the eval" below): the owner's first run passed 76 of 76 checks. 5.2 is done (section "Step 5.2" below): 108 of 108.
-
-**5.4 done (21 October 2026):** Anna's answers (section "Anna's answers" below) are in `classification` v3; the full eval after it: **134 of 134**
-(16 cases x 2, also the cases that had failed on Gemini's 402). 6.2 is done (the owner checked the lock button
-on the published page). **Next:** phase 7 (sync through Google Drive, starting with the spike 7.1), unless the owner picks the postponed
-66.67% fix first. 6.1 (`run_report`) is in the backlog (owner: nice-to-have, later). 6.2 is built (section "Step 6.2").
-
 **Gemini answers 402 (21 October 2026, about 14:50 local time onwards).** Found with `wrangler tail` (the Worker logs only the status):
 `Gemini answered 402`, i.e. payment required; the spend cap of AI Studio is not set (the owner's screenshot: "₪18.10 / -"), so it is the
 billing of the Google project (probably a prepaid balance or a refused card; not verified, only the owner sees the billing). Until it is
@@ -40,13 +63,7 @@ fixed no model call works, in the eval and in the app. Since Worker `2026.10.21.
 
 **Eval of 21 October, 14:43 (after 6.2):** 91 of 118 checks. `close-month` passed both runs, and every case before the middle of the run
 passed; from `previous-year` #2 on every model call ended with the Worker's `rejected` (Gemini answered a 4xx other than 429), in cases
-that had passed an hour before. The cause was Gemini's 402 (see above), not the spend cap. After the billing is fixed, run the failed cases again (`--case previous-year,private-purchase,tax-payment,unknown-buyer,vat-route,vehicle-insurance`).
-
-**Open item, postponed by the owner (21 October 2026): 66.67% VAT of a vehicle with the client's own chart.** The 2/3 VAT recognition
-(vehicle upkeep, fuel, mobile phone) is decided by the built-in Rivhit codes 806, 807 and 812 only (`LIMITED_VAT_CODES` in `row-builder.js`,
-the same list in `applyBusinessRule` of `app.js`). A client with its own chart has other codes (a test client: 214 "רכב רשוי וביטוח"), so the
-VAT of its vehicle expenses is recognised in full. Anna confirmed the rule (66.67% for a car). Fix proposed, as was done for the 25% of a home:
-decide by the name of the account; the owner said "not now".
+that had passed an hour before. The cause was Gemini's 402 (see above), not the spend cap. The owner fixed the billing; the full eval after 5.4 passed 134 of 134.
 
 **How 5.2 was done (kept as the recipe for a rule change).** Move the rules of ocr into the skills (the owner decides when to start; do not start without his "yes"):
 read `D:\projects\ocr\agent-prompts\bookkeeper-agent.md` and `gemini-pass-1.md` (read only) and `ocr/docs/HANDOFF.md` ("Two-agent redesign",

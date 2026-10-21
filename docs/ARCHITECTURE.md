@@ -15,8 +15,8 @@ What exists today is marked **now**; everything else is planned in `WORK_PLAN.md
 GitHub Pages: web/            (Ctrl+F5 updates UI, skills and prompts)
  ├─ journal, clients, reports        (now, ported from ocr)
  ├─ intake: drop zone → inbox/       (now: dialog "תיבת קלט", no AI)
- ├─ assistant panel: orchestrator → tools (JS) → data root   (loop and 11 tools in web/agent/, the dock in assistant-ui.js, rows through row-builder.js)
- └─ skills/*/SKILL.md                (now: 3 skills, fetched at the start of every run; a missing one stops the run)
+ ├─ assistant panel: orchestrator → tools (JS) → data root   (loop and 13 tools in web/agent/, the dock in assistant-ui.js, rows through row-builder.js)
+ └─ skills/*/SKILL.md                (now: 5 skills, fetched at the start of every run; a missing one stops the run)
         │  6-character access code → short-lived token, kept in page memory only
 Cloudflare Worker: worker/    stateless Gemini proxy
         │
