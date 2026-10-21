@@ -30,10 +30,15 @@ or "שורה N (MM/YYYY)"; `run.js` applies it to the text of a completed run (t
 **Next: 5.4 "Questions for Anna": her answers arrived (21 October 2026, through the owner) and are to be put into the skills** (section
 "Anna's answers" below), then the eval. 6.1 (`run_report`) is in the backlog (owner: nice-to-have, later). 6.2 is built (section "Step 6.2").
 
+**Gemini answers 402 (21 October 2026, about 14:50 local time onwards).** Found with `wrangler tail` (the Worker logs only the status):
+`Gemini answered 402`, i.e. payment required; the spend cap of AI Studio is not set (the owner's screenshot: "₪18.10 / -"), so it is the
+billing of the Google project (probably a prepaid balance or a refused card; not verified, only the owner sees the billing). Until it is
+fixed no model call works, in the eval and in the app. Since Worker `2026.10.21.1` a 402 answers code `billing` and the page says
+"יש בעיה בתשלום ל‑Google עבור שירות ה‑AI. יש לפנות לויטליק." (before: "Gemini דחה את הבקשה").
+
 **Eval of 21 October, 14:43 (after 6.2):** 91 of 118 checks. `close-month` passed both runs, and every case before the middle of the run
 passed; from `previous-year` #2 on every model call ended with the Worker's `rejected` (Gemini answered a 4xx other than 429), in cases
-that had passed an hour before. Probably the spend cap of AI Studio (about 5 USD of eval runs that day; not verified, the Worker does not log
-Gemini's answer). The owner checks AI Studio; then run the failed cases again (`--case previous-year,private-purchase,tax-payment,unknown-buyer,vat-route,vehicle-insurance`).
+that had passed an hour before. The cause was Gemini's 402 (see above), not the spend cap. After the billing is fixed, run the failed cases again (`--case previous-year,private-purchase,tax-payment,unknown-buyer,vat-route,vehicle-insurance`).
 
 **Open item, postponed by the owner (21 October 2026): 66.67% VAT of a vehicle with the client's own chart.** The 2/3 VAT recognition
 (vehicle upkeep, fuel, mobile phone) is decided by the built-in Rivhit codes 806, 807 and 812 only (`LIMITED_VAT_CODES` in `row-builder.js`,
@@ -98,7 +103,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 | What | Where | Version / how to check |
 | --- | --- | --- |
 | Web app | <https://vitaliksh.github.io/annateria/> (GitHub Pages, workflow `deploy-web.yml`, every push to `main` touching `web/`) | Build marker at the bottom of the sidebar: `YYYY.MM.DD · <short commit>`. After a deploy press Ctrl+F5 and compare it with `git rev-parse --short HEAD` |
-| Worker | `https://annateria.vitaliksh.workers.dev`, version `2026.10.16.2` (Cloudflare `8d2350b4`), record in `worker/DEPLOYMENT.md` | `GET /health` answers `BACKEND_VERSION` |
+| Worker | `https://annateria.vitaliksh.workers.dev`, version `2026.10.21.1` (Cloudflare `1dfbbce9`), record in `worker/DEPLOYMENT.md` | `GET /health` answers `BACKEND_VERSION` |
 | Predecessor | ocr: `https://vitaliksh.github.io/ocr/` and the Worker `rivhit-telegram-transfer` | Not touched from this repository |
 
 `web/config.js` sets `window.ANNATERIA_API` to the Worker URL; the sidebar shows the Worker version, and the login dialog opens on page load.
