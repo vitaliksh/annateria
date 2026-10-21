@@ -5,7 +5,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 ## Start here (state at the end of 17 October 2026)
 
-**State.** `main` is pushed up to c777be3 (step 5.1, the skills); the handle fix below is committed after it, not pushed until the owner says so. Web 777 tests, Worker 54, `npm run check` green. The published page serves
+**State.** `main` is pushed up to da29029 (the handle fix below); step 5.3 (the eval) is built and committed after it, not pushed until the owner says so. Web 790 tests, Worker 54, `npm run check` green. The published page serves
 `skills/*/SKILL.md` (checked: 200, `text/markdown`). Accepted by the owner: phases 0, 1 and 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6.
 Built and pushed, with a real run seen: 5.1.
 
@@ -25,6 +25,7 @@ or "שורה N (MM/YYYY)"; `run.js` applies it to the text of a completed run (t
 (only the final answer is cleaned); a supplier name that happens to equal an issued handle (e.g. "F1") would be replaced. **Not verified:** a real run.
 
 **Next steps (order agreed by the owner, 21 October 2026): 5.3 "Eval set" before 5.2**, so that the changed rules of 5.2 are checked by the eval.
+5.3 is built (section "Step 5.3: the eval" below) and waits for the owner's first real run; it is unticked until then.
 
 **Then 5.2 "Port the rules".** Move the rules of ocr into the skills (the owner decides when to start; do not start without his "yes"):
 read `D:\projects\ocr\agent-prompts\bookkeeper-agent.md` and `gemini-pass-1.md` (read only) and `ocr/docs/HANDOFF.md` ("Two-agent redesign",
@@ -33,7 +34,7 @@ periods, utilities 25%, allocation ceiling): the skill tells the agent to use th
 content here; add it to `SKILL_ROLES` in `web/agent/skills.js`); `month-closing-checklist` waits for 6.2. **How to change a skill:** edit the file,
 raise `metadata.version`, run `npm test`: the failure prints the line to paste into `web/test/fixtures/skill-hashes.json`. The test that holds
 the old prompts (`web/test/fixtures/legacy-prompts.json`, in `skills.test.mjs`) guards 5.1 only: 5.2 changes the rules on purpose, so remove that
-fixture and its test in the same commit and say so. A rule change should run the eval first (5.3 builds it); until then say what was not checked.
+fixture and its test in the same commit and say so. Run `npm run eval` before and after each rule change and put both summaries (pass counts, no case data) in the decision log; add a case for each rule that gets one.
 
 **Open proposals** (cards, not started): the status "מוכן, חסרים סימונים" of rows that are not the agent's
 (inherited from ocr); the flaky `backup-ui.test.mjs` "both copies fresh turn the dot green" (a fixed wait of 8 ticks, fails now and then on a busy machine).
@@ -77,7 +78,7 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 777 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 790 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -106,6 +107,8 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `web/assistant-ui.js` (the dock), `web/assistant-flow.js` (runs the agent for the dock), `assistant.css`, `web/model-settings-ui.js` (the model selects of the settings), `fact-record.js`, `prompts.js` (the base prompt and `AGENT_VERSION`), `skills.js` (parse, load and assemble the skills), `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
 - **Skills (5.1):** `web/skills/<name>/SKILL.md` (three so far), `web/agent/skills.js`; tests `test/skills.test.mjs`, helper `test/skills-fixture.mjs`, ledger
   `test/fixtures/skill-hashes.json`, the old prompts `test/fixtures/legacy-prompts.json` (removed with 5.2).
+- **Eval (5.3):** `web/eval/eval-core.mjs` (builds a case, runs it through `createAssistantFlow`, checks), `web/eval/run-eval.mjs` (`npm run eval`),
+  `web/eval/cases/*.json` (synthetic cases); tests `test/eval.test.mjs`.
 - **Rows of the agent (4.4):** `row-builder.js` (the row from a fact and a decision), `proposal-apply.js` (the apply button), `agent/facts.js`, `agent/answers.js`; the page side is
   `appendSnapshots`, `setRowImage`, `attachRowImages`, `openPdf`, `proposalOps` in `app.js`.
 - **Client memory (4.6):** `rules-store.js` (`readRules` for the agent; `appendRule` and `saveRules` for the page only), `rule-text.js` (pure: the cleaned text of a
@@ -314,6 +317,29 @@ error (the real `runAssistant` needs a data root and a Worker; the message text 
 local static server: three files loaded with status 200, and with one file removed the run did not start and no model was called); a run with real Gemini
 after the move (the text is the same, but the order of the paragraphs in the instruction changed: the skills now follow the base prompt); the deployed
 site serving `.md` files (GitHub Pages is expected to; checked after the push).
+
+### Step 5.3 (21 October 2026): the eval
+
+Design agreed by the owner: the eval goes through the Worker with his access code, and the first version measures the decisions only (the
+vision call is replaced by the facts of the case). **What it is:** `web/eval/cases/*.json` (9 cases: routing by VAT number, by folder, an
+unknown buyer that needs "which client?", a duplicate, a document of a closed previous year, 25% electricity of a home client, a PCN invoice
+above the ceiling without an allocation number, a foreign currency, a private purchase); each builds a data root in memory, runs the agent of
+the dock (`createAssistantFlow`: the skills from `web/skills` on disk, the loop, the tools, the stores) and checks what was written: the row of
+each expected document (client, month, account, status, active, recognition percentage), rows that must not be active or ready, the number
+and kind of questions, the files filed, and that the run completed without a handle in its answer. The wording of the model is not checked.
+**How to run** (PowerShell, in `web`): `$env:ANNATERIA_CODE = Read-Host "code"`, then `npm run eval` (options after `--`: `--case a,b`,
+`--repeat 2`, `--model <id>` for the orchestrator, `--out <folder>`), then `Remove-Item Env:ANNATERIA_CODE`. The code and the token stay in the
+process; a wrong code stops the eval after one login (the Worker locks out after a few). The runner sets `Origin` to the Pages origin, because the
+Worker accepts only the page's origins. It prints one line per case and run and the failed checks; the full report (synthetic data, run logs
+included) goes to `%TEMP%annateria-evaleval-<time>.json`. Exit code 1 when a check failed. **Cost:** not measured; my estimate is a few cents
+per case and run (the first real run of 16 October used about 6 cents for six turns), so a full run of 9 cases twice is about 0.5 to 1 USD.
+**Offline guard:** `test/eval.test.mjs` runs every case with a scripted agent that decides as the owner would and asserts that every check
+passes, so a case the code cannot satisfy fails `npm test` (it found one: a document of 2025 for a client with no closed month goes to its own
+new declaration 2025-11 as ready, because the year gate is relative to the target month; the case now has August 2026 closed, as a real client
+would). **Changed existing code:** `assistant-flow.js` (optional `extraction`, never passed by the page), `package.json` (`eval`, check list).
+**Not verified:** any run against the real model (the owner has the code); the cost; whether the expectations match Anna's practice beyond the
+rules written in the code (they were written from `intake-facts.js`, `home-utilities.js` and the skills, not checked with her). Not covered yet:
+the vision call (synthetic PDFs, later), month questions, locked months, rules of a client (`rules.md`), aliases, imports.
 
 ### General check of 16 October 2026 (before the first PDFs)
 

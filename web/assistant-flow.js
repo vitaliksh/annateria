@@ -50,7 +50,8 @@ export function resultNote(result) {
 }
 
 // modelClient: createModelClient(...). getClients(), getDataRoot(), getLiveTable(): see agent/services.js. getModels(): the model of each role.
-export function createAssistantFlow({ modelClient, getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), getModels = () => MODELS, fetchSkill = fetchSkillFromSite, now, reader = createDocumentReader(), onDeclarationCreated }) {
+// extraction: a vision adapter that replaces the real one (the eval, web/eval/, answers with synthetic facts); the page never passes it.
+export function createAssistantFlow({ modelClient, getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), getModels = () => MODELS, fetchSkill = fetchSkillFromSite, now, reader = createDocumentReader(), onDeclarationCreated, extraction: givenExtraction = null }) {
   const readText = async (file) => (await reader.inspect(file, { type: "application/pdf", storedName: file.name || "file.pdf" }, { maxChars: TEXT_LAYER_CHARS })).text ?? "";
   const registry = createDefaultRegistry();
 
@@ -67,7 +68,7 @@ export function createAssistantFlow({ modelClient, getDataRoot, getClients, getL
       }
       // The models are looked up for every run: the user may have changed them in the settings.
       const models = getModels();
-      const extraction = createExtractionAdapter({ client: modelClient, prompt: instructionFor("extraction", skills), models, readText });
+      const extraction = givenExtraction ?? createExtractionAdapter({ client: modelClient, prompt: instructionFor("extraction", skills), models, readText });
       const services = createServices({ getDataRoot, getClients, getLiveTable, builtInChart, reserved, documents: reader, extraction, onDeclarationCreated });
       const model = createGeminiModel({ client: modelClient, model: models.orchestrator });
       const result = await runAgent({ model, system: instructionFor("orchestrator", skills), skills: skillVersions(skills), registry, message, services, ui, signal, onEvent, onProgress, ...(now ? { now } : {}) });

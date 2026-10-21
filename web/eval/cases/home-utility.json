@@ -1,0 +1,107 @@
+{
+  "name": "home-utility",
+  "about": "An electricity bill of a client who works from home is recognised at 25% by the code.",
+  "today": "2026-10-20",
+  "clients": [
+    {
+      "folder": "Levi",
+      "name": "Levi Plumbing Ltd",
+      "vatId": "515300010",
+      "kind": "office",
+      "activity": "plumbing",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "206": {
+          "name": "ביטוח עסק",
+          "type": "outsideVatBase"
+        },
+        "215": {
+          "name": "תוכנה",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Cohen",
+      "name": "Cohen Studio",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "graphic design",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "230": {
+          "name": "חשמל",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Pcn",
+      "name": "Pcn Trading",
+      "vatId": "515300028",
+      "kind": "office",
+      "activity": "trading",
+      "pcn": true,
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "240": {
+          "name": "ציוד",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    }
+  ],
+  "inbox": [
+    {
+      "name": "electric-sep.pdf",
+      "records": [
+        {
+          "supplier_name": "Electric Company",
+          "supplier_vat_id": "515300044",
+          "document_title": "חשבון חשמל",
+          "document_number": "88123",
+          "date": "2026-09-20",
+          "period_from": "2026-07-15",
+          "period_to": "2026-09-14",
+          "net": 400,
+          "vat": 72,
+          "total": 472,
+          "purpose": "חשמל לבית",
+          "buyer_name": "Cohen Studio",
+          "buyer_vat_id": "037123452"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "rows": [
+      {
+        "reference": "88123",
+        "client": "Cohen",
+        "account": "230",
+        "expensePercent": "25"
+      }
+    ],
+    "filed": [
+      "electric-sep.pdf"
+    ]
+  }
+}

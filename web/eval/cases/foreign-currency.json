@@ -1,0 +1,101 @@
+{
+  "name": "foreign-currency",
+  "about": "An invoice in a foreign currency is not ready.",
+  "today": "2026-10-20",
+  "clients": [
+    {
+      "folder": "Levi",
+      "name": "Levi Plumbing Ltd",
+      "vatId": "515300010",
+      "kind": "office",
+      "activity": "plumbing",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "206": {
+          "name": "ביטוח עסק",
+          "type": "outsideVatBase"
+        },
+        "215": {
+          "name": "תוכנה",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Cohen",
+      "name": "Cohen Studio",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "graphic design",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "230": {
+          "name": "חשמל",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Pcn",
+      "name": "Pcn Trading",
+      "vatId": "515300028",
+      "kind": "office",
+      "activity": "trading",
+      "pcn": true,
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "240": {
+          "name": "ציוד",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    }
+  ],
+  "inbox": [
+    {
+      "name": "saas-sep.pdf",
+      "folder": "Levi",
+      "records": [
+        {
+          "supplier_name": "Overseas Soft Inc",
+          "document_title": "Invoice",
+          "document_number": "US-551",
+          "date": "2026-09-03",
+          "currency": "USD",
+          "net": 50,
+          "vat": 0,
+          "total": 50,
+          "vat_percent": 0,
+          "purpose": "מנוי תוכנה",
+          "buyer_name": "Levi Plumbing Ltd"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "notReady": [
+      "US-551"
+    ],
+    "filed": [
+      "saas-sep.pdf"
+    ]
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "name": "folder-route",
+  "about": "A file in the inbox folder of a client, with the buyer by name only, goes to that client without a question.",
+  "today": "2026-10-20",
+  "clients": [
+    {
+      "folder": "Levi",
+      "name": "Levi Plumbing Ltd",
+      "vatId": "515300010",
+      "kind": "office",
+      "activity": "plumbing",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "206": {
+          "name": "ביטוח עסק",
+          "type": "outsideVatBase"
+        },
+        "215": {
+          "name": "תוכנה",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Cohen",
+      "name": "Cohen Studio",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "graphic design",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "230": {
+          "name": "חשמל",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Pcn",
+      "name": "Pcn Trading",
+      "vatId": "515300028",
+      "kind": "office",
+      "activity": "trading",
+      "pcn": true,
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "240": {
+          "name": "ציוד",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    }
+  ],
+  "inbox": [
+    {
+      "name": "ink.jpg",
+      "folder": "Levi",
+      "records": [
+        {
+          "supplier_name": "Paper Shop",
+          "supplier_vat_id": "512345679",
+          "net": 100,
+          "vat": 18,
+          "total": 118,
+          "purpose": "מחסניות דיו",
+          "date": "2026-09-14",
+          "document_number": "3150",
+          "buyer_name": "Levi Plumbing"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "rows": [
+      {
+        "reference": "3150",
+        "client": "Levi",
+        "account": "202",
+        "status": "ready"
+      }
+    ],
+    "questions": {
+      "max": 0
+    },
+    "filed": [
+      "ink.jpg"
+    ]
+  }
+}

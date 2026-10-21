@@ -1,0 +1,102 @@
+{
+  "name": "pcn-no-allocation",
+  "about": "An invoice above the allocation ceiling without an allocation number, for a PCN client, is not ready.",
+  "today": "2026-10-20",
+  "clients": [
+    {
+      "folder": "Levi",
+      "name": "Levi Plumbing Ltd",
+      "vatId": "515300010",
+      "kind": "office",
+      "activity": "plumbing",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "206": {
+          "name": "ביטוח עסק",
+          "type": "outsideVatBase"
+        },
+        "215": {
+          "name": "תוכנה",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Cohen",
+      "name": "Cohen Studio",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "graphic design",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "230": {
+          "name": "חשמל",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Pcn",
+      "name": "Pcn Trading",
+      "vatId": "515300028",
+      "kind": "office",
+      "activity": "trading",
+      "pcn": true,
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "240": {
+          "name": "ציוד",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    }
+  ],
+  "inbox": [
+    {
+      "name": "machine.jpg",
+      "records": [
+        {
+          "supplier_name": "Big Supplier",
+          "supplier_vat_id": "515300051",
+          "document_number": "9901",
+          "date": "2026-09-10",
+          "net": 12000,
+          "vat": 2160,
+          "total": 14160,
+          "purpose": "מכונת אריזה",
+          "buyer_name": "Pcn Trading",
+          "buyer_vat_id": "515300028"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "rows": [
+      {
+        "reference": "9901",
+        "client": "Pcn"
+      }
+    ],
+    "notReady": [
+      "9901"
+    ]
+  }
+}
