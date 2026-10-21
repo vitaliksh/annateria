@@ -295,6 +295,11 @@ transfer files was tried and dropped as impractical, and overwriting files in Dr
 Gmail fetch through OAuth; PCN874 file; tax ID on report PDFs; clean-up of old snapshots; Claude as an alternative
 model behind the same proxy.
 
+- **App help skill** (owner's reminder, 21 October 2026): a skill of the agent in the app that answers questions about ANNATERIA
+  itself: where a button is, how to do something ("how do I add a client?", "where is the backup?"), what a message means. It
+  must be written from the real interface (`index.html` labels) and kept in step with it, for example by a test that every button
+  label the skill quotes exists in `index.html` (as 4.7.1 did for the import menu).
+
 ---
 
 ## Decision log
