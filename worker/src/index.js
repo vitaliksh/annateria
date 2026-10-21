@@ -100,6 +100,8 @@ const GEMINI_STREAM_TIMEOUT_MS = 300_000;
 // What the caller learns about a Gemini failure. Gemini's own message is not passed on: it may quote the input.
 function geminiFailure(status, headers) {
   if (status === 429) return json({ error: "Gemini is busy. Try again in a minute.", code: "busy" }, 429, headers);
+  // 402: the Google project has to be paid (seen on 21 October 2026); only the owner can fix it, so the page says so.
+  if (status === 402) return json({ error: "Gemini needs payment: check the billing of the Google project.", code: "billing" }, 502, headers);
   if (status >= 500) return json({ error: "Gemini is unavailable. Try again.", code: "unavailable" }, 502, headers);
   return json({ error: "Gemini rejected the request.", code: "rejected" }, 502, headers);
 }

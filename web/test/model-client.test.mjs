@@ -115,6 +115,7 @@ test("Worker errors become ModelError with a Hebrew message by their code", asyn
     [429, { code: "busy" }, "busy"],
     [502, { code: "unavailable" }, "unavailable"],
     [502, { code: "rejected" }, "rejected"],
+    [502, { code: "billing" }, "billing"],
     [413, { code: "too-large" }, "too-large"],
     [400, { error: "x" }, "bad-request"],
     [500, null, "unavailable"],

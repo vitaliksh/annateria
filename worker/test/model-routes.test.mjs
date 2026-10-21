@@ -144,9 +144,11 @@ test("stream: true asks for server-sent events and passes the stream through wit
   assert.equal(calls[0].url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse");
 });
 
-test("Gemini errors become short messages: busy 429, unavailable 502, rejected 502; its own text is not passed on", async () => {
+test("Gemini errors become short messages: busy 429, billing 402, unavailable 502, rejected 502; its own text is not passed on", async () => {
   const quote = { error: { message: `bad input: ${SECRET_TEXT}`, status: "INVALID_ARGUMENT" } };
-  const expected = [[429, 429, "busy"], [503, 502, "unavailable"], [500, 502, "unavailable"], [400, 502, "rejected"], [403, 502, "rejected"]];
+  const expected = [
+    [429, 429, "busy"], [402, 502, "billing"], [503, 502, "unavailable"], [500, 502, "unavailable"], [400, 502, "rejected"], [403, 502, "rejected"],
+  ];
   const silence = console.error;
   const logged = [];
   console.error = (...args) => logged.push(args.join(" "));

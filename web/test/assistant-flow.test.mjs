@@ -32,6 +32,7 @@ test("the end of a run becomes a line for the user, by status", () => {
   assert.deepEqual(resultNote({ status: "blocked" }), { kind: "error", text: "המודל סירב להשיב." });
   assert.deepEqual(resultNote({ status: "failed", code: "busy" }), { kind: "error", text: `הריצה נכשלה: ${MODEL_MESSAGES.busy}` });
   assert.deepEqual(resultNote({ status: "failed", code: "login" }), { kind: "error", text: `הריצה נכשלה: ${MODEL_MESSAGES.login}` });
+  assert.equal(resultNote({ status: "failed", code: "billing" }).text, "הריצה נכשלה: יש בעיה בתשלום ל‑Google עבור שירות ה‑AI. יש לפנות לויטליק.");
   assert.match(resultNote({ status: "failed", error: "secret internal text" }).text, /אירעה שגיאה/);
   assert.equal(resultNote({ status: "failed", error: "secret internal text" }).text.includes("secret"), false);
 });

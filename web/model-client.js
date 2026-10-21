@@ -5,7 +5,7 @@ export class ModelError extends Error {
   constructor(code, message, status = 0) {
     super(message);
     this.name = "ModelError";
-    this.code = code; // login | busy | unavailable | rejected | too-large | bad-request | network
+    this.code = code; // login | busy | billing | unavailable | rejected | too-large | bad-request | network
     this.status = status;
   }
 }
@@ -13,6 +13,8 @@ export class ModelError extends Error {
 export const MODEL_MESSAGES = {
   login: "נדרש קוד גישה.",
   busy: "Gemini עמוס כרגע. אפשר לנסות שוב בעוד דקה.",
+  // Only the owner can pay the Google project (Worker code billing, Gemini's 402).
+  billing: "יש בעיה בתשלום ל‑Google עבור שירות ה‑AI. יש לפנות לויטליק.",
   unavailable: "Gemini אינו זמין כרגע. אפשר לנסות שוב.",
   rejected: "Gemini דחה את הבקשה.",
   "too-large": "הבקשה גדולה מדי.",
