@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status: **plan agreed 16 October 2026; phases 0, 1 and 2 done (steps 0.1–2.4); phase 4 started (4.1 to 4.5 done; block 4.7 done but for the tick of 4.7.4; 4.6.1 and 4.6.2 pushed, 4.6.2 accepted; 5.1 done and pushed (c777be3), next 5.3, then 5.2 (owner, 21 October); 5.3 built 21 October, waits for the owner's first real run; 4.5 accepted; block 4.7 "all imports through the inbox" added 17 October, before 4.6); phase 3 in the backlog.** This file is the single source of truth for what is
+Status: **plan agreed 16 October 2026; phases 0, 1 and 2 done (steps 0.1–2.4); phase 4 started (4.1 to 4.5 done; block 4.7 done but for the tick of 4.7.4; 4.6.1 and 4.6.2 pushed, 4.6.2 accepted; 5.1 done and pushed (c777be3), next 5.3, then 5.2 (owner, 21 October); 5.3 done 21 October (owner's first run: all checks passed); 4.5 accepted; block 4.7 "all imports through the inbox" added 17 October, before 4.6); phase 3 in the backlog.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -244,9 +244,9 @@ Goal: Anna's rules live in skills, are tested, and update with Ctrl+F5.
 - [ ] **5.2 Port the rules** from `ocr/agent-prompts/*.md` and `ocr/docs/HANDOFF.md`; keep in code what code
   already does (duplicates, year, periods, utilities 25%, allocation ceiling) — the skill tells the agent to use
   the tool, not to compute.
-- [ ] **5.3 Eval set.** Synthetic fixtures with expected decisions, a runner (`npm run eval`, real model, owner's
+- [x] **5.3 Eval set.** Synthetic fixtures with expected decisions, a runner (`npm run eval`, real model, owner's
   test key, not in CI). Every rule change runs the eval first. (Built 21 October 2026: 9 cases, through the Worker with the owner's code,
-  decisions only; unticked until the owner's first real run. *Done when:* `npm test` runs every case with a scripted agent and all checks pass;
+  decisions only; the owner's first run passed every check, see the decision log. *Done when:* `npm test` runs every case with a scripted agent and all checks pass;
   the owner runs `npm run eval` and the summary is recorded here.)
 - [ ] **5.4 Questions for Anna** still open in ocr (tax-authority and National Insurance payments, licence fees,
   period length of three months, PCN details): ask her through the app or in person, record answers as rules.
@@ -359,3 +359,4 @@ model behind the same proxy.
 | 2026-10-17 | **5.1 pushed (c777be3); first real run after it, read from the log and the data (structure only).** The owner imported one invoice: the run header has `base-2026-10-17o` and the three skill versions, the new row has `agent.skills`, routing was by `alias` without a question, 7 calls all ok, the original is filed with an equal hash, the amounts reconcile. The model was `gemini-3.5-flash-lite` (set in the settings; the default is `gemini-3.8-flash`). **Defect:** the final text named the internal handle "C1" (the prompt forbids it, but only the prompt does); proposed, not built: the code replaces handles in the final text by client names. Still waiting for the owner: 4.6.1, 4.7.4 and the phase check of 4.6. Next by the plan: 5.2, after his "yes". |
 | 2026-10-21 | **Handles never reach the user.** The first real run after 5.1 showed "C1" in the final answer although the prompt forbids handles. The owner said yes to a code fix: `handles.readable` replaces issued `C`, `F`, `F1.1` and `R` handles in the final answer by the client name, the file name or "שורה N (MM/YYYY)"; `Q`, `P`, `I` stay (no name). Questions and reasons are not cleaned. Not verified in a real run. **Order of phase 5 changed by the owner: 5.3 (eval) before 5.2**, so that the ported rules are checked by the eval. |
 | 2026-10-21 | **5.3 built: the eval** (design agreed by the owner: through the Worker with his access code `ANNATERIA_CODE`, decisions only, the vision call replaced by the facts of the case). 9 synthetic cases in `web/eval/cases/`, runner `npm run eval`, report outside the repository. Every case also runs offline in `npm test` with a scripted agent that decides as the owner would, so a case the code cannot satisfy is caught; this found that a 2025 document for a client with no closed month goes to a new 2025-11 declaration as ready (the year gate is relative to the target month; existing behaviour, not changed). `assistant-flow.js` takes an optional `extraction`. Not run against the real model yet. |
+| 2026-10-21 | **5.3 done: first real eval by the owner** (`gemini-3.8-flash`, 9 cases x 2): **76 of 76 checks passed**; every run completed, one question only in `unknown-buyer` (as expected), 7 to 10 model turns per run. Tokens: about 1.19 M in and 53 k out (thinking included), i.e. about 1.1 USD at the price of 16 October (0.75 / 3.75 USD per M): my arithmetic, not a bill. This is the baseline for 5.2. |

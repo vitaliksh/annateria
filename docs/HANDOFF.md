@@ -5,7 +5,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 ## Start here (state at the end of 17 October 2026)
 
-**State.** `main` is pushed up to da29029 (the handle fix below); step 5.3 (the eval) is built and committed after it, not pushed until the owner says so. Web 790 tests, Worker 54, `npm run check` green. The published page serves
+**State.** `main` is pushed up to da29029 (the handle fix below); step 5.3 (the eval, 5d0d3df) is pushed and done. Web 790 tests, Worker 54, `npm run check` green. The published page serves
 `skills/*/SKILL.md` (checked: 200, `text/markdown`). Accepted by the owner: phases 0, 1 and 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6.
 Built and pushed, with a real run seen: 5.1.
 
@@ -25,7 +25,7 @@ or "שורה N (MM/YYYY)"; `run.js` applies it to the text of a completed run (t
 (only the final answer is cleaned); a supplier name that happens to equal an issued handle (e.g. "F1") would be replaced. **Not verified:** a real run.
 
 **Next steps (order agreed by the owner, 21 October 2026): 5.3 "Eval set" before 5.2**, so that the changed rules of 5.2 are checked by the eval.
-5.3 is built (section "Step 5.3: the eval" below) and waits for the owner's first real run; it is unticked until then.
+5.3 is done (section "Step 5.3: the eval" below): the owner's first run passed 76 of 76 checks; that is the baseline. **Next: 5.2.**
 
 **Then 5.2 "Port the rules".** Move the rules of ocr into the skills (the owner decides when to start; do not start without his "yes"):
 read `D:\projects\ocr\agent-prompts\bookkeeper-agent.md` and `gemini-pass-1.md` (read only) and `ocr/docs/HANDOFF.md` ("Two-agent redesign",
@@ -337,7 +337,7 @@ per case and run (the first real run of 16 October used about 6 cents for six tu
 passes, so a case the code cannot satisfy fails `npm test` (it found one: a document of 2025 for a client with no closed month goes to its own
 new declaration 2025-11 as ready, because the year gate is relative to the target month; the case now has August 2026 closed, as a real client
 would). **Changed existing code:** `assistant-flow.js` (optional `extraction`, never passed by the page), `package.json` (`eval`, check list).
-**Not verified:** any run against the real model (the owner has the code); the cost; whether the expectations match Anna's practice beyond the
+**First real run (21 October, the owner, `gemini-3.8-flash`, 9 cases x 2):** 76/76 checks passed; about 1.19 M tokens in and 53 k out, about 1.1 USD by my arithmetic (so a full run costs about a dollar; use `--case` and `--repeat 1` while working on one rule). **Not verified:** whether the expectations match Anna's practice beyond the
 rules written in the code (they were written from `intake-facts.js`, `home-utilities.js` and the skills, not checked with her). Not covered yet:
 the vision call (synthetic PDFs, later), month questions, locked months, rules of a client (`rules.md`), aliases, imports.
 
