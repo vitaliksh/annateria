@@ -3,7 +3,7 @@
 Facts a new developer or agent needs that the code does not say. Keep it true: update it in the commit that changes
 the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must not be broken are in `../AGENTS.md`.
 
-## Start here (state at the end of 21 October 2026)
+## Start here (state on 22 October 2026)
 
 **State.** The code on `main` is at 24be377 (5.4); the commits after it change only the docs (plan, hand-over).
 Web 802 tests, Worker 54 (`2026.10.21.1`, Cloudflare `1dfbbce9`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
@@ -14,9 +14,8 @@ eval (5.3, `npm run eval`, 16 synthetic cases, last full run **134 of 134**); th
 `classification` v3, new `pcn-allocation`); the check before closing a month (6.2: `lock-check.js` shared by the lock button and the new
 read-only tool `ready_to_close`, skill `month-closing-checklist`); Gemini's 402 found and given a clear Hebrew message (Worker `2026.10.21.1`).
 
-**Next: phase 7, sync between the two PCs through Google Drive, starting with the spike 7.1** (needs the owner: two Google accounts or two PCs
-and a shared folder). Read the phase in `WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first; ocr tried a shared Drive folder for transfer files and
-dropped it, and overwriting files in Drive failed there, so the spike decides go or no-go before any code.
+**Phase 7, sync between the two PCs through Google Drive:** the spike 7.1 was done on 22 October 2026 and says **go** (section "Spike 7.1"
+below). **Next: 7.2** (snapshots include images). Read the phase in `WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first.
 
 **Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
 through the card), the phase check of 4.6 (a second similar month asks fewer questions).
@@ -123,6 +122,36 @@ same commit. A push to `main` publishes GitHub Pages when `web/` changed, so pus
 ` first. Long here-documents with apostrophes or backticks sometimes break the shell tool; write such files with the file tool.
 - **A check that finds nothing is not a proof**: when removing code, grep for every removed identifier and also for removed `let` / `const`.
 - Cloudflare, Gemini, browser APIs and laws change: check the official docs and put source and date in this file (sections below).
+
+### Spike 7.1 (22 October 2026): a shared Drive folder between two accounts
+
+**Set-up (the owner's PC):** Drive for desktop with two Google accounts, A on `G:`, B on `H:`, both "Stream files". A owns
+`annateria-sync-test` in My Drive and shares it with B as an editor; B added it to its own My Drive with "Add shortcut", and it appeared as
+`H:\My Drive\annateria-sync-test`. **Probe:** a throw-away page served from `localhost` (kept in the session scratchpad, not in the repository):
+"write" puts files named `p-<written ms>-<size>-<first 16 hex of SHA-256>.bin` of random bytes into a subfolder, never over an existing name;
+"watch" lists the other side's folder every 2 s and counts a file as whole only when size and hash match. Delays are measured on one clock.
+
+| Run | Result |
+| --- | --- |
+| A → B, 10 x 1 KB, one per 30 s | 10/10, median 14.4 s, max 17.9 s |
+| A → B, 100 x 10 KB and 1 x 16 MB | 100/100, median 38.9 s, max 54.4 s; 16 MB in 24.6 s; no partial read |
+| B → A (shortcut side writes), the same | 1 KB median 15.2 s, max 40.8 s; 10 KB median 42.5 s, max 193.8 s; 16 MB in 42.0 s after **5 partial reads** |
+| A → B with Drive paused about 2 min | 101 files written during the pause all arrived whole; a second pause: 101/101, 118 to 150 s after writing |
+
+**What 7.2 to 7.4 must take from it:** (1) a file can be visible under its final name before it is whole, so the reader never trusts a
+file before its size and hash match and otherwise says "waiting for Google Drive"; (2) Chrome writes through a temporary `<name>.crswap` and
+renames on close, and Drive uploaded that temporary file too (it was gone later), so the reader ignores names it does not know; (3) many small
+files are slow (100 files took 16 s to write on the streamed drive and up to about 3 minutes to arrive), so packs of a few big files are the
+right shape; (4) the order in which files arrive was not measured: assume a snapshot can arrive before its pack.
+
+**Google's documentation (read 22 October 2026):** up to 4 accounts at once, and syncing can be paused and resumed
+(<https://support.google.com/drive/answer/10838124>); streamed files are available only while Drive for desktop runs, mirrored ones always,
+shared drives can only be streamed (<https://support.google.com/drive/answer/13401938>). Neither page says how a shortcut to a shared folder
+syncs; the spike showed that it does.
+
+**Not covered:** two real PCs and a PC that is off for hours or days; Anna's PC and account; "Mirror files"; the real backup format through the
+shortcut (backup on A, restore from B); Drive for desktop not running (the drive letter is then gone; the app should say so); the folder
+permission after a browser restart on `H:`; both sides writing at the same time.
 
 ## Deployed versions
 
