@@ -282,10 +282,11 @@ async function readSource(handle) {
 
 // Backs `source` (the data root) up into `destination` (the picked folder). Nothing is deleted or overwritten.
 // Returns { name, files, bytes, newBlobs, newBytes, packs, skipped } - `skipped` lists files that could not be read.
-export async function createBackup({ source, destination, key, images = false, exports = false, now = new Date().toISOString(), packBytes = DEFAULT_PACK_BYTES, onProgress, delay = defaultDelay }) {
+// `exclude(path)` keeps files out of the snapshot on purpose (the sync snapshot leaves out files that belong to one PC).
+export async function createBackup({ source, destination, key, images = false, exports = false, exclude = () => false, now = new Date().toISOString(), packBytes = DEFAULT_PACK_BYTES, onProgress, delay = defaultDelay }) {
   const store = await openStore(destination, key, { create: true });
   const known = await loadKnownBlobs(store, key);
-  const files = await scanSource(source, { images, exports });
+  const files = (await scanSource(source, { images, exports })).filter((file) => !exclude(file.path));
   const entries = {};
   const skipped = [];
   const result = { files: 0, bytes: 0, newBlobs: 0, newBytes: 0, packs: 0 };
