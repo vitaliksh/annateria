@@ -25,6 +25,7 @@ import { setupExcelImport } from "./excel-import-ui.js";
 import { fileImportOriginal, readInboxFile, readInboxIndex } from "./inbox-store.js";
 import { setupReports } from "./reports-ui.js";
 import { setupBackup } from "./backup-ui.js";
+import { setupSync } from "./sync-ui.js";
 import { setupAccess } from "./access-ui.js";
 import { checkModelConnection, createModelClient } from "./model-client.js";
 import { setupTransfer } from "./transfer-ui.js";
@@ -258,6 +259,7 @@ async function switchDataRoot(selected) {
     })
     .catch(() => {});
   backup.runAuto("start");
+  sync.refresh().catch(() => {});
   clientsHome.showHome();
   dataRootTitle.textContent = `תיקיית נתונים: ${selected.name}`;
   workspace = null;
@@ -317,6 +319,13 @@ const backup = setupBackup({
   getDataRoot: () => dataRoot,
   onError: showError,
 });
+const sync = setupSync({
+  icon: document.querySelector("#sync-status"),
+  section: document.querySelector("#sync-section"),
+  getDataRoot: () => dataRoot,
+});
+sync.refresh().catch(() => {});
+sync.start();
 const workspaceControls = setupWorkspaceControls({
   getInboxCounts: () => inboxFileCounts,
   onClientsChanged: () => clientsHome.refresh(),
@@ -801,6 +810,7 @@ async function saveCurrentDraft() {
       currentDeclaration,
       [...records.querySelectorAll("tr[data-document-id]")].map(rowSnapshot),
     );
+    sync.changed();
   } catch (error) {
     showError("לא ניתן לשמור טיוטה מקומית: " + error.message);
     throw error;
@@ -1477,6 +1487,7 @@ closeDeclarationButton.addEventListener("click", async () => {
     updateStartAvailability();
     status.textContent = "ההצהרה ננעלה. ההיסטוריה עודכנה.";
     backup.runAuto("lock");
+    sync.changed();
   } catch (error) {
     if (error.name !== "AbortError") {
       const message = `לא ניתן לנעול את ההצהרה: ${error.message}`;

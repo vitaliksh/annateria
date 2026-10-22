@@ -6,7 +6,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 ## Start here (state on 22 October 2026)
 
 **State.** The code on `main` is at 24be377 (5.4); the commits after it change only the docs (plan, hand-over).
-Web 808 tests, Worker 54 (`2026.10.21.1`, Cloudflare `1dfbbce9`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
+Web 821 tests, Worker 54 (`2026.10.21.1`, Cloudflare `1dfbbce9`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2. 6.1 (`run_report`) is in the backlog. Phase 3 is in the backlog.
 
 **Done on 21 October 2026 (details in the sections below and the decision log):** handles never reach the user (`handles.readable`); the
@@ -15,9 +15,10 @@ eval (5.3, `npm run eval`, 16 synthetic cases, last full run **134 of 134**); th
 read-only tool `ready_to_close`, skill `month-closing-checklist`); Gemini's 402 found and given a clear Hebrew message (Worker `2026.10.21.1`).
 
 **Phase 7, sync between the two PCs through Google Drive:** the spike 7.1 was done on 22 October 2026 and says **go** (section "Spike 7.1"
-below). 7.2 is done (the sync snapshot, `web/sync-store.js`; nothing calls it yet). **Next: 7.3** (push a snapshot after every save to
-the shared store, status icon ☁; show how long a push takes, see the 7.2 row of the decision log). Read the phase in `WORK_PLAN.md` and
-`docs/BACKUP_SPEC.md` first.
+below). 7.2 is done (the sync snapshot, `web/sync-store.js`). **7.3 is built** (the push and the ☁ icon, `web/sync-ui.js`) and waits for
+the owner's check on the published page: choose the shared folder in "גיבוי" → "תיקייה משותפת", edit a row, see `☁ ✓` with the time and a
+new `snap-*.bin` in `annateria-sync\annateria-backup\snapshots` on the other account's drive. **Then 7.4** (pull on open). Read the phase in
+`WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first.
 
 **Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
 through the card), the phase check of 4.6 (a second similar month asks fewer questions).
@@ -155,6 +156,15 @@ syncs; the spike showed that it does.
 shortcut (backup on A, restore from B); Drive for desktop not running (the drive letter is then gone; the app should say so); the folder
 permission after a browser restart on `H:`; both sides writing at the same time.
 
+### Step 7.3 (22 October 2026): the push to the shared folder
+
+**Checked in a real Chrome** (the browser pane, a local static server of `web/`, the data root and the "shared folder" as two folders of the
+browser's private storage written into IndexedDB with a fresh key, synthetic client; no Google Drive): the icon appeared as `☁`, a click
+wrote `annateria-sync/annateria-backup/` (store, one pack, one snapshot) and `common/sync-state.json`, the icon became `☁ ✓ 18:54` with
+the tooltip; a second click wrote no new snapshot; no console error from the new code. The test data were deleted afterwards. **Not
+verified:** the real Drive folder and the permission prompt after a browser restart (`☁ !`); the one-minute push after a real table edit
+(unit tests only); the time of a push on a big root; what Drive does when two PCs push at once (no baton before 7.5).
+
 ## Deployed versions
 
 | What | Where | Version / how to check |
@@ -168,7 +178,7 @@ permission after a browser restart on `H:`; both sides writing at the same time.
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 808 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 821 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
 ```
 
@@ -217,7 +227,11 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   `report-viewer.js`, `reports-ui.js`.
 - **Backup and transfer:** `backup-store.js`, `backup-state.js`, `backup-handles.js` (IndexedDB), `backup-ui.js`,
   `transfer-store.js`, `transfer-ui.js` (`.annateria` file), `sync-store.js` (7.2: the snapshot for the other PC, images always in,
-  the files of one PC out; `createBackup` of `backup-store.js` got the optional `exclude(path)` for it).
+  the files of one PC out; 7.3: `pushSnapshot` into `<shared>/annateria-sync/`, `common/sync-state.json`), `sync-ui.js` (7.3: the section
+  "תיקייה משותפת" of the backup dialog and the ☁ icon `#sync-status`, the timers). **Changed existing code for phase 7:** `backup-store.js`
+  (`createBackup` takes `exclude` and `previous` and returns `unchanged` and `digest`), `backup-handles.js` (`SYNC_FOLDER_KEY`), `app.js`
+  (`setupSync`; `sync.changed()` after `saveDraft` and after a lock; `sync.refresh()` when the data root changes), `index.html` (the icon,
+  the section), `backup.css`, `package.json`.
 - **Style:** `tokens.css` (the only file with colours; `styles.test.mjs` enforces it), `base.css`, `shell.css`,
   `dialogs.css`, `journal.css`, `clients.css`, `reports.css`, `backup.css`, `sidebar.css`, `photo.css`, `fonts/`.
 - `worker/`: `src/index.js` (`/health`, `/v1/auth`, `requireUser`, CORS by `ALLOWED_ORIGINS`, 404 for the rest), `src/access.js`

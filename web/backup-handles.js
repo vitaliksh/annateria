@@ -6,6 +6,8 @@ const STORE = "settings";
 
 export const BACKUP_FOLDER_KEYS = { cloud: "backup-folder-cloud", usb: "backup-folder-usb" };
 export const BACKUP_KEY_NAME = "backup-key";
+// The folder shared by the two PCs (phase 7); it uses the same key as the backups.
+export const SYNC_FOLDER_KEY = "sync-folder";
 
 function openDatabase() {
   return new Promise((resolve, reject) => {

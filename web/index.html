@@ -48,6 +48,7 @@
       <h1 class="wordmark" dir="ltr">ANNATERIA</h1>
       <div class="crumb"><nav id="breadcrumb" aria-label="ניווט"></nav><strong id="current-client" class="sr-only">לא נבחר לקוח</strong><span id="declaration-badge" class="badge" hidden></span></div>
       <span class="topbar-spacer"></span>
+      <button id="sync-status" type="button" class="secondary sync-status" data-state="idle" hidden>☁</button>
       <button id="open-reports" type="button" class="secondary journal-only">דוחות</button>
       <details class="menu journal-only" id="more-menu"><summary class="button secondary" aria-label="פעולות נוספות">⋯</summary><div class="menu-panel"><button id="close-declaration" type="button">נעילת הצהרה</button><button id="reopen-declaration" type="button" hidden>פתיחה מחדש</button><button id="move-rows" type="button">פיזור שורות לחודשים…</button><hr><button id="export-declaration" type="button">ייצוא הצהרה לקובץ…</button></div></details>
     </header>
@@ -180,6 +181,12 @@
         <p class="muted">תיקייה שנמצאת בתוך Google Drive למחשב. הגיבוי מוצפן, והסנכרון נעשה על ידי Google Drive.</p>
         <p data-role="folder"></p><p data-role="state"></p>
         <div class="backup-actions"><button type="button" class="secondary" data-action="choose">בחירת תיקייה</button><button type="button" data-action="run">גיבוי עכשיו</button><button type="button" class="secondary" data-action="verify">בדיקת תקינות</button></div>
+      </section>
+      <section class="backup-slot" id="sync-section" aria-label="תיקייה משותפת">
+        <h3>תיקייה משותפת</h3>
+        <p class="muted">תיקייה בתוך Google Drive למחשב, משותפת לשני המחשבים. אחרי כל שמירה נשלח אליה עותק מוצפן של הנתונים, כולל תמונות המקור.</p>
+        <p data-role="folder"></p><p data-role="state"></p>
+        <div class="backup-actions"><button type="button" class="secondary" data-action="choose">בחירת תיקייה</button><button type="button" data-action="run">שליחה עכשיו</button></div>
       </section>
       <section class="backup-slot" data-slot="usb" aria-label="כונן נייד">
         <h3>כונן נייד (USB)</h3>

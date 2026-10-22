@@ -283,7 +283,8 @@ async function readSource(handle) {
 // Backs `source` (the data root) up into `destination` (the picked folder). Nothing is deleted or overwritten.
 // Returns { name, files, bytes, newBlobs, newBytes, packs, skipped } - `skipped` lists files that could not be read.
 // `exclude(path)` keeps files out of the snapshot on purpose (the sync snapshot leaves out files that belong to one PC).
-export async function createBackup({ source, destination, key, images = false, exports = false, exclude = () => false, now = new Date().toISOString(), packBytes = DEFAULT_PACK_BYTES, onProgress, delay = defaultDelay }) {
+// `digest` is the SHA-256 of the file list; when it equals `previous` no snapshot is written (`name` null, `unchanged` true).
+export async function createBackup({ source, destination, key, images = false, exports = false, exclude = () => false, previous = null, now = new Date().toISOString(), packBytes = DEFAULT_PACK_BYTES, onProgress, delay = defaultDelay }) {
   const store = await openStore(destination, key, { create: true });
   const known = await loadKnownBlobs(store, key);
   const files = (await scanSource(source, { images, exports })).filter((file) => !exclude(file.path));
@@ -333,11 +334,16 @@ export async function createBackup({ source, destination, key, images = false, e
   }
   await flush();
 
+  const digest = await sha256Hex(encoder.encode(JSON.stringify([entries, skipped])));
+  if (previous && digest === previous) {
+    onProgress?.({ phase: "done", done: files.length, total: files.length });
+    return { name: null, unchanged: true, digest, ...result, skipped };
+  }
   const name = `snap-${stampOf(now)}-${randomHex(3)}.bin`;
   const snapshot = { format: BACKUP_FORMAT, createdAt: now, options: { images, exports }, files: entries, skipped };
   await writeOnce(store.snapshots, name, await seal(key, encoder.encode(JSON.stringify(snapshot)), AAD_SNAPSHOT), delay);
   onProgress?.({ phase: "done", done: files.length, total: files.length });
-  return { name, ...result, skipped };
+  return { name, unchanged: false, digest, ...result, skipped };
 }
 
 // Snapshot names carry their time, so the last backup time is known without the key.

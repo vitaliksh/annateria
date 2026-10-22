@@ -89,3 +89,21 @@
   color: var(--warning);
   font-weight: 600;
 }
+
+/* The ☁ icon of the shared folder in the top bar (sync-ui.js) */
+.sync-status {
+  white-space: nowrap;
+}
+
+.sync-status[data-state="ok"] {
+  color: var(--success);
+}
+
+.sync-status[data-state="click"] {
+  color: var(--warning);
+}
+
+.sync-status[data-state="error"],
+#sync-section [data-state="error"] {
+  color: var(--error);
+}

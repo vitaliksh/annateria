@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createBackup, keyFromRecoveryCode, newRecoveryCode, readSnapshot, restoreSnapshot } from "../backup-store.js";
-import { SYNC_STATE_FILE, createSyncSnapshot, isLocalOnly } from "../sync-store.js";
+import {
+  createBackup, keyFromRecoveryCode, listSnapshots, newRecoveryCode, readSnapshot, restoreSnapshot,
+} from "../backup-store.js";
+import { SYNC_DIR, SYNC_STATE_FILE, createSyncSnapshot, isLocalOnly, pushSnapshot, readSyncState } from "../sync-store.js";
 import { binaryDirectory, listPaths, putFile, readFileBytes } from "./memory-binary-directory.mjs";
 
 const bytes = (size, seed) => Uint8Array.from({ length: size }, (_, i) => (i * 31 + seed) & 255);
@@ -86,7 +88,8 @@ test("sync snapshot: a change in a file of one PC alone adds no blob", async () 
 });
 
 test("isLocalOnly: only the files of one PC and Chrome swap files", () => {
-  for (const path of ["common/sync-state.json", "common/backup-state.json", "common/ui-settings.json", "clients/c1/x.json.crswap"]) {
+  const local = ["common/sync-state.json", "common/backup-state.json", "common/ui-settings.json", "clients/c1/x.json.crswap"];
+  for (const path of local) {
     assert.equal(isLocalOnly(path), true, path);
   }
   for (const path of ["common/agent-runs/r.json", "clients/c1/common/ui-settings.json", "clients/c1/rules.md", IMAGE]) {
@@ -103,4 +106,72 @@ test("a plain backup is unchanged: the files of one PC stay in, images only on r
   assert.ok(paths.includes("common/ui-settings.json"));
   assert.ok(paths.includes("common/backup-state.json"));
   assert.ok(!paths.includes(IMAGE));
+});
+
+test("backup with `previous`: the same file list writes no snapshot, a changed one does", async () => {
+  const source = await sampleRoot();
+  const destination = binaryDirectory("usb");
+  const key = await newKey();
+  const first = await createBackup({ source, destination, key, now: at(0) });
+  assert.equal(first.unchanged, false);
+  assert.match(first.digest, /^[0-9a-f]{64}$/);
+  const same = await createBackup({ source, destination, key, previous: first.digest, now: at(1) });
+  assert.deepEqual([same.unchanged, same.name, same.digest], [true, null, first.digest]);
+  assert.equal((await listSnapshots(destination)).length, 1);
+  await putFile(source, "clients/c1/rules.md", "- rule\n- another\n");
+  const changed = await createBackup({ source, destination, key, previous: first.digest, now: at(2) });
+  assert.equal(changed.unchanged, false);
+  assert.equal((await listSnapshots(destination)).length, 2);
+});
+
+test("push: into annateria-sync of the shared folder, then nothing new until a file changes", async () => {
+  const source = await sampleRoot();
+  const shared = binaryDirectory("drive");
+  const key = await newKey();
+  const ticks = [100, 350, 400, 420, 500, 900];
+  const clock = () => ticks.shift();
+  const first = await pushSnapshot({ source, shared, key, now: at(0), clock });
+  assert.deepEqual([first.unchanged, first.files, first.ms], [false, 8, 250]);
+  const store = await shared.getDirectoryHandle(SYNC_DIR);
+  assert.equal((await listSnapshots(store)).length, 1);
+  const state = await readSyncState(source);
+  const { lastPush } = state;
+  assert.deepEqual([lastPush.name, lastPush.at, lastPush.files, lastPush.ms], [first.name, at(0), 8, 250]);
+  const again = await pushSnapshot({ source, shared, key, now: at(1), clock });
+  assert.equal(again.unchanged, true);
+  assert.equal((await listSnapshots(store)).length, 1);
+  assert.equal((await readSyncState(source)).lastPush.at, at(0));
+  await putFile(source, "clients/c1/declarations/2026-09/draft-table.json", '{"rows":[1]}');
+  const changed = await pushSnapshot({ source, shared, key, now: at(2), clock });
+  assert.deepEqual([changed.unchanged, changed.newBytes], [false, 12]);
+  assert.equal((await listSnapshots(store)).length, 2);
+});
+
+test("push: the state file of the push is not in the snapshot and does not count as a change", async () => {
+  const source = await sampleRoot();
+  const shared = binaryDirectory("drive");
+  const key = await newKey();
+  const { name } = await pushSnapshot({ source, shared, key, now: at(0) });
+  const files = (await readSnapshot(await shared.getDirectoryHandle(SYNC_DIR), key, name)).files;
+  assert.ok(!(`common/${SYNC_STATE_FILE}` in files));
+  assert.equal((await pushSnapshot({ source, shared, key, now: at(1) })).unchanged, true);
+});
+
+test("push: another shared folder gets its own snapshot although nothing changed", async () => {
+  const source = await sampleRoot();
+  const key = await newKey();
+  await pushSnapshot({ source, shared: binaryDirectory("drive"), key, now: at(0) });
+  const other = binaryDirectory("other-drive");
+  const result = await pushSnapshot({ source, shared: other, key, now: at(1) });
+  assert.equal(result.unchanged, false);
+  assert.equal((await listSnapshots(await other.getDirectoryHandle(SYNC_DIR))).length, 1);
+});
+
+test("sync state: a damaged or foreign file reads as never pushed", async () => {
+  const root = binaryDirectory("data");
+  assert.deepEqual(await readSyncState(root), { schemaVersion: 1, lastPush: null });
+  await putFile(root, `common/${SYNC_STATE_FILE}`, "{not json");
+  assert.equal((await readSyncState(root)).lastPush, null);
+  await putFile(root, `common/${SYNC_STATE_FILE}`, '{"lastPush":{"name":"x","at":"yesterday","digest":"d"}}');
+  assert.equal((await readSyncState(root)).lastPush, null);
 });
