@@ -115,3 +115,20 @@ test("the copies of a pull and the sync state never travel", () => {
   assert.equal(isLocalOnly(`common/${SYNC_STATE_FILE}`), true);
   assert.equal(isLocalOnly("common/sync-before.json"), false);
 });
+
+// The owner's PC, 23 October 2026: the page saved its open table (loaded before the copy arrived) over the new files.
+test("pull: the page closes its open table before the first write, and only when the copy is whole", async () => {
+  const { a, b, shared, key, name } = await twoDevices();
+  const seen = [];
+  const beforeWrite = async () => { seen.push(text(await readFileBytes(b, DRAFT))); };
+  const packs = await (await (await shared.getDirectoryHandle(SYNC_DIR)).getDirectoryHandle("annateria-backup")).getDirectoryHandle("packs");
+  const packName = [...packs.children.keys()].find((item) => item.endsWith(".bin"));
+  const full = packs.children.get(packName).bytes;
+  packs.children.get(packName).bytes = full.slice(0, 50);
+  assert.equal((await pullSnapshot({ root: b, shared, key, name, now: at(5), beforeWrite })).applied, false);
+  assert.deepEqual(seen, []);
+  packs.children.get(packName).bytes = full;
+  assert.equal((await pullSnapshot({ root: b, shared, key, name, now: at(6), beforeWrite })).applied, true);
+  assert.deepEqual(seen, ['{"rows":[1]}']);
+  assert.deepEqual(await readFileBytes(b, DRAFT), await readFileBytes(a, DRAFT));
+});

@@ -175,7 +175,7 @@ export function setupSync({
   // 7.4.3: take the snapshot `name` of the other device. Never waits: answers { applied: false, message } while the copy
   // has not fully arrived or something is missing (the caller asks again), { applied: true, written, removed, before } once
   // the data root equals it. interactive: started by a click, so the browser may ask for the folder permissions.
-  async function pull(name, { interactive = false } = {}) {
+  async function pull(name, { interactive = false, beforeWrite } = {}) {
     pending = name;
     const root = getDataRoot();
     if (!root) return { applied: false, message: "יש לבחור תיקיית נתונים." };
@@ -196,7 +196,7 @@ export function setupSync({
     setStatus("running", "מקבל נתונים מהתיקייה המשותפת…");
     try {
       const at = now();
-      const result = await pullSnapshot({ root, shared: folder, key, name, now: at });
+      const result = await pullSnapshot({ root, shared: folder, key, name, now: at, beforeWrite });
       if (!result.applied) {
         const message = result.reason === "key"
           ? "העותק הוצפן בקוד שחזור אחר. יש להזין בחלון «גיבוי» את אותו קוד בשני המחשבים."

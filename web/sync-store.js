@@ -159,7 +159,9 @@ const snapshotDigest = (snapshot) =>
 // Waits for nothing: answers { applied: false, reason } while the snapshot has not fully arrived (the caller asks again),
 // otherwise writes it into the data root. Every file it replaces or removes is copied first to common/sync-before-<time>/.
 // Returns { applied: true, written, removed, before } (before: the folder of the copies, or null when nothing was replaced).
-export async function pullSnapshot({ root, shared, key, name, now = new Date().toISOString() }) {
+// beforeWrite() runs once the snapshot is known to be whole, before the first write: the page closes its open table there
+// without saving, or that old table would be saved over the new files (seen on the owner's PC, 23 October 2026).
+export async function pullSnapshot({ root, shared, key, name, now = new Date().toISOString(), beforeWrite = async () => {} }) {
   let destination;
   try {
     destination = await shared.getDirectoryHandle(SYNC_DIR);
@@ -170,6 +172,7 @@ export async function pullSnapshot({ root, shared, key, name, now = new Date().t
   const checked = await checkSnapshot(destination, key, name);
   if (!checked.ok) return { applied: false, reason: checked.reason };
   const { snapshot } = checked;
+  await beforeWrite();
   const state = await readSyncState(root);
   const before = state.applying?.name === name ? state.applying.before : `${BEFORE_PREFIX}${stampOf(now)}`;
   await saveSyncState(root, { applying: { name, before } });

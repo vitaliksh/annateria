@@ -656,7 +656,12 @@ const baton = setupBaton({
     return state ? pendingPull(state, snapshot, await thisDevice()) : null;
   },
   onReceive: async (name) => {
-    const result = await sync.pull(name);
+    // The open table was loaded before the copy arrived: close it without saving, and drop a queued save.
+    const dropOpenTable = async () => {
+      clearTimeout(draftSaveTimer);
+      if (currentDeclaration) clearActiveDeclaration(currentDeclaration.declarationId);
+    };
+    const result = await sync.pull(name, { beforeWrite: dropOpenTable });
     if (result.applied) {
       await switchDataRoot(dataRoot);
       await workspaceControls.refreshFromUserAction();
