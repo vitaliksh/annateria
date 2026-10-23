@@ -673,7 +673,8 @@ const baton = setupBaton({
       if (currentDeclaration) clearActiveDeclaration(currentDeclaration.declarationId);
     };
     const result = await sync.pull(name, { beforeWrite: dropOpenTable });
-    if (result.applied) {
+    if (result.empty) status.textContent = "העותק מהמחשב השני היה ריק, ולכן לא נלקח. הנתונים של המחשב הזה נשארו.";
+    if (result.applied && !result.empty) {
       await switchDataRoot(dataRoot);
       await workspaceControls.refreshFromUserAction();
       status.textContent = result.before

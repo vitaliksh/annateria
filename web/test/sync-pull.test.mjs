@@ -166,3 +166,22 @@ test("syncStoreId: null for an empty shared folder, the store's id after the fir
   await pushSnapshot({ source: a, shared, key, now: at(1) });
   assert.match(await syncStoreId(shared), /^[0-9a-f]{16}$/);
 });
+
+// The rollout on 23 October 2026: Anna's PC began with an empty data folder and sent an empty copy; taking it would have
+// emptied Vitalik's PC (everything into sync-before). An empty copy carries nothing: it is never written, only counted as taken.
+test("pull: an empty copy is never written; it counts as taken and the next push sends this PC's data", async () => {
+  const { a, shared, key } = await twoDevices();
+  const empty = binaryDirectory("Anna-new");
+  await empty.getDirectoryHandle("clients", { create: true });
+  const emptyCopy = await pushSnapshot({ source: empty, shared, key, now: at(2) });
+  assert.equal(emptyCopy.files, 0);
+  const before = await listPaths(a);
+  let closed = 0;
+  const result = await pullSnapshot({ root: a, shared, key, name: emptyCopy.name, now: at(3), beforeWrite: async () => { closed += 1; } });
+  assert.deepEqual([result.applied, result.empty, result.written, result.removed, closed], [true, true, 0, 0, 0]);
+  assert.deepEqual(await listPaths(a), before);
+  assert.equal(pendingPull(await readSyncState(a), { name: emptyCopy.name, device: "anna" }, "vitalik"), null);
+  const pushed = await pushSnapshot({ source: a, shared, key, now: at(4) });
+  assert.equal(pushed.unchanged, false);
+  assert.ok(pushed.files > 0);
+});

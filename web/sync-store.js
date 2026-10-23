@@ -200,6 +200,13 @@ export async function pullSnapshot({ root, shared, key, name, now = new Date().t
   const checked = await checkSnapshot(destination, key, name);
   if (!checked.ok) return { applied: false, reason: checked.reason };
   const { snapshot } = checked;
+  // An empty copy (the other PC began with an empty data folder: the rollout, 23 October 2026) carries nothing and would only
+  // delete: it is never written, only counted as taken, so the next push sends this PC's data instead.
+  if (!Object.keys(snapshot.files).length) {
+    const lastPush = { name, at: snapshot.createdAt ?? now, digest: await snapshotDigest(snapshot), files: 0, ms: 0 };
+    await saveSyncState(root, { lastPush, applying: null });
+    return { applied: true, empty: true, written: 0, removed: 0, before: null };
+  }
   await beforeWrite();
   const state = await readSyncState(root);
   const before = state.applying?.name === name ? state.applying.before : `${BEFORE_PREFIX}${stampOf(now)}`;
