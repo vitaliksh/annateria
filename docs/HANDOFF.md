@@ -6,7 +6,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 ## Start here (state on 22 October 2026)
 
 **State.** The code on `main` is at 24be377 (5.4); the commits after it change only the docs (plan, hand-over).
-Web 848 tests, Worker 67 (`2026.10.23.1`, Cloudflare `da76ea16`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
+Web 850 tests, Worker 67 (`2026.10.23.1`, Cloudflare `da76ea16`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2. 6.1 (`run_report`) is in the backlog. Phase 3 is in the backlog.
 
 **Done on 21 October 2026 (details in the sections below and the decision log):** handles never reach the user (`handles.readable`); the
@@ -20,7 +20,7 @@ with Drive on 23 October 2026: two snapshots arrived on the other account's driv
 in the Worker, deployed as `2026.10.23.1`). 7.4.2 is done (the plate "who works" in the top bar,
 `web/baton-ui.js`; the owner checked it with two browser profiles). 7.4.3 is done (take the other device's copy: blue plate
 "מקבל נתונים…", `pullSnapshot` in `web/sync-store.js`; the owner's round trip passed after the fix 45022d6), so **7.4 is done**.
-**Next:** the inbox permission fix (the inbox writes without asking Chrome for the folder permission), then 7.6 and the phase check. Read the phase in
+The inbox now asks Chrome for the write permission when it opens or gets files (fix of 23 October). **Next:** 7.6 and the phase check. Read the phase in
 `WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first.
 
 **Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
@@ -186,7 +186,7 @@ condition; 10 runs under heavier load passed. Lesson: after a push, check the ru
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 848 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 850 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 67 tests; check = wrangler deploy --dry-run
 ```
 

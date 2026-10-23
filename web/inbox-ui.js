@@ -28,6 +28,13 @@ export function filesFromDrop(dataTransfer) {
   return { files, refused };
 }
 
+// After a reload Chrome lets the page read the data root but refuses to write until it has asked (seen on 23 October 2026).
+// Opening the inbox and adding files start with a click, so the browser may ask here.
+async function allowWrite(root) {
+  if (typeof root.queryPermission !== "function" || (await root.queryPermission({ mode: "readwrite" })) === "granted") return;
+  if ((await root.requestPermission({ mode: "readwrite" })) !== "granted") throw new Error("לא ניתנה הרשאה לכתוב בתיקיית הנתונים.");
+}
+
 // A small canvas of a photo, or null when the browser cannot show it (HEIC without the Windows codec, PDF, Excel).
 async function canvasThumbnail(file, entry, doc) {
   if (!THUMBNAIL_TYPES.test(entry.type) || typeof createImageBitmap !== "function") return null;
@@ -192,6 +199,7 @@ export function setupInbox({
     try {
       const folder = select.value || UNSORTED;
       if (folder !== UNSORTED && !homeClients().some((client) => client.entryName === folder)) throw new Error("הלקוח שנבחר אינו זמין.");
+      await allowWrite(root);
       const result = accepted.length ? await add(root, accepted, { folder, now: now() }) : { added: [], duplicates: [], failed: [] };
       const notTaken = turnedAway.length + result.failed.length;
       const parts = [result.added.length ? `${result.added.length === 1 ? "נוסף" : "נוספו"} ${plural(result.added.length, "קובץ אחד", "קבצים")}` : "לא נוספו קבצים"];
@@ -284,7 +292,10 @@ export function setupInbox({
     shown = [];
     const root = getDataRoot();
     try {
-      if (root) await ensure(root, homeClients().map((client) => client.entryName));
+      if (root) {
+        await allowWrite(root);
+        await ensure(root, homeClients().map((client) => client.entryName));
+      }
     } catch (error) {
       onError("תיבת הקלט: " + error.message);
     }

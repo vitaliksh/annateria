@@ -346,3 +346,45 @@ test("the client that is open in the journal is offered as the folder of new fil
   await settle();
   assert.equal(none.q("#inbox-client").value, "");
 });
+
+// Seen on 23 October 2026: after a reload Chrome lets the page read the data root but refuses to write until it asked.
+function writeLockedRoot(ui) {
+  const realGet = ui.root.getDirectoryHandle.bind(ui.root);
+  Object.assign(ui.root, {
+    permission: "prompt",
+    requested: 0,
+    queryPermission: async () => ui.root.permission,
+    requestPermission: async () => { ui.root.requested += 1; ui.root.permission = "granted"; return "granted"; },
+    getDirectoryHandle: async (name, options = {}) => {
+      if (options.create && ui.root.permission !== "granted") {
+        throw Object.assign(new Error("The request is not allowed by the user agent or the platform in the current context."), {
+          name: "NotAllowedError",
+        });
+      }
+      return realGet(name, options);
+    },
+  });
+}
+
+test("opening the inbox after a reload asks Chrome for the write permission first, then creates the folders", async () => {
+  const ui = setup();
+  writeLockedRoot(ui);
+  ui.window.document.querySelector("#open-inbox").click();
+  await settle();
+  assert.deepEqual(ui.errors, []);
+  assert.equal(ui.root.requested, 1);
+  assert.deepEqual([...(await ui.root.getDirectoryHandle("inbox")).children.keys()].sort(), ["Levi", "_unsorted"]);
+  ui.window.document.querySelector("#open-inbox").click();
+  await settle();
+  assert.equal(ui.root.requested, 1);
+});
+
+test("a refused permission is said plainly and nothing is written", async () => {
+  const ui = setup();
+  writeLockedRoot(ui);
+  ui.root.requestPermission = async () => { ui.root.requested += 1; return "denied"; };
+  ui.window.document.querySelector("#open-inbox").click();
+  await settle();
+  assert.match(ui.errors[0], /הרשאה/);
+  await assert.rejects(ui.root.getDirectoryHandle("inbox"), { name: "NotFoundError" });
+});
