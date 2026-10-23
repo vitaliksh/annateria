@@ -3,7 +3,7 @@
 // handles, the non-extractable key) lives in IndexedDB through backup-handles.js; the state file in the data root only remembers
 // when each slot last succeeded.
 import { createBackup, keyFromRecoveryCode, listSnapshots, newRecoveryCode, restoreSnapshot, verifyStore } from "./backup-store.js";
-import { SLOTS, backupLevel, readBackupState, saveBackupState } from "./backup-state.js";
+import { SLOTS, backupLevel, readBackupState, saveBackupState, usbReminder } from "./backup-state.js";
 import { BACKUP_FOLDER_KEYS, BACKUP_KEY_NAME, readSetting, writeSetting } from "./backup-handles.js";
 import { confirmDialog } from "./confirm-dialog.js";
 
@@ -14,8 +14,6 @@ const LEVEL_TEXT = {
   error: "הגיבוי לא עודכן זמן רב. יש לגבות עכשיו.",
 };
 const SLOT_STATE_TEXT = { never: "טרם בוצע גיבוי.", ok: "", stale: " — ישן מדי" };
-const DAY_MS = 24 * 60 * 60 * 1000;
-const AUTO_AFTER_MS = DAY_MS;
 
 const formatTime = (iso) => new Date(iso).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" });
 
@@ -28,6 +26,7 @@ export function setupBackup({
   openButton,
   getDataRoot,
   onError = () => {},
+  onNotice = () => {},
   store = { readSetting, writeSetting },
   pickDirectory = () => window.showDirectoryPicker({ mode: "readwrite", startIn: "documents" }),
   now = () => new Date().toISOString(),
@@ -41,7 +40,7 @@ export function setupBackup({
     "backup-restore-code", "backup-restore-run",
   ].map(part);
   const [enterBox, enterLabel, enterCode, useCode] = ["backup-enter-box", "backup-enter-label", "backup-enter-code", "backup-use-code"].map(part);
-  const handles = { cloud: null, usb: null };
+  const handles = { usb: null };
   let state = null;
   let key = null;
   let running = false;
@@ -141,20 +140,15 @@ export function setupBackup({
     return true;
   }
 
-  // Started by the host at start-up and after a declaration is locked. Never asks for permission (a user gesture is needed for that)
-  // and stays silent unless something is really wrong.
-  async function runAuto(reason) {
-    try {
-      await refresh();
-      const root = getDataRoot();
-      if (!root || !key || !handles.cloud || running) return;
-      if (typeof root.queryPermission === "function" && (await root.queryPermission({ mode: "readwrite" })) !== "granted") return;
-      const last = state?.cloud ? Date.parse(state.cloud.at) : 0;
-      if (reason === "start" && Date.parse(now()) - last < AUTO_AFTER_MS) return;
-      await runBackup("cloud", { interactive: false });
-    } catch (error) {
-      onError(`הגיבוי האוטומטי נכשל: ${error.message}`);
-    }
+  // 7.6: called by the host when a data root is opened. The automatic copy into a Google Drive folder is gone (the shared
+  // folder of the two PCs is that copy now); what is left is a line in the status bar once a week for the flash copy.
+  async function remind() {
+    await refresh().catch(() => {});
+    if (!getDataRoot()) return;
+    const { due, days } = usbReminder(state, now());
+    if (!due) return;
+    const last = days === null ? "טרם בוצע גיבוי לכונן נייד" : `הגיבוי האחרון לכונן נייד היה לפני ${days} ימים`;
+    onNotice(`${last}. יש לחבר את הכונן ולבחור «גיבוי» ← «כונן נייד (USB)» ← «גיבוי עכשיו».`);
   }
 
   const guarded = (action) => async (...args) => {
@@ -266,5 +260,5 @@ export function setupBackup({
   });
 
   render();
-  return { refresh, runAuto, getState: () => ({ state, key: Boolean(key), handles: { ...handles }, running }) };
+  return { refresh, remind, getState: () => ({ state, key: Boolean(key), handles: { ...handles }, running }) };
 }

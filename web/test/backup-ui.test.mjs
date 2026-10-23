@@ -30,7 +30,7 @@ function withPermission(directory, { permission = "granted", isRoot = false } = 
   return handle;
 }
 
-async function setup({ confirm } = {}) {
+async function setup({ confirm, noRoot = false } = {}) {
   const dom = new JSDOM(html, { url: "https://vitaliksh.github.io/ocr/" });
   const { window } = dom;
   Object.assign(globalThis, { document: window.document, window });
@@ -45,13 +45,15 @@ async function setup({ confirm } = {}) {
   const picks = [];
   const clock = { value: "2026-10-10T12:00:00.000Z" };
   const errors = [];
+  const notices = [];
   const { setupBackup } = await import("../backup-ui.js");
   const openButton = window.document.querySelector("#open-backup");
   const backup = setupBackup({
     dialog,
     openButton,
-    getDataRoot: () => root,
+    getDataRoot: () => (noRoot ? null : root),
     onError: (message) => errors.push(message),
+    onNotice: (text) => notices.push(text),
     store,
     pickDirectory: async () => {
       if (!picks.length) throw Object.assign(new Error("cancelled"), { name: "AbortError" });
@@ -73,7 +75,7 @@ async function setup({ confirm } = {}) {
   // Picks `folder` for a slot through the dialog, as the user would.
   const choose = async (slot, folder) => { picks.push(folder); await click(slotButton(slot, "choose")); };
   return {
-    window, dialog, root, stored, picks, clock, errors, backup, openButton, q, slotButton, click, giveKey, choose,
+    window, dialog, root, stored, picks, clock, errors, notices, backup, openButton, q, slotButton, click, giveKey, choose,
     plate: () => q("#backup-summary").textContent,
     error: () => q("#backup-error").textContent,
   };
@@ -85,12 +87,13 @@ test("the page has the backup dialog and the sidebar item with every id the modu
   }
 });
 
-test("before anything is set up: warning dot, no run button, a button to create the code", async () => {
+test("before anything is set up: warning dot, no run button, a button to create the code; no Google Drive slot (7.6)", async () => {
   const { openButton, plate, q, slotButton } = await setup();
   assert.equal(openButton.dataset.level, "warning");
   assert.match(plate(), /טרם הוגדר/);
-  assert.equal(slotButton("cloud", "run").disabled, true);
+  assert.equal(slotButton("usb", "run").disabled, true);
   assert.equal(q("#backup-create-key").hidden, false);
+  assert.equal(q('[data-slot="cloud"]'), null);
 });
 
 test("recovery code is shown once and stored as a non-extractable key only after the confirmation", async () => {
@@ -108,96 +111,87 @@ test("recovery code is shown once and stored as a non-extractable key only after
   assert.equal(q("#backup-code").textContent, "");
 });
 
-test("backup needs a key; then it writes the copy, remembers the time and keeps the dot a warning until the flash copy exists", async () => {
+test("backup needs a key; then it writes the flash copy, remembers the time and turns the dot green", async () => {
   const { q, slotButton, choose, click, giveKey, clock, root, error, plate, openButton } = await setup();
-  const drive = withPermission(binaryDirectory("drive"));
-  await choose("cloud", drive);
-  await click(slotButton("cloud", "run"));
+  const flash = withPermission(binaryDirectory("flash"));
+  await choose("usb", flash);
+  await click(slotButton("usb", "run"));
   assert.match(error(), /קוד שחזור/);
   assert.match(plate(), /קוד שחזור/, "the error is also on the top plate");
   await click(q("#backup-create-key"));
-  await click(slotButton("cloud", "run"));
+  await click(slotButton("usb", "run"));
   assert.match(error(), /שמירת הקוד במחשב/, "a created but unconfirmed code is named");
   await giveKey();
-  await click(slotButton("cloud", "run"));
+  await click(slotButton("usb", "run"));
   assert.equal(error(), "");
   assert.match(plate(), /הגיבוי הושלם: 3 קבצים/);
-  assert.equal((await listSnapshots(drive)).length, 1);
-  assert.equal((await readBackupState(root)).cloud.at, clock.value);
-  assert.equal(openButton.dataset.level, "warning");
+  assert.equal((await listSnapshots(flash)).length, 1);
+  assert.equal((await readBackupState(root)).usb.at, clock.value);
+  assert.equal(openButton.dataset.level, "ok");
 });
 
-test("both copies fresh turn the dot green; a stale cloud copy turns it red", async () => {
+test("a flash copy older than 35 days turns the dot red", async () => {
   const { slotButton, choose, click, giveKey, clock, backup, openButton } = await setup();
   await giveKey();
-  await choose("cloud", withPermission(binaryDirectory("drive")));
   await choose("usb", withPermission(binaryDirectory("flash")));
-  await click(slotButton("cloud", "run"));
   await click(slotButton("usb", "run"));
   assert.equal(openButton.dataset.level, "ok");
-  clock.value = "2026-10-14T12:00:00.000Z";
+  clock.value = "2026-11-20T12:00:00.000Z";
   await backup.refresh();
   assert.equal(openButton.dataset.level, "error");
 });
 
 test("a folder inside the data root is refused and not remembered", async () => {
   const { choose, root, error, stored } = await setup();
-  await choose("cloud", root);
+  await choose("usb", root);
   assert.match(error(), /בתוך תיקיית הנתונים/);
-  assert.equal(stored.has(BACKUP_FOLDER_KEYS.cloud), false);
+  assert.equal(stored.has(BACKUP_FOLDER_KEYS.usb), false);
 });
 
 test("a cancelled folder picker is not an error", async () => {
   const { slotButton, click, error } = await setup();
-  await click(slotButton("cloud", "choose"));
+  await click(slotButton("usb", "choose"));
   assert.equal(error(), "");
 });
 
-test("without permission: the button says so, the automatic run stays silent and never asks", async () => {
-  const { slotButton, choose, click, giveKey, backup, errors, error } = await setup();
+test("without permission the button asks; a refusal is said and nothing is written", async () => {
+  const { slotButton, choose, click, giveKey, error } = await setup();
   await giveKey();
-  const drive = withPermission(binaryDirectory("drive"), { permission: "prompt" });
-  drive.grantOnRequest = false;
-  await choose("cloud", drive);
-  await backup.runAuto("lock");
-  assert.equal(drive.requested, false);
-  assert.deepEqual(errors, []);
-  assert.equal((await listSnapshots(drive)).length, 0);
-  await click(slotButton("cloud", "run"));
+  const flash = withPermission(binaryDirectory("flash"), { permission: "prompt" });
+  flash.grantOnRequest = false;
+  await choose("usb", flash);
+  await click(slotButton("usb", "run"));
   assert.match(error(), /לא ניתנה הרשאה/);
-  assert.equal(drive.requested, true);
+  assert.equal(flash.requested, true);
+  assert.equal((await listSnapshots(flash)).length, 0);
 });
 
-test("automatic run: at start only when the cloud copy is older than a day, after a lock always", async () => {
-  const { choose, giveKey, backup, root, clock, errors } = await setup();
-  await giveKey();
-  const drive = withPermission(binaryDirectory("drive"));
-  await choose("cloud", drive);
-  await saveBackupState(root, { cloud: { folder: "drive", at: "2026-10-10T10:00:00.000Z", files: 1, skipped: 0 } });
-  await backup.runAuto("start");
-  assert.equal((await listSnapshots(drive)).length, 0, "two hours old: skipped");
-  await backup.runAuto("lock");
-  assert.equal((await listSnapshots(drive)).length, 1, "after a lock: runs");
-  clock.value = "2026-10-11T13:00:00.000Z";
-  await backup.runAuto("start");
-  assert.equal((await listSnapshots(drive)).length, 2, "more than a day later: runs");
-  assert.deepEqual(errors, []);
+test("weekly reminder: when the data root opens, a line asks for the flash copy if it is 7 days old or was never made", async () => {
+  const { backup, root, clock, notices } = await setup();
+  await backup.remind();
+  assert.match(notices[0], /טרם בוצע גיבוי לכונן נייד/);
+  assert.ok(notices[0].includes("«גיבוי» ← «כונן נייד (USB)» ← «גיבוי עכשיו»"));
+  await saveBackupState(root, { usb: { folder: "flash", at: "2026-10-05T12:00:00.000Z", files: 1, skipped: 0 } });
+  await backup.remind();
+  assert.equal(notices.length, 1, "5 days old: no reminder");
+  clock.value = "2026-10-12T12:00:00.000Z";
+  await backup.remind();
+  assert.match(notices[1], /לפני 7 ימים/);
 });
 
-test("automatic run without a key or a folder does nothing and says nothing", async () => {
-  const { backup, errors, giveKey } = await setup();
-  await backup.runAuto("lock");
-  await giveKey();
-  await backup.runAuto("lock");
-  assert.deepEqual(errors, []);
+test("no data root, no reminder; nothing is copied by itself any more", async () => {
+  const { backup, notices, errors } = await setup({ noRoot: true });
+  await backup.remind();
+  assert.deepEqual([notices, errors], [[], []]);
+  assert.equal(typeof backup.runAuto, "undefined");
 });
 
 test("verify reports a healthy copy; the images switch is saved in the data root", async () => {
   const { slotButton, choose, click, giveKey, plate, q, root } = await setup();
   await giveKey();
-  await choose("cloud", withPermission(binaryDirectory("drive")));
-  await click(slotButton("cloud", "run"));
-  await click(slotButton("cloud", "verify"));
+  await choose("usb", withPermission(binaryDirectory("flash")));
+  await click(slotButton("usb", "run"));
+  await click(slotButton("usb", "verify"));
   assert.match(plate(), /הגיבוי תקין: 1 עותקים/);
   await click(q("#backup-images"));
   assert.equal((await readBackupState(root)).includeImages, true);

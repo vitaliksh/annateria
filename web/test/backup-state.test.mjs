@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { backupLevel, normaliseBackupState, readBackupState, saveBackupState } from "../backup-state.js";
+import { backupLevel, normaliseBackupState, readBackupState, saveBackupState, usbReminder } from "../backup-state.js";
 import { memoryDirectory } from "./memory-directory.mjs";
 
 const NOW = "2026-10-10T12:00:00.000Z";
@@ -24,27 +24,23 @@ test("state file: reads defaults when missing, saves and merges fields", async (
   assert.equal(state.usb, null);
 });
 
-test("level: nothing done is a warning, a fresh cloud copy plus a fresh flash copy is ok", () => {
+// 7.6: the Google Drive slot is gone (the shared folder of the two PCs is that copy); the plate follows the flash copy only.
+test("level: no flash copy is a warning, a fresh one is ok, one older than 35 days an error; an old cloud time is ignored", () => {
   assert.equal(backupLevel(normaliseBackupState(null), NOW).level, "warning");
-  const fresh = normaliseBackupState({ cloud: slot("2026-10-10T08:00:00Z"), usb: slot("2026-09-20T08:00:00Z") });
+  const fresh = normaliseBackupState({ cloud: slot("2026-01-01T00:00:00Z"), usb: slot("2026-09-20T08:00:00Z") });
   assert.equal(backupLevel(fresh, NOW).level, "ok");
-});
-
-test("level: cloud older than 2 days and flash older than 35 days are errors, a missing flash copy only a warning", () => {
-  const cloudOld = normaliseBackupState({ cloud: slot("2026-10-07T11:00:00Z"), usb: slot("2026-10-01T00:00:00Z") });
-  const result = backupLevel(cloudOld, NOW);
-  assert.equal(result.level, "error");
-  assert.equal(result.slots.cloud.state, "stale");
-  assert.equal(result.slots.cloud.days, 3);
-  const usbOld = normaliseBackupState({ cloud: slot("2026-10-10T08:00:00Z"), usb: slot("2026-09-01T00:00:00Z") });
-  assert.equal(backupLevel(usbOld, NOW).slots.usb.state, "stale");
-  const noUsb = normaliseBackupState({ cloud: slot("2026-10-10T08:00:00Z") });
-  assert.equal(backupLevel(noUsb, NOW).level, "warning");
-  const justInside = normaliseBackupState({ cloud: slot("2026-10-08T12:00:00Z"), usb: slot("2026-10-10T00:00:00Z") });
-  assert.equal(backupLevel(justInside, NOW).level, "ok", "exactly two days is still fresh");
+  const old = backupLevel(normaliseBackupState({ usb: slot("2026-09-01T00:00:00Z") }), NOW);
+  assert.deepEqual([old.level, old.slots.usb.state, old.slots.usb.days], ["error", "stale", 39]);
+  assert.deepEqual(Object.keys(old.slots), ["usb"]);
 });
 
 test("level: a time in the future does not break the plate", () => {
-  const state = normaliseBackupState({ cloud: slot("2026-10-11T00:00:00Z"), usb: slot("2026-10-11T00:00:00Z") });
-  assert.deepEqual(backupLevel(state, NOW).slots.cloud, { state: "ok", days: 0 });
+  const state = normaliseBackupState({ usb: slot("2026-10-11T00:00:00Z") });
+  assert.deepEqual(backupLevel(state, NOW).slots.usb, { state: "ok", days: 0 });
+});
+
+test("weekly reminder: due when never made or 7 days old, not before", () => {
+  assert.deepEqual(usbReminder(normaliseBackupState(null), NOW), { due: true, days: null });
+  assert.deepEqual(usbReminder(normaliseBackupState({ usb: slot("2026-10-04T08:00:00Z") }), NOW), { due: false, days: 6 });
+  assert.deepEqual(usbReminder(normaliseBackupState({ usb: slot("2026-10-03T08:00:00Z") }), NOW), { due: true, days: 7 });
 });

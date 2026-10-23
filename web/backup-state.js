@@ -1,10 +1,13 @@
 // What the backup status plate needs, kept in the data root (common/backup-state.json, schema 1): when each backup slot last
-// succeeded and whether source images are included. "cloud" is a folder carried off by Google Drive for desktop, "usb" a flash
-// drive used by hand about once a month. The state is only a reminder; the backups themselves are the source of truth.
+// succeeded and whether source images are included. "usb" is a flash drive used by hand. The "cloud" slot (a folder carried
+// off by Google Drive for desktop) was removed in 7.6: the shared folder of the two PCs is that copy now; its last time stays
+// readable in old files. The state is only a reminder; the backups themselves are the source of truth.
 export const BACKUP_STATE_FILE = "backup-state.json";
 export const BACKUP_STATE_SCHEMA = 1;
-export const SLOTS = ["cloud", "usb"];
+export const SLOTS = ["usb"];
 export const STALE_DAYS = { cloud: 2, usb: 35 };
+// 7.6: a line in the status bar asks for the flash copy once a week.
+export const REMIND_DAYS = 7;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const count = (value) => (Number.isInteger(value) && value >= 0 ? value : 0);
@@ -44,7 +47,7 @@ export async function saveBackupState(dataRoot, changes) {
   return merged;
 }
 
-// Per slot "never" | "ok" | "stale" (cloud older than 2 days, flash older than 35) and the overall level of the plate:
+// Per slot "never" | "ok" | "stale" (flash older than 35 days) and the overall level of the plate:
 // error when a slot is stale, ok when both are fresh, otherwise warning (something is not set up yet).
 export function backupLevel(state, now = new Date().toISOString()) {
   const slots = {};
@@ -60,4 +63,11 @@ export function backupLevel(state, now = new Date().toISOString()) {
   const states = SLOTS.map((slot) => slots[slot].state);
   const level = states.includes("stale") ? "error" : states.every((value) => value === "ok") ? "ok" : "warning";
   return { level, slots };
+}
+
+// Days since the last flash copy (null: never), when a reminder is due: never made, or older than REMIND_DAYS.
+export function usbReminder(state, now = new Date().toISOString()) {
+  const at = state?.usb?.at;
+  const days = at ? Math.max(0, Math.floor((Date.parse(now) - Date.parse(at)) / DAY_MS)) : null;
+  return { due: days === null || days >= REMIND_DAYS, days };
 }

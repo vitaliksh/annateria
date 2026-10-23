@@ -262,7 +262,7 @@ async function switchDataRoot(selected) {
       modelSettings?.setOverrides(settings.models);
     })
     .catch(() => {});
-  backup.runAuto("start");
+  backup.remind();
   sync.refresh().catch(() => {});
   // 7.4.3: another data folder may need the other device's copy first (or no longer).
   if (api) baton.check().catch(() => {});
@@ -324,6 +324,7 @@ const backup = setupBackup({
   openButton: document.querySelector("#open-backup"),
   getDataRoot: () => dataRoot,
   onError: showError,
+  onNotice: (text) => { status.textContent = text; },
 });
 const sync = setupSync({
   icon: document.querySelector("#sync-status"),
@@ -1540,7 +1541,6 @@ closeDeclarationButton.addEventListener("click", async () => {
     setTableLocked(true);
     updateStartAvailability();
     status.textContent = "ההצהרה ננעלה. ההיסטוריה עודכנה.";
-    backup.runAuto("lock");
     sync.changed();
   } catch (error) {
     if (error.name !== "AbortError") {

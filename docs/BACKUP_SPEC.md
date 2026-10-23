@@ -67,6 +67,13 @@ Deleting old snapshots or unreferenced packs is a manual, confirmed action still
 
 ## The dialog (sidebar item "גיבוי")
 
+**Changed in step 7.6 (23 October 2026, owner's decision):** the slot "Google Drive" (`cloud`) and its automatic copies (at
+start-up and after a lock) are gone: the shared folder of the two PCs (section "תיקייה משותפת", `web/sync-ui.js`) is the encrypted
+copy in Drive now, with the images, after every save. The dialog keeps the flash drive (`usb`), the recovery code and the restore;
+the status dot follows the flash copy only (35 days, as before), and when a data root is opened and the flash copy is 7 days old or
+was never made, a line in the status bar asks for it. Old copies in a Drive folder stay readable by the restore. The bullets
+below describe the dialog before 7.6.
+
 - Two slots with their own folder, "גיבוי עכשיו" and "בדיקת תקינות" (deep verify): `cloud` (a folder inside Google Drive for
   desktop) and `usb` (the monthly flash copy). A folder inside the data root is refused.
 - Recovery code: created once, shown once; the key is stored in IndexedDB (non-extractable) only after the user ticks that the code is

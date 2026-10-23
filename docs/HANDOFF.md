@@ -20,7 +20,9 @@ with Drive on 23 October 2026: two snapshots arrived on the other account's driv
 in the Worker, deployed as `2026.10.23.1`). 7.4.2 is done (the plate "who works" in the top bar,
 `web/baton-ui.js`; the owner checked it with two browser profiles). 7.4.3 is done (take the other device's copy: blue plate
 "מקבל נתונים…", `pullSnapshot` in `web/sync-store.js`; the owner's round trip passed after the fix 45022d6), so **7.4 is done**.
-The inbox now asks Chrome for the write permission when it opens or gets files (fix of 23 October). **Next:** 7.6 and the phase check. Read the phase in
+The inbox now asks Chrome for the write permission when it opens or gets files (fix of 23 October). **7.6 is built** (the old "Google
+Drive" backup slot removed; a weekly line in the status bar for the flash copy) and waits for the owner's look on the published page.
+**Then:** phase 8 (rollout on Anna's PC). Read the phase in
 `WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first.
 
 **Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
@@ -35,8 +37,8 @@ through the card), the phase check of 4.6 (a second similar month asks fewer que
   Converting needs an exchange-rate source (for example the Bank of Israel): an outside service, ask the owner first.
 - **App help skill** (owner's reminder): the agent answers questions about the app itself (`WORK_PLAN.md`, "Later").
 - The eval runner writes its report only at the end: a crash in the middle leaves nothing. Small fix: write the report after every case.
-- Cards from before: the status "מוכן, חסרים סימונים" of rows that are not the agent's (inherited from ocr); the flaky `backup-ui.test.mjs`
-  "both copies fresh turn the dot green" (a fixed wait of 8 ticks).
+- Cards from before: the status "מוכן, חסרים סימונים" of rows that are not the agent's (inherited from ocr). (The flaky test "both copies
+  fresh turn the dot green" went away with the Google Drive slot in 7.6.)
 
 **How to run the eval** (costs money, about 2.3 USD for the full run of 16 cases x 2 with `gemini-3.8-flash`; use `--case a,b --repeat 1` while
 working on one rule): in `web`, `$env:ANNATERIA_CODE = Read-Host "code"`, `npm run eval`, `Remove-Item Env:ANNATERIA_CODE`. The report goes to
@@ -101,7 +103,7 @@ the date of receipt would need an exchange-rate source, for example the Bank of 
    rate of the date the invoice was received (the software does not convert yet: a row for review, saying so).
 
 **Open proposals** (cards, not started): the status "מוכן, חסרים סימונים" of rows that are not the agent's
-(inherited from ocr); the flaky `backup-ui.test.mjs` "both copies fresh turn the dot green" (a fixed wait of 8 ticks, fails now and then on a busy machine).
+(inherited from ocr).
 
 **Practical notes.** The owner's data root `D:\ANNATERIA` (and its copy `D:\ANNATERIA-B` for the second browser profile) holds **test
 clients, not real ones** (owner, 23 October 2026): read them freely while debugging (files, times, hashes), never copy them into the
