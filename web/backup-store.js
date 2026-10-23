@@ -413,6 +413,32 @@ export async function restoreSnapshot({ destination, key, name, target, onProgre
   return { files: total, createdAt: snapshot.createdAt };
 }
 
+// Phase 7.4.3: the other PC's snapshot as it arrives through Google Drive. `checkSnapshot` reads every file of it once
+// (decrypted, hash compared) and answers { ok: true, snapshot } or { ok: false, reason } with reason "missing" (the
+// snapshot, an index or a pack has not arrived), "incomplete" (a file arrived in part) or "key" (another recovery key).
+// Nothing is written. `snapshotFiles` then yields { path, hash, plain } for the caller to write, pack by pack.
+export async function checkSnapshot(destination, key, name) {
+  try {
+    const snapshot = await readSnapshot(destination, key, name);
+    for await (const _ of snapshotFiles(destination, key, name, snapshot));
+    return { ok: true, snapshot };
+  } catch (error) {
+    if (error.code === "BACKUP_WRONG_KEY") return { ok: false, reason: "key" };
+    if (error.code === "BACKUP_CORRUPT") return { ok: false, reason: /missing/.test(error.message) ? "missing" : "incomplete" };
+    if (error.code === "BACKUP_NO_SNAPSHOT" || error.code === "BACKUP_NO_STORE" || error.name === "NotFoundError") {
+      return { ok: false, reason: "missing" };
+    }
+    if (error instanceof SyntaxError) return { ok: false, reason: "incomplete" };
+    throw error;
+  }
+}
+
+export async function* snapshotFiles(destination, key, name, snapshot = null) {
+  const store = await openStore(destination, key);
+  const read = snapshot ?? (await readSnapshot(destination, key, name));
+  yield* snapshotBlobs(store, key, await loadKnownBlobs(store, key), read);
+}
+
 // Checks that every snapshot opens and that all blobs it needs exist; `deep` also decrypts and re-hashes each blob once.
 export async function verifyStore({ destination, key, deep = false }) {
   const store = await openStore(destination, key);

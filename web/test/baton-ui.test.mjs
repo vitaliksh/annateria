@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
-import { BEAT_MS, IDLE_MS, POLL_MS, setupBaton } from "../baton-ui.js";
+import { BEAT_MS, IDLE_MS, POLL_MS, RECEIVE_MS, setupBaton } from "../baton-ui.js";
 
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "index.html"), "utf8");
 const TTL = 3 * 60 * 1000;
@@ -58,7 +58,7 @@ function manualTimers() {
   };
 }
 
-async function setup({ user = "anna", answer = true } = {}) {
+async function setup({ user = "anna", answer = true, receive = {} } = {}) {
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/annateria/", pretendToBeVisual: true });
   const document = window.document;
   const plate = document.querySelector("#baton-status");
@@ -83,6 +83,7 @@ async function setup({ user = "anna", answer = true } = {}) {
     timers,
     now: () => clock.ms,
     activityTarget: document,
+    ...receive,
   });
   const settle = async () => { for (let i = 0; i < 5; i += 1) await new Promise((resolve) => setTimeout(resolve, 2)); };
   const click = async (target) => { target.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); await settle(); };
@@ -205,4 +206,53 @@ test("a new snapshot is reported with a beat; the tab coming back asks again", a
   document.dispatchEvent(new window.Event("visibilitychange"));
   await settle();
   assert.equal(server.calls.length, before + 1);
+});
+
+test("the baton came with another device's copy: blue plate, read only, no copy sent, tried every 15 s until written", async () => {
+  const attempts = [];
+  const results = [{ applied: false, message: "ממתין ל‑Google Drive" }, { applied: true }];
+  const { plate, baton, timers, server, clock, changes, settle } = await setup({
+    receive: {
+      isPending: async (snapshot) => (snapshot?.device === "other-device-1" && results.length ? snapshot.name : null),
+      onReceive: async (name) => { attempts.push(name); return results.shift(); },
+    },
+  });
+  server.snapshot = { name: "snap-20261023T065900Z-aaa.bin", at: clock.ms - 60_000, device: "other-device-1", deviceName: "ויטליק" };
+  await baton.check();
+  await settle();
+  assert.deepEqual([plate.dataset.state, plate.textContent], ["receiving", "מקבל נתונים…"]);
+  assert.match(plate.title, /ויטליק/);
+  assert.match(plate.title, /ממתין ל‑Google Drive/);
+  assert.deepEqual([baton.blocksEditing(), baton.canPush()], [true, false]);
+  assert.deepEqual(timers.waits(), [RECEIVE_MS]);
+  clock.ms += RECEIVE_MS;
+  await timers.fire();
+  await settle();
+  assert.deepEqual(attempts, ["snap-20261023T065900Z-aaa.bin", "snap-20261023T065900Z-aaa.bin"]);
+  assert.equal(plate.dataset.state, "here");
+  assert.deepEqual(changes, ["receiving", "here"]);
+});
+
+test("while receiving the baton is kept alive, and a click works on with this PC's data after a question", async () => {
+  const skipped = [];
+  const { plate, baton, timers, server, clock, click, asked, settle } = await setup({
+    receive: {
+      isPending: async (snapshot) => (skipped.length ? null : snapshot?.name ?? null),
+      onReceive: async () => ({ applied: false, message: "ממתין" }),
+      onSkip: async (name) => { skipped.push(name); },
+    },
+  });
+  server.snapshot = { name: "snap-20261023T065900Z-bbb.bin", at: clock.ms, device: "other-device-1", deviceName: "ויטליק" };
+  await baton.check();
+  await settle();
+  const beats = () => server.calls.filter((call) => call.action === "beat").length;
+  clock.ms += BEAT_MS;
+  await timers.fire();
+  await settle();
+  assert.equal(beats(), 2);
+  assert.equal(plate.dataset.state, "receiving");
+  await click(plate);
+  assert.match(asked[0], /השינויים מהמחשב השני לא יגיעו לכאן/);
+  assert.deepEqual(skipped, ["snap-20261023T065900Z-bbb.bin"]);
+  assert.equal(plate.dataset.state, "here");
 });

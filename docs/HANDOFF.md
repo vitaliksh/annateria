@@ -6,7 +6,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 ## Start here (state on 22 October 2026)
 
 **State.** The code on `main` is at 24be377 (5.4); the commits after it change only the docs (plan, hand-over).
-Web 836 tests, Worker 67 (`2026.10.23.1`, Cloudflare `da76ea16`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
+Web 847 tests, Worker 67 (`2026.10.23.1`, Cloudflare `da76ea16`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2. 6.1 (`run_report`) is in the backlog. Phase 3 is in the backlog.
 
 **Done on 21 October 2026 (details in the sections below and the decision log):** handles never reach the user (`handles.readable`); the
@@ -18,7 +18,9 @@ read-only tool `ready_to_close`, skill `month-closing-checklist`); Gemini's 402 
 below). 7.2 is done (the sync snapshot, `web/sync-store.js`). 7.3 is done (the push and the ☁ icon, `web/sync-ui.js`; the owner checked it
 with Drive on 23 October 2026: two snapshots arrived on the other account's drive). 7.4 was rewritten with the owner on 23 October (one PC works at a time, no merging); **7.4.1 is done** (the baton "who works"
 in the Worker, deployed as `2026.10.23.1`). 7.4.2 is done (the plate "who works" in the top bar,
-`web/baton-ui.js`; the owner checked it with two browser profiles). **Next: 7.4.3** (take the other device's data). Read the phase in
+`web/baton-ui.js`; the owner checked it with two browser profiles). **7.4.3 is built** (take the other device's copy: blue plate
+"מקבל נתונים…", `pullSnapshot` in `web/sync-store.js`) and waits for the owner's round trip with two browser profiles (fresh copy
+`D:ANNATERIA-B` first: profile 2 pushed its old data before 7.4.3 existed). **Then:** the inbox permission fix, 7.6, phase 8. Read the phase in
 `WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first.
 
 **Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
@@ -183,7 +185,7 @@ condition; 10 runs under heavier load passed. Lesson: after a push, check the ru
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 836 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 847 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 67 tests; check = wrangler deploy --dry-run
 ```
 
@@ -234,7 +236,11 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   `transfer-store.js`, `transfer-ui.js` (`.annateria` file), `sync-store.js` (7.2: the snapshot for the other PC, images always in,
   the files of one PC out; 7.3: `pushSnapshot` into `<shared>/annateria-sync/`, `common/sync-state.json`), `sync-ui.js` (7.3: the section
   "תיקייה משותפת" of the backup dialog and the ☁ icon `#sync-status`, the timers), `baton-client.js` and `baton-ui.js` (7.4.2: the
-  plate `#baton-status` "who works": green, red with the table read only, yellow after 10 idle minutes, grey without a connection). **Changed existing code for phase 7:** `backup-store.js`
+  plate `#baton-status` "who works": green, red with the table read only, yellow after 10 idle minutes, grey without a connection;
+  7.4.3: blue while the other device's copy is taken). **Changed for 7.4.3:** `backup-store.js` (new `checkSnapshot`, `snapshotFiles`),
+  `sync-store.js` (`pendingPull`, `pullSnapshot`, `applying`, `common/sync-before-*` local only), `sync-ui.js` (`pull`, `skip`; the ☁
+  click takes a waiting copy), `baton-ui.js` (state `receiving`), `app.js` (`isPending`, `onReceive`, `onSkip`, a baton check when
+  the data root changes). **Changed existing code for phase 7:** `backup-store.js`
   (`createBackup` takes `exclude` and `previous` and returns `unchanged` and `digest`), `backup-handles.js` (`SYNC_FOLDER_KEY`), `app.js`
   (`setupSync`; `sync.changed()` after `saveDraft` and after a lock; `sync.refresh()` when the data root changes; 7.4.2: `setupBaton`,
   `setTableLocked` also locks while another device works, `runAssistant` refuses then, a copy at `pagehide`), `sync-ui.js` (7.4.2:

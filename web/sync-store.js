@@ -2,7 +2,7 @@
 // docs/WORK_PLAN.md). It is a backup snapshot (backup-store.js) with the source images always in, so the other PC can open
 // the original of every row; the legacy exports stay out. Files that describe one PC never travel: they would overwrite the
 // other PC's own state when it takes the snapshot.
-import { createBackup, listSnapshots } from "./backup-store.js";
+import { STORE_DIR, checkSnapshot, createBackup, listSnapshots, snapshotFiles, stampOf } from "./backup-store.js";
 import { BACKUP_STATE_FILE } from "./backup-state.js";
 import { UI_SETTINGS_FILE } from "./ui-settings.js";
 
@@ -12,9 +12,12 @@ export const SYNC_STATE_FILE = "sync-state.json";
 // When this PC backed up and to which folder; the data folder's path on this PC, its columns and model choice.
 const LOCAL_ONLY = new Set([SYNC_STATE_FILE, BACKUP_STATE_FILE, UI_SETTINGS_FILE].map((name) => `common/${name}`));
 
+// The files a pull replaced or removed (7.4.3) stay on this PC only.
+export const BEFORE_PREFIX = "common/sync-before-";
+
 // Chrome writes through `<name>.crswap` and renames it on close; one may exist while the page saves (seen in spike 7.1).
 export function isLocalOnly(path) {
-  return LOCAL_ONLY.has(path) || path.endsWith(".crswap");
+  return LOCAL_ONLY.has(path) || path.endsWith(".crswap") || path.startsWith(BEFORE_PREFIX);
 }
 
 export function createSyncSnapshot({ source, destination, key, previous, now, onProgress, delay }) {
@@ -25,7 +28,9 @@ export function createSyncSnapshot({ source, destination, key, previous, now, on
 // Inside the shared folder the app keeps its own folder: the store (annateria-backup/) now, the baton files later (7.5).
 export const SYNC_DIR = "annateria-sync";
 
-// common/sync-state.json (schema 1): `lastPush` = { name, at, digest, files, ms } of the last snapshot this PC wrote.
+// common/sync-state.json (schema 1): `lastPush` = { name, at, digest, files, ms } of the last snapshot this PC wrote or took
+// (after a pull the data equal it, so the next push of the same data writes nothing); `applying` = { name, before } while a
+// pull is being written, so an interrupted one is finished on the next open.
 export const SYNC_STATE_SCHEMA = 1;
 
 function normalisePush(value) {
@@ -35,9 +40,15 @@ function normalisePush(value) {
   return { name: value.name, at: value.at, digest: value.digest, files: count(value.files), ms: count(value.ms) };
 }
 
+function normaliseApplying(value) {
+  if (!value || typeof value !== "object" || typeof value.name !== "string" || typeof value.before !== "string") return null;
+  return value.before.startsWith(BEFORE_PREFIX) ? { name: value.name, before: value.before } : null;
+}
+
 export function normaliseSyncState(value) {
   const source = value && typeof value === "object" ? value : {};
-  return { schemaVersion: SYNC_STATE_SCHEMA, lastPush: normalisePush(source.lastPush) };
+  const lastPush = normalisePush(source.lastPush);
+  return { schemaVersion: SYNC_STATE_SCHEMA, lastPush, applying: normaliseApplying(source.applying) };
 }
 
 // Anything unreadable counts as "never pushed": the next push then writes a snapshot, which is harmless.
@@ -81,4 +92,112 @@ export async function pushSnapshot({
   }
   const { unchanged, name, files, newBytes, skipped } = result;
   return { unchanged, name, files, newBytes, skipped, ms, at: now };
+}
+
+// ---- pull (7.4.3): take the other device's snapshot ----
+
+// The snapshot to take, or null: the one being applied when a pull was interrupted, else the baton's last snapshot when
+// another device wrote it and this PC's data are not already that snapshot.
+export function pendingPull(state, snapshot, device) {
+  if (state.applying) return state.applying.name;
+  if (!snapshot?.name || snapshot.device === device) return null;
+  return snapshot.name === state.lastPush?.name ? null : snapshot.name;
+}
+
+const EXPORTS_DIR = /^clients\/[^/]+\/declarations\/[^/]+\/exports\/$/;
+
+// The files a sync snapshot covers on this PC: all but the store folder, the legacy exports and the files of one PC.
+async function localFiles(directory, prefix = "", found = new Map()) {
+  for await (const [name, handle] of directory.entries()) {
+    const path = `${prefix}${name}`;
+    if (handle.kind === "directory") {
+      if ((prefix === "" && name === STORE_DIR) || EXPORTS_DIR.test(`${path}/`) || isLocalOnly(`${path}/`)) continue;
+      await localFiles(handle, `${path}/`, found);
+    } else if (!isLocalOnly(path)) {
+      found.set(path, handle);
+    }
+  }
+  return found;
+}
+
+async function sha256Hex(bytes) {
+  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function folderOf(root, path, create) {
+  let directory = root;
+  for (const part of path.split("/").slice(0, -1)) directory = await directory.getDirectoryHandle(part, { create });
+  return directory;
+}
+
+async function writePath(root, path, bytes) {
+  const folder = await folderOf(root, path, true);
+  const writable = await (await folder.getFileHandle(path.split("/").at(-1), { create: true })).createWritable();
+  try {
+    await writable.write(bytes);
+  } finally {
+    await writable.close();
+  }
+}
+
+// The copy before a change is written once: a resumed pull never overwrites the first (true) old version.
+async function keepBefore(root, before, path, bytes) {
+  const target = `${before}/${path}`;
+  try {
+    await (await folderOf(root, target, false)).getFileHandle(target.split("/").at(-1));
+    return;
+  } catch (error) {
+    if (error.name !== "NotFoundError" && error.name !== "TypeMismatchError") throw error;
+  }
+  await writePath(root, target, bytes);
+}
+
+// The digest createBackup gives the same file list (so the next push of these data writes nothing).
+const snapshotDigest = (snapshot) =>
+  sha256Hex(new TextEncoder().encode(JSON.stringify([snapshot.files, snapshot.skipped ?? []])));
+
+// Waits for nothing: answers { applied: false, reason } while the snapshot has not fully arrived (the caller asks again),
+// otherwise writes it into the data root. Every file it replaces or removes is copied first to common/sync-before-<time>/.
+// Returns { applied: true, written, removed, before } (before: the folder of the copies, or null when nothing was replaced).
+export async function pullSnapshot({ root, shared, key, name, now = new Date().toISOString() }) {
+  let destination;
+  try {
+    destination = await shared.getDirectoryHandle(SYNC_DIR);
+  } catch (error) {
+    if (error.name === "NotFoundError") return { applied: false, reason: "missing" };
+    throw error;
+  }
+  const checked = await checkSnapshot(destination, key, name);
+  if (!checked.ok) return { applied: false, reason: checked.reason };
+  const { snapshot } = checked;
+  const state = await readSyncState(root);
+  const before = state.applying?.name === name ? state.applying.before : `${BEFORE_PREFIX}${stampOf(now)}`;
+  await saveSyncState(root, { applying: { name, before } });
+  const local = await localFiles(root);
+  let written = 0;
+  let saved = 0;
+  for await (const { path, hash, plain } of snapshotFiles(destination, key, name, snapshot)) {
+    const handle = local.get(path);
+    local.delete(path);
+    let current = null;
+    if (handle) {
+      current = new Uint8Array(await (await handle.getFile()).arrayBuffer());
+      if ((await sha256Hex(current)) === hash) continue;
+      await keepBefore(root, before, path, current);
+      saved += 1;
+    }
+    await writePath(root, path, plain);
+    written += 1;
+  }
+  let removed = 0;
+  for (const [path, handle] of local) {
+    await keepBefore(root, before, path, new Uint8Array(await (await handle.getFile()).arrayBuffer()));
+    saved += 1;
+    await (await folderOf(root, path, false)).removeEntry(path.split("/").at(-1));
+    removed += 1;
+  }
+  const files = Object.keys(snapshot.files).length;
+  const lastPush = { name, at: snapshot.createdAt ?? now, digest: await snapshotDigest(snapshot), files, ms: 0 };
+  await saveSyncState(root, { lastPush, applying: null });
+  return { applied: true, written, removed, before: saved ? before : null };
 }

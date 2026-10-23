@@ -1,9 +1,9 @@
 // The shared folder of the two PCs (WORK_PLAN 7.3): its section in the backup dialog and the ☁ icon in the top bar. After a save
-// the host calls changed(); ten seconds later (7.4.2: was one minute), and every five minutes as a safety net for the other writes (agent, inbox, rules),
-// a snapshot goes to the shared folder (sync-store.js), only when something changed. A failure only turns the icon red: the work
-// goes on. The folder handle and the key live in IndexedDB (backup-handles.js), the time of the last push in
-// common/sync-state.json.
-import { pushSnapshot, readSyncState } from "./sync-store.js";
+// the host calls changed(); ten seconds later (7.4.2: was one minute), and every five minutes as a safety net for the other
+// writes (agent, inbox, rules), a snapshot goes to the shared folder (sync-store.js), only when something changed. A failure
+// only turns the icon red: the work goes on. The folder handle and the key live in IndexedDB (backup-handles.js), the time of
+// the last push in common/sync-state.json. 7.4.3: pull() takes the other device's snapshot into the data root.
+import { pullSnapshot, pushSnapshot, readSyncState, saveSyncState } from "./sync-store.js";
 import { BACKUP_KEY_NAME, SYNC_FOLDER_KEY, readSetting, writeSetting } from "./backup-handles.js";
 
 export const PUSH_AFTER_SAVE_MS = 10 * 1000;
@@ -38,6 +38,7 @@ export function setupSync({
   let checkedAt = null;
   let status = { kind: "idle", text: "" };
   let running = false;
+  let pending = null;
   let again = false;
   let afterSave = null;
   let interval = null;
@@ -171,7 +172,65 @@ export function setupSync({
     await push({ interactive: true });
   }
 
-  icon.addEventListener("click", () => { push({ interactive: true }).catch(() => {}); });
+  // 7.4.3: take the snapshot `name` of the other device. Never waits: answers { applied: false, message } while the copy
+  // has not fully arrived or something is missing (the caller asks again), { applied: true, written, removed, before } once
+  // the data root equals it. interactive: started by a click, so the browser may ask for the folder permissions.
+  async function pull(name, { interactive = false } = {}) {
+    pending = name;
+    const root = getDataRoot();
+    if (!root) return { applied: false, message: "יש לבחור תיקיית נתונים." };
+    if (!folder) return { applied: false, message: "לא נבחרה תיקייה משותפת (חלון «גיבוי»)." };
+    if (running) return { applied: false, message: "ממתין לסיום השליחה הקודמת." };
+    const key = (await store.readSetting(BACKUP_KEY_NAME).catch(() => null)) ?? null;
+    if (!key) return { applied: false, message: "אין במחשב הזה קוד שחזור (חלון «גיבוי»)." };
+    for (const handle of [root, folder]) {
+      if (typeof handle.queryPermission !== "function") continue;
+      let permission = await handle.queryPermission({ mode: "readwrite" });
+      if (permission !== "granted" && interactive) permission = await handle.requestPermission({ mode: "readwrite" });
+      if (permission !== "granted") {
+        setStatus("click", "יש ללחוץ כאן כדי לאשר גישה לתיקיות ולקבל את הנתונים מהמחשב השני.");
+        return { applied: false, message: "יש ללחוץ על ☁ כדי לאשר גישה לתיקיות." };
+      }
+    }
+    running = true;
+    setStatus("running", "מקבל נתונים מהתיקייה המשותפת…");
+    try {
+      const at = now();
+      const result = await pullSnapshot({ root, shared: folder, key, name, now: at });
+      if (!result.applied) {
+        const message = result.reason === "key"
+          ? "העותק הוצפן בקוד שחזור אחר. יש להזין בחלון «גיבוי» את אותו קוד בשני המחשבים."
+          : "ממתין ל‑Google Drive: העותק מהמחשב השני עוד לא הגיע במלואו.";
+        status = { kind: result.reason === "key" ? "error" : "running", text: message };
+        return { applied: false, message };
+      }
+      pending = null;
+      lastPush = (await readSyncState(root)).lastPush;
+      checkedAt = at;
+      status = { kind: "ok", text: "" };
+      return result;
+    } catch (error) {
+      status = { kind: "error", text: `קבלת הנתונים נכשלה: ${error.message}` };
+      return { applied: false, message: status.text };
+    } finally {
+      running = false;
+      render();
+    }
+  }
+
+  // 7.4.3: "work with the data of this PC": the other device's snapshot `name` counts as taken, so it is not asked for again.
+  async function skip(name) {
+    const root = getDataRoot();
+    pending = null;
+    if (!root) return;
+    const state = await readSyncState(root);
+    const base = state.lastPush ?? { at: now(), digest: "", files: 0, ms: 0 };
+    await saveSyncState(root, { lastPush: { ...base, name }, applying: null });
+  }
+
+  icon.addEventListener("click", () => {
+    (pending ? pull(pending, { interactive: true }) : push({ interactive: true })).catch(() => {});
+  });
   runButton.addEventListener("click", () => { push({ interactive: true }).catch(() => {}); });
   chooseButton.addEventListener("click", () => {
     choose().catch((error) => { if (error.name !== "AbortError") setStatus("error", error.message); });
@@ -180,5 +239,5 @@ export function setupSync({
   // The snapshot this PC wrote last (after a push): what the other device must wait for.
   const lastPushName = () => lastPush?.name ?? null;
 
-  return { refresh, push, changed, start, stop, lastPushName };
+  return { refresh, push, pull, skip, changed, start, stop, lastPushName };
 }

@@ -134,3 +134,9 @@
   background: var(--warning-soft);
   color: var(--warning);
 }
+
+.baton-status[data-state="receiving"] {
+  border-color: var(--info-border);
+  background: var(--info-soft);
+  color: var(--info);
+}

@@ -169,7 +169,7 @@ test("push: another shared folder gets its own snapshot although nothing changed
 
 test("sync state: a damaged or foreign file reads as never pushed", async () => {
   const root = binaryDirectory("data");
-  assert.deepEqual(await readSyncState(root), { schemaVersion: 1, lastPush: null });
+  assert.deepEqual(await readSyncState(root), { schemaVersion: 1, lastPush: null, applying: null });
   await putFile(root, `common/${SYNC_STATE_FILE}`, "{not json");
   assert.equal((await readSyncState(root)).lastPush, null);
   await putFile(root, `common/${SYNC_STATE_FILE}`, '{"lastPush":{"name":"x","at":"yesterday","digest":"d"}}');

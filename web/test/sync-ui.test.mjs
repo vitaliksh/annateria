@@ -8,7 +8,7 @@ import { keyFromRecoveryCode, listSnapshots, newRecoveryCode } from "../backup-s
 import { BACKUP_KEY_NAME, SYNC_FOLDER_KEY } from "../backup-handles.js";
 import { SYNC_DIR, readSyncState } from "../sync-store.js";
 import { setupSync } from "../sync-ui.js";
-import { binaryDirectory, putFile } from "./memory-binary-directory.mjs";
+import { binaryDirectory, putFile, readFileBytes } from "./memory-binary-directory.mjs";
 
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "index.html"), "utf8");
 
@@ -227,4 +227,38 @@ test("no copy while another device holds the baton; a new snapshot is reported, 
   await sync.push();
   await settle(() => reported.length === 2);
   assert.equal((await snapshots(shared)).length, 2);
+});
+
+test("pull: without a folder it says so; with one it takes the other device's copy and the icon turns ✓", async () => {
+  const shared = withPermission(binaryDirectory("drive"));
+  const other = await setup({ folder: shared });
+  await other.sync.push();
+  const [snapshot] = await other.snapshots(shared);
+  const empty = await setup();
+  assert.match((await empty.sync.pull(snapshot.name)).message, /תיקייה משותפת/);
+  const { sync, icon, root, stored } = await setup({ folder: shared });
+  stored.set(BACKUP_KEY_NAME, other.stored.get(BACKUP_KEY_NAME));
+  await putFile(root, "clients/c1/declarations/2026-09/draft-table.json", '{"rows":["older"]}');
+  const result = await sync.pull(snapshot.name);
+  assert.equal(result.applied, true);
+  assert.equal(icon.dataset.state, "ok");
+  assert.equal(sync.lastPushName(), snapshot.name);
+  assert.equal(new TextDecoder().decode(await readFileBytes(root, "clients/c1/declarations/2026-09/draft-table.json")), '{"rows":[]}');
+});
+
+test("pull: without the folder permission the icon asks for a click, and the click takes the copy", async () => {
+  const source = withPermission(binaryDirectory("drive"));
+  const other = await setup({ folder: source });
+  await other.sync.push();
+  const [snapshot] = await other.snapshots(source);
+  source.permission = "prompt";
+  const { sync, icon, stored, settle } = await setup({ folder: source });
+  stored.set(BACKUP_KEY_NAME, other.stored.get(BACKUP_KEY_NAME));
+  const waiting = await sync.pull(snapshot.name);
+  assert.equal(waiting.applied, false);
+  assert.equal(icon.dataset.state, "click");
+  icon.click();
+  await settle(() => icon.dataset.state === "ok");
+  assert.equal(source.requested, true);
+  assert.equal(sync.lastPushName(), snapshot.name);
 });

@@ -4,6 +4,9 @@
 //   paused  (yellow) given back after 10 minutes without a click or a key, or by the click on the green plate;
 //                    the next click or key in the page takes the baton again when it is free
 //   unknown (grey)   no access code or no connection: work is allowed, nobody could be asked
+//   receiving (blue) 7.4.3: the baton came from another device whose last copy this PC has not taken yet; the table is
+//                    read only and no copy is sent until the copy has arrived whole and is written; a click works on
+//                    with the data of this PC instead
 // The device beats every minute while it holds the baton (the Worker frees a baton after 3 silent minutes), asks every
 // 30 seconds while it waits, and asks again when the tab comes back to the front.
 import { displayName } from "./baton-client.js";
@@ -12,12 +15,15 @@ import { confirmDialog } from "./confirm-dialog.js";
 export const BEAT_MS = 60 * 1000;
 export const POLL_MS = 30 * 1000;
 export const IDLE_MS = 10 * 60 * 1000;
+export const RECEIVE_MS = 15 * 1000;
 
-const LABEL = { here: "עובדים כאן", paused: "מושהה", unknown: "לא נבדק" };
+const LABEL = { here: "עובדים כאן", paused: "מושהה", unknown: "לא נבדק", receiving: "מקבל נתונים…" };
 const formatTime = (ms) => new Date(ms).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
 
 // plate: the top-bar button. client: createBatonClient(). getDevice(): { device, user } of this browser.
 // pushNow(): sends the last copy before the baton is given back. onChange(state): the host locks the table on "other".
+// 7.4.3: isPending(snapshot) names the copy to take (or null); onReceive(name) tries once and answers { applied, message };
+// onSkip(name) marks it as not wanted.
 export function setupBaton({
   plate,
   client,
@@ -29,6 +35,9 @@ export function setupBaton({
   timers = globalThis,
   now = () => Date.now(),
   activityTarget = globalThis.document,
+  isPending = async () => null,
+  onReceive = async () => ({ applied: true }),
+  onSkip = async () => {},
 }) {
   let state = "unknown";
   let reason = "login";
@@ -39,6 +48,10 @@ export function setupBaton({
   let queue = Promise.resolve();
   let pausing = false;
   let holderUser = null;
+  let receivingName = null;
+  let receiveMessage = null;
+  let receiveRunning = false;
+  let lastBeatAt = 0;
 
   function render() {
     plate.dataset.state = state;
@@ -46,10 +59,15 @@ export function setupBaton({
     plate.textContent = state === "other" ? `פתוח ${otherName}` : LABEL[state];
     const lastCopy = snapshot ? ` עותק אחרון משם: ${formatTime(snapshot.at)}.` : "";
     const lastSign = holder ? formatTime(holder.lastBeat) : "—";
+    const from = snapshot?.name === receivingName
+      ? `מקבל את הנתונים של ${snapshot.deviceName} מ־${formatTime(snapshot.at)}.`
+      : "משלים קבלת נתונים שהתחילה קודם.";
     const title = {
       here: "ANNATERIA פתוחה לעבודה במחשב הזה. לחיצה מסיימת את העבודה, והמחשב השני יכול להתחיל.",
       other: `הטבלה לקריאה בלבד עד שיסגרו את ANNATERIA שם (סימן אחרון: ${lastSign}).${lastCopy} לחיצה: להתחיל בכל זאת.`,
       paused: "העבודה הושהתה, והמחשב השני יכול להתחיל. לחיצה או הקלדה ימשיכו.",
+      receiving: `${from}${receiveMessage ? ` ${receiveMessage}` : ""} הטבלה לקריאה בלבד עד שהנתונים ייכתבו.`
+        + " לחיצה: לעבוד עם הנתונים שבמחשב הזה.",
       unknown: reason === "login"
         ? "לא הוזן קוד גישה, ולכן לא נבדק אם ANNATERIA פתוחה במחשב אחר. לחיצה: הזנת קוד."
         : "אין חיבור לשרת, ולכן לא נבדק אם ANNATERIA פתוחה במחשב אחר. לחיצה: לבדוק שוב.",
@@ -73,13 +91,37 @@ export function setupBaton({
   function schedule() {
     timers.clearTimeout(timer);
     timer = null;
-    const wait = { here: BEAT_MS, other: POLL_MS, unknown: POLL_MS }[state];
+    const wait = { here: BEAT_MS, other: POLL_MS, unknown: POLL_MS, receiving: RECEIVE_MS }[state];
     if (wait) timer = timers.setTimeout(() => tick().catch(() => {}), wait);
   }
 
   async function tick() {
     if (state === "here" && now() - lastActivity >= IDLE_MS) return pause();
+    if (state === "receiving" && now() - lastBeatAt < BEAT_MS) return tryReceive();
     return check();
+  }
+
+  // One attempt to take the other device's copy; the timer tries again every 15 seconds until it is written.
+  async function tryReceive() {
+    if (receiveRunning || state !== "receiving") return state;
+    receiveRunning = true;
+    try {
+      const result = await onReceive(receivingName);
+      if (result?.applied) {
+        receivingName = null;
+        receiveMessage = null;
+        setState("here");
+      } else {
+        receiveMessage = result?.message ?? null;
+        render();
+      }
+    } catch (error) {
+      receiveMessage = error.message;
+      render();
+    } finally {
+      receiveRunning = false;
+    }
+    return state;
   }
 
   // One request at a time, in the order asked: a "start anyway" is never swallowed by a beat that is on its way.
@@ -95,8 +137,14 @@ export function setupBaton({
       const { device, user } = await getDevice();
       holderUser = user ?? null;
       const answer = await client.beat({ device, deviceName: displayName(user), snapshot: pushed, force: force || undefined });
-      if (answer.ok) setState("here", answer.data);
-      else if (answer.reason === "taken") setState("other", answer.data);
+      if (answer.ok) {
+        lastBeatAt = now();
+        const name = await isPending(answer.data.snapshot);
+        if (name && name !== receivingName) receiveMessage = null;
+        receivingName = name;
+        setState(name ? "receiving" : "here", answer.data);
+        if (name) tryReceive().catch(() => {});
+      } else if (answer.reason === "taken") setState("other", answer.data);
       else {
         reason = answer.reason === "login" ? "login" : "network";
         setState("unknown");
@@ -143,6 +191,18 @@ export function setupBaton({
       if (ok) await check({ force: true });
       return;
     }
+    if (state === "receiving") {
+      const ok = await confirm(
+        "לעבוד עם הנתונים שבמחשב הזה? השינויים מהמחשב השני לא יגיעו לכאן; הם יישארו בתיקייה המשותפת.",
+        { title: "לעבוד בלי לקבל", confirmLabel: "לעבוד כאן" },
+      );
+      if (!ok || state !== "receiving") return;
+      await onSkip(receivingName);
+      receivingName = null;
+      receiveMessage = null;
+      setState("here");
+      return;
+    }
     if (state === "unknown" && reason === "login") await ensureLoggedIn();
     await check();
   }
@@ -167,10 +227,10 @@ export function setupBaton({
     check,
     pause,
     state: () => state,
-    // The table is read only while another device works.
-    blocksEditing: () => state === "other",
-    // A copy is not sent while another device holds the baton; that device's copy is the one that counts.
-    canPush: () => state !== "other",
+    // The table is read only while another device works or its copy is being taken.
+    blocksEditing: () => state === "other" || state === "receiving",
+    // A copy is not sent while another device holds the baton (its copy counts) or before its copy is taken here.
+    canPush: () => state !== "other" && state !== "receiving",
     // Not awaited by the copy: during a pause the release itself carries the name.
     reportPushed: (name) => (state === "here" && !pausing ? check({ pushed: name }) : Promise.resolve(state)),
     stop: () => { timers.clearTimeout(timer); timer = null; },

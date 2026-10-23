@@ -26,6 +26,7 @@ import { fileImportOriginal, readInboxFile, readInboxIndex } from "./inbox-store
 import { setupReports } from "./reports-ui.js";
 import { setupBackup } from "./backup-ui.js";
 import { setupSync } from "./sync-ui.js";
+import { pendingPull, readSyncState } from "./sync-store.js";
 import { createBatonClient, deviceId } from "./baton-client.js";
 import { setupBaton } from "./baton-ui.js";
 import { readSetting, writeSetting } from "./backup-handles.js";
@@ -263,6 +264,8 @@ async function switchDataRoot(selected) {
     .catch(() => {});
   backup.runAuto("start");
   sync.refresh().catch(() => {});
+  // 7.4.3: another data folder may need the other device's copy first (or no longer).
+  if (api) baton.check().catch(() => {});
   clientsHome.showHome();
   dataRootTitle.textContent = `תיקיית נתונים: ${selected.name}`;
   workspace = null;
@@ -630,20 +633,40 @@ updateStartAvailability();
 loadBackendVersion();
 // The access code (step 1.1): asked once per page load while a Worker is configured; the token stays in memory.
 const accessUi = setupAccess({ dialog: document.querySelector("#access-dialog"), api });
+// The random id of this browser for the baton, made once and kept in IndexedDB (7.4.2).
+const thisDevice = (() => {
+  let id = null;
+  return () => (id ??= deviceId({ readSetting, writeSetting }));
+})();
 // The plate "who works" (step 7.4.2): one device at a time; while another works the table is read only.
 const baton = setupBaton({
   plate: document.querySelector("#baton-status"),
   client: createBatonClient({ api, access: accessUi.access }),
-  getDevice: (() => {
-    let id = null;
-    return async () => ({ device: await (id ??= deviceId({ readSetting, writeSetting })), user: accessUi.access.user() });
-  })(),
+  getDevice: async () => ({ device: await thisDevice(), user: accessUi.access.user() }),
   pushNow: async () => {
     await sync.push();
     return sync.lastPushName();
   },
   ensureLoggedIn: () => accessUi.ensureLoggedIn(),
   onChange: () => setTableLocked(Boolean(currentDeclaration) && currentDeclaration.status !== "open"),
+  // 7.4.3: the other device's last copy is taken before this one works; then the view is read again from the folder.
+  isPending: async (snapshot) => {
+    if (!dataRoot) return null;
+    const state = await readSyncState(dataRoot).catch(() => null);
+    return state ? pendingPull(state, snapshot, await thisDevice()) : null;
+  },
+  onReceive: async (name) => {
+    const result = await sync.pull(name);
+    if (result.applied) {
+      await switchDataRoot(dataRoot);
+      await workspaceControls.refreshFromUserAction();
+      status.textContent = result.before
+        ? `התקבלו הנתונים מהמחשב השני. הגרסאות הקודמות של ${result.written + result.removed} קבצים נשמרו ב‑${result.before}.`
+        : "התקבלו הנתונים מהמחשב השני.";
+    }
+    return result;
+  },
+  onSkip: (name) => sync.skip(name),
 });
 document.querySelector("#baton-status").hidden = !api;
 if (api) accessUi.ensureLoggedIn().then(() => baton.check()).catch(() => {});
