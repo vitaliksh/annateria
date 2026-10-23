@@ -125,14 +125,14 @@ export function setupSync({
   function changed() {
     if (!folder) return;
     timers.clearTimeout(afterSave);
-    afterSave = timers.setTimeout(() => { push().catch(() => {}); }, afterSaveMs);
+    afterSave = timers.setTimeout(() => push().catch(() => {}), afterSaveMs);
   }
 
   // The five-minute safety net runs only while a shared folder is chosen.
   let wanted = false;
   function schedule() {
     if (!wanted || !folder || interval !== null) return;
-    interval = timers.setInterval(() => { push().catch(() => {}); }, everyMs);
+    interval = timers.setInterval(() => push().catch(() => {}), everyMs);
   }
 
   function start() {

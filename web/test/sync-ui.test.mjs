@@ -46,7 +46,6 @@ function manualTimers() {
         if (kind === "timeout") pending.delete(id);
         await timer.fn();
       }
-      for (let i = 0; i < 5; i += 1) await new Promise((resolve) => setTimeout(resolve, 5));
     },
   };
 }
@@ -83,7 +82,14 @@ async function setup({ key = true, folder = null } = {}) {
   await sync.refresh();
   const icon = document.querySelector("#sync-status");
   const section = document.querySelector("#sync-section");
-  const settle = async () => { for (let i = 0; i < 10; i += 1) await new Promise((resolve) => setTimeout(resolve, 5)); };
+  // Waits for what a click starts, however slow the machine (a fixed wait failed on the CI runner).
+  const settle = async (check) => {
+    for (let i = 0; i < 400; i += 1) {
+      if (await check()) return;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    throw new Error("timed out");
+  };
   const snapshots = async (shared) => {
     try {
       return await listSnapshots(await shared.getDirectoryHandle(SYNC_DIR));
@@ -108,7 +114,7 @@ test("choosing the folder pushes at once; the icon shows ✓ with the time", asy
   const shared = withPermission(binaryDirectory("drive"));
   picks.push(shared);
   section.querySelector('[data-action="choose"]').click();
-  await settle();
+  await settle(() => icon.dataset.state === "ok");
   assert.equal((await snapshots(shared)).length, 1);
   assert.equal(icon.hidden, false);
   assert.equal(icon.dataset.state, "ok");
@@ -159,7 +165,7 @@ test("without the folder permission nothing is written and the icon asks for a c
   assert.equal(icon.textContent, "☁ !");
   assert.equal((await snapshots(shared)).length, 0);
   icon.click();
-  await settle();
+  await settle(() => icon.dataset.state === "ok");
   assert.equal(shared.requested, true);
   assert.equal(icon.dataset.state, "ok");
   assert.equal((await snapshots(shared)).length, 1);
@@ -191,7 +197,7 @@ test("a folder inside the data root is refused", async () => {
   const { root, picks, section, stored, settle } = await setup();
   picks.push(root);
   section.querySelector('[data-action="choose"]').click();
-  await settle();
+  await settle(() => section.querySelector('[data-role="state"]').textContent !== "");
   assert.equal(stored.has(SYNC_FOLDER_KEY), false);
   assert.match(section.querySelector('[data-role="state"]').textContent, /בתוך תיקיית הנתונים/);
 });

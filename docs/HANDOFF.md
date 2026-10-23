@@ -164,6 +164,10 @@ wrote `annateria-sync/annateria-backup/` (store, one pack, one snapshot) and `co
 the tooltip; a second click wrote no new snapshot; no console error from the new code. The test data were deleted afterwards. **Not
 verified:** the real Drive folder and the permission prompt after a browser restart (`☁ !`); the one-minute push after a real table edit
 (unit tests only); the time of a push on a big root; what Drive does when two PCs push at once (no baton before 7.5).
+**The first push of 7.3 (686b87a) failed `npm test` on the CI runner, so Pages kept 218a2ec.** The job log needs admin rights (the API
+answers 403), so the cause was found locally: under CPU load the timer tests of `sync-ui.test.mjs` failed 6 of 8 runs, because the timer
+callbacks did not return the push and the tests waited a fixed 25 to 50 ms. The callbacks now return the push and the tests wait for a
+condition; 10 runs under heavier load passed. Lesson: after a push, check the run (`api.github.com/repos/vitaliksh/annateria/actions/runs`).
 
 ## Deployed versions
 
