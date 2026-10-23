@@ -26,6 +26,9 @@ import { fileImportOriginal, readInboxFile, readInboxIndex } from "./inbox-store
 import { setupReports } from "./reports-ui.js";
 import { setupBackup } from "./backup-ui.js";
 import { setupSync } from "./sync-ui.js";
+import { createBatonClient, deviceId } from "./baton-client.js";
+import { setupBaton } from "./baton-ui.js";
+import { readSetting, writeSetting } from "./backup-handles.js";
 import { setupAccess } from "./access-ui.js";
 import { checkModelConnection, createModelClient } from "./model-client.js";
 import { setupTransfer } from "./transfer-ui.js";
@@ -323,6 +326,9 @@ const sync = setupSync({
   icon: document.querySelector("#sync-status"),
   section: document.querySelector("#sync-section"),
   getDataRoot: () => dataRoot,
+  // 7.4.2: `baton` is created with the access code below; these run only later.
+  canPush: () => baton.canPush(),
+  onPushed: (name) => baton.reportPushed(name),
 });
 sync.refresh().catch(() => {});
 sync.start();
@@ -624,7 +630,25 @@ updateStartAvailability();
 loadBackendVersion();
 // The access code (step 1.1): asked once per page load while a Worker is configured; the token stays in memory.
 const accessUi = setupAccess({ dialog: document.querySelector("#access-dialog"), api });
-if (api) accessUi.ensureLoggedIn();
+// The plate "who works" (step 7.4.2): one device at a time; while another works the table is read only.
+const baton = setupBaton({
+  plate: document.querySelector("#baton-status"),
+  client: createBatonClient({ api, access: accessUi.access }),
+  getDevice: (() => {
+    let id = null;
+    return async () => ({ device: await (id ??= deviceId({ readSetting, writeSetting })), user: accessUi.access.user() });
+  })(),
+  pushNow: async () => {
+    await sync.push();
+    return sync.lastPushName();
+  },
+  ensureLoggedIn: () => accessUi.ensureLoggedIn(),
+  onChange: () => setTableLocked(Boolean(currentDeclaration) && currentDeclaration.status !== "open"),
+});
+document.querySelector("#baton-status").hidden = !api;
+if (api) accessUi.ensureLoggedIn().then(() => baton.check()).catch(() => {});
+// The last copy also leaves when the tab is closed (not guaranteed: the browser may not wait for it).
+window.addEventListener("pagehide", () => { sync.push().catch(() => {}); });
 const modelClient = createModelClient({ api, access: accessUi.access, ensureLoggedIn: accessUi.ensureLoggedIn });
 modelSettings = setupModelSettings({ container: document.querySelector("#settings-dialog"), getDataRoot: () => dataRoot, onError: showError });
 document.querySelector("#check-model").addEventListener("click", async () => {
@@ -656,6 +680,7 @@ let assistantLastAnswer = "";
 async function runAssistant(kind, text) {
   if (!api) return assistant.addMessage("error", "החיבור לשרת ה‑AI אינו מוגדר.");
   if (!dataRoot) return assistant.addMessage("error", "יש לבחור תחילה תיקיית נתונים.");
+  if (baton.blocksEditing()) return assistant.addMessage("error", "ANNATERIA פתוחה במחשב אחר: אי אפשר להפעיל את העוזר עד שיסגרו אותה שם.");
   const controller = new AbortController();
   const counts = {};
   assistantRun = controller;
@@ -863,11 +888,12 @@ function amountCell(value, label) {
   cell.append(input);
   return cell;
 }
+// `locked` is the state of the declaration; the table is also read only while another device works (7.4.2).
 function setTableLocked(locked) {
-  tableLocked = locked;
-  records.classList.toggle("table-locked", locked);
-  for (const cell of records.querySelectorAll(".editable")) cell.contentEditable = locked ? "false" : "true";
-  for (const control of records.querySelectorAll("select,input,.delete,.field-swap")) control.disabled = locked;
+  tableLocked = locked || baton.blocksEditing();
+  records.classList.toggle("table-locked", tableLocked);
+  for (const cell of records.querySelectorAll(".editable")) cell.contentEditable = tableLocked ? "false" : "true";
+  for (const control of records.querySelectorAll("select,input,.delete,.field-swap")) control.disabled = tableLocked;
   pcnJournal?.refresh();
 }
 function refreshRows() {

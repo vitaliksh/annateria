@@ -1,12 +1,12 @@
 // The shared folder of the two PCs (WORK_PLAN 7.3): its section in the backup dialog and the ☁ icon in the top bar. After a save
-// the host calls changed(); one minute later, and every five minutes as a safety net for the other writes (agent, inbox, rules),
+// the host calls changed(); ten seconds later (7.4.2: was one minute), and every five minutes as a safety net for the other writes (agent, inbox, rules),
 // a snapshot goes to the shared folder (sync-store.js), only when something changed. A failure only turns the icon red: the work
 // goes on. The folder handle and the key live in IndexedDB (backup-handles.js), the time of the last push in
 // common/sync-state.json.
 import { pushSnapshot, readSyncState } from "./sync-store.js";
 import { BACKUP_KEY_NAME, SYNC_FOLDER_KEY, readSetting, writeSetting } from "./backup-handles.js";
 
-export const PUSH_AFTER_SAVE_MS = 60 * 1000;
+export const PUSH_AFTER_SAVE_MS = 10 * 1000;
 export const PUSH_EVERY_MS = 5 * 60 * 1000;
 
 const ICON = { idle: "☁", ok: "☁ ✓", running: "☁ …", click: "☁ !", error: "☁ ✗" };
@@ -23,6 +23,9 @@ export function setupSync({
   pickDirectory = () => window.showDirectoryPicker({ id: "annateria-sync", mode: "readwrite" }),
   now = () => new Date().toISOString(),
   timers = globalThis,
+  // 7.4.2: no copy while another device holds the baton; the name of each new snapshot goes to the baton (not awaited).
+  canPush = () => true,
+  onPushed = () => {},
   afterSaveMs = PUSH_AFTER_SAVE_MS,
   everyMs = PUSH_EVERY_MS,
 }) {
@@ -85,6 +88,10 @@ export function setupSync({
     }
     const root = getDataRoot();
     if (!root || !folder) return;
+    if (!canPush()) {
+      setStatus("idle", "לא נשלח עותק: ANNATERIA פתוחה במחשב אחר.");
+      return;
+    }
     if (typeof root.queryPermission === "function" && (await root.queryPermission({ mode: "readwrite" })) !== "granted") return;
     const key = (await store.readSetting(BACKUP_KEY_NAME).catch(() => null)) ?? null;
     if (!key) {
@@ -102,7 +109,10 @@ export function setupSync({
     try {
       const at = now();
       const result = await pushSnapshot({ source: root, shared: folder, key, now: at });
-      if (!result.unchanged) lastPush = { name: result.name, at, files: result.files, ms: result.ms };
+      if (!result.unchanged) {
+        lastPush = { name: result.name, at, files: result.files, ms: result.ms };
+        Promise.resolve().then(() => onPushed(result.name)).catch(() => {});
+      }
       checkedAt = at;
       if (result.skipped.length) {
         status = { kind: "error", text: `העותק נשלח, אבל ${result.skipped.length} קבצים לא נקראו ולא נשלחו. לחיצה תנסה שוב.` };
@@ -167,5 +177,8 @@ export function setupSync({
     choose().catch((error) => { if (error.name !== "AbortError") setStatus("error", error.message); });
   });
   render();
-  return { refresh, push, changed, start, stop };
+  // The snapshot this PC wrote last (after a push): what the other device must wait for.
+  const lastPushName = () => lastPush?.name ?? null;
+
+  return { refresh, push, changed, start, stop, lastPushName };
 }

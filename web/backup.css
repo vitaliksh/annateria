@@ -107,3 +107,30 @@
 #sync-section [data-state="error"] {
   color: var(--error);
 }
+
+/* The plate "who works" in the top bar (baton-ui.js): always visible while a Worker is configured */
+.baton-status {
+  white-space: nowrap;
+  font-weight: 600;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.baton-status[data-state="here"] {
+  border-color: var(--success-border);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.baton-status[data-state="other"] {
+  border-color: var(--error);
+  background: var(--error);
+  color: var(--white);
+}
+
+.baton-status[data-state="paused"] {
+  border-color: var(--warning-border);
+  background: var(--warning-soft);
+  color: var(--warning);
+}

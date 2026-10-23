@@ -50,7 +50,7 @@ function manualTimers() {
   };
 }
 
-async function setup({ key = true, folder = null } = {}) {
+async function setup({ key = true, folder = null, canPush, onPushed } = {}) {
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/annateria/" });
   const document = window.document;
   const root = withPermission(binaryDirectory("data"), { isRoot: true });
@@ -78,6 +78,8 @@ async function setup({ key = true, folder = null } = {}) {
     },
     now: () => clock.value,
     timers,
+    ...(canPush ? { canPush } : {}),
+    ...(onPushed ? { onPushed } : {}),
   });
   await sync.refresh();
   const icon = document.querySelector("#sync-status");
@@ -124,14 +126,14 @@ test("choosing the folder pushes at once; the icon shows ✓ with the time", asy
   assert.equal((await readSyncState(root)).lastPush.files, 3);
 });
 
-test("saves in a row give one push a minute after the last one; no change gives no new snapshot", async () => {
+test("saves in a row give one push ten seconds after the last one; no change gives no new snapshot", async () => {
   const shared = withPermission(binaryDirectory("drive"));
   const { sync, timers, snapshots, root } = await setup({ folder: shared });
   sync.changed();
   sync.changed();
   sync.changed();
   const waiting = [...timers.pending.values()].filter((timer) => timer.kind === "timeout");
-  assert.deepEqual(waiting.map((timer) => timer.ms), [60000]);
+  assert.deepEqual(waiting.map((timer) => timer.ms), [10000]);
   await timers.fire("timeout");
   assert.equal((await snapshots(shared)).length, 1);
   sync.changed();
@@ -200,4 +202,29 @@ test("a folder inside the data root is refused", async () => {
   await settle(() => section.querySelector('[data-role="state"]').textContent !== "");
   assert.equal(stored.has(SYNC_FOLDER_KEY), false);
   assert.match(section.querySelector('[data-role="state"]').textContent, /בתוך תיקיית הנתונים/);
+});
+
+test("no copy while another device holds the baton; a new snapshot is reported, an unchanged one is not", async () => {
+  const shared = withPermission(binaryDirectory("drive"));
+  let allowed = false;
+  const reported = [];
+  const { sync, icon, snapshots, root, settle } = await setup({
+    folder: shared,
+    canPush: () => allowed,
+    onPushed: (name) => reported.push(name),
+  });
+  await sync.push();
+  assert.equal((await snapshots(shared)).length, 0);
+  assert.match(icon.title, /במחשב אחר/);
+  allowed = true;
+  await sync.push();
+  await settle(() => reported.length === 1);
+  const [first] = await snapshots(shared);
+  assert.deepEqual(reported, [first.name]);
+  assert.equal(sync.lastPushName(), first.name);
+  await sync.push();
+  await putFile(root, "clients/c1/rules.md", "- another rule\n");
+  await sync.push();
+  await settle(() => reported.length === 2);
+  assert.equal((await snapshots(shared)).length, 2);
 });
