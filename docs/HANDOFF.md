@@ -18,9 +18,9 @@ read-only tool `ready_to_close`, skill `month-closing-checklist`); Gemini's 402 
 below). 7.2 is done (the sync snapshot, `web/sync-store.js`). 7.3 is done (the push and the ☁ icon, `web/sync-ui.js`; the owner checked it
 with Drive on 23 October 2026: two snapshots arrived on the other account's drive). 7.4 was rewritten with the owner on 23 October (one PC works at a time, no merging); **7.4.1 is done** (the baton "who works"
 in the Worker, deployed as `2026.10.23.1`). 7.4.2 is done (the plate "who works" in the top bar,
-`web/baton-ui.js`; the owner checked it with two browser profiles). **7.4.3 is built** (take the other device's copy: blue plate
-"מקבל נתונים…", `pullSnapshot` in `web/sync-store.js`) and waits for the owner's round trip with two browser profiles (fresh copy
-`D:ANNATERIA-B` first: profile 2 pushed its old data before 7.4.3 existed). **Then:** the inbox permission fix, 7.6, phase 8. Read the phase in
+`web/baton-ui.js`; the owner checked it with two browser profiles). 7.4.3 is done (take the other device's copy: blue plate
+"מקבל נתונים…", `pullSnapshot` in `web/sync-store.js`; the owner's round trip passed after the fix 45022d6), so **7.4 is done**.
+**Next:** the inbox permission fix (the inbox writes without asking Chrome for the folder permission), then 7.6 and the phase check. Read the phase in
 `WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first.
 
 **Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
@@ -103,8 +103,9 @@ the date of receipt would need an exchange-rate source, for example the Bank of 
 **Open proposals** (cards, not started): the status "מוכן, חסרים סימונים" of rows that are not the agent's
 (inherited from ocr); the flaky `backup-ui.test.mjs` "both copies fresh turn the dot green" (a fixed wait of 8 ticks, fails now and then on a busy machine).
 
-**Practical notes.** The owner's real data root is `D:\ANNATERIA` on his PC (`clients/`, `inbox/`, `common/agent-runs/<runId>.json`); read it only when he
-asks, record structure in the docs, never names or amounts, never copy it into the repository. `python` on this PC is the Microsoft Store stub (use
+**Practical notes.** The owner's data root `D:\ANNATERIA` (and its copy `D:\ANNATERIA-B` for the second browser profile) holds **test
+clients, not real ones** (owner, 23 October 2026): read them freely while debugging (files, times, hashes), never copy them into the
+repository. Anna's folder (phase 8) is real: read it only when the owner asks; record structure in the docs, never names or amounts, never copy it into the repository. `python` on this PC is the Microsoft Store stub (use
 node); `gh` is not installed; for a browser check a throw-away static server of `web/` (a `.claude/launch.json` that is not committed) is enough for
 module-level checks, but the dock itself needs a data root and the Worker. Pushes to `main` wait for the owner's explicit "yes" for that commit.
 
