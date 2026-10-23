@@ -22,7 +22,9 @@ in the Worker, deployed as `2026.10.23.1`). 7.4.2 is done (the plate "who works"
 "מקבל נתונים…", `pullSnapshot` in `web/sync-store.js`; the owner's round trip passed after the fix 45022d6), so **7.4 is done**.
 The inbox now asks Chrome for the write permission when it opens or gets files (fix of 23 October). 7.6 is done (the old "Google Drive" backup
 slot removed; a weekly line in the status bar for the flash copy). **Phase 7 is done**; its round trip on Anna's PC with a real-size
-month is part of phase 8. **Next: phase 8** (rollout on Anna's PC; 8.1 starts with `docs/ROLLOUT.md`). Read the phase in
+month is part of phase 8. **Next: phase 8** (rollout on Anna's PC): the checklist `docs/ROLLOUT.md` is written (23 October), the visit is to come. Known
+trap (in the checklist): the baton record does not say in which shared folder its last snapshot lives, so a PC that switches to a new
+shared folder may wait for a snapshot of the old one; the click on the blue plate → "לעבוד כאן" ends it. Read the phase in
 `WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first.
 
 **Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
@@ -254,7 +256,7 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
 - `worker/`: `src/index.js` (`/health`, `/v1/auth`, `requireUser`, CORS by `ALLOWED_ORIGINS`, 404 for the rest), `src/access.js`
   (codes, hashes, tokens), `src/auth-guard.js` (lock-out Durable Object), `src/baton.js` (7.4.1: the baton "who works", Durable Object `BATON`; routes `/v1/baton`, `/v1/baton/beat`, `/v1/baton/release`), `src/model.js` (what may be forwarded to Gemini), `scripts/access-codes.mjs` (creates codes and
   secret files outside the repository). Web side: `web/access.js` (token in memory), `web/access-ui.js` (login dialog), `web/model-client.js` (calls through the Worker; the settings button "בדיקת חיבור ל‑AI").
-- `docs/`: `WORK_PLAN.md`, this file, `ARCHITECTURE.md`, and specs inherited from ocr (`REPORTS_SPEC.md`,
+- `docs/`: `WORK_PLAN.md`, this file, `ARCHITECTURE.md`, `ROLLOUT.md` (8.1, the set-up on Anna's PC), and specs inherited from ocr (`REPORTS_SPEC.md`,
   `BACKUP_SPEC.md`, `EXCEL_IMPORT_SPEC.md`).
 
 ## Changes to inherited code (phase 0)
