@@ -6,7 +6,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 ## Start here (state on 22 October 2026)
 
 **State.** The code on `main` is at 24be377 (5.4); the commits after it change only the docs (plan, hand-over).
-Web 821 tests, Worker 54 (`2026.10.21.1`, Cloudflare `1dfbbce9`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
+Web 821 tests, Worker 67 (`2026.10.23.1`, Cloudflare `da76ea16`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2. 6.1 (`run_report`) is in the backlog. Phase 3 is in the backlog.
 
 **Done on 21 October 2026 (details in the sections below and the decision log):** handles never reach the user (`handles.readable`); the
@@ -16,7 +16,8 @@ read-only tool `ready_to_close`, skill `month-closing-checklist`); Gemini's 402 
 
 **Phase 7, sync between the two PCs through Google Drive:** the spike 7.1 was done on 22 October 2026 and says **go** (section "Spike 7.1"
 below). 7.2 is done (the sync snapshot, `web/sync-store.js`). 7.3 is done (the push and the ☁ icon, `web/sync-ui.js`; the owner checked it
-with Drive on 23 October 2026: two snapshots arrived on the other account's drive). **Next: 7.4.1** (the baton "who works" in the Worker; 7.4 was rewritten with the owner on 23 October: one PC works at a time, no merging). Read the phase in
+with Drive on 23 October 2026: two snapshots arrived on the other account's drive). 7.4 was rewritten with the owner on 23 October (one PC works at a time, no merging); **7.4.1 is done** (the baton "who works"
+in the Worker, deployed as `2026.10.23.1`). **Next: 7.4.2** (the page: device name, waiting screen, beats, "סיום עבודה"). Read the phase in
 `WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first.
 
 **Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
@@ -173,7 +174,7 @@ condition; 10 runs under heavier load passed. Lesson: after a push, check the ru
 | What | Where | Version / how to check |
 | --- | --- | --- |
 | Web app | <https://vitaliksh.github.io/annateria/> (GitHub Pages, workflow `deploy-web.yml`, every push to `main` touching `web/`) | Build marker at the bottom of the sidebar: `YYYY.MM.DD · <short commit>`. After a deploy press Ctrl+F5 and compare it with `git rev-parse --short HEAD` |
-| Worker | `https://annateria.vitaliksh.workers.dev`, version `2026.10.21.1` (Cloudflare `1dfbbce9`), record in `worker/DEPLOYMENT.md` | `GET /health` answers `BACKEND_VERSION` |
+| Worker | `https://annateria.vitaliksh.workers.dev`, version `2026.10.23.1` (Cloudflare `da76ea16`), record in `worker/DEPLOYMENT.md` | `GET /health` answers `BACKEND_VERSION` |
 | Predecessor | ocr: `https://vitaliksh.github.io/ocr/` and the Worker `rivhit-telegram-transfer` | Not touched from this repository |
 
 `web/config.js` sets `window.ANNATERIA_API` to the Worker URL; the sidebar shows the Worker version, and the login dialog opens on page load.
@@ -182,7 +183,7 @@ condition; 10 runs under heavier load passed. Lesson: after a push, check the ru
 
 ```powershell
 cd web;    npm ci; npm test; npm run check   # node --test, 821 tests; check = node --check on every module
-cd worker; npm ci; npm test; npm run check   # 54 tests; check = wrangler deploy --dry-run
+cd worker; npm ci; npm test; npm run check   # 67 tests; check = wrangler deploy --dry-run
 ```
 
 `npm ci` warns that `esbuild` / `workerd` install scripts are blocked; tests and checks work anyway. The app tests load the
@@ -238,7 +239,7 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
 - **Style:** `tokens.css` (the only file with colours; `styles.test.mjs` enforces it), `base.css`, `shell.css`,
   `dialogs.css`, `journal.css`, `clients.css`, `reports.css`, `backup.css`, `sidebar.css`, `photo.css`, `fonts/`.
 - `worker/`: `src/index.js` (`/health`, `/v1/auth`, `requireUser`, CORS by `ALLOWED_ORIGINS`, 404 for the rest), `src/access.js`
-  (codes, hashes, tokens), `src/auth-guard.js` (lock-out Durable Object), `src/model.js` (what may be forwarded to Gemini), `scripts/access-codes.mjs` (creates codes and
+  (codes, hashes, tokens), `src/auth-guard.js` (lock-out Durable Object), `src/baton.js` (7.4.1: the baton "who works", Durable Object `BATON`; routes `/v1/baton`, `/v1/baton/beat`, `/v1/baton/release`), `src/model.js` (what may be forwarded to Gemini), `scripts/access-codes.mjs` (creates codes and
   secret files outside the repository). Web side: `web/access.js` (token in memory), `web/access-ui.js` (login dialog), `web/model-client.js` (calls through the Worker; the settings button "בדיקת חיבור ל‑AI").
 - `docs/`: `WORK_PLAN.md`, this file, `ARCHITECTURE.md`, and specs inherited from ocr (`REPORTS_SPEC.md`,
   `BACKUP_SPEC.md`, `EXCEL_IMPORT_SPEC.md`).

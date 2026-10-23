@@ -1,10 +1,12 @@
 # Cloudflare Worker
 
-The thin, stateless proxy between the browser and Gemini (see `../docs/WORK_PLAN.md`, phase 1). The API key and the
-access-code hashes live only in Worker secrets; client data is never stored and request bodies are never logged.
+The thin proxy between the browser and Gemini (see `../docs/WORK_PLAN.md`, phase 1), plus the baton "who works" of step 7.4.
+The API key and the access-code hashes live only in Worker secrets; client data is never stored and request bodies are never
+logged. The only stored state is the login lock-out and the baton record (device ids and names, times, a snapshot file name).
 
-**Current state (step 1.2):** `GET /health`, CORS for `ALLOWED_ORIGINS`, `POST /v1/auth` and `POST /v1/model`. Nothing here may
-call Gemini before `requireUser()` (in `src/index.js`) has accepted the caller's token.
+**Current state (step 7.4.1):** `GET /health`, CORS for `ALLOWED_ORIGINS`, `POST /v1/auth`, `POST /v1/model` and the baton
+(`GET /v1/baton`, `POST /v1/baton/beat`, `POST /v1/baton/release`). Nothing here but `/health` and `/v1/auth` answers before
+`requireUser()` (in `src/index.js`) has accepted the caller's token.
 The Telegram, R2, upload-session, passkey and recognition routes of ocr are gone.
 
 ## Access code (`POST /v1/auth`)
@@ -20,6 +22,22 @@ out), `503` (secrets missing or broken, or the guard unreachable: it fails close
   of lock-out; 20 attempts per hour for all addresses together. Attempts are counted when they start and given back on
   success. A wrong guess storm therefore also blocks the real users for up to an hour; this is deliberate. If it happens
   wait: the attempts leave the window one by one.
+
+## Baton "who works" (`/v1/baton`, step 7.4)
+
+The two PCs never work at the same time; one record (`src/baton.js`, a SQLite-backed Durable Object `BATON`, migration `v2`)
+says which **device** works now. A device is a random id (`[a-z0-9-]{8,64}`) and a name such as `ANNA-PC` (one line, at most 40
+characters), both kept by the browser; the user comes from the token, the time from the Worker (a body never sets it).
+
+- `GET /v1/baton` → `{ now, live, holder, snapshot }`. `holder` = `{ device, deviceName, user, since, lastBeat, released }`;
+  `live` is true while the holder has not released and beat less than 3 minutes ago. `snapshot` = the last snapshot a holder
+  reported (`{ name, at, device, deviceName }`), so the next device knows which data to wait for in the shared Drive folder.
+- `POST /v1/baton/beat` `{ device, deviceName, snapshot?, force? }` takes a free baton or keeps one's own (`took`, `since`
+  changes only when it changes hands). While another device is live: `409 { code: "taken" }`, unless `force` ("start anyway"),
+  which answers `forced` and the `previous` holder.
+- `POST /v1/baton/release` `{ device, snapshot? }` frees it at once ("finish work"); another device gets `409 { code: "not-holder" }`.
+- Errors: 401 without a valid token, 400 for a bad device, name or snapshot name, 413 over 1 KB, 503 when the record is missing or
+  unreachable (the page then works with a warning).
 
 ## Model proxy (`POST /v1/model`)
 

@@ -1,12 +1,14 @@
 // ANNATERIA Worker. Step 1.1: the access code. POST /v1/auth turns a 6-character code into a signed token that the
 // browser keeps in page memory. Step 1.2: POST /v1/model forwards a constrained generateContent request to Gemini.
-// Every route that reaches Gemini must call requireUser() first.
+// Step 7.4: /v1/baton says which device works now (baton.js). Every route but /health and /v1/auth calls requireUser().
 import { AccessConfigError, checkCode, normalizeCode, parseAccessCodes, signToken, verifyToken } from "./access.js";
 import { MAX_REQUEST_BYTES, readLimitedText, validateModelCall } from "./model.js";
 
 export { AuthGuard } from "./auth-guard.js";
+export { Baton } from "./baton.js";
 
 const MAX_AUTH_BODY_BYTES = 1024;
+const MAX_BATON_BODY_BYTES = 1024;
 
 function json(value, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(value), {
@@ -159,6 +161,43 @@ async function modelCall(request, env, headers) {
   return json(answer, 200, headers);
 }
 
+// Step 7.4: the baton "who works". GET /v1/baton reads it; POST /v1/baton/beat takes or keeps it and POST
+// /v1/baton/release gives it back, both with { device, deviceName, snapshot?, force? }. The user comes from the token;
+// the time is the Worker's own (a body never sets it).
+async function batonCall(request, env, headers, action) {
+  if (request.method !== (action === "get" ? "GET" : "POST")) return json({ error: "Method not allowed." }, 405, headers);
+  if (!env.BATON) return json({ error: "The baton is not configured." }, 503, headers);
+  let user;
+  try {
+    user = await requireUser(request, env);
+  } catch (error) {
+    console.error("Token check failed:", error instanceof AccessConfigError ? error.message : error?.name);
+    return json({ error: "Login is not available." }, 503, headers);
+  }
+  if (!user) return json({ error: "Login required.", code: "login" }, 401, headers);
+  let body = {};
+  if (action !== "get") {
+    const text = await readLimitedText(request, MAX_BATON_BODY_BYTES);
+    if (text === null) return json({ error: "The request is too large.", code: "too-large" }, 413, headers);
+    try {
+      const { device, deviceName, snapshot, force } = JSON.parse(text);
+      body = { device, deviceName, snapshot, force, user: user.user };
+    } catch {
+      return json({ error: "The body is not valid JSON." }, 400, headers);
+    }
+  }
+  try {
+    const stub = env.BATON.get(env.BATON.idFromName("baton"));
+    const answer = await stub.fetch(`https://baton/${action}`, { method: "POST", body: JSON.stringify(body) });
+    return json(await answer.json(), answer.status, headers);
+  } catch (error) {
+    console.error("Baton failed:", error?.name);
+    return json({ error: "The baton is not available." }, 503, headers);
+  }
+}
+
+const BATON_ROUTES = { "/v1/baton": "get", "/v1/baton/beat": "beat", "/v1/baton/release": "release" };
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -169,6 +208,7 @@ export default {
     if (rejected) return rejected;
     if (url.pathname === "/v1/auth") return authenticate(request, env, cors(request, env));
     if (url.pathname === "/v1/model") return modelCall(request, env, cors(request, env));
+    if (BATON_ROUTES[url.pathname]) return batonCall(request, env, cors(request, env), BATON_ROUTES[url.pathname]);
     return json({ error: "Not found." }, 404, cors(request, env));
   },
 };
