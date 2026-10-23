@@ -245,6 +245,18 @@ async function openStore(destination, key, { create = false } = {}) {
   };
 }
 
+// The id of the store in `destination` (written once into store.json), or null when there is no store there yet (7.4: the
+// baton names the store of its last snapshot). A store.json that has not fully arrived throws.
+export async function readStoreId(destination) {
+  try {
+    const dir = await findStoreDirectory(destination, false);
+    return JSON.parse(decoder.decode(await readBytes(dir, "store.json"))).storeId ?? null;
+  } catch (error) {
+    if (error.name === "NotFoundError") return null;
+    throw error;
+  }
+}
+
 // hash -> { pack, offset, length } for every blob that is already in the store.
 async function loadKnownBlobs(store, key) {
   const known = new Map();

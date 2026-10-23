@@ -3,7 +3,8 @@
 Step 8.1 of `WORK_PLAN.md`: the set-up checklist, done by Vitalik together with Anna. Interface labels are quoted exactly as
 `web/index.html` has them. Tick each box on paper during the visit and note anything that differed in `HANDOFF.md`.
 
-Written 23 October 2026, for app version `8eaebda` or later and Worker `2026.10.23.1`. Not yet followed on Anna's PC.
+Written 23 October 2026, for the app version after `8eb7064` and Worker `2026.10.23.2` or later (the baton names the store of
+its last copy). Not yet followed on Anna's PC.
 
 ## Bring
 
@@ -20,9 +21,8 @@ Written 23 October 2026, for app version `8eaebda` or later and Worker `2026.10.
   paper for her, never in a chat or an e-mail. A shared code also works, but separate codes let one be turned off alone.
 - [ ] **A new shared folder** for the real data, not the test one (`annateria-sync-test` held test clients). In Vitalik's Google
   Drive (web): create `ANNATERIA` in My Drive and share it with Anna's Google account as **Editor**.
-- [ ] **Vitalik's PC leaves the test folders.** In ANNATERIA on his PC, open "גיבוי" → "תיקייה משותפת" → "בחירת תיקייה" only
-  after Anna's first copy has arrived (step 6 below); until then do not open ANNATERIA on his PC with the test data root, or its
-  test copy would become "the last copy" that Anna's PC waits for.
+- [ ] **Vitalik's PC leaves the test folders** in step 6 below. Until then it may stay as it is: since Worker `2026.10.23.2` the
+  baton says in which shared folder its last copy lives, and a PC with another folder does not wait for it.
 
 ## On Anna's PC
 
@@ -44,15 +44,18 @@ Written 23 October 2026, for app version `8eaebda` or later and Worker `2026.10.
 4. **Access code.**
    - [ ] The dialog "קוד גישה" at every opening: Anna types her code → "כניסה".
    - [ ] "הגדרות" → "בדיקת חיבור ל‑AI" answers that the connection works.
-   - [ ] The plate in the top bar is green "עובדים כאן". **If it is blue "מקבל נתונים…"** the server still remembers a test copy of
-     Vitalik's PC: click the plate → "לעבוד כאן" (this happens only on this first opening).
+   - [ ] The plate in the top bar is green "עובדים כאן". (Should it ever stay blue "מקבל נתונים…" on this first opening, click it
+     → "לעבוד כאן": there is nothing to take on a new PC.)
 5. **Recovery code and the shared folder** ("גיבוי" in the sidebar).
    - [ ] "קוד שחזור": "כבר יש לך קוד שחזור (למשל מהמחשב השני)?" → type the code from paper → "שימוש בקוד". Do **not** press
      "יצירת קוד שחזור": a new code would not open the copies of the other PC.
    - [ ] "תיקייה משותפת" → "בחירת תיקייה" → `<her drive letter>:\My Drive\ANNATERIA`. The ☁ in the top bar turns "✓" with the time.
+     If it says instead that the other PC's copy has not arrived ("…עוד לא הגיע לתיקייה המשותפת…"), the folder is new: click ☁ once.
 6. **Vitalik's PC takes Anna's data** (after step 5).
    - [ ] Anna closes the ANNATERIA tab (or clicks the green plate → "סיום"); wait 3 to 4 minutes, or less after "סיום".
-   - [ ] On Vitalik's PC: "בחירת תיקיית נתונים" → a **new empty** folder (for example `D:\ANNATERIA-ANNA`); "גיבוי" → "תיקייה
+   - [ ] On Vitalik's PC, first wait until his shortcut of `ANNATERIA` shows the folder `annateria-sync` in File Explorer (Drive
+     has brought Anna's copy; choosing the folder earlier is safe too: no copy leaves his PC until hers has arrived).
+   - [ ] Then: "בחירת תיקיית נתונים" → a **new empty** folder (for example `D:\ANNATERIA-ANNA`); "גיבוי" → "תיקייה
      משותפת" → "בחירת תיקייה" → his shortcut of `ANNATERIA`. The plate turns blue "מקבל נתונים…", then green: her clients appear.
    - [ ] Edit nothing real there yet; close the tab.
 7. **The flash copy.**

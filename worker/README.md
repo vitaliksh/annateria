@@ -31,11 +31,12 @@ characters), both kept by the browser; the user comes from the token, the time f
 
 - `GET /v1/baton` → `{ now, live, holder, snapshot }`. `holder` = `{ device, deviceName, user, since, lastBeat, released }`;
   `live` is true while the holder has not released and beat less than 3 minutes ago. `snapshot` = the last snapshot a holder
-  reported (`{ name, at, device, deviceName }`), so the next device knows which data to wait for in the shared Drive folder.
-- `POST /v1/baton/beat` `{ device, deviceName, snapshot?, force? }` takes a free baton or keeps one's own (`took`, `since`
+  reported (`{ name, at, device, deviceName, store }`), so the next device knows which data to wait for in the shared Drive folder;
+  `store` (16 hex characters, the `storeId` of that folder's `store.json`) tells a device with another folder not to wait for it.
+- `POST /v1/baton/beat` `{ device, deviceName, snapshot?, store?, force? }` takes a free baton or keeps one's own (`took`, `since`
   changes only when it changes hands). While another device is live: `409 { code: "taken" }`, unless `force` ("start anyway"),
   which answers `forced` and the `previous` holder.
-- `POST /v1/baton/release` `{ device, snapshot? }` frees it at once ("finish work"); another device gets `409 { code: "not-holder" }`.
+- `POST /v1/baton/release` `{ device, snapshot?, store? }` frees it at once ("finish work"); another device gets `409 { code: "not-holder" }`.
 - Errors: 401 without a valid token, 400 for a bad device, name or snapshot name, 413 over 1 KB, 503 when the record is missing or
   unreachable (the page then works with a warning).
 

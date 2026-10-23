@@ -82,7 +82,7 @@ test("release frees the baton at once and keeps the last snapshot; only the hold
   assert.deepEqual([stranger.status, stranger.code, stranger.snapshot], [409, "not-holder", null]);
   const released = await call(baton, "release", { device: ANNA.device, snapshot: SNAP, now: T0 + 2000 });
   assert.deepEqual([released.status, released.live, released.holder.released], [200, false, true]);
-  assert.deepEqual(released.snapshot, { name: SNAP, at: T0 + 2000, device: ANNA.device, deviceName: "ANNA-PC" });
+  assert.deepEqual(released.snapshot, { name: SNAP, at: T0 + 2000, device: ANNA.device, deviceName: "ANNA-PC", store: null });
   const next = await call(baton, "beat", { ...VITALIK, now: T0 + 3000 });
   assert.deepEqual([next.took, next.forced, next.snapshot.name], [true, false, SNAP]);
   assert.equal((await call(baton, "release", { device: ANNA.device, now: T0 + 4000 })).status, 409);
@@ -106,6 +106,7 @@ test("bad device ids, names and snapshot names are refused and change nothing", 
     { ...ANNA, deviceName: "   " },
     { ...ANNA, deviceName: 42 },
     { ...ANNA, snapshot: "../store.json" },
+    { ...ANNA, snapshot: SNAP, store: "not-a-store-id" },
   ]) {
     assert.equal((await call(baton, "beat", { ...body, now: T0 })).status, 400, JSON.stringify(body));
   }
@@ -117,4 +118,13 @@ test("device names are one clean line of at most 40 characters", () => {
   assert.equal(cleanDeviceName("x".repeat(60)).length, 40);
   assert.equal(cleanDeviceName(""), null);
   assert.equal(cleanDeviceName(null), null);
+});
+
+test("the snapshot record keeps the id of the store (shared folder) it lives in", async () => {
+  const baton = makeBaton();
+  await call(baton, "beat", { ...ANNA, now: T0 });
+  const pushed = await call(baton, "beat", { ...ANNA, snapshot: SNAP, store: "0123456789abcdef", now: T0 + 1000 });
+  assert.equal(pushed.snapshot.store, "0123456789abcdef");
+  const released = await call(baton, "release", { device: ANNA.device, snapshot: SNAP, store: "fedcba9876543210", now: T0 + 2000 });
+  assert.equal(released.snapshot.store, "fedcba9876543210");
 });

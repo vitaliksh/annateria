@@ -97,3 +97,11 @@ test("a big or broken body, a missing binding and an unreachable record give cle
   assert.equal((await send("/v1/baton", { environment: env({ BATON: undefined }) })).status, 503);
   assert.equal((await send("/v1/baton", { environment: env({ BATON: batonNamespace({ broken: true }) }) })).status, 503);
 });
+
+test("the store id goes through to the record", async () => {
+  const environment = env();
+  await send("/v1/baton/beat", { body: ANNA, environment });
+  const snapshot = "snap-20261023T070100Z-a1b2c3.bin";
+  const pushed = await send("/v1/baton/beat", { body: { ...ANNA, snapshot, store: "0123456789abcdef" }, environment });
+  assert.deepEqual([pushed.status, pushed.body.snapshot.store], [200, "0123456789abcdef"]);
+});

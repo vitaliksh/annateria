@@ -76,7 +76,7 @@ async function setup({ user = "anna", answer = true, receive = {} } = {}) {
       release: (body) => server.client.release(body),
     },
     getDevice: async () => ({ device: "this-device-1", user }),
-    pushNow: async () => { pushes.push(clock.ms); return "snap-20261023T070000Z-abc.bin"; },
+    pushNow: async () => { pushes.push(clock.ms); return { name: "snap-20261023T070000Z-abc.bin", store: "0123456789abcdef" }; },
     ensureLoggedIn: async () => { logins += 1; return user; },
     onChange: (state) => changes.push(state),
     confirm: async (message) => { asked.push(message); return answer; },
@@ -200,7 +200,7 @@ test("no connection or no code: grey plate, work allowed, retried; a click asks 
 test("a new snapshot is reported with a beat; the tab coming back asks again", async () => {
   const { baton, server, document, window, settle } = await setup();
   await baton.check();
-  await baton.reportPushed("snap-20261023T071000Z-def.bin");
+  await baton.reportPushed({ name: "snap-20261023T071000Z-def.bin", store: "0123456789abcdef" });
   assert.equal(server.snapshot.name, "snap-20261023T071000Z-def.bin");
   const before = server.calls.length;
   document.dispatchEvent(new window.Event("visibilitychange"));

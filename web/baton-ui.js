@@ -106,7 +106,7 @@ export function setupBaton({
     if (receiveRunning || state !== "receiving") return state;
     receiveRunning = true;
     try {
-      const result = await onReceive(receivingName);
+      const result = await onReceive(receivingName, snapshot?.name === receivingName ? snapshot : null);
       if (result?.applied) {
         receivingName = null;
         receiveMessage = null;
@@ -131,12 +131,14 @@ export function setupBaton({
     return next;
   }
 
-  // Take the baton or keep it (force: "start anyway"); `pushed` reports the snapshot just written to the shared folder.
+  // Take the baton or keep it (force: "start anyway"); `pushed` = { name, store } of the snapshot just written to the shared folder.
   function check({ force = false, pushed } = {}) {
     return serial(async () => {
       const { device, user } = await getDevice();
       holderUser = user ?? null;
-      const answer = await client.beat({ device, deviceName: displayName(user), snapshot: pushed, force: force || undefined });
+      const answer = await client.beat({
+        device, deviceName: displayName(user), snapshot: pushed?.name, store: pushed?.store ?? undefined, force: force || undefined,
+      });
       if (answer.ok) {
         lastBeatAt = now();
         const name = await isPending(answer.data.snapshot);
@@ -167,7 +169,7 @@ export function setupBaton({
       pushed = undefined;
     }
     const { device } = await getDevice();
-    const answer = await client.release({ device, snapshot: pushed ?? undefined });
+    const answer = await client.release({ device, snapshot: pushed?.name ?? undefined, store: pushed?.store ?? undefined });
     if (answer.reason === "not-holder" && answer.data?.live) setState("other", answer.data);
     else setState("paused", answer.ok ? answer.data : null);
     return state;
@@ -231,8 +233,10 @@ export function setupBaton({
     blocksEditing: () => state === "other" || state === "receiving",
     // A copy is not sent while another device holds the baton (its copy counts) or before its copy is taken here.
     canPush: () => state !== "other" && state !== "receiving",
-    // Not awaited by the copy: during a pause the release itself carries the name.
-    reportPushed: (name) => (state === "here" && !pausing ? check({ pushed: name }) : Promise.resolve(state)),
+    // Not awaited by the copy: during a pause the release itself carries the name. pushed = { name, store }.
+    reportPushed: (pushed) => (state === "here" && !pausing ? check({ pushed }) : Promise.resolve(state)),
+    // The last snapshot the record named ({ name, at, device, deviceName, store }), or null.
+    lastSnapshot: () => snapshot,
     stop: () => { timers.clearTimeout(timer); timer = null; },
   };
 }

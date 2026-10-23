@@ -3,7 +3,7 @@
 // writes (agent, inbox, rules), a snapshot goes to the shared folder (sync-store.js), only when something changed. A failure
 // only turns the icon red: the work goes on. The folder handle and the key live in IndexedDB (backup-handles.js), the time of
 // the last push in common/sync-state.json. 7.4.3: pull() takes the other device's snapshot into the data root.
-import { pullSnapshot, pushSnapshot, readSyncState, saveSyncState } from "./sync-store.js";
+import { pullSnapshot, pushSnapshot, readSyncState, saveSyncState, syncStoreId } from "./sync-store.js";
 import { BACKUP_KEY_NAME, SYNC_FOLDER_KEY, readSetting, writeSetting } from "./backup-handles.js";
 
 export const PUSH_AFTER_SAVE_MS = 10 * 1000;
@@ -24,8 +24,11 @@ export function setupSync({
   now = () => new Date().toISOString(),
   timers = globalThis,
   // 7.4.2: no copy while another device holds the baton; the name of each new snapshot goes to the baton (not awaited).
-  canPush = () => true,
+  // canPush({ interactive }) answers true, or false / a message (shown on the icon) when no copy may go now.
+  canPush = async () => true,
   onPushed = () => {},
+  // 7.4: a newly chosen folder is first checked against the baton (the other device's copy may wait there).
+  onFolderChosen = async () => {},
   afterSaveMs = PUSH_AFTER_SAVE_MS,
   everyMs = PUSH_EVERY_MS,
 }) {
@@ -89,8 +92,9 @@ export function setupSync({
     }
     const root = getDataRoot();
     if (!root || !folder) return;
-    if (!canPush()) {
-      setStatus("idle", "לא נשלח עותק: ANNATERIA פתוחה במחשב אחר.");
+    const allowed = await canPush({ interactive });
+    if (allowed !== true) {
+      setStatus("idle", typeof allowed === "string" ? allowed : "לא נשלח עותק: ANNATERIA פתוחה במחשב אחר.");
       return;
     }
     if (typeof root.queryPermission === "function" && (await root.queryPermission({ mode: "readwrite" })) !== "granted") return;
@@ -112,7 +116,8 @@ export function setupSync({
       const result = await pushSnapshot({ source: root, shared: folder, key, now: at });
       if (!result.unchanged) {
         lastPush = { name: result.name, at, files: result.files, ms: result.ms };
-        Promise.resolve().then(() => onPushed(result.name)).catch(() => {});
+        const pushedTo = await syncStoreId(folder).catch(() => null);
+        Promise.resolve().then(() => onPushed({ name: result.name, store: pushedTo })).catch(() => {});
       }
       checkedAt = at;
       if (result.skipped.length) {
@@ -169,7 +174,9 @@ export function setupSync({
     await store.writeSetting(SYNC_FOLDER_KEY, picked);
     folder = picked;
     schedule();
-    await push({ interactive: true });
+    await onFolderChosen();
+    // Not interactive: the picker has just given the permission, and the first copy must pass the checks of canPush.
+    await push();
   }
 
   // 7.4.3: take the snapshot `name` of the other device. Never waits: answers { applied: false, message } while the copy
@@ -236,8 +243,22 @@ export function setupSync({
     choose().catch((error) => { if (error.name !== "AbortError") setStatus("error", error.message); });
   });
   render();
-  // The snapshot this PC wrote last (after a push): what the other device must wait for.
+  // The snapshot this PC wrote or took last, and the store it lives in: what the other device must wait for.
   const lastPushName = () => lastPush?.name ?? null;
+  const lastPushInfo = async () => (lastPush?.name ? { name: lastPush.name, store: (await storeId()).id ?? null } : null);
 
-  return { refresh, push, pull, skip, changed, start, stop, lastPushName };
+  // { ok: true, id } (id null: no folder chosen, or no store in it yet) or { ok: false } while the folder cannot be read.
+  async function storeId() {
+    if (!folder) return { ok: true, id: null };
+    if (typeof folder.queryPermission === "function" && (await folder.queryPermission({ mode: "readwrite" })) !== "granted") {
+      return { ok: false };
+    }
+    try {
+      return { ok: true, id: await syncStoreId(folder) };
+    } catch {
+      return { ok: false };
+    }
+  }
+
+  return { refresh, push, pull, skip, changed, start, stop, lastPushName, lastPushInfo, storeId };
 }

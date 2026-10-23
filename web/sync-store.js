@@ -2,7 +2,7 @@
 // docs/WORK_PLAN.md). It is a backup snapshot (backup-store.js) with the source images always in, so the other PC can open
 // the original of every row; the legacy exports stay out. Files that describe one PC never travel: they would overwrite the
 // other PC's own state when it takes the snapshot.
-import { STORE_DIR, checkSnapshot, createBackup, listSnapshots, snapshotFiles, stampOf } from "./backup-store.js";
+import { STORE_DIR, checkSnapshot, createBackup, listSnapshots, readStoreId, snapshotFiles, stampOf } from "./backup-store.js";
 import { BACKUP_STATE_FILE } from "./backup-state.js";
 import { UI_SETTINGS_FILE } from "./ui-settings.js";
 
@@ -25,8 +25,18 @@ export function createSyncSnapshot({ source, destination, key, previous, now, on
   return createBackup({ source, destination, key, ...options, previous, now, onProgress, delay });
 }
 
-// Inside the shared folder the app keeps its own folder: the store (annateria-backup/) now, the baton files later (7.5).
+// Inside the shared folder the app keeps its own folder: the store (annateria-backup/).
 export const SYNC_DIR = "annateria-sync";
+
+// The id of the store in the shared folder, or null when the app has not written there (or it has not arrived yet).
+export async function syncStoreId(shared) {
+  try {
+    return await readStoreId(await shared.getDirectoryHandle(SYNC_DIR));
+  } catch (error) {
+    if (error.name === "NotFoundError") return null;
+    throw error;
+  }
+}
 
 // common/sync-state.json (schema 1): `lastPush` = { name, at, digest, files, ms } of the last snapshot this PC wrote or took
 // (after a pull the data equal it, so the next push of the same data writes nothing); `applying` = { name, before } while a
@@ -102,6 +112,24 @@ export function pendingPull(state, snapshot, device) {
   if (state.applying) return state.applying.name;
   if (!snapshot?.name || snapshot.device === device) return null;
   return snapshot.name === state.lastPush?.name ? null : snapshot.name;
+}
+
+// 7.4, the store check: where = { ok, id } of this PC's shared folder (ok false: it cannot be read now). The copy to take,
+// or null: an interrupted pull first; a copy of this device, or one that lives in another store (or this PC has no store), is
+// nothing to wait for; a folder that cannot be read is waited for (pendingPull decides then, or the copy when even the state
+// of this PC could not be read).
+export function copyToTake({ state, snapshot, device, where }) {
+  if (state?.applying) return state.applying.name;
+  if (!snapshot?.name || snapshot.device === device) return null;
+  if (where.ok && (where.id === null || where.id !== (snapshot.store ?? null))) return null;
+  return state ? pendingPull(state, snapshot, device) : snapshot.name;
+}
+
+// The first copy into a folder where the other device's store has not arrived yet would start a second store beside it:
+// it waits (a message), unless the person clicked to send.
+export function firstCopyHeld({ snapshot, device, where, interactive }) {
+  if (interactive || !snapshot?.store || snapshot.device === device) return false;
+  return where.ok && where.id === null;
 }
 
 const EXPORTS_DIR = /^clients\/[^/]+\/declarations\/[^/]+\/exports\/$/;

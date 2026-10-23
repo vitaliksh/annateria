@@ -26,7 +26,7 @@ import { fileImportOriginal, readInboxFile, readInboxIndex } from "./inbox-store
 import { setupReports } from "./reports-ui.js";
 import { setupBackup } from "./backup-ui.js";
 import { setupSync } from "./sync-ui.js";
-import { pendingPull, readSyncState } from "./sync-store.js";
+import { copyToTake, firstCopyHeld, readSyncState } from "./sync-store.js";
 import { createBatonClient, deviceId } from "./baton-client.js";
 import { setupBaton } from "./baton-ui.js";
 import { readSetting, writeSetting } from "./backup-handles.js";
@@ -331,8 +331,15 @@ const sync = setupSync({
   section: document.querySelector("#sync-section"),
   getDataRoot: () => dataRoot,
   // 7.4.2: `baton` is created with the access code below; these run only later.
-  canPush: () => baton.canPush(),
-  onPushed: (name) => baton.reportPushed(name),
+  canPush: async ({ interactive }) => {
+    if (!baton.canPush()) return false;
+    // 7.4: the other device's last copy lives in a store that has not reached this folder yet: a first copy from here would
+    // start a second store beside it. A click ("שליחה עכשיו", ☁) may still send.
+    const held = firstCopyHeld({ snapshot: baton.lastSnapshot(), device: await thisDevice(), where: await sync.storeId(), interactive });
+    return held ? "לא נשלח עותק: העותק של המחשב השני עוד לא הגיע לתיקייה המשותפת. אם זו תיקייה חדשה, לחיצה כאן תשלח." : true;
+  },
+  onPushed: (pushed) => baton.reportPushed(pushed),
+  onFolderChosen: () => baton.check(),
 });
 sync.refresh().catch(() => {});
 sync.start();
@@ -646,7 +653,7 @@ const baton = setupBaton({
   getDevice: async () => ({ device: await thisDevice(), user: accessUi.access.user() }),
   pushNow: async () => {
     await sync.push();
-    return sync.lastPushName();
+    return sync.lastPushInfo();
   },
   ensureLoggedIn: () => accessUi.ensureLoggedIn(),
   onChange: () => setTableLocked(Boolean(currentDeclaration) && currentDeclaration.status !== "open"),
@@ -654,9 +661,12 @@ const baton = setupBaton({
   isPending: async (snapshot) => {
     if (!dataRoot) return null;
     const state = await readSyncState(dataRoot).catch(() => null);
-    return state ? pendingPull(state, snapshot, await thisDevice()) : null;
+    return copyToTake({ state, snapshot, device: await thisDevice(), where: await sync.storeId() });
   },
-  onReceive: async (name) => {
+  onReceive: async (name, snapshot) => {
+    // The folder became readable and holds another store: this copy is not in it, so there is nothing to take.
+    const where = await sync.storeId();
+    if (snapshot && where.ok && where.id !== null && where.id !== (snapshot.store ?? null)) return { applied: true };
     // The open table was loaded before the copy arrived: close it without saving, and drop a queued save.
     const dropOpenTable = async () => {
       clearTimeout(draftSaveTimer);

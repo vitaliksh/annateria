@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { keyFromRecoveryCode, listSnapshots, newRecoveryCode } from "../backup-store.js";
 import {
-  BEFORE_PREFIX, SYNC_DIR, SYNC_STATE_FILE, isLocalOnly, pendingPull, pullSnapshot, pushSnapshot, readSyncState, saveSyncState,
+  BEFORE_PREFIX, SYNC_DIR, SYNC_STATE_FILE, copyToTake, firstCopyHeld, isLocalOnly, pendingPull, pullSnapshot, pushSnapshot, readSyncState,
+  saveSyncState, syncStoreId,
 } from "../sync-store.js";
 import { binaryDirectory, listPaths, putFile, readFileBytes } from "./memory-binary-directory.mjs";
 
@@ -131,4 +132,37 @@ test("pull: the page closes its open table before the first write, and only when
   assert.equal((await pullSnapshot({ root: b, shared, key, name, now: at(6), beforeWrite })).applied, true);
   assert.deepEqual(seen, ['{"rows":[1]}']);
   assert.deepEqual(await readFileBytes(b, DRAFT), await readFileBytes(a, DRAFT));
+});
+
+// 7.4, before the visit to Anna: the baton named a copy of the test folder, and a PC with a new shared folder waited for it.
+test("copyToTake: a copy of another store, or no store here, is nothing to wait for; an unreadable folder is", () => {
+  const state = { lastPush: { name: "snap-mine.bin" }, applying: null };
+  const copy = { name: "snap-theirs.bin", device: "other", store: "aaaaaaaaaaaaaaaa" };
+  const take = (where, extra = {}) => copyToTake({ state, snapshot: copy, device: "me", where, ...extra });
+  assert.equal(take({ ok: true, id: "aaaaaaaaaaaaaaaa" }), "snap-theirs.bin");
+  assert.equal(take({ ok: true, id: "bbbbbbbbbbbbbbbb" }), null);
+  assert.equal(take({ ok: true, id: null }), null);
+  assert.equal(take({ ok: false }), "snap-theirs.bin");
+  assert.equal(copyToTake({ state, snapshot: { ...copy, store: undefined }, device: "me", where: { ok: true, id: "aaaaaaaaaaaaaaaa" } }), null,
+    "a record from before the store id names no store");
+  assert.equal(copyToTake({ state: null, snapshot: copy, device: "me", where: { ok: false } }), "snap-theirs.bin");
+  assert.equal(copyToTake({ state: { lastPush: null, applying: { name: "snap-half.bin" } }, snapshot: null, device: "me", where: { ok: true, id: null } }),
+    "snap-half.bin");
+});
+
+test("firstCopyHeld: the first copy waits while the other device's store has not reached this folder, unless clicked", () => {
+  const copy = { name: "snap-theirs.bin", device: "other", store: "aaaaaaaaaaaaaaaa" };
+  assert.equal(firstCopyHeld({ snapshot: copy, device: "me", where: { ok: true, id: null }, interactive: false }), true);
+  assert.equal(firstCopyHeld({ snapshot: copy, device: "me", where: { ok: true, id: null }, interactive: true }), false);
+  assert.equal(firstCopyHeld({ snapshot: copy, device: "me", where: { ok: true, id: "aaaaaaaaaaaaaaaa" }, interactive: false }), false);
+  assert.equal(firstCopyHeld({ snapshot: { ...copy, store: null }, device: "me", where: { ok: true, id: null }, interactive: false }), false);
+  assert.equal(firstCopyHeld({ snapshot: { ...copy, device: "me" }, device: "me", where: { ok: true, id: null }, interactive: false }), false);
+});
+
+test("syncStoreId: null for an empty shared folder, the store's id after the first push", async () => {
+  const { a, key } = await twoDevices();
+  const shared = binaryDirectory("new-folder");
+  assert.equal(await syncStoreId(shared), null);
+  await pushSnapshot({ source: a, shared, key, now: at(1) });
+  assert.match(await syncStoreId(shared), /^[0-9a-f]{16}$/);
 });

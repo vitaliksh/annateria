@@ -162,7 +162,7 @@ async function modelCall(request, env, headers) {
 }
 
 // Step 7.4: the baton "who works". GET /v1/baton reads it; POST /v1/baton/beat takes or keeps it and POST
-// /v1/baton/release gives it back, both with { device, deviceName, snapshot?, force? }. The user comes from the token;
+// /v1/baton/release gives it back, both with { device, deviceName, snapshot?, store?, force? }. The user comes from the token;
 // the time is the Worker's own (a body never sets it).
 async function batonCall(request, env, headers, action) {
   if (request.method !== (action === "get" ? "GET" : "POST")) return json({ error: "Method not allowed." }, 405, headers);
@@ -180,8 +180,8 @@ async function batonCall(request, env, headers, action) {
     const text = await readLimitedText(request, MAX_BATON_BODY_BYTES);
     if (text === null) return json({ error: "The request is too large.", code: "too-large" }, 413, headers);
     try {
-      const { device, deviceName, snapshot, force } = JSON.parse(text);
-      body = { device, deviceName, snapshot, force, user: user.user };
+      const { device, deviceName, snapshot, store, force } = JSON.parse(text);
+      body = { device, deviceName, snapshot, store, force, user: user.user };
     } catch {
       return json({ error: "The body is not valid JSON." }, 400, headers);
     }

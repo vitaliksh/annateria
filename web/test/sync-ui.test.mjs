@@ -220,7 +220,10 @@ test("no copy while another device holds the baton; a new snapshot is reported, 
   await sync.push();
   await settle(() => reported.length === 1);
   const [first] = await snapshots(shared);
-  assert.deepEqual(reported, [first.name]);
+  assert.deepEqual(reported.map((item) => item.name), [first.name]);
+  assert.match(reported[0].store, /^[0-9a-f]{16}$/);
+  assert.deepEqual(await sync.lastPushInfo(), reported[0]);
+  assert.deepEqual(await sync.storeId(), { ok: true, id: reported[0].store });
   assert.equal(sync.lastPushName(), first.name);
   await sync.push();
   await putFile(root, "clients/c1/rules.md", "- another rule\n");
@@ -261,4 +264,20 @@ test("pull: without the folder permission the icon asks for a click, and the cli
   await settle(() => icon.dataset.state === "ok");
   assert.equal(source.requested, true);
   assert.equal(sync.lastPushName(), snapshot.name);
+});
+
+test("a refusal of canPush with a message is shown on the icon; a click passes interactive", async () => {
+  const shared = withPermission(binaryDirectory("drive"));
+  const asked = [];
+  const { sync, icon, snapshots, settle } = await setup({
+    folder: shared,
+    canPush: async ({ interactive }) => { asked.push(interactive); return interactive ? true : "ממתין לעותק של המחשב השני."; },
+  });
+  await sync.push();
+  assert.equal(icon.title, "ממתין לעותק של המחשב השני.");
+  assert.equal((await snapshots(shared)).length, 0);
+  icon.click();
+  await settle(() => icon.dataset.state === "ok");
+  assert.deepEqual(asked, [false, true]);
+  assert.equal((await snapshots(shared)).length, 1);
 });

@@ -45,7 +45,7 @@ export function createBatonClient({ api, access, fetchImpl = (...args) => fetch(
 
   return {
     get: () => call("/v1/baton"),
-    beat: ({ device, deviceName, snapshot, force }) => call("/v1/baton/beat", { device, deviceName, snapshot, force }),
-    release: ({ device, snapshot }) => call("/v1/baton/release", { device, snapshot }),
+    beat: ({ device, deviceName, snapshot, store, force }) => call("/v1/baton/beat", { device, deviceName, snapshot, store, force }),
+    release: ({ device, snapshot, store }) => call("/v1/baton/release", { device, snapshot, store }),
   };
 }
