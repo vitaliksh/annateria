@@ -9,7 +9,7 @@ What exists today is marked **now**; everything else is planned in `WORK_PLAN.md
 | GitHub Pages, `web/` (**now**) | Hebrew UI, local files, journal, reports, backup, transfer. Skills (`skills/*/SKILL.md`) and prompts are served from here too | None stored |
 | Cloudflare Worker, `worker/` (**now: `/health`, `/v1/auth`, `/v1/model`**) | Access code to a 12-hour token and lock-out (1.1); constrained Gemini proxy with model allow-list, size and output limits (1.2) | None; bodies are not logged |
 | Data root on each PC (**now**) | Clients, declarations, images, history, reports, `rules.md` (planned) | Yes, local only |
-| Google Drive shared folder (planned, phase 7) | Encrypted write-once store (packs, snapshots) and baton files | Encrypted only |
+| Google Drive shared folder (phase 7) | Encrypted write-once store (packs, snapshots) | Encrypted only |
 
 ```text
 GitHub Pages: web/            (Ctrl+F5 updates UI, skills and prompts)
@@ -18,7 +18,7 @@ GitHub Pages: web/            (Ctrl+F5 updates UI, skills and prompts)
  ├─ assistant panel: orchestrator → tools (JS) → data root   (loop and 13 tools in web/agent/, the dock in assistant-ui.js, rows through row-builder.js)
  └─ skills/*/SKILL.md                (now: 5 skills, fetched at the start of every run; a missing one stops the run)
         │  6-character access code → short-lived token, kept in page memory only
-Cloudflare Worker: worker/    stateless Gemini proxy
+Cloudflare Worker: worker/    Gemini proxy + the baton record "who works" (7.4, no client data)
         │
 Data root (local folder, never inside a synced folder)
  ├─ common/                    chart-of-accounts.json, custom-rivhit-mapping.json, classification-codes.json,
@@ -28,7 +28,7 @@ Data root (local folder, never inside a synced folder)
  └─ clients/<client>/          workspace.json, history.jsonl, report-settings.json, reports/ (PDFs), rules.md (planned)
        declarations/YYYY-MM/   declaration.json, draft-table.json (+ draft-table.before-<action>-<time>.json copies), images/
         │  push after every save / pull on open, fast-forward only   (phase 7)
-Google Drive shared folder: encrypted write-once store + baton
+Google Drive shared folder: encrypted write-once store
 ```
 
 The folder layout and file formats are those of ocr: an existing data root opens unchanged. A change to a format is an

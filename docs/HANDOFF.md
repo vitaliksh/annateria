@@ -16,7 +16,7 @@ read-only tool `ready_to_close`, skill `month-closing-checklist`); Gemini's 402 
 
 **Phase 7, sync between the two PCs through Google Drive:** the spike 7.1 was done on 22 October 2026 and says **go** (section "Spike 7.1"
 below). 7.2 is done (the sync snapshot, `web/sync-store.js`). 7.3 is done (the push and the ☁ icon, `web/sync-ui.js`; the owner checked it
-with Drive on 23 October 2026: two snapshots arrived on the other account's drive). **Next: 7.4** (pull on open). Read the phase in
+with Drive on 23 October 2026: two snapshots arrived on the other account's drive). **Next: 7.4.1** (the baton "who works" in the Worker; 7.4 was rewritten with the owner on 23 October: one PC works at a time, no merging). Read the phase in
 `WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first.
 
 **Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
