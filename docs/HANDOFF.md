@@ -5,8 +5,8 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 ## Start here (state on 24 October 2026)
 
-**State.** `main` carries everything up to 6.4.1 (the address on the client card, the business line of the report header, the VAT
-slip as Rivhit draws it and its exempt box, see "Step 6.3.1", "Step 6.3.2" and the plan of 6.4). Web 864 tests, Worker 69
+**State.** `main` carries everything up to 6.4.2 (the address on the client card, the business line of the report header, the VAT
+slip as Rivhit draws it and its exempt box, the PCN874 file as code: see "Step 6.3.1", "Step 6.3.2", the plan of 6.4 and `PCN874_SPEC.md`). Web 868 tests, Worker 69
 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green in both. The published page and the Worker answer these versions.
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **phase 7** (7.1 to
 7.4, 7.6; 7.5 merged into 7.4). 6.1 (`run_report`) and phase 3 are in the backlog.
@@ -233,7 +233,7 @@ condition; 10 runs under heavier load passed. Lesson: after a push, check the ru
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 864 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 868 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 69 tests; check = wrangler deploy --dry-run
 ```
 
@@ -278,7 +278,7 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   `ledger-*.js` (read the classification ledger, fix codes, reconcile with declarations).
 - **Imports:** `excel-journal*.js`, `excel-import*.js` (Rivhit journal `.xlsx`), `income-report.js` (income-report PDF),
   `pdf-import.js` (PDF checks, pdf.js loader).
-- **Reports:** `reports.js` (pure calculations), `report-data.js`, `reports-view.js`, `reports-pdf.js`,
+- **Reports:** `reports.js` (pure calculations), `report-data.js`, `reports-view.js`, `reports-pdf.js`, `pcn874.js` (6.4.2: the PCN874 file, pure),
   `report-viewer.js`, `reports-ui.js`.
 - **Backup and transfer:** `backup-store.js`, `backup-state.js`, `backup-handles.js` (IndexedDB), `backup-ui.js`,
   `transfer-store.js`, `transfer-ui.js` (`.annateria` file), `sync-store.js` (7.2: the snapshot for the other PC, images always in,
