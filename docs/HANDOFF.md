@@ -3,33 +3,43 @@
 Facts a new developer or agent needs that the code does not say. Keep it true: update it in the commit that changes
 the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must not be broken are in `../AGENTS.md`.
 
-## Start here (state on 22 October 2026)
+## Start here (state on 24 October 2026)
 
-**State.** The code on `main` is at 24be377 (5.4); the commits after it change only the docs (plan, hand-over).
-Web 857 tests, Worker 69 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
-4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2. 6.1 (`run_report`) is in the backlog. Phase 3 is in the backlog.
+**State.** `main` carries everything (last code commit 596ca72; the commits after it change only the docs). Web 857 tests, Worker 69
+(`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green in both. The published page and the Worker answer these versions.
+Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **phase 7** (7.1 to
+7.4, 7.6; 7.5 merged into 7.4). 6.1 (`run_report`) and phase 3 are in the backlog.
 
-**Done on 21 October 2026 (details in the sections below and the decision log):** handles never reach the user (`handles.readable`); the
-eval (5.3, `npm run eval`, 16 synthetic cases, last full run **134 of 134**); the rules of ocr in the skills (5.2) and Anna's answers (5.4,
-`classification` v3, new `pcn-allocation`); the check before closing a month (6.2: `lock-check.js` shared by the lock button and the new
-read-only tool `ready_to_close`, skill `month-closing-checklist`); Gemini's 402 found and given a clear Hebrew message (Worker `2026.10.21.1`).
+**Phase 7 in one paragraph** (details: the decision log of 22 to 24 October and the sections below). Each PC keeps its own local data
+folder. A shared Google Drive folder (`ANNATERIA`, with the app's own `annateria-sync/annateria-backup/` inside) holds encrypted
+write-once snapshots with images (`web/sync-store.js`); a copy goes 10 seconds after a save, every 5 minutes and when the tab closes
+(`web/sync-ui.js`, the ☁ icon). One PC works at a time: the Worker keeps the baton "who works" (`worker/src/baton.js`, a Durable
+Object; device, user, last beat, last snapshot and its store id) and the page shows it as a plate in the top bar (`web/baton-ui.js`:
+green here, red another device (table read only), blue taking the other device's copy, yellow paused after 10 idle minutes, grey not
+checked). A PC that gets the baton first takes the other device's last copy (`pullSnapshot`: whole or not at all, every replaced file
+copied to `common/sync-before-<time>/`, an empty copy never taken). The flash drive stays as the second copy with a weekly line in the
+status bar. What each click does is in the reply of 24 October, summed up in `web/baton-ui.js` and `web/sync-ui.js` comments.
 
-**Phase 7, sync between the two PCs through Google Drive:** the spike 7.1 was done on 22 October 2026 and says **go** (section "Spike 7.1"
-below). 7.2 is done (the sync snapshot, `web/sync-store.js`). 7.3 is done (the push and the ☁ icon, `web/sync-ui.js`; the owner checked it
-with Drive on 23 October 2026: two snapshots arrived on the other account's drive). 7.4 was rewritten with the owner on 23 October (one PC works at a time, no merging); **7.4.1 is done** (the baton "who works"
-in the Worker, deployed as `2026.10.23.1`). 7.4.2 is done (the plate "who works" in the top bar,
-`web/baton-ui.js`; the owner checked it with two browser profiles). 7.4.3 is done (take the other device's copy: blue plate
-"מקבל נתונים…", `pullSnapshot` in `web/sync-store.js`; the owner's round trip passed after the fix 45022d6), so **7.4 is done**.
-The inbox now asks Chrome for the write permission when it opens or gets files (fix of 23 October). 7.6 is done (the old "Google Drive" backup
-slot removed; a weekly line in the status bar for the flash copy). **Phase 7 is done**; its round trip on Anna's PC with a real-size
-month is part of phase 8. **Phase 8:** first set-up on Anna's PC on 23 October (evening): all clients arrived from Vitalik's PC; two problems of that
-night are fixed (an empty copy is never taken; a shared folder one level too deep or too high is refused). `docs/ROLLOUT.md` is
-rewritten from it. The shared folder was cleaned on 24 October with the owner's "yes": the stray store (`annateria-backup` of
-Vitalik's first choice, id `d5f4…`, no snapshot) deleted, and the folder renamed from `annateria-sync` to `ANNATERIA`; the store in
-use (id `0db1…`) is `ANNATERIA/annateria-sync/annateria-backup`. Both PCs must choose the renamed folder again. Still to do with
-Anna: the flash copy, the phone, her own access code. The trap
-of the blue plate is gone: the baton record names the store of its last snapshot (`copyToTake`, `firstCopyHeld` in `sync-store.js`). Read the phase in
-`WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first.
+**Phase 8 (rollout on Anna's PC), where it stands.** First set-up on 23 October (evening): all clients arrived from Vitalik's PC. Two
+problems of that night are fixed in the app (an empty copy is never taken; a shared folder one level too deep or too high is refused)
+and in `docs/ROLLOUT.md`, which was rewritten from them. On 24 October the shared folder was cleaned (a stray store deleted, the folder
+renamed from `annateria-sync` to `ANNATERIA`, store in use id `0db1…`), both PCs chose it again and the owner reported: "Works correct".
+**Next, with Anna (8.1 is not ticked yet):** the flash copy (ROLLOUT step 9), the phone (step 10), her own access code (the script
+replaces both codes), going through the one-page Hebrew guide (a claude.ai artifact, private until the owner shares it). **Then** 8.2
+(her old ocr data, if any, and the reports), 8.3 (the first real month in parallel with her usual way), 8.4 (restore drills).
+
+**Lessons of 22 to 24 October (follow them):**
+- After every push to `main` that touches `web/`, check the GitHub run and the build marker of the page
+  (`api.github.com/repos/vitaliksh/annateria/actions/runs`; the job log itself needs admin rights). 686b87a failed there and Pages
+  silently kept the old version.
+- Tests must not wait a fixed number of milliseconds: the CI runner is slower (wait for a condition; return the promise from timers).
+- Before a pull writes, the page closes its open table without saving (45022d6): any later save of a table loaded earlier would
+  overwrite what was taken.
+- The owner's folders `D:\ANNATERIA` and `D:\ANNATERIA-B` hold **test** clients: read them freely while debugging (files, times,
+  hashes). Anna's real data: only when the owner asks. The shared folder is visible from the owner's PC under `G:\My Drive\ANNATERIA`.
+- When writing to the owner, never put Hebrew inside a Russian or English line: mixed lines turn right-aligned and jumble. Name a
+  button in Russian and give the Hebrew label on its own line.
+- Scripts that edit files: write them with the file tool, not in a shell here-document (backslashes and `\d`, `\(` got eaten twice).
 
 **Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
 through the card), the phase check of 4.6 (a second similar month asks fewer questions).
@@ -43,8 +53,11 @@ through the card), the phase check of 4.6 (a second similar month asks fewer que
   Converting needs an exchange-rate source (for example the Bank of Israel): an outside service, ask the owner first.
 - **App help skill** (owner's reminder): the agent answers questions about the app itself (`WORK_PLAN.md`, "Later").
 - The eval runner writes its report only at the end: a crash in the middle leaves nothing. Small fix: write the report after every case.
-- Cards from before: the status "מוכן, חסרים סימונים" of rows that are not the agent's (inherited from ocr). (The flaky test "both copies
-  fresh turn the dot green" went away with the Google Drive slot in 7.6.)
+- The status "מוכן, חסרים סימונים" of rows that are not the agent's (inherited from ocr).
+- Left from the tests: the Drive folder `annateria-sync-test` (shared with the owner's second Google account) and the folders
+  `common/sync-before-*` in the test data roots; nothing uses them, the owner may delete them by hand.
+- Not checked by hand: the 10-minute pause, "start anyway", the read-only table under the red plate, the permission prompt of a
+  dropped file (unit tests only).
 
 **How to run the eval** (costs money, about 2.3 USD for the full run of 16 cases x 2 with `gemini-3.8-flash`; use `--case a,b --repeat 1` while
 working on one rule): in `web`, `$env:ANNATERIA_CODE = Read-Host "code"`, `npm run eval`, `Remove-Item Env:ANNATERIA_CODE`. The report goes to
