@@ -305,16 +305,21 @@ Goal: Anna's rules live in skills, are tested, and update with Ctrl+F5.
     *Done when:* tests (synthetic); the reports of the test clients unchanged; the owner sees the exempt box filled on the
     published page for a synthetic client.
   - [ ] **6.4.2 The file, as code** (`pcn874.js`, pure; `docs/PCN874_SPEC.md` with the field table, the sources and the dates).
-    Rows of the period: a purchase row with VAT (expense or equipment) is a `T` line (supplier number, document date, the last
-    nine digits of the document number, the recognised VAT, the net at 100%, the allocation number; a credit note with `-`); a
-    sales row with a customer number is an `S` line, without one an `L` line as entered (a monthly cash-register total stays one
-    line); the totals of `O` are the sums of the lines. Refusals before writing, listed for the user: a purchase row with VAT
+    Rows of the declarations of the period (by declaration month, as the VAT report; a document date may lie outside it): a
+    purchase row with VAT (expense or equipment) is a `T` line (supplier number, document date, the last nine digits of the
+    document number, the recognised VAT, the net at 100%, the allocation number; a credit note with `-`); a purchase row without
+    VAT is not in the file. A sales row with a customer number is an `S` line; the sales rows without one are one `L` line per
+    kind (taxable, exempt): a single row keeps its date and number, several rows get the last day of the period and the number
+    of the last document (Anna). The customer number of a sales row: today an agent row keeps the seller's number in that
+    column (for the client's own sales invoice, the client itself), so the sales row must take the buyer's number from the
+    fact. The opening record names the last month of the period. Its totals are the figures of `vatReport` (one function with
+    the slip), each line is rounded on its own, so the lines may differ from the totals by a shekel (Anna's second sample: the
+    input VAT of the opening record is one shekel below the sum of its lines). Refusals before writing, listed for the user: a purchase row with VAT
     and no supplier number (today most saved rows have none: an imported Rivhit journal does not carry it), a PCN row not
     approved or without its allocation number (the rule of the lock button), a month of the period not closed. A supplier
     number with a wrong check digit is a warning only (the layout asks to allow it).
     *Done when:* tests give a byte-exact file for synthetic rows; rows rebuilt by hand from Anna's sample (on the owner's PC,
-    not in the repository) give her file byte for byte except the creation date; the totals equal `vatReport`, or the
-    difference is shown (rounding per line against rounding of the total).
+    not in the repository) give her two files byte for byte except the creation date.
   - [ ] **6.4.3 On the reports page.** A report "PCN874" for a client with the PCN duty: the totals of the opening record next to
     the VAT slip's, the list of lines and the refusals; the button saves `PCN874_<dealer>_<yyyymm>.txt` (Rivhit's name) into the
     client's `reports/`, and "save as".
@@ -322,11 +327,9 @@ Goal: Anna's rules live in skills, are tested, and update with Ctrl+F5.
   - [ ] **6.4.4 A real month.** Anna keeps one month of a PCN client in ANNATERIA; its file is compared with Rivhit's for the
     same month and checked in the Tax Authority's simulator (by the owner or Anna, on the Tax Authority's site); she uploads it
     herself.
-  **Open (ask Anna before 6.4.2):** how the PCN client's month gets into ANNATERIA (purchase invoices through the inbox, so they
-  carry the supplier number and the allocation number; the sales totals typed or from an income report?); for a client that
-  reports every two months, which month the opening record names (no sample yet: a Rivhit file of such a client, or the
-  simulator, decides); what the reference of an aggregated `L` line should be (her sample has the number of sales on one line
-  and a document number on the other).
+  **Answered by Anna (24 October, second sample: a client who reports every two months, its VAT report, the journals of two
+  months and the file):** the month of a PCN client goes into ANNATERIA like any other declaration; the opening record of a
+  two-month period names its last month; the number of an aggregated `L` line is the number of the last document.
 
 ## Phase 7 — Sync between the two PCs and backup
 
@@ -508,3 +511,4 @@ model behind the same proxy.
 | 2026-10-24 | **6.3.2 done, 6.3 done** (the owner on the published page, 9b4d52a: "looks excellent"). |
 | 2026-10-24 | **6.4 planned (the PCN874 file).** Read: the official layout (gov.il, 2010, Appendix A) and, on the owner's PC only, Anna's sample of one PCN client for one month (VAT report, journal, file); structure recorded in 6.4, no names or amounts. Found on the way: the VAT slip of such a client has a figure in the exempt box, so the decision of 6.3.2 "the exempt box stays empty" holds only for clients without exempt sales; 6.4.1 fills it from sales rows without VAT. Gemini's description passed on by the owner named the records "000 / 874 / 999"; the official layout and the sample say `O`, a letter per document, `X`. |
 | 2026-10-24 | **6.4.1 built** (exempt sales on the VAT slip). `vatReport` adds `taxableSales` and `exemptSales` and keeps `turnover` as all sales (the status bar and the advances report use it: an advance is a percent of the whole turnover as I understand it; not checked against a Rivhit advances report of a client with exempt sales, so it is not changed here). The slip and the preview show the two new lines. The VAT figures of both test clients are unchanged (checked locally). Web 863 → 864 tests. Checked in a local Chrome: the slip with a made-up client and the figures of Anna's PCN sample has the exempt figure in its box. **Not verified:** the published page. |
+| 2026-10-24 | **6.4: Anna's answers and second sample** (a client who reports every two months; on the owner's PC only, structure recorded in 6.4). Learnt from the file: the opening record names the last month of the period; a sale to a business over 5,000 is an `S` line with the customer's number, the small sales of the two months one `L` line on the last day of the period; the totals of the opening record are the VAT report's and are not the sums of the per-line rounded lines (one shekel apart in this sample), so 6.4.2 takes them from `vatReport`. Found in our rows: an agent row keeps the seller's number in the counterparty column, which for the client's own sales invoice is the client itself; 6.4.2 must take the buyer's number for sales. |
