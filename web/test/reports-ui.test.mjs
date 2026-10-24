@@ -217,3 +217,58 @@ test("диалог отчётов: клиент без периодов в св�
   await open();
   assert.deepEqual([q("reports-vat-period").value, q("reports-advances-period").value], ["bimonthly", "bimonthly"]);
 });
+
+// A closed month with rows the PCN874 file accepts (step 6.4.3): one purchase with its supplier number, one sale.
+async function closeWithRows(clientDirectory, month, rows) {
+  const store = await import("../declaration-store.js");
+  const { getDeclarationDirectory, loadDeclaration, saveDraft, finalizeDeclaration } = store;
+  const declarationDirectory = await getDeclarationDirectory(clientDirectory, month);
+  const { declaration } = await loadDeclaration(clientDirectory, month);
+  await saveDraft(declarationDirectory, declaration, rows);
+  await finalizeDeclaration({ clientDirectory, declarationDirectory, declaration, finalExport: "no-export", rows });
+}
+const pcnRow = (date, code, party, reference, net, vat) => ({
+  active: true, rawNet: String(net), rawVat: String(vat),
+  values: [date, code, "", "", party, reference, "", String(net + vat), String(net), String(vat), "", ""],
+});
+
+test("the PCN874 file is offered only for a client with the PCN duty, and replaces the print button", async () => {
+  const plain = await setup();
+  await plain.open();
+  assert.equal(plain.q("reports-kind").querySelector('option[value="pcn874"]').hidden, true);
+  assert.deepEqual([plain.q("reports-show").hidden, plain.q("reports-save-pcn").hidden], [false, true]);
+  const pcn = await setup({ periods: { pcnRequired: true, vatId: "123456782", vatPeriod: "bimonthly" } });
+  await pcn.open();
+  assert.equal(pcn.q("reports-kind").querySelector('option[value="pcn874"]').hidden, false);
+  pcn.q("reports-kind").value = "pcn874";
+  pcn.q("reports-kind").dispatchEvent(new globalThis.window.Event("change"));
+  assert.deepEqual([pcn.q("reports-show").hidden, pcn.q("reports-save-pcn").hidden, pcn.q("reports-save-pcn-as").hidden],
+    [true, false, false]);
+  assert.deepEqual([pcn.q("reports-from").value, pcn.q("reports-to").value], ["01/2026", "02/2026"]);
+  assert.match(pcn.q("reports-preview").textContent, /קובץ PCN874/);
+});
+
+test("the PCN874 file is refused while the list has problems, then saved into the client's reports folder", async () => {
+  const periods = { pcnRequired: true, vatId: "123456782", vatPeriod: "bimonthly" };
+  const { q, open, click, client } = await setup({ periods });
+  await open();
+  q("reports-kind").value = "pcn874";
+  q("reports-kind").dispatchEvent(new globalThis.window.Event("change"));
+  // The imported months are open and their purchases carry no supplier number.
+  assert.match(q("reports-preview").textContent, /אינה נעולה/);
+  assert.match(q("reports-preview").textContent, /חסר מספר העוסק של הספק/);
+  await click("reports-save-pcn");
+  assert.match(q("reports-error").textContent, /לא ניתן לשמור את קובץ PCN874/);
+  assert.equal(client.directory.children.has("reports"), false);
+  await closeWithRows(client.directory, "2026-01", [pcnRow("02/01/26", "203", "000000018", "3412", 100, 18)]);
+  await closeWithRows(client.directory, "2026-02", [pcnRow("10/02/26", "160", "", "4087", 1000, 180)]);
+  await open();
+  await click("reports-save-pcn");
+  assert.equal(q("reports-error").textContent, "");
+  assert.match(q("reports-status").textContent, /PCN874_123456782_202602\.txt/);
+  const saved = client.directory.children.get("reports").children.get("PCN874_123456782_202602.txt").text;
+  const text = await saved.text();
+  assert.match(text, /^O123456782202602/);
+  assert.match(text, /\r\nT000000018202601020000000003412000000018\+0000000100000000000\r\n/);
+  assert.match(text, /\r\nX123456782\r\n$/);
+});

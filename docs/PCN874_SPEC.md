@@ -82,7 +82,7 @@ The file is not written while any refusal is left; warnings are shown only.
 | --- | --- |
 | `no_vat_id` | the client card has no nine-digit dealer number |
 | `month_open` | a declaration of the period is not closed |
-| `pcn_blocked` | rows over the allocation ceiling not approved or without an allocation number (the rule of the lock button) |
+| `pcn_blocked` | rows over the allocation ceiling not approved or without an allocation number (the rule of the lock button; it also counts sales rows, as in ocr: kept by the owner on 24 October 2026, although Rivhit's `S` line carries no allocation number) |
 | `no_supplier` | a purchase row with VAT and no supplier number |
 | `bad_date` | a row of the file without a readable date |
 | `no_reference` | a row of the file without a document number |
@@ -98,6 +98,13 @@ The file is not written while any refusal is left; warnings are shown only.
 file's lines, the cents from the journals where they show them and plausible cents elsewhere):
 
 - The monthly sample: the opening, document and closing records are equal to Rivhit's.
-- The two-month sample: the opening record is equal, including the input VAT that is one shekel below the sum of the lines;
-  the `S` line, the seven `T` lines and the closing record are equal. The `L` line differs only in its document number:
-  Rivhit wrote `4`, the October sale of that line is not in the journals given, so its number is unknown (open with Anna).
+- The two-month sample: equal. The opening record has the input VAT one shekel below the sum of the lines;
+  the `S` line, the seven `T` lines and the closing record are equal. The `L` line differed only in its document number in the
+  rebuilt rows (the October sale is not in the journals given): Rivhit wrote `4`; Anna confirmed that 4 is the number of the last small sale of the period, so the rule gives the same line.
+
+## On the reports page (step 6.4.3)
+
+The kind "קובץ PCN874" of the reports page is offered only for a client with the PCN duty. Its default period is the VAT period.
+The page shows the refusals, the warnings, the totals of the opening record and the lines; "שמירת קובץ PCN874" writes the file
+into the client's `reports/` folder under Rivhit's name, "שמירה בשם…" lets the user choose a place. Both build the file again at
+the click and refuse while the list has a refusal. The file is not part of "save all".

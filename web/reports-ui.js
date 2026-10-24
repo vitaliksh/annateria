@@ -4,16 +4,20 @@ import { formatMonth, parseMonthText } from "./month-format.js";
 import { loadReportDeclarations, readReportSettings, saveReportSettings } from "./report-data.js";
 import { advancesReport, classificationLedger, inPeriod, periodContaining, profitLoss, reportEntries, vatReport } from "./reports.js";
 import { openReportWindow } from "./report-viewer.js";
+import { buildPcn874, pcn874FileName } from "./pcn874.js";
 import { layoutReport, renderReportPdf } from "./reports-pdf.js";
-import { renderAdvancesReport, renderLedgerReport, renderProfitLossReport, renderVatReport } from "./reports-view.js";
+import {
+  renderAdvancesReport, renderLedgerReport, renderPcn874Report, renderProfitLossReport, renderVatReport,
+} from "./reports-view.js";
 
 const REPORT_FILES = { vat: "vat", advances: "advances", profitLoss: "profit-loss", ledger: "ledger" };
 const PDF_TYPES = [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }];
+const TEXT_TYPES = [{ description: "PCN874", accept: { "text/plain": [".txt"] } }];
 
 // Default period: the reporting period of the latest declaration for VAT/advances, the year to date otherwise.
 export function defaultPeriod(kind, latestMonth, vatPeriod, advancesPeriod = vatPeriod) {
   if (!latestMonth) return { from: "", to: "" };
-  if (kind === "vat") return periodContaining(latestMonth, vatPeriod);
+  if (kind === "vat" || kind === "pcn874") return periodContaining(latestMonth, vatPeriod);
   if (kind === "advances") return periodContaining(latestMonth, advancesPeriod);
   return { from: `${latestMonth.slice(0, 4)}-01`, to: latestMonth };
 }
@@ -28,9 +32,20 @@ export function setupReports({ button, dialog, getContext, onError, onOpen, open
     "reports-kind", "reports-from", "reports-to", "reports-vat-period", "reports-advance-percent", "reports-error",
     "reports-status", "reports-preview", "reports-show", "reports-save-all", "reports-advances-period",
   ].map(part);
+  const [savePcn, savePcnAs] = ["reports-save-pcn", "reports-save-pcn-as"].map(part);
+  const pcnOption = kind.querySelector("option[value=\"pcn874\"]");
   let context = null;
   let entries = [];
+  let declarations = [];
+  let chart = {};
   let latestMonth = "";
+
+  // The PCN874 file (step 6.4.3) is offered only for a client with the PCN duty; it is saved, not printed.
+  const showActions = () => {
+    const pcn = kind.value === "pcn874";
+    show.hidden = pcn;
+    savePcn.hidden = savePcnAs.hidden = !pcn;
+  };
 
   const applyDefaultPeriod = () => {
     const period = defaultPeriod(kind.value, latestMonth, vatPeriod.value, advancesPeriod.value);
@@ -42,7 +57,8 @@ export function setupReports({ button, dialog, getContext, onError, onOpen, open
     context = getContext(client);
     if (!context) return onError("יש לבחור תחילה לקוח לפני הפקת דוחות.");
     try {
-      const [declarations, chart, settings] = await Promise.all([
+      let settings;
+      [declarations, chart, settings] = await Promise.all([
         loadReportDeclarations(context.client.directory),
         readEffectiveChart(context.dataRoot, context.client.directory, context.client.config.clientId),
         readReportSettings(context.client.directory),
@@ -57,6 +73,9 @@ export function setupReports({ button, dialog, getContext, onError, onOpen, open
       statusLine.textContent = "";
       errorLine.textContent = declarations.length ? "" : "ללקוח אין הצהרות.";
       if (wantedKind) kind.value = wantedKind;
+      if (pcnOption) pcnOption.hidden = !context.client.config?.pcnRequired;
+      if (pcnOption?.hidden && kind.value === "pcn874") kind.value = "vat";
+      showActions();
       applyDefaultPeriod();
       renderPreview();
       if (onOpen) onOpen(context);
@@ -66,7 +85,7 @@ export function setupReports({ button, dialog, getContext, onError, onOpen, open
     }
   }
   button?.addEventListener("click", () => open());
-  kind.addEventListener("change", () => { applyDefaultPeriod(); renderPreview(); });
+  kind.addEventListener("change", () => { showActions(); applyDefaultPeriod(); renderPreview(); });
   for (const field of [vatPeriod, advancesPeriod]) field.addEventListener("change", () => { applyDefaultPeriod(); renderPreview(); });
   for (const field of [from, to, percent]) {
     field.addEventListener("input", () => renderPreview());
@@ -90,8 +109,15 @@ export function setupReports({ button, dialog, getContext, onError, onOpen, open
   // The report data, its HTML (inline fallback) and its Rivhit-style pages for one kind and the chosen period.
   const buildReport = (reportKind, { fromIso, toIso, advancePercent }) => {
     const scope = inPeriod(entries, fromIso, toIso);
-    const { clientName, vatId, address } = context.client.config;
+    const { clientName, vatId, address, pcnRequired } = context.client.config;
     const info = { clientName, vatId, address, from: formatMonth(fromIso), to: formatMonth(toIso) };
+    if (reportKind === "pcn874") {
+      const file = buildPcn874({
+        vatId, from: fromIso, to: toIso, declarations, accounts: chart, names: context.names,
+        pcnRequired: Boolean(pcnRequired),
+      });
+      return { scope, file, name: pcn874FileName(vatId, toIso), node: () => renderPcn874Report(file, info) };
+    }
     const data = {
       vat: () => vatReport(scope),
       advances: () => advancesReport(scope, { percent: advancePercent }),
@@ -116,7 +142,7 @@ export function setupReports({ button, dialog, getContext, onError, onOpen, open
     if (kind.value === "advances" && !validPercent) return;
     try {
       const report = buildReport(kind.value, { fromIso, toIso, advancePercent: validPercent ? advancePercent : null });
-      if (report.scope.length) preview.append(report.node());
+      if (report.scope.length || report.file) preview.append(report.node());
     } catch {
       /* a failing preview must not block the buttons */
     }
@@ -133,7 +159,7 @@ export function setupReports({ button, dialog, getContext, onError, onOpen, open
     return `${context.client.directory.name}/reports/${name}`;
   };
 
-  const saveCopyAs = async (win, name, blob) => {
+  const saveCopyAs = async (win, name, blob, types = PDF_TYPES) => {
     if (typeof win.showSaveFilePicker !== "function") {
       const link = win.document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -141,7 +167,7 @@ export function setupReports({ button, dialog, getContext, onError, onOpen, open
       link.click();
       return `ההעתק ${name} הורד לתיקיית ההורדות.`;
     }
-    const handle = await win.showSaveFilePicker({ suggestedName: name, types: PDF_TYPES });
+    const handle = await win.showSaveFilePicker({ suggestedName: name, types });
     const writable = await handle.createWritable();
     try {
       await writable.write(blob);
@@ -200,6 +226,38 @@ export function setupReports({ button, dialog, getContext, onError, onOpen, open
       errorLine.textContent = "השמירה נכשלה: " + error.message;
     } finally {
       saveAll.disabled = false;
+    }
+  });
+
+  // The PCN874 file of the period, built again at the click (with today's creation date); refused while it has a
+  // refusal.
+  const pcnFile = () => {
+    const parameters = readParameters();
+    if (!parameters) return null;
+    const report = buildReport("pcn874", parameters);
+    renderPreview();
+    if (report.file.problems.length) {
+      errorLine.textContent = "לא ניתן לשמור את קובץ PCN874: יש לתקן את מה שמופיע ברשימה.";
+      return null;
+    }
+    return { name: report.name, blob: new Blob([report.file.text], { type: "text/plain" }) };
+  };
+  savePcn.addEventListener("click", async () => {
+    const file = pcnFile();
+    if (!file) return;
+    try {
+      statusLine.textContent = `הקובץ נשמר: ${await saveToReports(file.name, file.blob)}`;
+    } catch (error) {
+      errorLine.textContent = "השמירה נכשלה: " + error.message;
+    }
+  });
+  savePcnAs.addEventListener("click", async () => {
+    const file = pcnFile();
+    if (!file) return;
+    try {
+      statusLine.textContent = await saveCopyAs(window, file.name, file.blob, TEXT_TYPES);
+    } catch (error) {
+      if (error.name !== "AbortError") errorLine.textContent = "השמירה נכשלה: " + error.message;
     }
   });
   return { open };

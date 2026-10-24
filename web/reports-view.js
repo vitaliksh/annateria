@@ -121,6 +121,68 @@ export function renderProfitLossReport(report, context) {
   return sheet(header("דוח רווח והפסד", context, "ללא מס ערך מוסף"), content, footer());
 }
 
+const monthText = (month) => `${month.slice(5)}/${month.slice(0, 4)}`;
+const rowPlace = ({ month, position }) => `${monthText(month)}, שורה ${position}`;
+
+// The text of a refusal or warning of buildPcn874 (pcn874.js).
+export function pcnProblemText(problem) {
+  const texts = {
+    no_vat_id: () => "בכרטיס הלקוח אין מספר עוסק מורשה בן 9 ספרות.",
+    month_open: () => `ההצהרה של ${monthText(problem.month)} אינה נעולה.`,
+    pcn_blocked: () => {
+      const rows = problem.count === 1 ? "יש שורה אחת" : `יש ${problem.count} שורות`;
+      return `ב־${monthText(problem.month)} ${rows} מעל סף מספר ההקצאה שלא אושרו או שחסר להן מספר הקצאה.`;
+    },
+    no_supplier: () => `${rowPlace(problem)}: חסר מספר העוסק של הספק.`,
+    bad_date: () => `${rowPlace(problem)}: אין תאריך תקין.`,
+    no_reference: () => `${rowPlace(problem)}: חסר מספר מסמך.`,
+    too_long: () => "סכום ארוך מהשדה שלו בקובץ.",
+    bad_check_digit: () => `${rowPlace(problem)}: ספרת הביקורת של מספר העוסק אינה תקינה (הקובץ ייכתב בכל זאת).`,
+  };
+  return (texts[problem.code] ?? (() => problem.code))();
+}
+
+const PCN_KINDS = { S: "מכירה ללקוח מזוהה", L: "מכירות מרוכזות", T: "תשומה מספק" };
+
+// The PCN874 file before it is saved: what stops it, the totals of its opening record and its lines.
+export function renderPcn874Report(result, context) {
+  const children = [header("קובץ PCN874", context, "דיווח מפורט למע״מ: קובץ להעלאה באתר רשות המסים")];
+  const list = (items, className) => {
+    const node = el("ul", undefined, className);
+    node.append(...items.map((item) => el("li", pcnProblemText(item))));
+    return node;
+  };
+  if (result.problems.length) {
+    children.push(el("p", "לא ניתן לשמור את הקובץ עד שיתוקנו:", "report-warning"), list(result.problems, "problem-list"));
+  }
+  if (result.warnings.length) children.push(el("p", "לתשומת לב:", "report-note"), list(result.warnings, "problem-list"));
+  const { report } = result;
+  const count = (kinds) => result.lines.filter((line) => kinds.includes(line[0])).length;
+  const payable = report.payable >= 0 ? "הסכום לתשלום" : "הסכום להחזר";
+  children.push(table(["רשומת פתיחה", "סכום בש״ח"], [
+    row(["עסקאות חייבות (ללא מע״מ)", formatAmount(report.taxableSales)]),
+    row(["המס על העסקאות", formatAmount(report.outputVat)]),
+    row(["עסקאות פטורות או בשיעור אפס", formatAmount(report.exemptSales)]),
+    row(["מס תשומות על ציוד ונכסים קבועים", formatAmount(report.equipmentVat)]),
+    row(["המס על תשומות אחרות", formatAmount(report.inputVat)]),
+    row([{ text: payable, className: "total" }, { text: formatAmount(Math.abs(report.payable)), className: "total" }]),
+    row(["רשומות עסקאות", String(count("SL"))]),
+    row(["רשומות תשומות", String(count("T"))]),
+  ]));
+  const date = (text) => `${text.slice(6, 8)}/${text.slice(4, 6)}/${text.slice(0, 4)}`;
+  const lines = result.lines.map((line) => {
+    const sign = line[40] === "-" ? -1 : 1;
+    return row([
+      PCN_KINDS[line[0]] ?? line[0], line.slice(1, 10), date(line.slice(10, 18)), String(Number(line.slice(22, 31))),
+      formatAmount(sign * Number(line.slice(31, 40))), formatAmount(sign * Number(line.slice(41, 51))),
+      Number(line.slice(51)) ? line.slice(51) : "",
+    ]);
+  });
+  const heads = ["סוג", "מספר עוסק", "תאריך", "מספר מסמך", "מע״מ", "ללא מע״מ", "מספר הקצאה"];
+  children.push(table(heads, lines, "report-table ledger"));
+  return sheet(...children, footer());
+}
+
 export function renderLedgerReport(ledger, context, statusLabel = (status) => (status === "closed" ? "" : "טיוטא")) {
   const money = (value) => formatAmount(value, 2);
   const children = [header("כרטסת קודי מיון", context)];
