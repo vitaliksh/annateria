@@ -28,6 +28,35 @@ export function createSyncSnapshot({ source, destination, key, previous, now, on
 // Inside the shared folder the app keeps its own folder: the store (annateria-backup/).
 export const SYNC_DIR = "annateria-sync";
 
+const has = async (directory, name) => {
+  try {
+    await directory.getDirectoryHandle(name);
+    return true;
+  } catch (error) {
+    if (error.name === "NotFoundError" || error.name === "TypeMismatchError") return false;
+    throw error;
+  }
+};
+
+// The rollout on 23 October 2026: one PC chose the shared folder, the other the folder above it, and each started its own
+// store. A chosen folder is refused when it is the app's own folder inside the shared one (it holds annateria-backup), or a
+// folder above the shared one (its annateria-sync, or one of its first 400 subfolders, holds an annateria-sync of its own).
+// Answers null (fine: a used or a new folder) or { kind: "inner" } or { kind: "outer", folder }.
+export async function folderMistake(picked, { maxFolders = 400 } = {}) {
+  if (await has(picked, SYNC_DIR)) {
+    const inside = await picked.getDirectoryHandle(SYNC_DIR);
+    return (await has(inside, SYNC_DIR)) ? { kind: "outer", folder: SYNC_DIR } : null;
+  }
+  if (await has(picked, STORE_DIR)) return { kind: "inner" };
+  let seen = 0;
+  for await (const [name, handle] of picked.entries()) {
+    if (handle.kind !== "directory") continue;
+    if ((seen += 1) > maxFolders) break;
+    if (await has(handle, SYNC_DIR)) return { kind: "outer", folder: name };
+  }
+  return null;
+}
+
 // The id of the store in the shared folder, or null when the app has not written there (or it has not arrived yet).
 export async function syncStoreId(shared) {
   try {

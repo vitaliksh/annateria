@@ -1,79 +1,75 @@
 # Rollout on Anna's PC (phase 8)
 
-Step 8.1 of `WORK_PLAN.md`: the set-up checklist, done by Vitalik together with Anna. Interface labels are quoted exactly as
-`web/index.html` has them. Tick each box on paper during the visit and note anything that differed in `HANDOFF.md`.
+Step 8.1 of `WORK_PLAN.md`: the set-up checklist, done by Vitalik together with Anna. **Writing rule** (owner, 24 October 2026):
+a line is either English or Hebrew, never both, because mixed lines turn right-aligned and jumble the words. Each step says
+in English what to do; the exact interface labels follow on their own lines, in Hebrew only, as `web/index.html` has them.
 
-Written 23 October 2026, for the app version after `8eb7064` and Worker `2026.10.23.2` or later (the baton names the store of
-its last copy). Not yet followed on Anna's PC.
+First done on 23 October 2026 (evening): all clients arrived on Anna's PC after two problems, now covered by this list and by
+the app (see "What went wrong on 23 October" at the end).
 
-## Bring
+## Before the visit (Vitalik)
 
-- [ ] The recovery code on paper (the one already used on Vitalik's PC: both PCs **must** have the same code).
-- [ ] Anna's own access code (see "Before the visit").
-- [ ] A USB flash drive for the second copy.
-- [ ] Anna's Google account password is hers: she types it herself.
-
-## Before the visit (Vitalik, on his PC)
-
-- [ ] **Access codes.** If Anna has no code of her own yet, make one for each person in a terminal of Vitalik's PC
-  (`worker/README.md`): `node scripts/access-codes.mjs C:\secrets\annateria anna vitalik`, then load the two secrets as that file
-  says. This replaces **both** codes: Vitalik's old code stops working too. The codes appear only in that terminal; write Anna's on
-  paper for her, never in a chat or an e-mail. A shared code also works, but separate codes let one be turned off alone.
-- [ ] **A new shared folder** for the real data, not the test one (`annateria-sync-test` held test clients). In Vitalik's Google
-  Drive (web): create `ANNATERIA` in My Drive and share it with Anna's Google account as **Editor**.
-- [ ] **Vitalik's PC leaves the test folders** in step 6 below. Until then it may stay as it is: since Worker `2026.10.23.2` the
-  baton says in which shared folder its last copy lives, and a PC with another folder does not wait for it.
+- [ ] **Decide which PC holds the data.** That PC sends the first copy; the other PC starts with a **new empty** data folder
+  and receives. (On 23 October the clients were on Vitalik's PC.)
+- [ ] **Access codes.** If Anna has no code of her own, make one per person in a terminal on Vitalik's PC (`worker/README.md`):
+  `node scripts/access-codes.mjs C:\secrets\annateria anna vitalik`, then load the two secrets as the README says. This
+  replaces both codes, Vitalik's too. Write Anna's code on paper; never send it in a chat or an e-mail.
+- [ ] **The shared folder.** In Vitalik's Google Drive (web) create a folder named **`ANNATERIA`** in My Drive and share it
+  with Anna's Google account as Editor. Never name it `annateria-sync`: that is the name of the app's own folder inside it,
+  and the same name twice is what confused everybody on 23 October.
+- [ ] Bring: the recovery code on paper (the one already used on Vitalik's PC), Anna's access code, a USB flash drive.
 
 ## On Anna's PC
 
-1. **Browser.** Chrome or Edge, up to date (File System Access is needed; Chrome 122 or later asks "Allow on every visit", which
-   saves a click after every restart:
+1. **Browser.** Chrome or Edge, up to date. Open <https://vitaliksh.github.io/annateria/>, press Ctrl+F5, check the build
+   marker at the bottom of the sidebar, bookmark the page on the bookmarks bar. When Chrome asks for folder access, choose
+   the option that allows it on every visit (Chrome 122 or later:
    <https://developer.chrome.com/blog/persistent-permissions-for-the-file-system-access-api>).
-   - [ ] Open <https://vitaliksh.github.io/annateria/>, press Ctrl+F5, check the build marker at the bottom of the sidebar.
-   - [ ] Bookmark it on the bookmarks bar.
-2. **Google Drive for desktop.**
-   - [ ] Installed and signed in with **Anna's** Google account ("Stream files" is fine: spike 7.1).
-   - [ ] In Drive on the web, as Anna: "Shared with me" → `ANNATERIA` → ⋮ → "Organize" → "Add shortcut" → "My Drive".
-   - [ ] In File Explorer the folder appears as `<her drive letter>:\My Drive\ANNATERIA` (wait a minute if it is not there yet).
-3. **The data folder (local, never inside Google Drive or OneDrive).**
-   - [ ] Create `C:\ANNATERIA` (or `D:\ANNATERIA` if there is a D: drive).
-   - [ ] If she worked in the old ocr app: copy her old data folder into it first (step 8.2 checks it); the old folder stays as it
-     was, untouched, as a fallback.
-   - [ ] In ANNATERIA: "בחירת תיקיית נתונים" → that folder → allow ("Allow on every visit" when Chrome offers it).
-   - [ ] "הגדרות" → "נתיב מלא" → type the full path (the browser does not reveal it).
-4. **Access code.**
-   - [ ] The dialog "קוד גישה" at every opening: Anna types her code → "כניסה".
-   - [ ] "הגדרות" → "בדיקת חיבור ל‑AI" answers that the connection works.
-   - [ ] The plate in the top bar is green "עובדים כאן". (Should it ever stay blue "מקבל נתונים…" on this first opening, click it
-     → "לעבוד כאן": there is nothing to take on a new PC.)
-5. **Recovery code and the shared folder** ("גיבוי" in the sidebar).
-   - [ ] "קוד שחזור": "כבר יש לך קוד שחזור (למשל מהמחשב השני)?" → type the code from paper → "שימוש בקוד". Do **not** press
-     "יצירת קוד שחזור": a new code would not open the copies of the other PC.
-   - [ ] "תיקייה משותפת" → "בחירת תיקייה" → `<her drive letter>:\My Drive\ANNATERIA`. The ☁ in the top bar turns "✓" with the time.
-     If it says instead that the other PC's copy has not arrived ("…עוד לא הגיע לתיקייה המשותפת…"), the folder is new: click ☁ once.
-6. **Vitalik's PC takes Anna's data** (after step 5).
-   - [ ] Anna closes the ANNATERIA tab (or clicks the green plate → "סיום"); wait 3 to 4 minutes, or less after "סיום".
-   - [ ] On Vitalik's PC, first wait until his shortcut of `ANNATERIA` shows the folder `annateria-sync` in File Explorer (Drive
-     has brought Anna's copy; choosing the folder earlier is safe too: no copy leaves his PC until hers has arrived).
-   - [ ] Then: "בחירת תיקיית נתונים" → a **new empty** folder (for example `D:\ANNATERIA-ANNA`); "גיבוי" → "תיקייה
-     משותפת" → "בחירת תיקייה" → his shortcut of `ANNATERIA`. The plate turns blue "מקבל נתונים…", then green: her clients appear.
-   - [ ] Edit nothing real there yet; close the tab.
-7. **The flash copy.**
-   - [ ] On Anna's PC: plug in the drive, "גיבוי" → "כונן נייד (USB)" → "בחירת תיקייה" → a folder on the drive → "גיבוי עכשיו",
-     then "בדיקת תקינות" (both must say all is well); eject the drive. The dot at "גיבוי" turns green.
-   - [ ] Tell Anna: once a week the status bar asks for it ("הגיבוי האחרון לכונן נייד היה לפני … ימים").
-8. **The phone.**
-   - [ ] "תיבת קלט" → "איך מעבירים מהטלפון?": go through the guide with her phone once (send one document to herself in WhatsApp
-     as a document, drag it from WhatsApp Desktop into "תיבת קלט").
-9. **What Anna needs to know** (one page for her, in Hebrew, to be written with her words after the visit):
-   - [ ] Open the bookmark, type the code. Green plate: work. Red plate "פתוח אצל …": Vitalik is working; wait, it turns green by
-     itself after he closes ANNATERIA.
-   - [ ] Nothing to save by hand: every change is saved, and a copy goes to Drive ten seconds later (☁ ✓).
-   - [ ] Closing the tab is enough; the green plate's click "סיום" frees the place at once.
-   - [ ] Never put the data folder into Google Drive, OneDrive or the desktop.
+2. **Google Drive for desktop.** Installed and signed in with Anna's account ("Stream files" is fine). In Drive on the web,
+   as Anna: "Shared with me", the folder `ANNATERIA`, the menu ⋮, "Organize", "Add shortcut", "My Drive". In File Explorer
+   it appears as `<her drive letter>:\My Drive\ANNATERIA` after a minute.
+3. **The data folder.** Local, never inside Google Drive, OneDrive or the desktop. If this PC receives the data, create a
+   **new empty** folder (for example `C:\ANNATERIA`); if it holds the data, use the folder that has `clients` in it. Choose it
+   with the button below and allow the access:
+   - בחירת תיקיית נתונים
+   Then type the full path of the folder in the settings, field below:
+   - הגדרות ← נתיב מלא
+4. **Access code.** Anna types her code in the first dialog and presses the button below. The plate in the top bar turns
+   green.
+   - כניסה
+5. **Recovery code.** In the backup dialog, enter the code from paper (never create a new one):
+   - גיבוי ← כבר יש לך קוד שחזור (למשל מהמחשב השני)? ← שימוש בקוד
+   Never press:
+   - יצירת קוד שחזור
+6. **The shared folder.** In the backup dialog, section and button below, choose **`ANNATERIA` itself**: go into My Drive,
+   select `ANNATERIA`, press "Select folder"; do not go into it. The app refuses a folder one level too deep or too high
+   and names the right one.
+   - גיבוי ← תיקייה משותפת ← בחירת תיקייה
+   - [ ] Check: the line under the section shows the folder name `ANNATERIA`. **The same name must show on both PCs.**
+7. **The first copy, from the PC that holds the data.** On that PC (Vitalik's on 23 October) do steps 3 to 6 too if not done,
+   press ☁ in the top bar and wait for ✓ with the time, then close the tab and wait 3 to 4 minutes (Drive uploads the copy;
+   its tray icon says when all is up to date).
+   - [ ] Check in File Explorer: `ANNATERIA\annateria-sync\annateria-backup\snapshots` has a new `snap-….bin` of more than a
+     few hundred bytes (a copy of 145 bytes is the copy of an empty folder).
+8. **The receiving PC takes it.** Press Ctrl+F5 there and type the code. The plate turns blue, then green, and the clients
+   appear. An empty copy is never taken (the status bar says so), so a wrong order loses nothing.
+9. **The flash copy.** Plug in the drive and run, in the backup dialog, section and buttons below; then eject the drive.
+   - גיבוי ← כונן נייד (USB) ← בחירת תיקייה
+   - גיבוי עכשיו ← בדיקת תקינות
+10. **The phone.** In the inbox, the guide below; go through it once with her phone.
+    - תיבת קלט ← איך מעבירים מהטלפון?
+11. **For Anna:** the one-page Hebrew guide (an artifact, shared from its Share menu); go through it with her.
 
 ## After the visit
 
-- [ ] Step 8.2: her old data opened in ANNATERIA, the reports equal to the old app (`WORK_PLAN.md`).
-- [ ] Record in `HANDOFF.md`: date, browser and Drive versions, drive letter, anything that differed from this list (no client
-  names, no amounts, no codes).
+- [ ] Step 8.2 (`WORK_PLAN.md`).
+- [ ] Record in `HANDOFF.md`: date, browser and Drive versions, drive letter, anything that differed (no client names, no
+  amounts, no codes).
+
+## What went wrong on 23 October
+
+1. Anna's PC began with an empty data folder and sent an empty copy; Vitalik's PC, which held the clients, would have taken
+   it. Fixed in the app (2f6bcc3): an empty copy is never taken.
+2. The shared folder was named `annateria-sync`; Anna's PC chose it, Vitalik's PC chose the folder above it (My Drive), and
+   each PC started its own store. Fixed in the app: such a choice is refused and the right folder is named; and in this list:
+   the shared folder is called `ANNATERIA`, and both PCs must show the same name under the section.

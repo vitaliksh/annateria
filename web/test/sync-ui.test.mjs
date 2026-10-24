@@ -281,3 +281,15 @@ test("a refusal of canPush with a message is shown on the icon; a click passes i
   assert.deepEqual(asked, [false, true]);
   assert.equal((await snapshots(shared)).length, 1);
 });
+
+test("choosing the folder above the shared one is refused with its name, and nothing is saved or sent", async () => {
+  const { picks, section, stored, settle } = await setup();
+  const myDrive = withPermission(binaryDirectory("My Drive"));
+  await putFile(myDrive, "ANNATERIA/annateria-sync/annateria-backup/store.json", "{}");
+  picks.push(myDrive);
+  section.querySelector('[data-action="choose"]').click();
+  await settle(() => section.querySelector('[data-role="state"]').textContent !== "");
+  assert.match(section.querySelector('[data-role="state"]').textContent, /«ANNATERIA»/);
+  assert.equal(stored.has(SYNC_FOLDER_KEY), false);
+  assert.deepEqual([...myDrive.children.keys()], ["ANNATERIA"]);
+});

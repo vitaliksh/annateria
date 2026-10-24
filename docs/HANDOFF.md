@@ -6,7 +6,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 ## Start here (state on 22 October 2026)
 
 **State.** The code on `main` is at 24be377 (5.4); the commits after it change only the docs (plan, hand-over).
-Web 855 tests, Worker 69 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
+Web 857 tests, Worker 69 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green. Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5;
 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2. 6.1 (`run_report`) is in the backlog. Phase 3 is in the backlog.
 
 **Done on 21 October 2026 (details in the sections below and the decision log):** handles never reach the user (`handles.readable`); the
@@ -22,7 +22,10 @@ in the Worker, deployed as `2026.10.23.1`). 7.4.2 is done (the plate "who works"
 "מקבל נתונים…", `pullSnapshot` in `web/sync-store.js`; the owner's round trip passed after the fix 45022d6), so **7.4 is done**.
 The inbox now asks Chrome for the write permission when it opens or gets files (fix of 23 October). 7.6 is done (the old "Google Drive" backup
 slot removed; a weekly line in the status bar for the flash copy). **Phase 7 is done**; its round trip on Anna's PC with a real-size
-month is part of phase 8. **Next: phase 8** (rollout on Anna's PC): the checklist `docs/ROLLOUT.md` is written (23 October), the visit is to come. The trap
+month is part of phase 8. **Phase 8:** first set-up on Anna's PC on 23 October (evening): all clients arrived from Vitalik's PC; two problems of that
+night are fixed (an empty copy is never taken; a shared folder one level too deep or too high is refused). `docs/ROLLOUT.md` is
+rewritten from it. Still to do with Anna: the flash copy, the phone, her own access code, the clean-up of the shared folder
+(a stray `annateria-backup` and the name `annateria-sync`, see the decision log of 24 October). The trap
 of the blue plate is gone: the baton record names the store of its last snapshot (`copyToTake`, `firstCopyHeld` in `sync-store.js`). Read the phase in
 `WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first.
 
@@ -189,7 +192,7 @@ condition; 10 runs under heavier load passed. Lesson: after a push, check the ru
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 855 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 857 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 69 tests; check = wrangler deploy --dry-run
 ```
 

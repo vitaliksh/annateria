@@ -3,7 +3,7 @@
 // writes (agent, inbox, rules), a snapshot goes to the shared folder (sync-store.js), only when something changed. A failure
 // only turns the icon red: the work goes on. The folder handle and the key live in IndexedDB (backup-handles.js), the time of
 // the last push in common/sync-state.json. 7.4.3: pull() takes the other device's snapshot into the data root.
-import { pullSnapshot, pushSnapshot, readSyncState, saveSyncState, syncStoreId } from "./sync-store.js";
+import { folderMistake, pullSnapshot, pushSnapshot, readSyncState, saveSyncState, syncStoreId } from "./sync-store.js";
 import { BACKUP_KEY_NAME, SYNC_FOLDER_KEY, readSetting, writeSetting } from "./backup-handles.js";
 
 export const PUSH_AFTER_SAVE_MS = 10 * 1000;
@@ -169,6 +169,13 @@ export function setupSync({
     const root = getDataRoot();
     if (typeof root?.resolve === "function" && (await root.resolve(picked))) {
       setStatus("error", "לא ניתן לבחור תיקייה בתוך תיקיית הנתונים.");
+      return;
+    }
+    const mistake = await folderMistake(picked).catch(() => null);
+    if (mistake) {
+      setStatus("error", mistake.kind === "inner"
+        ? "נבחרה התיקייה הפנימית של ANNATERIA. יש לבחור את התיקייה המשותפת שמעליה."
+        : `בתוך התיקייה שנבחרה יש כבר תיקייה משותפת של ANNATERIA: «${mistake.folder}». יש לבחור אותה.`);
       return;
     }
     await store.writeSetting(SYNC_FOLDER_KEY, picked);

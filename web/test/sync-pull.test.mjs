@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { keyFromRecoveryCode, listSnapshots, newRecoveryCode } from "../backup-store.js";
 import {
   BEFORE_PREFIX, SYNC_DIR, SYNC_STATE_FILE, copyToTake, firstCopyHeld, isLocalOnly, pendingPull, pullSnapshot, pushSnapshot, readSyncState,
-  saveSyncState, syncStoreId,
+  saveSyncState, syncStoreId, folderMistake,
 } from "../sync-store.js";
 import { binaryDirectory, listPaths, putFile, readFileBytes } from "./memory-binary-directory.mjs";
 
@@ -184,4 +184,21 @@ test("pull: an empty copy is never written; it counts as taken and the next push
   const pushed = await pushSnapshot({ source: a, shared, key, now: at(4) });
   assert.equal(pushed.unchanged, false);
   assert.ok(pushed.files > 0);
+});
+
+// The rollout, 23 October 2026: one PC chose the shared folder, the other the folder above it.
+test("folderMistake: the shared folder is fine; the app's folder inside it and the folders above it are refused", async () => {
+  const myDrive = binaryDirectory("My Drive");
+  const shared = await myDrive.getDirectoryHandle("ANNATERIA", { create: true });
+  await putFile(shared, "annateria-sync/annateria-backup/store.json", "{}");
+  await putFile(myDrive, "other/notes.txt", "x");
+  assert.equal(await folderMistake(shared), null);
+  assert.equal(await folderMistake(binaryDirectory("new empty")), null);
+  assert.deepEqual(await folderMistake(await shared.getDirectoryHandle("annateria-sync")), { kind: "inner" });
+  assert.deepEqual(await folderMistake(myDrive), { kind: "outer", folder: "ANNATERIA" });
+  // The night of the rollout: the shared folder itself was called annateria-sync.
+  const named = binaryDirectory("My Drive");
+  await putFile(named, "annateria-sync/annateria-sync/annateria-backup/store.json", "{}");
+  assert.equal(await folderMistake(await named.getDirectoryHandle("annateria-sync")), null);
+  assert.deepEqual(await folderMistake(named), { kind: "outer", folder: "annateria-sync" });
 });
