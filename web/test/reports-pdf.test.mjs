@@ -35,9 +35,40 @@ test("דוח מע״מ: הסכומים, אזהרת תנועות לא מעודכנ
   assert.ok(all.includes("לקוח בדיקה"));
   assert.ok(all.includes("דוח מס ערך מוסף"));
   assert.ok(all.includes("קיימות 92 תנועות לא מעודכנות"));
-  assert.ok(all.includes("סה״כ מע״מ לתשלום"));
+  assert.ok(all.includes("הסכום לתשלום בשקלים חדשים"));
   assert.ok(all.includes("10,000"));
   assert.ok(all.includes("תאריך - 03/10/26 08:05:09"));
+});
+
+test("the VAT slip: each figure in the yellow box under its label, the exempt box empty, nothing under the slip", () => {
+  const lines = { turnover: 79873, outputVat: 14377, inputVat: 1668, equipmentVat: 671, payable: 12038 };
+  const report = { vatRate: 18, ...lines, openCount: 0 };
+  const [page] = layoutReport("vat", report, { ...info, from: "07/2026", to: "08/2026", vatId: "014715726" }, now);
+  const textOps = page.filter((op) => op.type === "text");
+  const at = (value) => textOps.find((op) => op.text === value);
+  // The yellow box that holds a text, and the label right above that box.
+  const boxOf = (op) => page.find((item) => item.type === "rect" && item.fill === "#fff27a"
+    && op.x <= item.x + item.width && op.x >= item.x && op.y >= item.y && op.y <= item.y + item.height);
+  const labelOf = (box) => textOps.find((op) => op.x === box.x + box.width && op.y < box.y && op.y > box.y - 15)?.text;
+  const figures = {
+    "79,873": "עסקאות חייבות (ללא מע״מ)", "14,377": "המס על העסקאות", "671": "מס תשומות על ציוד ונכסים קבועים",
+    "1,668": "המס על תשומות אחרות",
+  };
+  for (const [figure, label] of Object.entries(figures)) assert.equal(labelOf(boxOf(at(figure))), label, figure);
+  assert.ok(boxOf(at("12,038")) && at("הסכום לתשלום בשקלים חדשים"));
+  assert.ok(boxOf(at("יולי – אוגוסט 2026")) && boxOf(at("01471572-6")));
+  const exempt = at("עסקאות פטורות או בשיעור אפס");
+  const exemptBox = page.find((op) => op.type === "rect" && op.x + op.width === exempt.x
+    && op.y > exempt.y && op.y < exempt.y + 15);
+  assert.equal(textOps.some((op) => op.x > exemptBox.x && op.x < exemptBox.x + exemptBox.width
+    && op.y > exemptBox.y && op.y < exemptBox.y + exemptBox.height), false);
+  const footer = at("דוח עזר לרואה החשבון בלבד, אינו ייעוץ מס.");
+  assert.ok(footer);
+  assert.equal(page.some((op) => op.y > footer.y), false, "nothing is drawn under the footer");
+  assert.equal(at("%מע״מ"), undefined);
+  const refund = texts(layoutReport("vat", { ...report, equipmentVat: 0, payable: -40 }, info, now));
+  assert.ok(refund.includes("הסכום להחזר בשקלים חדשים") && refund.includes("40"));
+  assert.equal(refund.includes("0"), false, "a zero figure leaves its box empty");
 });
 
 test("the top line of every page: name on the right, VAT dealer number in the middle, address on the left", () => {

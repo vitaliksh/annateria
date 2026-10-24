@@ -1,4 +1,6 @@
 // Renders report data (reports.js) as RTL HTML tables; the print stylesheet turns them into a PDF via the browser.
+import { monthName } from "./reports.js";
+
 export function formatAmount(value, decimals = 0) {
   const text = Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   return value < 0 && Number(text.replace(/,/g, "")) !== 0 ? `(${text})` : text;
@@ -8,6 +10,15 @@ export function formatAmount(value, decimals = 0) {
 export function formatVatId(value) {
   const text = String(value ?? "").trim();
   return /^\d{9}$/.test(text) ? `${text.slice(0, 8)}-${text.slice(8)}` : text;
+}
+
+// "07/2026".."08/2026" -> "יולי – אוגוסט 2026"; one month -> "יולי 2026"; a period across a year names both years.
+export function periodWords(from, to) {
+  const [[fromMonth, fromYear], [toMonth, toYear]] = [from.split("/"), to.split("/")];
+  const name = (month, year) => monthName(`${year}-${month}`);
+  if (from === to) return `${name(fromMonth, fromYear)} ${fromYear}`;
+  if (fromYear === toYear) return `${name(fromMonth, fromYear)} – ${name(toMonth, toYear)} ${toYear}`;
+  return `${name(fromMonth, fromYear)} ${fromYear} – ${name(toMonth, toYear)} ${toYear}`;
 }
 
 // The business line of a report header: "עוסק מורשה: …" and the address, each only when the client card has it.
@@ -60,16 +71,19 @@ const sheet = (...children) => {
   return node;
 };
 
+// The lines of the periodic VAT slip in the order of the PDF page (reports-pdf.js); the exempt line stays empty.
 export function renderVatReport(report, context) {
-  const payable = report.payable >= 0 ? "סה״כ מע״מ לתשלום" : "סה״כ מע״מ להחזר";
+  const payable = report.payable >= 0 ? "הסכום לתשלום בשקלים חדשים" : "הסכום להחזר בשקלים חדשים";
   const rows = [
-    row(["מחזור עסקאות", formatAmount(report.turnover)]),
-    row([`מע״מ עסקאות (${report.vatRate}%)`, formatAmount(report.outputVat)]),
-    row(["מע״מ תשומות", formatAmount(report.inputVat)]),
-    row(["מע״מ תשומות ציוד", formatAmount(report.equipmentVat)]),
+    row(["עסקאות חייבות (ללא מע״מ)", formatAmount(report.turnover)]),
+    row(["המס על העסקאות", formatAmount(report.outputVat)]),
+    row(["עסקאות פטורות או בשיעור אפס", ""]),
+    row(["מס תשומות על ציוד ונכסים קבועים", formatAmount(report.equipmentVat)]),
+    row(["המס על תשומות אחרות", formatAmount(report.inputVat)]),
     row([{ text: payable, className: "total" }, { text: formatAmount(Math.abs(report.payable)), className: "total" }]),
   ];
-  const children = [header("דוח מס ערך מוסף", context), table(["סעיף", "סכום בש״ח"], rows)];
+  const note = `שיעור מע״מ עסקאות = ${report.vatRate.toFixed(4)}%`;
+  const children = [header("דוח מס ערך מוסף", context, note), table(["סעיף", "סכום בש״ח"], rows)];
   if (report.openCount) children.unshift(el("p", `קיימות ${report.openCount} תנועות לא מעודכנות`, "report-warning"));
   return sheet(...children, footer());
 }

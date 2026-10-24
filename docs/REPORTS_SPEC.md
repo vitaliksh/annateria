@@ -55,6 +55,10 @@ and the August file has 58). With that class added, P&L expenses, ledger section
   A one-shekel difference against another source is possible and is not a bug.
 - Equipment VAT remains a separate line of the VAT report. (24 October 2026: verified against a Rivhit VAT report of a test
   client that has equipment; the line and the payable amount are equal.)
+- VAT page (24 October 2026, step 6.3.2): the figures are drawn on the periodic VAT slip as in Rivhit (sales liable to VAT,
+  VAT on sales, exempt or zero-rate sales left empty, input VAT on equipment and fixed assets, other input VAT, the amount to pay
+  or to refund); the period is written in words ("יולי – אוגוסט 2026"). Rivhit's comparison table and summary by rate are not
+  drawn (Anna: not needed).
 - Header (24 October 2026, step 6.3.1): every page starts with Rivhit's top line: the client name on the right, "עוסק מורשה:" and
   the VAT dealer number (nine digits printed as `NNNNNNNN-N`) in the middle, the business address on the left; the last two
   only when the client card has them.

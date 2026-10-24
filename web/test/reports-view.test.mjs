@@ -10,7 +10,7 @@ import { buildJournalGrid } from "./excel-journal-fixture.mjs";
 // reports-view.js builds nodes with the global document, so bind one before importing it.
 globalThis.document = new JSDOM("<!doctype html><body></body>").window.document;
 const {
-  businessLine, formatAmount, formatVatId,
+  businessLine, formatAmount, formatVatId, periodWords,
   renderAdvancesReport, renderLedgerReport, renderProfitLossReport, renderVatReport,
 } = await import("../reports-view.js");
 
@@ -31,11 +31,19 @@ test("вид отчёта НДС: строки, сумма к уплате и п
   const node = renderVatReport(vatReport(entries), context);
   assert.equal(node.dir, "rtl");
   assert.deepEqual(cells(node).slice(1), [
-    ["מחזור עסקאות", "10,000"], ["מע״מ עסקאות (18%)", "1,800"], ["מע״מ תשומות", "250"], ["מע״מ תשומות ציוד", "270"],
-    ["סה״כ מע״מ לתשלום", "1,280"],
+    ["עסקאות חייבות (ללא מע״מ)", "10,000"], ["המס על העסקאות", "1,800"], ["עסקאות פטורות או בשיעור אפס", ""],
+    ["מס תשומות על ציוד ונכסים קבועים", "270"], ["המס על תשומות אחרות", "250"],
+    ["הסכום לתשלום בשקלים חדשים", "1,280"],
   ]);
   assert.equal(node.querySelector(".report-warning").textContent, "קיימות 8 תנועות לא מעודכנות");
+  assert.equal(node.querySelector(".report-note").textContent, "שיעור מע״מ עסקאות = 18.0000%");
   assert.match(node.querySelector(".report-period").textContent, /2026-01 – 2026-02/);
+});
+
+test("the period in words, as on the VAT slip: one month, two months, a period across a year", () => {
+  assert.equal(periodWords("07/2026", "07/2026"), "יולי 2026");
+  assert.equal(periodWords("07/2026", "08/2026"), "יולי – אוגוסט 2026");
+  assert.equal(periodWords("12/2025", "01/2026"), "דצמבר 2025 – ינואר 2026");
 });
 
 test("the business line of the header: the VAT number as Rivhit prints it and the address, only what is known", () => {
@@ -54,7 +62,7 @@ test("вид отчёта НДС: отрицательный результат 
   const refund = { ...vatReport(closed), payable: -40 };
   const node = renderVatReport(refund, context);
   assert.equal(node.querySelector(".report-warning"), null);
-  assert.deepEqual(cells(node).at(-1), ["סה״כ מע״מ להחזר", "40"]);
+  assert.deepEqual(cells(node).at(-1), ["הסכום להחזר בשקלים חדשים", "40"]);
 });
 
 test("вид отчёта по авансам", () => {
