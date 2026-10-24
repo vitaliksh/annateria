@@ -382,6 +382,7 @@ const workspaceControls = setupWorkspaceControls({
   newProfileInputs: {
     vatId: document.querySelector("#new-client-vat-id"),
     incomeTaxFileId: document.querySelector("#new-client-income-tax-id"),
+    address: document.querySelector("#new-client-address"),
     advancePercent: document.querySelector("#new-client-advance-percent"),
     pcn: document.querySelector("#new-client-pcn"),
     hint: document.querySelector("#new-client-tax-hint"),
@@ -389,6 +390,7 @@ const workspaceControls = setupWorkspaceControls({
   profileInputs: {
     vatId: document.querySelector("#client-vat-id"),
     incomeTaxFileId: document.querySelector("#client-income-tax-id"),
+    address: document.querySelector("#client-address"),
     advancePercent: document.querySelector("#client-advance-percent"),
     pcn: document.querySelector("#client-pcn"),
     hint: document.querySelector("#client-tax-hint"),

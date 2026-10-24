@@ -4,6 +4,17 @@ export function formatAmount(value, decimals = 0) {
   return value < 0 && Number(text.replace(/,/g, "")) !== 0 ? `(${text})` : text;
 }
 
+// A nine-digit VAT dealer number as Rivhit prints it ("01471572-6"); anything else as typed.
+export function formatVatId(value) {
+  const text = String(value ?? "").trim();
+  return /^\d{9}$/.test(text) ? `${text.slice(0, 8)}-${text.slice(8)}` : text;
+}
+
+// The business line of a report header: "עוסק מורשה: …" and the address, each only when the client card has it.
+export function businessLine({ vatId, address } = {}) {
+  return [vatId ? `עוסק מורשה: ${formatVatId(vatId)}` : "", String(address ?? "").trim()].filter(Boolean).join(" · ");
+}
+
 function el(tag, text, className) {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
@@ -31,9 +42,11 @@ function table(headers, rows, className = "report-table") {
   return node;
 }
 
-function header(title, { clientName, from, to }, note) {
+function header(title, { clientName, from, to, vatId, address }, note) {
   const box = el("header", undefined, "report-header");
   box.append(el("h2", title), el("p", clientName, "report-client"));
+  const business = businessLine({ vatId, address });
+  if (business) box.append(el("p", business, "report-business"));
   box.append(el("p", from === to ? `תקופה: ${from}` : `לתקופה: ${from} – ${to}`, "report-period"));
   if (note) box.append(el("p", note, "report-note"));
   return box;

@@ -9,7 +9,10 @@ import { buildJournalGrid } from "./excel-journal-fixture.mjs";
 
 // reports-view.js builds nodes with the global document, so bind one before importing it.
 globalThis.document = new JSDOM("<!doctype html><body></body>").window.document;
-const { formatAmount, renderAdvancesReport, renderLedgerReport, renderProfitLossReport, renderVatReport } = await import("../reports-view.js");
+const {
+  businessLine, formatAmount, formatVatId,
+  renderAdvancesReport, renderLedgerReport, renderProfitLossReport, renderVatReport,
+} = await import("../reports-view.js");
 
 const accounts = normaliseChart({ accounts: SEED_CHART_OF_ACCOUNTS });
 const parsed = parseJournalGrid(buildJournalGrid()).rows;
@@ -33,6 +36,17 @@ test("вид отчёта НДС: строки, сумма к уплате и п
   ]);
   assert.equal(node.querySelector(".report-warning").textContent, "קיימות 8 תנועות לא מעודכנות");
   assert.match(node.querySelector(".report-period").textContent, /2026-01 – 2026-02/);
+});
+
+test("the business line of the header: the VAT number as Rivhit prints it and the address, only what is known", () => {
+  assert.equal(formatVatId("014715726"), "01471572-6");
+  assert.equal(formatVatId(" 12-34 "), "12-34");
+  assert.equal(businessLine({ vatId: "014715726", address: "Herzl 1" }), "עוסק מורשה: 01471572-6 · Herzl 1");
+  assert.equal(businessLine({ address: "Herzl 1" }), "Herzl 1");
+  assert.equal(businessLine({}), "");
+  const node = renderVatReport(vatReport(entries), { ...context, vatId: "014715726", address: "Herzl 1" });
+  assert.equal(node.querySelector(".report-business").textContent, "עוסק מורשה: 01471572-6 · Herzl 1");
+  assert.equal(renderVatReport(vatReport(entries), context).querySelector(".report-business"), null);
 });
 
 test("вид отчёта НДС: отрицательный результат — к возврату, без предупреждения при закрытых", () => {

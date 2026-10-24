@@ -1,7 +1,7 @@
 // Rivhit-style A4 pages for the four reports. layoutReport is pure (it returns draw operations per page, so it can be
 // tested without a browser); renderReportPdf draws the operations on canvases and wraps the pages into a PDF.
 import { jpegPagesToPdf } from "./document-package.js";
-import { formatAmount } from "./reports-view.js";
+import { formatAmount, formatVatId } from "./reports-view.js";
 
 export const PAGE_WIDTH = 1240, PAGE_HEIGHT = 1754;
 const RENDER_SCALE = 2, RIGHT = 1170, LEFT = 70, BODY_TOP = 300, BODY_BOTTOM = 1690;
@@ -193,12 +193,18 @@ function layoutLedger(ledger, { from, to }, statusLabel = (status) => (status ==
 const LAYOUTS = { vat: layoutVat, advances: layoutAdvances, profitLoss: layoutProfitLoss, ledger: layoutLedger };
 
 // kind: "vat" | "advances" | "profitLoss" | "ledger"; data: the matching result of reports.js;
-// info: { clientName, from, to } with months as MM/YYYY. Returns one operation list per page.
+// info: { clientName, from, to, vatId?, address? } with months as MM/YYYY. Returns one operation list per page.
+// The top line is Rivhit's: the name on the right, the VAT dealer number in the middle, the address on the left.
 export function layoutReport(kind, data, info, now = new Date()) {
   const { title, subtitle, note, pages } = LAYOUTS[kind](data, info);
   const stamp = formatStamp(now);
+  const business = [
+    ...(info.vatId ? [centred(62, `עוסק מורשה: ${formatVatId(info.vatId)}`, { size: 21, bold: true })] : []),
+    ...(info.address ? [text(LEFT, 62, info.address, { size: 21, bold: true, align: "left", maxWidth: 380 })] : []),
+  ];
   return pages.map((body, index) => [
-    text(RIGHT, 62, info.clientName, { size: 23, bold: true }),
+    text(RIGHT, 62, info.clientName, { size: 23, bold: true, maxWidth: 380 }),
+    ...business,
     line(LEFT, RIGHT, 90, 1),
     text(LEFT, 130, `תאריך - ${stamp}`, { size: 17, align: "left" }),
     text(LEFT, 158, `דף ${index + 1} מתוך ${pages.length}`, { size: 17, align: "left" }),

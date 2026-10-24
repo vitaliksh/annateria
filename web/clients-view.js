@@ -159,6 +159,7 @@ export function renderClientCard(root, { client, settings, showingArchived }, ha
   addFact("דיווח מקדמות", VAT_PERIOD_LABELS[client.config?.advancesPeriod ?? vatPeriod] || "");
   addFact("מספר עוסק מורשה", text(client.config?.vatId));
   addFact("מספר מס הכנסה", text(client.config?.incomeTaxFileId));
+  addFact("כתובת העסק", text(client.config?.address));
   addFact("קובץ PCN", client.config?.pcnRequired ? "חובה" : "לא נדרש");
   addFact("אחוז מקדמות", settings?.advancePercent === null || settings?.advancePercent === undefined ? "" : `${settings.advancePercent}%`);
   root.append(facts);

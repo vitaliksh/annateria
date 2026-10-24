@@ -31,16 +31,19 @@ function bindMonthPicker(dialog, input) {
   monthSelect.onchange = yearSelect.onchange = sync;
 }
 
-// Tax profile inputs of a client dialog: { vatId, incomeTaxFileId, advancePercent, pcn, hint }.
+// Tax profile inputs of a client dialog: { vatId, incomeTaxFileId, address?, advancePercent, pcn, hint }.
 function fillProfile(inputs, config) {
   inputs.vatId.value = config.vatId ?? "";
   inputs.incomeTaxFileId.value = config.incomeTaxFileId ?? "";
+  if (inputs.address) inputs.address.value = config.address ?? "";
   inputs.pcn.checked = Boolean(config.pcnRequired);
   inputs.advancePercent.value = "";
   showProfileHint(inputs);
 }
 function readProfile(inputs) {
-  return { vatId: inputs.vatId.value, incomeTaxFileId: inputs.incomeTaxFileId.value, pcnRequired: inputs.pcn.checked };
+  const address = inputs.address ? { address: inputs.address.value } : {};
+  const numbers = { vatId: inputs.vatId.value, incomeTaxFileId: inputs.incomeTaxFileId.value };
+  return { ...numbers, ...address, pcnRequired: inputs.pcn.checked };
 }
 // Empty = not set (null); anything else must be a number from 0 to 100.
 function advancePercentOf(inputs) {

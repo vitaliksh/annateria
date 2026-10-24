@@ -26,7 +26,7 @@ All rounding is half-up to whole shekels unless noted.
 | VAT | turnover | Σ net of income |
 | VAT | output VAT | Σ VAT of income |
 | VAT | input VAT | Σ VAT of `expense` classes (credit notes subtract); `outsideVatBase` and equipment excluded, as in the Rivhit inputs line |
-| VAT | equipment VAT | Σ VAT of equipment (separate line, assumption: not yet compared with a Rivhit report that has equipment) |
+| VAT | equipment VAT | Σ VAT of equipment (separate line; equal to Rivhit's "input VAT on equipment and fixed assets" on a sample with equipment, 24 October 2026) |
 | VAT | payable | output − input − equipment, **of the rounded lines** (as on the VAT form) |
 | VAT | warning | number of active entries in declarations that are not closed (Rivhit: "N non-updated transactions") |
 | Advances | advance | round(rounded turnover × percent / 100); total = advance − deductions (deductions default 0) |
@@ -53,5 +53,8 @@ and the August file has 58). With that class added, P&L expenses, ledger section
 - Rounding stays as implemented: the VAT payable is the difference of the rounded lines (so the printed form adds up),
   P&L and ledger totals are computed from exact amounts and rounded once. Both agree with the PDFs on the sample.
   A one-shekel difference against another source is possible and is not a bug.
-- Equipment VAT remains a separate line of the VAT report and is not verified against Rivhit (no sample with equipment);
-  nothing more is planned for it.
+- Equipment VAT remains a separate line of the VAT report. (24 October 2026: verified against a Rivhit VAT report of a test
+  client that has equipment; the line and the payable amount are equal.)
+- Header (24 October 2026, step 6.3.1): every page starts with Rivhit's top line: the client name on the right, "עוסק מורשה:" and
+  the VAT dealer number (nine digits printed as `NNNNNNNN-N`) in the middle, the business address on the left; the last two
+  only when the client card has them.

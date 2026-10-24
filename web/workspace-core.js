@@ -1,14 +1,17 @@
 // How often the client files its VAT return and its advances: every month or every two months.
 export const REPORT_PERIODS = ["monthly", "bimonthly"];
 
-// Optional tax profile of a client: the VAT dealer number, the income tax file number (kept as typed, trimmed) and
-// whether the client must produce a detailed PCN874 file. Empty values are left out, so old files read as before.
+// Optional tax profile of a client: the VAT dealer number, the income tax file number (kept as typed, trimmed), the
+// business address printed on the reports (one line) and whether the client must produce a detailed PCN874 file.
+// Empty values are left out, so old files read as before.
 export function normalizeClientTaxProfile(value) {
   const profile = {};
   for (const key of ["vatId", "incomeTaxFileId"]) {
     const text = String(value?.[key] ?? "").trim().slice(0, 20);
     if (text) profile[key] = text;
   }
+  const address = String(value?.address ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+  if (address) profile.address = address;
   if (value?.pcnRequired === true) profile.pcnRequired = true;
   return profile;
 }

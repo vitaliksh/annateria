@@ -91,6 +91,12 @@ test("диалог отчётов: показ отчёта НДС за два м
   assert.deepEqual(await readReportSettings(client.directory), { vatPeriod: "bimonthly", advancePercent: 12 });
 });
 
+test("the reports take the VAT dealer number and the address from the client card", async () => {
+  const { q, open } = await setup({ periods: { vatId: "014715726", address: "Herzl 1" } });
+  await open();
+  assert.equal(q("reports-preview").querySelector(".report-business").textContent, "עוסק מורשה: 01471572-6 · Herzl 1");
+});
+
 test("диалог отчётов: авансы требуют процент, неверный период отклоняется, сохранение всех тоже", async () => {
   const { q, open, click } = await setup();
   await open();

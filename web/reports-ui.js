@@ -90,7 +90,8 @@ export function setupReports({ button, dialog, getContext, onError, onOpen, open
   // The report data, its HTML (inline fallback) and its Rivhit-style pages for one kind and the chosen period.
   const buildReport = (reportKind, { fromIso, toIso, advancePercent }) => {
     const scope = inPeriod(entries, fromIso, toIso);
-    const info = { clientName: context.client.config.clientName, from: formatMonth(fromIso), to: formatMonth(toIso) };
+    const { clientName, vatId, address } = context.client.config;
+    const info = { clientName, vatId, address, from: formatMonth(fromIso), to: formatMonth(toIso) };
     const data = {
       vat: () => vatReport(scope),
       advances: () => advancesReport(scope, { percent: advancePercent }),

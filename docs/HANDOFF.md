@@ -5,7 +5,8 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 ## Start here (state on 24 October 2026)
 
-**State.** `main` carries everything (last code commit 596ca72; the commits after it change only the docs). Web 857 tests, Worker 69
+**State.** `main` carries everything up to 6.3.1 (the address on the client card and the business line of the report header,
+see "Step 6.3.1" below). Web 861 tests, Worker 69
 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green in both. The published page and the Worker answer these versions.
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **phase 7** (7.1 to
 7.4, 7.6; 7.5 merged into 7.4). 6.1 (`run_report`) and phase 3 are in the backlog.
@@ -40,6 +41,16 @@ replaces both codes), going through the one-page Hebrew guide (a claude.ai artif
 - When writing to the owner, never put Hebrew inside a Russian or English line: mixed lines turn right-aligned and jumble. Name a
   button in Russian and give the Hebrew label on its own line.
 - Scripts that edit files: write them with the file tool, not in a shell here-document (backslashes and `\d`, `\(` got eaten twice).
+
+**Step 6.3.1 (24 October 2026): business details in the report header** (Anna's request: the VAT report as Rivhit's; the plan is
+`WORK_PLAN.md` 6.3). The figures of the VAT report already equal her Rivhit samples for both test clients; 6.3.2 redraws the page.
+How to repeat that comparison: her samples are in `D:\ANNATERIA\input\` (test root, free to read); compute `vatReport` of `web/reports.js`
+from the declarations of the period with the client's `classification-codes.json` (a throw-away script outside the repository) and
+compare line by line; never write the figures into the docs. **Changed existing code:** `workspace-core.js` (`normalizeClientTaxProfile`
+keeps `address`), `workspace.js` (`fillProfile`, `readProfile` take an optional `address` input), `app.js` (the two inputs), `clients-view.js`
+(one fact), `index.html` (one field in each client dialog), `reports-view.js` (new `formatVatId`, `businessLine`; `header` adds the
+line), `reports-pdf.js` (`layoutReport` draws the number and the address on the top line; the name gets a `maxWidth`), `reports-ui.js`
+(`info` carries `vatId` and `address`).
 
 **Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
 through the card), the phase check of 4.6 (a second similar month asks fewer questions).
@@ -207,7 +218,7 @@ condition; 10 runs under heavier load passed. Lesson: after a push, check the ru
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 857 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 861 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 69 tests; check = wrangler deploy --dry-run
 ```
 

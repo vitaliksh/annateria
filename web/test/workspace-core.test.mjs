@@ -34,6 +34,15 @@ test("налоговый профиль клиента: номера, флаг P
   assert.equal("vatId" in old, false); assert.equal("pcnRequired" in old, false);
 });
 
+test("the business address of the tax profile: one trimmed line of at most 200 characters, left out when empty", () => {
+  const base = { clientId: "id", clientName: "Клиент", businessActivity: "Спорт", businessKind: "home" };
+  assert.deepEqual(normalizeClientTaxProfile({ address: "  Herzl 1\n  Tel Aviv " }), { address: "Herzl 1 Tel Aviv" });
+  assert.equal(normalizeClientTaxProfile({ address: "x".repeat(250) }).address.length, 200);
+  assert.deepEqual(normalizeClientTaxProfile({ address: "   " }), {});
+  assert.equal(normalizeWorkspaceConfig({ ...base, address: "Herzl 1" }).config.address, "Herzl 1");
+  assert.equal("address" in normalizeWorkspaceConfig(base).config, false);
+});
+
 test("мягкая проверка налогового номера: 9 цифр и контрольная цифра", () => {
   assert.equal(taxIdProblem(""), "");
   assert.equal(taxIdProblem("123456782", { checkDigit: true }), "");

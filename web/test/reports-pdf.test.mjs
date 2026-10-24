@@ -40,6 +40,19 @@ test("דוח מע״מ: הסכומים, אזהרת תנועות לא מעודכנ
   assert.ok(all.includes("תאריך - 03/10/26 08:05:09"));
 });
 
+test("the top line of every page: name on the right, VAT dealer number in the middle, address on the left", () => {
+  const business = { ...info, vatId: "014715726", address: "Herzl 1" };
+  const pages = layoutReport("ledger", classificationLedger(entries), business, now);
+  assert.ok(pages.length > 1);
+  const expected = [["לקוח בדיקה", "right"], ["עוסק מורשה: 01471572-6", "center"], ["Herzl 1", "left"]];
+  for (const page of pages) {
+    const top = page.filter((op) => op.type === "text" && op.y === 62);
+    assert.deepEqual(top.map((op) => [op.text, op.align]), expected);
+  }
+  const bare = layoutReport("vat", vatReport(entries), info, now)[0].filter((op) => op.type === "text" && op.y === 62);
+  assert.deepEqual(bare.map((op) => op.text), ["לקוח בדיקה"]);
+});
+
 test("דוח מקדמות ודוח רווח והפסד: שדות עיקריים", () => {
   const advances = texts(layoutReport("advances", advancesReport(entries, { percent: 12 }), info, now));
   assert.ok(advances.includes("אחוז מקדמות מהמחזור = 12%"));
