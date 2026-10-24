@@ -59,8 +59,9 @@ test("the business line of the header: the VAT number as Rivhit prints it and th
 
 test("вид отчёта НДС: отрицательный результат — к возврату, без предупреждения при закрытых", () => {
   const closed = reportEntries([{ month: "2026-01", status: "closed", rows }], accounts);
-  const refund = { ...vatReport(closed), payable: -40 };
+  const refund = { ...vatReport(closed), exemptSales: 21674, payable: -40 };
   const node = renderVatReport(refund, context);
+  assert.deepEqual(cells(node)[3], ["עסקאות פטורות או בשיעור אפס", "21,674"]);
   assert.equal(node.querySelector(".report-warning"), null);
   assert.deepEqual(cells(node).at(-1), ["הסכום להחזר בשקלים חדשים", "40"]);
 });

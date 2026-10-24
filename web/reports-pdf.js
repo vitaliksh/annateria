@@ -56,7 +56,7 @@ function formBox(builder, rows) {
 const SLIP = { ink: "#8a2c1c", field: "#fff27a", paper: "#fffdf3", blank: "#fff", figure: "#1d3fb8" };
 
 // The periodic VAT slip, drawn by the app in the places of the paper form (never Rivhit's picture of it); the figures
-// are the lines of reports.js. The exempt and zero-rate box stays empty: the app does not tell those sales apart.
+// are the lines of reports.js. Sales rows without VAT are the exempt and zero-rate box.
 function vatSlip(builder, report, { clientName, address, vatId, from, to }) {
   const [frameTop, frameBottom] = [310, 905];
   const label = (x, y, value, options = {}) => builder.add(text(x, y, value, { size: 15, color: SLIP.ink, ...options }));
@@ -95,11 +95,11 @@ function vatSlip(builder, report, { clientName, address, vatId, from, to }) {
   label(1150, 572, "המס על העסקאות");
   box(860, 1150, 580, 50, figure(report.outputVat));
   label(790, 572, "עסקאות חייבות (ללא מע״מ)");
-  box(480, 790, 580, 50, figure(report.turnover));
+  box(480, 790, 580, 50, figure(report.taxableSales));
   rule(790, 840, 605);
   builder.add(text(836, 612, "►", { size: 20, color: SLIP.ink, align: "left" }));
   label(420, 572, "עסקאות פטורות או בשיעור אפס");
-  box(90, 420, 580, 50, "", { fill: SLIP.blank });
+  box(90, 420, 580, 50, figure(report.exemptSales));
   label(1150, 662, "מס תשומות על ציוד ונכסים קבועים");
   box(860, 1150, 670, 46, figure(report.equipmentVat));
   label(1150, 742, "המס על תשומות אחרות");

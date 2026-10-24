@@ -5,8 +5,8 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 ## Start here (state on 24 October 2026)
 
-**State.** `main` carries everything up to 6.3.2 (the address on the client card, the business line of the report header and the VAT
-slip as Rivhit draws it, see "Step 6.3.1" and "Step 6.3.2" below). Web 863 tests, Worker 69
+**State.** `main` carries everything up to 6.4.1 (the address on the client card, the business line of the report header, the VAT
+slip as Rivhit draws it and its exempt box, see "Step 6.3.1", "Step 6.3.2" and the plan of 6.4). Web 864 tests, Worker 69
 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green in both. The published page and the Worker answer these versions.
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **phase 7** (7.1 to
 7.4, 7.6; 7.5 merged into 7.4). 6.1 (`run_report`) and phase 3 are in the backlog.
@@ -60,6 +60,12 @@ that also accepts `POST /__save/<name>` into the scratchpad lets the page post t
 session scratchpad, not in the repository). **Changed existing code:** `reports-pdf.js` (`layoutVat` rewritten, `rect` options,
 `drawPage` fills a rect and takes its `lineWidth`), `reports-view.js` (`renderVatReport` lines and note; new `periodWords`, which
 imports `monthName` of `reports.js`).
+
+**Step 6.4.1 (24 October 2026): exempt sales on the slip** (first step of the PCN874 file, plan in `WORK_PLAN.md` 6.4). A sales row
+without VAT is an exempt or zero-rate sale. **Changed existing code:** `reports.js` (`vatReport` returns also `taxableSales` and
+`exemptSales`; `turnover` is unchanged), `reports-pdf.js` (the taxable box shows `taxableSales`, the exempt box `exemptSales`),
+`reports-view.js` (the same two lines). Anna's PCN sample (VAT report, journal, file of one client for one month) is on the owner's
+PC, outside the repository; read it only when the owner asks, record structure only.
 
 **Waiting for the owner's own runs (do not tick before he reports):** 4.6.1 (a ticked rule lands in `rules.md`), 4.7.4 (an operations ledger
 through the card), the phase check of 4.6 (a second similar month asks fewer questions).
@@ -227,7 +233,7 @@ condition; 10 runs under heavier load passed. Lesson: after a push, check the ru
 ## How to run the checks
 
 ```powershell
-cd web;    npm ci; npm test; npm run check   # node --test, 863 tests; check = node --check on every module
+cd web;    npm ci; npm test; npm run check   # node --test, 864 tests; check = node --check on every module
 cd worker; npm ci; npm test; npm run check   # 69 tests; check = wrangler deploy --dry-run
 ```
 

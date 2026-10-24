@@ -23,7 +23,9 @@ All rounding is half-up to whole shekels unless noted.
 
 | Report | Figure | Definition |
 | --- | --- | --- |
-| VAT | turnover | Σ net of income |
+| VAT | turnover | Σ net of income (all sales; the status bar and the advances use it) |
+| VAT | taxable sales | Σ net of income entries with VAT (the slip's "sales liable to VAT"; 24 October 2026) |
+| VAT | exempt sales | Σ net of income entries without VAT (the slip's "exempt or zero-rate sales"; 24 October 2026) |
 | VAT | output VAT | Σ VAT of income |
 | VAT | input VAT | Σ VAT of `expense` classes (credit notes subtract); `outsideVatBase` and equipment excluded, as in the Rivhit inputs line |
 | VAT | equipment VAT | Σ VAT of equipment (separate line; equal to Rivhit's "input VAT on equipment and fixed assets" on a sample with equipment, 24 October 2026) |
@@ -56,7 +58,7 @@ and the August file has 58). With that class added, P&L expenses, ledger section
 - Equipment VAT remains a separate line of the VAT report. (24 October 2026: verified against a Rivhit VAT report of a test
   client that has equipment; the line and the payable amount are equal.)
 - VAT page (24 October 2026, step 6.3.2): the figures are drawn on the periodic VAT slip as in Rivhit (sales liable to VAT,
-  VAT on sales, exempt or zero-rate sales left empty, input VAT on equipment and fixed assets, other input VAT, the amount to pay
+  VAT on sales, exempt or zero-rate sales (a sales row without VAT, since 6.4.1), input VAT on equipment and fixed assets, other input VAT, the amount to pay
   or to refund); the period is written in words ("יולי – אוגוסט 2026"). Rivhit's comparison table and summary by rate are not
   drawn (Anna: not needed).
 - Header (24 October 2026, step 6.3.1): every page starts with Rivhit's top line: the client name on the right, "עוסק מורשה:" and

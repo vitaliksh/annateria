@@ -64,16 +64,23 @@ export function inPeriod(entries, from, to) {
 
 const ofType = (entries, ...types) => entries.filter((entry) => types.includes(entry.type));
 
-// Lines are whole shekels and the payable amount is their difference, as on the VAT form.
+// Lines are whole shekels and the payable amount is their difference, as on the VAT form. turnover is all sales; the
+// slip splits it into taxable sales and exempt or zero-rate sales (a sales row without VAT).
 export function vatReport(entries, { vatRate = 18 } = {}) {
-  const turnover = whole(sum(ofType(entries, "income"), "net"));
-  const outputVat = whole(sum(ofType(entries, "income"), "vat"));
+  const income = ofType(entries, "income");
+  const exempt = income.filter((entry) => !entry.vat);
+  const turnover = whole(sum(income, "net"));
+  const exemptSales = whole(sum(exempt, "net"));
+  const taxableSales = whole(sum(income.filter((entry) => entry.vat), "net"));
+  const outputVat = whole(sum(income, "vat"));
   // Classes outside the input base (property tax, insurance, clothing) are expenses, but their VAT is not deducted.
   const inputVat = whole(sum(ofType(entries, "expense"), "vat"));
   const equipmentVat = whole(sum(ofType(entries, "equipment"), "vat"));
   return {
     vatRate,
     turnover,
+    taxableSales,
+    exemptSales,
     outputVat,
     inputVat,
     equipmentVat,

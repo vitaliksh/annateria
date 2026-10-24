@@ -41,8 +41,8 @@ test("דוח מע״מ: הסכומים, אזהרת תנועות לא מעודכנ
 });
 
 test("the VAT slip: each figure in the yellow box under its label, the exempt box empty, nothing under the slip", () => {
-  const lines = { turnover: 79873, outputVat: 14377, inputVat: 1668, equipmentVat: 671, payable: 12038 };
-  const report = { vatRate: 18, ...lines, openCount: 0 };
+  const lines = { taxableSales: 79873, exemptSales: 0, outputVat: 14377, inputVat: 1668, equipmentVat: 671 };
+  const report = { vatRate: 18, ...lines, payable: 12038, openCount: 0 };
   const [page] = layoutReport("vat", report, { ...info, from: "07/2026", to: "08/2026", vatId: "014715726" }, now);
   const textOps = page.filter((op) => op.type === "text");
   const at = (value) => textOps.find((op) => op.text === value);
@@ -69,6 +69,11 @@ test("the VAT slip: each figure in the yellow box under its label, the exempt bo
   const refund = texts(layoutReport("vat", { ...report, equipmentVat: 0, payable: -40 }, info, now));
   assert.ok(refund.includes("הסכום להחזר בשקלים חדשים") && refund.includes("40"));
   assert.equal(refund.includes("0"), false, "a zero figure leaves its box empty");
+  const [withExempt] = layoutReport("vat", { ...report, exemptSales: 21674 }, info, now);
+  const exemptFigure = withExempt.find((op) => op.type === "text" && op.text === "21,674");
+  assert.ok(exemptFigure, "the exempt sales are drawn");
+  assert.ok(exemptFigure.x > exemptBox.x && exemptFigure.x <= exemptBox.x + exemptBox.width
+    && exemptFigure.y > exemptBox.y && exemptFigure.y < exemptBox.y + exemptBox.height, "in the exempt box");
 });
 
 test("the top line of every page: name on the right, VAT dealer number in the middle, address on the left", () => {

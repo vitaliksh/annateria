@@ -71,13 +71,14 @@ const sheet = (...children) => {
   return node;
 };
 
-// The lines of the periodic VAT slip in the order of the PDF page (reports-pdf.js); the exempt line stays empty.
+// The lines of the periodic VAT slip in the order of the PDF page (reports-pdf.js); the exempt line is empty when there
+// are no such sales.
 export function renderVatReport(report, context) {
   const payable = report.payable >= 0 ? "הסכום לתשלום בשקלים חדשים" : "הסכום להחזר בשקלים חדשים";
   const rows = [
-    row(["עסקאות חייבות (ללא מע״מ)", formatAmount(report.turnover)]),
+    row(["עסקאות חייבות (ללא מע״מ)", formatAmount(report.taxableSales)]),
     row(["המס על העסקאות", formatAmount(report.outputVat)]),
-    row(["עסקאות פטורות או בשיעור אפס", ""]),
+    row(["עסקאות פטורות או בשיעור אפס", report.exemptSales ? formatAmount(report.exemptSales) : ""]),
     row(["מס תשומות על ציוד ונכסים קבועים", formatAmount(report.equipmentVat)]),
     row(["המס על תשומות אחרות", formatAmount(report.inputVat)]),
     row([{ text: payable, className: "total" }, { text: formatAmount(Math.abs(report.payable)), className: "total" }]),

@@ -44,9 +44,20 @@ test("отчёты: в записи попадают только активны
 test("отчёт НДС: целые шекели, оборудование отдельной строкой, предупреждение о незакрытых", () => {
   const report = vatReport(entries(declaration("2026-01", "open")));
   assert.deepEqual(report, {
-    vatRate: 18, turnover: 10000, outputVat: 1800, inputVat: 250, equipmentVat: 270, payable: 1280, openCount: 8,
+    vatRate: 18, turnover: 10000, taxableSales: 10000, exemptSales: 0, outputVat: 1800, inputVat: 250, equipmentVat: 270,
+    payable: 1280, openCount: 8,
   });
   assert.equal(vatReport(entries(declaration("2026-01", "closed"))).openCount, 0);
+});
+
+test("the VAT report: a sales row without VAT is an exempt or zero-rate sale; turnover keeps all sales", () => {
+  const sale = (net, vat) => ({
+    active: true, values: ["30/09/26", "160", "", "", "", "1", "", String(net + vat), String(net), String(vat)],
+  });
+  const list = [sale(1000, 180), sale(250.4, 0), sale(-50, 0), sale(2000, 360)];
+  const report = vatReport(reportEntries([declaration("2026-09", "closed", list)], {}, { 160: "הכנסות" }));
+  assert.deepEqual([report.turnover, report.taxableSales, report.exemptSales, report.outputVat], [3200, 3000, 200, 540]);
+  assert.equal(report.payable, 540);
 });
 
 // Lines are rounded after summing the period, so the payable amount is not twice the single-month figure.
