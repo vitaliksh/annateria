@@ -10,7 +10,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
 (7.1 to 7.4, 7.6; 7.5 merged into 7.4). 6.1 (`run_report`) and phase 3 are in the backlog.
 
-**2.5 Phone scans into the inbox (Anna's show-stopper, 24 October; 2.5.1 published 005ccf5, fixed after the owner's first try).** Anna scans with the Google Drive
+**2.5 Phone scans into the inbox (Anna's show-stopper, 24 October; 2.5.1 done: published 9f72add, checked by the owner with his iPhone).** Anna scans with the Google Drive
 app's widget into `phone/` of the shared folder (`G:\My Drive\ANNATERIA\phone` on the owner's PC); `web/phone-intake.js` takes the
 files whose size did not change in 3 s into `inbox/_unsorted/` (the ordinary `addToInbox`) and deletes them from `phone/`;
 `web/phone-ui.js` runs it every 30 s while the plate is green (always when no Worker is configured) and from the button
@@ -19,8 +19,8 @@ only once a shared folder is chosen: an interval started for nothing kept `app.t
 creates `phone/`** and reads every folder named `phone` or `phone (N)`: on the owner's first try the folder the app had made and
 the one the phone made were two Drive folders of one name, the phone's showed up on the PC as `phone (1)`, and the scan sat there
 unseen. Web 884 tests.
-**Not verified:** the whole round trip with a real phone and Drive for desktop (the owner's check of 2.5.1), the Drive widget picking a
-folder that Anna's Drive holds as a shortcut, the iPhone route, deletion through Drive for desktop going to Drive's trash.
+**Checked:** iPhone (Drive app scan, PDF 3.6 MB) → PC in about 15 s → inbox, and the scan gone from `phone (1)`. **Not verified:**
+an Android and the widget picking a folder that Anna's Drive holds as a shortcut (2.5.2, with Anna); deletion going to Drive's trash.
 
 **Anna's two requests of 24 October (both built and published the same day; the owner said the rollout tasks of phase 8 will be done
 during the real work):**

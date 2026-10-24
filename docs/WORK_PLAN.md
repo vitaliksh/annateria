@@ -148,7 +148,7 @@ Goal: every kind of file Anna gets lands in `inbox/` with one gesture.
   duplicate) the app deletes it from `phone/`; nothing else in Drive is ever deleted. *Hypothesis until 2.5.1:* a file
   deleted in the Drive for desktop folder goes to Drive's trash, not away for good.
   One step, one commit, the owner's "yes" between steps:
-  - [ ] **2.5.1 PC pick-up and the button "check now".** *Done when:* tests with a fake folder (new file taken, a
+  - [x] **2.5.1 PC pick-up and the button "check now".** *Done when:* tests with a fake folder (new file taken, a
     growing file waits, a file deleted only after it is in the inbox, a failed delete not taken twice, a duplicate
     counted and deleted, nothing taken while the plate is not green, an unknown type refused as in 2.2, the button runs
     one check at once and not two at the same time); the owner
@@ -156,7 +156,9 @@ Goal: every kind of file Anna gets lands in `inbox/` with one gesture.
     touching the PC (and at once after the button); the delay and the iPhone route in `HANDOFF.md`.
     (Built 24 October 2026: `web/phone-intake.js`, `web/phone-ui.js`; the button "בדוק סריקות מהטלפון" and its line are in
     the inbox dialog, not the status bar (owner: all intake through the inbox); a new scan also writes the line into the status
-    bar. No list of taken names: a scan that stayed in `phone/` comes back as a duplicate of the inbox and is deleted then.)
+    bar. No list of taken names: a scan that stayed in `phone/` comes back as a duplicate of the inbox and is deleted then.
+    Done 24 October 2026 after the fix 9f72add: the owner scanned a PDF with the Drive app on his iPhone, it was on the PC
+    15 s later, the published page took it into the inbox and `phone (1)` was empty again. The Android route moves to 2.5.2.)
   - [ ] **2.5.2 With Anna:** the widget on her phone (a line in `docs/ROLLOUT.md`), one real working
     day; her notes in `HANDOFF.md`. The Hebrew phone guide (2.4) gets the new way only with the owner's text.
 
@@ -552,3 +554,4 @@ model behind the same proxy.
 | 2026-10-24 | **2.5: the app deletes a scan from `phone/`** once it is safely in the inbox (owner). The only deletion in Drive the app may make; recorded in `AGENTS.md`. |
 | 2026-10-24 | **2.5.1 built** (`web/phone-intake.js`, `web/phone-ui.js`; changed: `app.js` (wiring; `onFolderChosen` also starts the phone timer), `index.html` (a row in the inbox dialog), `inbox.css`). The owner: all intake through the inbox, so the button and its line live in the inbox dialog. No list of taken names (the plan had one): a scan left in `phone/` after a failed delete comes back as an inbox duplicate and is deleted then; a duplicate of a declaration image too. A file of a type the inbox refuses stays in `phone/` and is named on the line. Web 870 → 883 tests. Checked in a local Chrome: the row renders in the dialog and the button answers without a data folder. **Not verified:** a real phone, Drive for desktop, the published page. |
 | 2026-10-24 | **2.5.1 fix: the app no longer creates `phone/`.** The owner's first try showed "no new scans": the app's first check had created `phone/` in the shared folder, the owner then made `phone` on the phone, Drive kept both and Drive for desktop showed the phone's as `phone (1)`, where the scan lay. Now the app reads every folder named `phone` or `phone (N)` (case aside) and creates none. Reproduced by a test first. Web 883 → 884 tests. The empty `phone` the app made may be deleted in Drive. |
+| 2026-10-24 | **2.5.1 done** (the owner, published page 9f72add, "Yess!!"): a 3.6 MB PDF scanned with the Drive app on his iPhone into `phone` of the shared folder reached his PC in about 15 s, the button took it into the inbox, and it was gone from `phone (1)`. Not checked: an Android (Anna's, in 2.5.2), whether the deleted file sits in Drive's trash. |
