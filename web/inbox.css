@@ -169,3 +169,15 @@
   margin: 0;
   padding-inline-start: var(--s5);
 }
+
+/* 2.5: the button that checks the phone scans now, and the line that tells what came. */
+.inbox-phone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.inbox-phone [data-state="error"] {
+  color: var(--error);
+}

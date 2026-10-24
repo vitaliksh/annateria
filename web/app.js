@@ -34,6 +34,7 @@ import { setupAccess } from "./access-ui.js";
 import { checkModelConnection, createModelClient } from "./model-client.js";
 import { setupTransfer } from "./transfer-ui.js";
 import { setupInbox } from "./inbox-ui.js";
+import { setupPhoneIntake } from "./phone-ui.js";
 import { progressLabel, setupAssistant } from "./assistant-ui.js";
 import { buildMessage, createAssistantFlow, leftNote, resultNote } from "./assistant-flow.js";
 import { setupModelSettings } from "./model-settings-ui.js";
@@ -339,7 +340,10 @@ const sync = setupSync({
     return held ? "לא נשלח עותק: העותק של המחשב השני עוד לא הגיע לתיקייה המשותפת. אם זו תיקייה חדשה, לחיצה כאן תשלח." : true;
   },
   onPushed: (pushed) => baton.reportPushed(pushed),
-  onFolderChosen: () => baton.check(),
+  onFolderChosen: () => {
+    phoneIntake.start().catch(() => {});
+    return baton.check();
+  },
 });
 sync.refresh().catch(() => {});
 sync.start();
@@ -688,6 +692,20 @@ const baton = setupBaton({
   onSkip: (name) => sync.skip(name),
 });
 document.querySelector("#baton-status").hidden = !api;
+// 2.5: scans from the phone (phone/ of the shared folder) come into the inbox on the PC that works (the green plate).
+const phoneLine = document.querySelector("#inbox-phone-line");
+const phoneIntake = setupPhoneIntake({
+  button: document.querySelector("#inbox-phone-check"),
+  line: phoneLine,
+  getDataRoot: () => dataRoot,
+  canCheck: async ({ interactive }) => (interactive ? !baton.blocksEditing() : !api || baton.state() === "here"),
+  onTaken: async (result) => {
+    if (result.added.length) status.textContent = phoneLine.textContent;
+    await inboxUi?.refreshCounts();
+    sync.changed();
+  },
+});
+phoneIntake.start().catch(() => {});
 if (api) accessUi.ensureLoggedIn().then(() => baton.check()).catch(() => {});
 // The last copy also leaves when the tab is closed (not guaranteed: the browser may not wait for it).
 window.addEventListener("pagehide", () => { sync.push().catch(() => {}); });

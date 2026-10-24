@@ -139,9 +139,8 @@ Goal: every kind of file Anna gets lands in `inbox/` with one gesture.
   enough for the recognition (the owner, 24 October 2026). *Hypotheses until the owner's check in 2.5.1:* the iPhone route
   (the Drive app's scan, or Files "Scan Documents" into the Drive folder); a several-page scan as `.jpg`.
   **PC side:** the shared folder is already picked (7.3), so `phone/` needs no new permission. While the plate is green
-  (this PC holds the baton), every 30 s the app lists `phone/`; a file not taken yet (names kept in
-  `common/sync-state.json`, local only) whose size has not changed between two listings (spike 7.1: a file can be visible
-  before it is whole) goes through the existing inbox intake (SHA-256 dedup) into `inbox/_unsorted/`; a short line in the
+  (this PC holds the baton), every 30 s the app lists `phone/`; a file whose size has not changed between two
+  listings 3 s apart (spike 7.1: a file can be visible before it is whole) goes through the existing inbox intake (SHA-256 dedup) into `inbox/_unsorted/`; a short line in the
   status bar tells how many came. A button beside it checks `phone/` at once (for a pile of scans: no wait for the 30 s;
   it cannot hurry Drive for desktop itself, which took 15 to 40 s per file in spike 7.1). **Clean-up (owner, 24 October
   2026):** once a scan is safely in the inbox (written and read back with the same SHA-256, or already there as a
@@ -154,6 +153,9 @@ Goal: every kind of file Anna gets lands in `inbox/` with one gesture.
     one check at once and not two at the same time); the owner
     scans on an Android and on his iPhone into `phone/` and sees the files in the inbox on the published page without
     touching the PC (and at once after the button); the delay and the iPhone route in `HANDOFF.md`.
+    (Built 24 October 2026: `web/phone-intake.js`, `web/phone-ui.js`; the button "בדוק סריקות מהטלפון" and its line are in
+    the inbox dialog, not the status bar (owner: all intake through the inbox); a new scan also writes the line into the status
+    bar. No list of taken names: a scan that stayed in `phone/` comes back as a duplicate of the inbox and is deleted then.)
   - [ ] **2.5.2 With Anna:** the widget on her phone (a line in `docs/ROLLOUT.md`), one real working
     day; her notes in `HANDOFF.md`. The Hebrew phone guide (2.4) gets the new way only with the owner's text.
 
@@ -547,3 +549,4 @@ model behind the same proxy.
 | 2026-10-24 | **2.5 replanned.** The owner lifted the rule "only encrypted data in the cloud" for phone photos and asked for no encryption and good quality. So no phone page, no Google sign-in, no keys: the Google Drive app's own scanner (Android widget tied to one folder) saves into `phone/` of the shared folder, and the PC app takes the files from there. Telegram stays out: photos sent as photos arrive compressed (ocr, 12 October) and a bot needs Worker work, while the Drive scanner needs no code on the phone. `AGENTS.md` records the exception. |
 | 2026-10-24 | **2.5: no trial step** (the owner knows the scan quality is enough); a button "check now" beside the status line, for a pile of scans. 2.5 is now two steps: the PC pick-up, then a day with Anna. |
 | 2026-10-24 | **2.5: the app deletes a scan from `phone/`** once it is safely in the inbox (owner). The only deletion in Drive the app may make; recorded in `AGENTS.md`. |
+| 2026-10-24 | **2.5.1 built** (`web/phone-intake.js`, `web/phone-ui.js`; changed: `app.js` (wiring; `onFolderChosen` also starts the phone timer), `index.html` (a row in the inbox dialog), `inbox.css`). The owner: all intake through the inbox, so the button and its line live in the inbox dialog. No list of taken names (the plan had one): a scan left in `phone/` after a failed delete comes back as an inbox duplicate and is deleted then; a duplicate of a declaration image too. A file of a type the inbox refuses stays in `phone/` and is named on the line. Web 870 → 883 tests. Checked in a local Chrome: the row renders in the dialog and the button answers without a data folder. **Not verified:** a real phone, Drive for desktop, the published page. |
