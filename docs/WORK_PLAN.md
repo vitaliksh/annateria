@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status (24 October 2026): **phases 0, 1, 2, 5 and 7 done; phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.3 done (the VAT report as Rivhit's); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** This file is the single source of truth for what is
+Status (24 October 2026): **phases 0, 1, 2, 5 and 7 done; phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -282,6 +282,50 @@ Goal: Anna's rules live in skills, are tested, and update with Ctrl+F5.
     Rivhit's PDF is too small to read them for sure).
     *Done when:* tests of the layout; the figures of the two test clients still equal their samples (checked locally, not
     recorded); the owner and Anna see the page next to Rivhit's and find no difference but the font and the field numbers.
+- [ ] **6.4 The PCN874 file** (Anna's request, 24 October 2026: "very important"; planned with the owner the same day). For a
+  client with a detailed VAT duty the app writes the file the bookkeeper uploads to the Tax Authority; the app never sends it.
+  **Sources:** the official layout, "Appendix A" of the Tax Authority's notice to software houses (gov.il,
+  `IncomeTax_IncomeTaxSoftwareHousesInfo_874-eng.pdf`, 2010, read 24 October 2026): an opening record `O` (the dealer, the month,
+  the totals of the VAT return), one record per document (a letter for its kind: `S` sale to an identified customer, `L` sales
+  to unidentified customers as one aggregated line, `T` input from an Israeli supplier, and others), a closing record `X`; fixed
+  widths, zeros in front; the last nine digits of a record are the allocation number (the "Israel invoice" guidance of 2024,
+  gov.il `vat_software-houses-180724.pdf`, to be read in full in 6.4.2). **Anna's sample** (one PCN client, one month, Rivhit:
+  the VAT report, the month's journal and the file; real data, kept on the owner's PC only): the file follows that layout to the
+  character (131 / 60 / 10 characters, ASCII, CRLF, reference group `0000`, report type `1`, amounts rounded per line, the
+  totals of `O` are the sums of the lines and equal the VAT report); the purchases are `T` lines, the allocation number is on
+  every purchase over 5,000, and the sales are two `L` lines (the cash register's taxable total and an exempt total), so the
+  VAT slip of such a client has a figure in the exempt box. **Anna's answers:** sales come from the cash register; small
+  invoices (up to 5,000) may be one aggregated line, a bigger sale is reported with the customer's dealer number; a client who
+  reports every two months gets one file; inputs are only ordinary supplier invoices (`T`). One step, one commit, the owner's
+  "yes" between steps:
+  - [ ] **6.4.1 Exempt sales in the VAT report.** A sales row without VAT goes into the exempt box of the slip and out of the
+    taxable sales; the totals that feed the file and the slip are the same function. (No test client has such a row, so their
+    reports do not change: checked locally on 24 October.)
+    *Done when:* tests (synthetic); the reports of the test clients unchanged; the owner sees the exempt box filled on the
+    published page for a synthetic client.
+  - [ ] **6.4.2 The file, as code** (`pcn874.js`, pure; `docs/PCN874_SPEC.md` with the field table, the sources and the dates).
+    Rows of the period: a purchase row with VAT (expense or equipment) is a `T` line (supplier number, document date, the last
+    nine digits of the document number, the recognised VAT, the net at 100%, the allocation number; a credit note with `-`); a
+    sales row with a customer number is an `S` line, without one an `L` line as entered (a monthly cash-register total stays one
+    line); the totals of `O` are the sums of the lines. Refusals before writing, listed for the user: a purchase row with VAT
+    and no supplier number (today most saved rows have none: an imported Rivhit journal does not carry it), a PCN row not
+    approved or without its allocation number (the rule of the lock button), a month of the period not closed. A supplier
+    number with a wrong check digit is a warning only (the layout asks to allow it).
+    *Done when:* tests give a byte-exact file for synthetic rows; rows rebuilt by hand from Anna's sample (on the owner's PC,
+    not in the repository) give her file byte for byte except the creation date; the totals equal `vatReport`, or the
+    difference is shown (rounding per line against rounding of the total).
+  - [ ] **6.4.3 On the reports page.** A report "PCN874" for a client with the PCN duty: the totals of the opening record next to
+    the VAT slip's, the list of lines and the refusals; the button saves `PCN874_<dealer>_<yyyymm>.txt` (Rivhit's name) into the
+    client's `reports/`, and "save as".
+    *Done when:* the owner sees it on the published page; the saved file is the file of 6.4.2.
+  - [ ] **6.4.4 A real month.** Anna keeps one month of a PCN client in ANNATERIA; its file is compared with Rivhit's for the
+    same month and checked in the Tax Authority's simulator (by the owner or Anna, on the Tax Authority's site); she uploads it
+    herself.
+  **Open (ask Anna before 6.4.2):** how the PCN client's month gets into ANNATERIA (purchase invoices through the inbox, so they
+  carry the supplier number and the allocation number; the sales totals typed or from an income report?); for a client that
+  reports every two months, which month the opening record names (no sample yet: a Rivhit file of such a client, or the
+  simulator, decides); what the reference of an aggregated `L` line should be (her sample has the number of sales on one line
+  and a document number on the other).
 
 ## Phase 7 — Sync between the two PCs and backup
 
@@ -461,3 +505,4 @@ model behind the same proxy.
 | 2026-10-24 | **6.3 planned with the owner (Anna's request: the VAT report as Rivhit's).** Read from her two samples and the test data root, figures only on this PC: the app's VAT figures of both test clients equal Rivhit's, every line; the fixed-assets line, unverified since 2 October (no sample with equipment), is now confirmed. What differs is the page: the business line of the header, the slip, the comparison with the year before and the summary by rate. The owner: the same look as Rivhit, the slip drawn by the app rather than Rivhit's picture (their PDF is marked as their property and this repository is public); the address goes on the client card. **6.3.1 built:** `address` in the tax profile (`normalizeClientTaxProfile`: one line, at most 200 characters, left out when empty, so it also travels in a client transfer file), the field "כתובת העסק" in both client dialogs and on the card, the top line of every report page and of the preview. Web 857 → 861 tests. Checked in a local Chrome (a synthetic client in the browser's private storage, deleted after): the field saves into `workspace.json`, the card shows it, the PDF page has name, number and address in Rivhit's places. **Not verified:** the published page; a very long name or address squeezed by `maxWidth` (only short ones were drawn). |
 | 2026-10-24 | **6.3.1 done** (the owner on the published page, 3cbb31e). **6.3.2 built** with Anna's answers (through the owner): our footer, no table under the slip, the exempt box empty. `reports-pdf.js` `layoutVat` now draws the periodic VAT slip (`vatSlip`: the frame, the labels of the paper form in its brown-red ink, the figures in blue in yellow boxes, the empty boxes, "בשקלים שלמים", the bank stamp and the signature lines) instead of the box of five lines and the summary table; the VAT page has no subtitle (the period is on the slip); a zero figure leaves its box empty, as in the sample without equipment; `rect` operations may carry `fill` and `lineWidth`. `reports-view.js`: `periodWords` (shared by the slip and the preview), the preview lists the slip's lines in its order with the rate as a note. The wording of the lines changed on purpose (they are the labels of the form now). Web 861 → 863 tests. Checked in a local Chrome: the drawn page next to Anna's sample (made-up name and address, figures of the sample). **Not verified:** the published page; printing on paper; a very long name or address in its box (squeezed by `maxWidth`, not seen). |
 | 2026-10-24 | **6.3.2 done, 6.3 done** (the owner on the published page, 9b4d52a: "looks excellent"). |
+| 2026-10-24 | **6.4 planned (the PCN874 file).** Read: the official layout (gov.il, 2010, Appendix A) and, on the owner's PC only, Anna's sample of one PCN client for one month (VAT report, journal, file); structure recorded in 6.4, no names or amounts. Found on the way: the VAT slip of such a client has a figure in the exempt box, so the decision of 6.3.2 "the exempt box stays empty" holds only for clients without exempt sales; 6.4.1 fills it from sales rows without VAT. Gemini's description passed on by the owner named the records "000 / 874 / 999"; the official layout and the sample say `O`, a letter per document, `X`. |
