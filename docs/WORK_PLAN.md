@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status (24 October 2026): **phases 0, 1, 2, 5 and 7 done; phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** This file is the single source of truth for what is
+Status (24 October 2026): **phases 0, 1, 5 and 7 done; phase 2 done but for 2.5 (phone camera → inbox, Anna's show-stopper, planned 24 October, next); phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -127,6 +127,35 @@ Goal: every kind of file Anna gets lands in `inbox/` with one gesture.
 - [x] **2.4 Phone guide for Anna** (Hebrew, one page in the app's help): send to yourself in WhatsApp **as a
   document**; built-in document scanner (iPhone Notes/Files, Android Drive or camera); USB + Explorer; iPhone
   setting "Transfer to Mac or PC: Automatic" if photos are copied by cable.
+- [ ] **2.5 Phone camera → inbox** (Anna's request, 24 October 2026: a show-stopper, paper must reach the inbox faster;
+  planned with the owner the same day, replanned the same evening when the owner lifted the encryption rule for these
+  photos, see `AGENTS.md`; Quick Share, a direct Wi-Fi link, USB and Telegram were weighed and set aside). **No code on the
+  phone:** Anna taps the "Drive scan" widget on her home screen, takes the photo, saves it; the Google Drive app puts it, as
+  is, into the folder `phone/` inside the shared Drive folder; the open app on the PC takes it into `inbox/_unsorted/`
+  within a minute or two and then deletes it from `phone/`. No Worker change; the encrypted store is untouched.
+  **Sources (read 24 October 2026):** Google Drive Help, "Scan documents with Google Drive"
+  (<https://support.google.com/drive/answer/3145835>): the Drive app scans to `.pdf` or `.jpg`, the save step picks the
+  folder, and a home-screen widget "Drive scan" is tied to one folder chosen when it is added. The quality of a scan is
+  enough for the recognition (the owner, 24 October 2026). *Hypotheses until the owner's check in 2.5.1:* the iPhone route
+  (the Drive app's scan, or Files "Scan Documents" into the Drive folder); a several-page scan as `.jpg`.
+  **PC side:** the shared folder is already picked (7.3), so `phone/` needs no new permission. While the plate is green
+  (this PC holds the baton), every 30 s the app lists `phone/`; a file not taken yet (names kept in
+  `common/sync-state.json`, local only) whose size has not changed between two listings (spike 7.1: a file can be visible
+  before it is whole) goes through the existing inbox intake (SHA-256 dedup) into `inbox/_unsorted/`; a short line in the
+  status bar tells how many came. A button beside it checks `phone/` at once (for a pile of scans: no wait for the 30 s;
+  it cannot hurry Drive for desktop itself, which took 15 to 40 s per file in spike 7.1). **Clean-up (owner, 24 October
+  2026):** once a scan is safely in the inbox (written and read back with the same SHA-256, or already there as a
+  duplicate) the app deletes it from `phone/`; nothing else in Drive is ever deleted. *Hypothesis until 2.5.1:* a file
+  deleted in the Drive for desktop folder goes to Drive's trash, not away for good.
+  One step, one commit, the owner's "yes" between steps:
+  - [ ] **2.5.1 PC pick-up and the button "check now".** *Done when:* tests with a fake folder (new file taken, a
+    growing file waits, a file deleted only after it is in the inbox, a failed delete not taken twice, a duplicate
+    counted and deleted, nothing taken while the plate is not green, an unknown type refused as in 2.2, the button runs
+    one check at once and not two at the same time); the owner
+    scans on an Android and on his iPhone into `phone/` and sees the files in the inbox on the published page without
+    touching the PC (and at once after the button); the delay and the iPhone route in `HANDOFF.md`.
+  - [ ] **2.5.2 With Anna:** the widget on her phone (a line in `docs/ROLLOUT.md`), one real working
+    day; her notes in `HANDOFF.md`. The Hebrew phone guide (2.4) gets the new way only with the owner's text.
 
 ## Phase 3 — Model bake-off (spike, outside the repository) — BACKLOG (owner, 2026-10-16: not scheduled)
 
@@ -514,3 +543,7 @@ model behind the same proxy.
 | 2026-10-24 | **6.4: Anna's answers and second sample** (a client who reports every two months; on the owner's PC only, structure recorded in 6.4). Learnt from the file: the opening record names the last month of the period; a sale to a business over 5,000 is an `S` line with the customer's number, the small sales of the two months one `L` line on the last day of the period; the totals of the opening record are the VAT report's and are not the sums of the per-line rounded lines (one shekel apart in this sample), so 6.4.2 takes them from `vatReport`. Found in our rows: an agent row keeps the seller's number in the counterparty column, which for the client's own sales invoice is the client itself; 6.4.2 must take the buyer's number for sales. |
 | 2026-10-24 | **6.4.2 built: `web/pcn874.js`** (`buildPcn874`, `pcn874FileName`) and `docs/PCN874_SPEC.md` (the field table, the sources, the mapping from rows, the refusals). No existing function changed: it reuses `reportEntries`, `vatReport`, `lockProblems`, `dateKey` and `taxIdProblem`. Checked against Anna's two samples with rows rebuilt by hand (throw-away script on the owner's PC): the monthly file is equal to Rivhit's; the two-month file is equal but for the document number of the aggregated `L` line (Rivhit: `4`; the October sale of that line is not in the journals given). Found on the way: the lock button's PCN rule also counts sales rows over the ceiling (an unapproved sale over 5,000 blocks the month), while Rivhit's `S` line of such a sale has no allocation number; not changed (question for Anna). Correction: the agent writes no sales rows, so the customer number of a sales row is typed in column 4; the row builder needs no change. Web 864 → 868 tests. |
 | 2026-10-24 | **6.4.3 built** (the PCN874 file on the reports page): the kind "קובץ PCN874", hidden unless the client has the PCN duty; the preview lists refusals, warnings, the totals of the opening record and the lines (`renderPcn874Report`, `pcnProblemText` in `reports-view.js`); two buttons replace "הצגה והדפסה" for this kind: save into `reports/` and save as. The owner's answers of the same day: the check of 6.4.1 on the published page is postponed to the real work; the number of the last small sale in the second sample is 4, so the file of 6.4.2 equals both samples; the lock rule that counts sales over the ceiling stays as in ocr. Checked in a local Chrome (a synthetic PCN client in the browser's private storage, deleted after): the kind appears only for that client, the period defaults to the VAT period, the refusal of an unapproved sale over the ceiling is listed and blocks the save, after approval the file is saved into `reports/` with the expected content. **Not verified:** "save as" (the native picker cannot be driven here; unit tests do not cover it); the look of the preview at desktop width; the published page. Web 868 → 870 tests. |
+| 2026-10-24 | **2.5 planned (phone camera → inbox),** Anna's show-stopper. Chosen: a phone page that encrypts each photo for a public key and uploads it into `phone/` of the shared Drive folder; the open PC app takes it into the inbox. Set aside: Quick Share (too many taps, Android only), a direct Wi-Fi link (the Worker would have to introduce the two devices), USB (the browser cannot read a phone; drag by hand stays as today), Telegram (photos would lie unencrypted on Telegram's servers, against the rule of encrypted-only cloud storage; removed on purpose on 16 October). New for the app: the phone talks to Google directly (owner's approval before 2.5.3). |
+| 2026-10-24 | **2.5 replanned.** The owner lifted the rule "only encrypted data in the cloud" for phone photos and asked for no encryption and good quality. So no phone page, no Google sign-in, no keys: the Google Drive app's own scanner (Android widget tied to one folder) saves into `phone/` of the shared folder, and the PC app takes the files from there. Telegram stays out: photos sent as photos arrive compressed (ocr, 12 October) and a bot needs Worker work, while the Drive scanner needs no code on the phone. `AGENTS.md` records the exception. |
+| 2026-10-24 | **2.5: no trial step** (the owner knows the scan quality is enough); a button "check now" beside the status line, for a pile of scans. 2.5 is now two steps: the PC pick-up, then a day with Anna. |
+| 2026-10-24 | **2.5: the app deletes a scan from `phone/`** once it is safely in the inbox (owner). The only deletion in Drive the app may make; recorded in `AGENTS.md`. |
