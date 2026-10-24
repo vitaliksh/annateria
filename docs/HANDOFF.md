@@ -24,8 +24,10 @@ The inbox now asks Chrome for the write permission when it opens or gets files (
 slot removed; a weekly line in the status bar for the flash copy). **Phase 7 is done**; its round trip on Anna's PC with a real-size
 month is part of phase 8. **Phase 8:** first set-up on Anna's PC on 23 October (evening): all clients arrived from Vitalik's PC; two problems of that
 night are fixed (an empty copy is never taken; a shared folder one level too deep or too high is refused). `docs/ROLLOUT.md` is
-rewritten from it. Still to do with Anna: the flash copy, the phone, her own access code, the clean-up of the shared folder
-(a stray `annateria-backup` and the name `annateria-sync`, see the decision log of 24 October). The trap
+rewritten from it. The shared folder was cleaned on 24 October with the owner's "yes": the stray store (`annateria-backup` of
+Vitalik's first choice, id `d5f4…`, no snapshot) deleted, and the folder renamed from `annateria-sync` to `ANNATERIA`; the store in
+use (id `0db1…`) is `ANNATERIA/annateria-sync/annateria-backup`. Both PCs must choose the renamed folder again. Still to do with
+Anna: the flash copy, the phone, her own access code. The trap
 of the blue plate is gone: the baton record names the store of its last snapshot (`copyToTake`, `firstCopyHeld` in `sync-store.js`). Read the phase in
 `WORK_PLAN.md` and `docs/BACKUP_SPEC.md` first.
 
