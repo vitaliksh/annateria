@@ -4,6 +4,9 @@
 import { UNSORTED, addToInbox, refusalReason } from "./inbox-store.js";
 
 export const PHONE_DIR = "phone";
+// Drive lets two folders share a name; Drive for desktop shows the second as "phone (1)". The app never creates phone/ (on
+// 24 October 2026 the one it made hid the phone's own folder): it reads every folder named so.
+const PHONE_FOLDER = /^phone(?: \(\d+\))?$/i;
 // Two listings this far apart: a file whose size changed in between is still arriving (spike 7.1) and waits for the next check.
 export const SETTLE_MS = 3000;
 
@@ -21,36 +24,51 @@ async function listFiles(directory) {
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// One check of <shared>/phone/ (created when missing, so the phone can pick it). Returns
+async function phoneFolders(shared) {
+  const folders = [];
+  for await (const [name, handle] of shared.entries()) {
+    if (handle.kind === "directory" && PHONE_FOLDER.test(name)) folders.push(handle);
+  }
+  return folders;
+}
+
+// One check of the phone folders of <shared>. Returns
 //   added, duplicates, failed: as addToInbox (the duplicates are deleted from phone/ too: their bytes are already here),
 //   refused:  { name, reason } of files of a type the inbox does not take; they stay in phone/,
 //   waiting:  names still arriving (empty, or the size changed between the two listings),
 //   kept:     names that are in the inbox but could not be deleted from phone/ (taken again next time, as a duplicate).
 export async function takePhoneScans({ dataRoot, shared, now = new Date().toISOString(), delay = wait, add = addToInbox }) {
-  const phone = await shared.getDirectoryHandle(PHONE_DIR, { create: true });
-  const first = await listFiles(phone);
   const result = { added: [], duplicates: [], failed: [], refused: [], waiting: [], kept: [] };
-  if (!first.size) return result;
-  await delay(SETTLE_MS);
-  const second = await listFiles(phone);
-  const ready = [];
-  for (const [name, { file }] of second) {
-    const reason = refusalReason(name);
-    if (reason) result.refused.push({ name, reason });
-    else if (!file.size || first.get(name)?.file.size !== file.size) result.waiting.push(name);
-    else ready.push({ name, file });
+  const firsts = [];
+  for (const phone of await phoneFolders(shared)) {
+    const first = await listFiles(phone);
+    if (first.size) firsts.push({ phone, first });
   }
-  if (!ready.length) return result;
-  // addToInbox names a file by its trimmed name; map it back to the name in phone/.
-  const byName = new Map(ready.map(({ name }) => [name.trim() || "file", name]));
-  const taken = await add(dataRoot, ready.map(({ file }) => file), { folder: UNSORTED, now });
-  Object.assign(result, { added: taken.added, duplicates: taken.duplicates, failed: taken.failed });
-  for (const { name } of [...taken.added, ...taken.duplicates]) {
-    const original = byName.get(name) ?? name;
-    try {
-      await phone.removeEntry(original);
-    } catch {
-      result.kept.push(original);
+  if (!firsts.length) return result;
+  await delay(SETTLE_MS);
+  // One folder at a time: two folders may hold files of the same name.
+  for (const { phone, first } of firsts) {
+    const ready = [];
+    for (const [name, { file }] of await listFiles(phone)) {
+      const reason = refusalReason(name);
+      if (reason) result.refused.push({ name, reason });
+      else if (!file.size || first.get(name)?.file.size !== file.size) result.waiting.push(name);
+      else ready.push({ name, file });
+    }
+    if (!ready.length) continue;
+    // addToInbox names a file by its trimmed name; map it back to the name in phone/.
+    const byName = new Map(ready.map(({ name }) => [name.trim() || "file", name]));
+    const taken = await add(dataRoot, ready.map(({ file }) => file), { folder: UNSORTED, now });
+    result.added.push(...taken.added);
+    result.duplicates.push(...taken.duplicates);
+    result.failed.push(...taken.failed);
+    for (const { name } of [...taken.added, ...taken.duplicates]) {
+      const original = byName.get(name) ?? name;
+      try {
+        await phone.removeEntry(original);
+      } catch {
+        result.kept.push(original);
+      }
     }
   }
   return result;

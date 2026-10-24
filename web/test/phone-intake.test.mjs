@@ -27,13 +27,29 @@ test("a new scan goes into inbox/_unsorted and is deleted from phone/", async ()
   assert.deepEqual(await phoneNames(shared), []);
 });
 
-test("phone/ is created when missing, and an empty folder needs no second listing", async () => {
+test("phone/ is never created by the app, and no folder or an empty one needs no second listing", async () => {
   const { dataRoot, shared } = await folders();
   let waited = false;
-  const result = await takePhoneScans({ dataRoot, shared, now: NOW, delay: async () => { waited = true; } });
+  const delay = async () => { waited = true; };
+  assert.deepEqual((await takePhoneScans({ dataRoot, shared, now: NOW, delay })).added, []);
+  assert.equal(shared.children.size, 0);
+  await shared.getDirectoryHandle(PHONE_DIR, { create: true });
+  assert.deepEqual((await takePhoneScans({ dataRoot, shared, now: NOW, delay })).added, []);
   assert.equal(waited, false);
-  assert.deepEqual(result.added, []);
-  assert.ok(await shared.getDirectoryHandle(PHONE_DIR));
+});
+
+// 24 October 2026, the owner's first try: the app had created phone/ on the PC, the phone created its own phone/, Drive keeps
+// both and Drive for desktop shows the second as "phone (1)"; the scan was there and the app looked only into the empty one.
+test("scans are taken from every folder Drive named phone, phone (1), …, and from no other folder", async () => {
+  const { dataRoot, shared } = await folders();
+  await shared.getDirectoryHandle(PHONE_DIR, { create: true });
+  await putFile(shared, "phone (1)/Scanned 24 Oct 2026.pdf", "%PDF-synthetic");
+  await putFile(shared, "Phone (2)/b.jpg", "synthetic b");
+  await putFile(shared, "phones/c.jpg", "synthetic c");
+  await putFile(shared, "annateria-sync/d.jpg", "synthetic d");
+  const result = await takePhoneScans({ dataRoot, shared, now: NOW, delay: noDelay });
+  assert.deepEqual(result.added.map((entry) => entry.name).sort(), ["Scanned 24 Oct 2026.pdf", "b.jpg"]);
+  assert.deepEqual(await listPaths(shared), ["annateria-sync/d.jpg", "phones/c.jpg"]);
 });
 
 test("a file still growing, or still empty, waits in phone/ for the next check", async () => {

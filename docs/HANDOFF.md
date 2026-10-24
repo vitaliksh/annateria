@@ -6,16 +6,19 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 ## Start here (state on 24 October 2026)
 
 **State (end of 24 October).** `main` carries everything (last code commit de81d59, published; the page shows
-`2026.10.24 · de81d59`). Web 883 tests with 2.5.1 (870 at de81d59), Worker 69 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green in both.
+`2026.10.24 · de81d59`). Web 884 tests with 2.5.1 (870 at de81d59), Worker 69 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green in both.
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
 (7.1 to 7.4, 7.6; 7.5 merged into 7.4). 6.1 (`run_report`) and phase 3 are in the backlog.
 
-**2.5 Phone scans into the inbox (Anna's show-stopper, 24 October; 2.5.1 built, not pushed).** Anna scans with the Google Drive
+**2.5 Phone scans into the inbox (Anna's show-stopper, 24 October; 2.5.1 published 005ccf5, fixed after the owner's first try).** Anna scans with the Google Drive
 app's widget into `phone/` of the shared folder (`G:\My Drive\ANNATERIA\phone` on the owner's PC); `web/phone-intake.js` takes the
 files whose size did not change in 3 s into `inbox/_unsorted/` (the ordinary `addToInbox`) and deletes them from `phone/`;
 `web/phone-ui.js` runs it every 30 s while the plate is green (always when no Worker is configured) and from the button
 "בדוק סריקות מהטלפון" in the inbox dialog. The owner lifted the encryption rule for these scans only (`AGENTS.md`). The timer starts
-only once a shared folder is chosen: an interval started for nothing kept `app.test.mjs` from ever ending. Web 883 tests.
+only once a shared folder is chosen: an interval started for nothing kept `app.test.mjs` from ever ending. **The app never
+creates `phone/`** and reads every folder named `phone` or `phone (N)`: on the owner's first try the folder the app had made and
+the one the phone made were two Drive folders of one name, the phone's showed up on the PC as `phone (1)`, and the scan sat there
+unseen. Web 884 tests.
 **Not verified:** the whole round trip with a real phone and Drive for desktop (the owner's check of 2.5.1), the Drive widget picking a
 folder that Anna's Drive holds as a shortcut, the iPhone route, deletion through Drive for desktop going to Drive's trash.
 

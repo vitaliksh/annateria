@@ -138,7 +138,8 @@ Goal: every kind of file Anna gets lands in `inbox/` with one gesture.
   folder, and a home-screen widget "Drive scan" is tied to one folder chosen when it is added. The quality of a scan is
   enough for the recognition (the owner, 24 October 2026). *Hypotheses until the owner's check in 2.5.1:* the iPhone route
   (the Drive app's scan, or Files "Scan Documents" into the Drive folder); a several-page scan as `.jpg`.
-  **PC side:** the shared folder is already picked (7.3), so `phone/` needs no new permission. While the plate is green
+  **PC side:** the shared folder is already picked (7.3), so `phone/` needs no new permission. The phone creates `phone/`,
+  never the app, and the app reads every folder Drive named `phone` or `phone (N)` (two Drive folders may share a name). While the plate is green
   (this PC holds the baton), every 30 s the app lists `phone/`; a file whose size has not changed between two
   listings 3 s apart (spike 7.1: a file can be visible before it is whole) goes through the existing inbox intake (SHA-256 dedup) into `inbox/_unsorted/`; a short line in the
   status bar tells how many came. A button beside it checks `phone/` at once (for a pile of scans: no wait for the 30 s;
@@ -550,3 +551,4 @@ model behind the same proxy.
 | 2026-10-24 | **2.5: no trial step** (the owner knows the scan quality is enough); a button "check now" beside the status line, for a pile of scans. 2.5 is now two steps: the PC pick-up, then a day with Anna. |
 | 2026-10-24 | **2.5: the app deletes a scan from `phone/`** once it is safely in the inbox (owner). The only deletion in Drive the app may make; recorded in `AGENTS.md`. |
 | 2026-10-24 | **2.5.1 built** (`web/phone-intake.js`, `web/phone-ui.js`; changed: `app.js` (wiring; `onFolderChosen` also starts the phone timer), `index.html` (a row in the inbox dialog), `inbox.css`). The owner: all intake through the inbox, so the button and its line live in the inbox dialog. No list of taken names (the plan had one): a scan left in `phone/` after a failed delete comes back as an inbox duplicate and is deleted then; a duplicate of a declaration image too. A file of a type the inbox refuses stays in `phone/` and is named on the line. Web 870 → 883 tests. Checked in a local Chrome: the row renders in the dialog and the button answers without a data folder. **Not verified:** a real phone, Drive for desktop, the published page. |
+| 2026-10-24 | **2.5.1 fix: the app no longer creates `phone/`.** The owner's first try showed "no new scans": the app's first check had created `phone/` in the shared folder, the owner then made `phone` on the phone, Drive kept both and Drive for desktop showed the phone's as `phone (1)`, where the scan lay. Now the app reads every folder named `phone` or `phone (N)` (case aside) and creates none. Reproduced by a test first. Web 883 → 884 tests. The empty `phone` the app made may be deleted in Drive. |
