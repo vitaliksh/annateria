@@ -36,7 +36,7 @@ import { setupTransfer } from "./transfer-ui.js";
 import { setupInbox } from "./inbox-ui.js";
 import { setupPhoneIntake } from "./phone-ui.js";
 import { progressLabel, setupAssistant } from "./assistant-ui.js";
-import { buildMessage, createAssistantFlow, leftNote, resultNote } from "./assistant-flow.js";
+import { buildMessage, createAssistantFlow, keptNote, leftNote, resultNote } from "./assistant-flow.js";
 import { setupModelSettings } from "./model-settings-ui.js";
 import { applyProposal } from "./proposal-apply.js";
 import { appendRule } from "./rules-store.js";
@@ -766,6 +766,8 @@ async function runAssistant(kind, text) {
     assistant.addMessage(note.kind, note.text);
     const unfiled = leftNote(result);
     if (unfiled) assistant.addMessage(unfiled.kind, unfiled.text);
+    const kept = keptNote(result);
+    if (kept) assistant.addMessage(kept.kind, kept.text);
     if (result.status === "completed") assistantLastAnswer = result.text;
     assistant.showPlaced(result.added ?? []);
     if (result.logError) assistant.addMessage("note", `לא ניתן לשמור את יומן הריצה: ${result.logError}`);

@@ -23,10 +23,11 @@ export function createContext({ services, ui = {}, signal = new AbortController(
   // clientMatches: clientId -> the best match find_client gave for it (vat_id, name_exact, name_partial): why a candidate is offered.
   // prepared: "file|kind|client" -> what prepare_import answered, so that the same file is not prepared twice (and no second card is shown).
   // addedEntries, factsUsed and addedFacts (fact handle -> what add_rows made of it) are filled by add_rows: rows made in this run are seen by the duplicate search, and facts
-  // that already became a row cannot be extracted again.
+  // that already became a row cannot be extracted again. leftOut: the facts the agent left out that the code added as rows to look at.
   const run = {
     id: runId, asked: new Map(), routes: new Map(), listed: new Map(), questions: 0, copies: new Set(), fileStatus: new Map(), toolCalls: 0,
     extractions: new Map(), extractCount: 0, extractSlots: createSemaphore(limits.parallelExtractions ?? LIMITS.parallelExtractions), addedEntries: [], factsUsed: new Set(), addedFacts: new Map(), prepared: new Map(), clientMatches: new Map(),
+    leftOut: [],
   };
   return {
     handles: createHandles(), services, ui, signal, run, limits, log, skills,
@@ -85,11 +86,39 @@ export async function runAgent({
     const worked = placed().length || [...run.fileStatus.values()].includes("filed");
     return worked ? [...run.listed].filter(([handle, file]) => file.kind !== "spreadsheet" && run.fileStatus.get(handle) !== "filed").map(([, file]) => ({ name: file.name, folder: file.folder })) : [];
   };
-  const finish = (status, extra = {}) => {
-    log.add({ kind: "end", status, turns, toolCalls: run.toolCalls, ...extra });
+  // Every file that got rows in this run gets its original and a row for each of its documents, also when the model did not file it
+  // or the run stopped (Anna, 25 October 2026: nothing that came in may be lost). [{ name, rows, addedForReview }] of what the app filed.
+  async function fileTheRest() {
+    const pending = new Map();
+    for (const item of run.addedFacts.values()) {
+      if (!item.row || run.fileStatus.get(item.file) === "filed") continue;
+      const key = `${item.file}|${item.client}`;
+      if (!pending.has(key)) pending.set(key, { file: item.file, client: item.client, months: new Set() });
+      pending.get(key).months.add(item.month);
+    }
+    const filed = [];
+    for (const { file, client, months } of pending.values()) {
+      if (run.fileStatus.get(file) === "filed") continue;
+      const call = { name: "move_file_to_declaration", args: { file, client, months: [...months].sort() } };
+      const started = clock();
+      const envelope = await registry.dispatch(call, ctx);
+      log.add({ kind: "tool", name: call.name, byApp: true, args: shorten(call.args), ok: envelope.ok, error: envelope.error?.code, result: shorten(envelope), ms: clock() - started });
+      if (envelope.ok && envelope.state === "filed") {
+        filed.push({ name: run.listed.get(file)?.name ?? ctx.handles.get("F", file).name, rows: envelope.rows, addedForReview: envelope.added_for_review?.length ?? 0 });
+      }
+    }
+    return filed;
+  }
+  const finish = async (status, extra = {}) => {
+    const filedByApp = await fileTheRest();
+    log.add({ kind: "end", status, turns, toolCalls: run.toolCalls, ...(filedByApp.length ? { filedByApp } : {}), ...extra });
     const added = placed();
     const unfiled = left();
-    return { status, turns, toolCalls: run.toolCalls, questions: run.questions, runId, log, ...(added.length ? { added } : {}), ...(unfiled.length ? { left: unfiled } : {}), ...extra };
+    return {
+      status, turns, toolCalls: run.toolCalls, questions: run.questions, runId, log, ...(added.length ? { added } : {}),
+      ...(unfiled.length ? { left: unfiled } : {}), ...(filedByApp.length ? { filedByApp } : {}),
+      ...(run.leftOut.length ? { leftOut: run.leftOut.length } : {}), ...extra,
+    };
   };
 
   async function askModel() {

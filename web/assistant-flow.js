@@ -33,6 +33,15 @@ export function leftNote(result) {
   return { kind: "note", text: `נשארו בתיבת הקלט ${left.length} קבצים שלא טופלו: ${names}${left.length > 12 ? " ועוד" : ""}` };
 }
 
+// What the code did so that nothing that came in is lost: originals it filed itself and documents it added as rows to look at.
+export function keptNote(result) {
+  const filed = result.filedByApp ?? [];
+  const lines = [];
+  if (filed.length) lines.push(`המקור צורף לשורות על ידי האפליקציה (הסוכן לא העביר אותו): ${filed.map((file) => file.name).join(", ")}`);
+  if (result.leftOut) lines.push(`נוספו ${result.leftOut} שורות כבויות לבדיקה עבור מסמכים שהסוכן לא קלט. יש לבדוק ולהפעיל את מה שנכון.`);
+  return lines.length ? { kind: "note", text: lines.join("\n") } : null;
+}
+
 const LIMIT_TEXT = { turns: "הריצה הגיעה למספר הצעדים המרבי.", "tool calls": "הריצה הגיעה למספר הפעולות המרבי.", time: "הריצה נמשכה יותר מדי זמן ונעצרה." };
 
 // { kind: "assistant" | "note" | "error", text } for the end of a run.

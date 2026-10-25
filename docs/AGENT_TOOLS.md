@@ -259,7 +259,8 @@ the registry so that this file and the code cannot drift apart.
 - **Purpose.** Put documents into the monthly table as ordinary draft rows.
 - **Input.** `{ client, rows: [{ fact, routed_by, routing_ask?, decision, account?, needs_review, reason,
   month_override?: { month, ask } }] }`, at most 40 rows per call.
-  - `routed_by`: `folder` (the file sits in this client's inbox folder), `vat_id` (the fact's `buyer_vat_id` equals
+  - `routed_by`: `same_file` (25 October 2026: another document of the same file already has a row of this client in this
+    run), `folder` (the file sits in this client's inbox folder), `vat_id` (the fact's `buyer_vat_id` equals
     the client's VAT number), `alias` (4.6.2: the buyer of the fact is a confirmed alias of this client and of no other client;
     when the fact prints the buyer's VAT number only the number counts, otherwise the exact normalised name; a client's own VAT
     number counts as its alias for the "no other client" check), or `user` (`routing_ask` names an answered question, or the user's message of this run
@@ -302,6 +303,12 @@ the registry so that this file and the code cannot drift apart.
   removed after the last copy is verified. A PDF is stored as the original (how the viewer shows a page is 4.4).
 - **Never.** Delete anything in a declaration; touch a locked month; move a file that has no row (it stays in the inbox
   with a note for the user).
+- **Nothing that came in is lost** (Anna, 25 October 2026). Before the copy, every document (fact) of the file that has no row
+  yet in this run gets one in the same client's table: decision `unclear` (no account, so inactive), needs a look, reason
+  "not taken by the agent, added so that it is not lost"; its month is the code's, or the first month of the file's rows when
+  that month is locked. The result lists them as `added_for_review`. If such a row cannot be written the file stays in the
+  inbox (`conflict`). At the end of every run (completed, stopped, failed) the code itself files every file that got rows
+  and was not filed (log entry `byApp`), and the panel says so.
 - **A file gone from the inbox** (removed after it was read, before the move): `not_found`, "no longer in the inbox", nothing
   copied, the rows stay without an original. Any other failure is `unavailable` and the file stays in the inbox. While a run is
   going the inbox dialog does not let the user remove files (25 October 2026).

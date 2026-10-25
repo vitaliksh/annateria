@@ -6,7 +6,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 ## Start here (state on 24 October 2026)
 
 **State (end of 24 October).** `main` carries everything (last code commit de81d59, published; the page shows
-`2026.10.24 · de81d59`). Web 884 tests with 2.5.1 (870 at de81d59), 887 with the inbox lock of 25 October, 892 with the documents report, Worker 69 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green in both.
+`2026.10.24 · de81d59`). Web 884 tests with 2.5.1 (870 at de81d59), 887 with the inbox lock of 25 October, 892 with the documents report, 897 with "nothing is lost", Worker 69 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green in both.
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
 (7.1 to 7.4, 7.6; 7.5 merged into 7.4). 6.1 (`run_report`) and phase 3 are in the backlog.
 
@@ -32,6 +32,15 @@ dialog are disabled (and refuse) while an assistant run is going, with a note on
 them); no code gives old rows their original. Found in the browser: `isBusy` read `let assistantRun` before its declaration
 (the harness bundle turns top-level `let` into `var`, so the tests did not see it); the declaration moved up and a test checks
 the order. Web 887 tests.
+
+**Nothing that came in is lost (Anna's rule, 25 October).** The owner's re-run of the two scans left 11
+documents of the 17-page file out of the table: `add_rows` rejected them (no buyer VAT number, or a mistyped one), the agent asked
+"which client?" only about the other file and never added them again, then filed the file anyway; its summary said all was done.
+Now the code guarantees it (`AGENTS.md`): `move_file_to_declaration` adds every document of the file still without a row as an
+inactive row to look at, the end of a run files every file with rows that the model did not file, and `same_file` routing lets the
+agent route the rest of a file. The instruction's "if a row was rejected, do not move the file" is gone (`AGENT_VERSION`
+`base-2026-10-25a`). **The eval was not run** (it needs the owner's access code: `npm run eval` with `ANNATERIA_CODE`). Also seen in
+that run, not fixed: the client's own income receipts (she is the supplier) were booked as expense 212. Web 897 tests.
 
 **The documents report is back (25 October).** The PDF of ocr with the original of every row above its
 recognised fields ("PDF מסכם") had been removed on 17 October as dead code; Anna relies on it. It is now a kind of the

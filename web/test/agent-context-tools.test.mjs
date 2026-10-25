@@ -239,7 +239,7 @@ test("the instruction has the agent read import files and name the wizard of the
   const { AGENT_VERSION } = await import("../agent/prompts.js");
   const ORCHESTRATOR_PROMPT = await orchestratorInstruction();
   const { default: listInbox } = await import("../agent/tools/list-inbox.js");
-  assert.equal(AGENT_VERSION, "base-2026-10-17o");
+  assert.equal(AGENT_VERSION, "base-2026-10-25a");
   assert.ok(ORCHESTRATOR_PROMPT.includes("read every spreadsheet, and every PDF that does not look like an invoice"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("with read_document, and never extract a spreadsheet with the vision model"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("say plainly when you cannot tell what a file is"));
@@ -262,8 +262,11 @@ test("the instruction tells the model what the user can and cannot do: no handle
   assert.match(ORCHESTRATOR_PROMPT, /Do not assume the gender/);
   assert.ok(ORCHESTRATOR_PROMPT.includes("Always ask through ask_user (buttons): never end your answer with a question in plain text"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("the user decides with the button \"החל\""), "the card can be applied now");
-  assert.ok(ORCHESTRATOR_PROMPT.includes("A name match alone is no proof. Never add a row for a document whose client is not proven."));
-  assert.ok(ORCHESTRATOR_PROMPT.includes("call move_file_to_declaration with every month in which it has rows"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("A name match alone is no proof. Never add a row for a document whose client is not proven;"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("call move_file_to_declaration for every file that has rows, with every month in which it has rows"));
+  // Anna, 25 October 2026: nothing that came in may be lost.
+  assert.ok(ORCHESTRATOR_PROMPT.includes("EVERY DOCUMENT THAT CAME IN MUST END IN THE TABLE"));
+  assert.doesNotMatch(ORCHESTRATOR_PROMPT, /if a row was rejected, do not move the file/);
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /not available yet|cannot be applied/);
   assert.ok(ORCHESTRATOR_PROMPT.includes("ONE question for all the files whose client is not proven yet"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("A file the user has already answered about is never asked about again."));

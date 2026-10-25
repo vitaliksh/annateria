@@ -110,3 +110,12 @@ test("leftNote names the files the run did not file, and says nothing when none 
   const many = leftNote({ left: Array.from({ length: 14 }, (_, n) => ({ name: `f${n}.jpg`, folder: "_unsorted" })) });
   assert.match(many.text, /14 קבצים.*f11\.jpg ועוד$/);
 });
+
+test("keptNote says which originals the app filed itself and how many left-out documents became rows to look at", async () => {
+  const { keptNote } = await import("../assistant-flow.js");
+  assert.equal(keptNote({ status: "completed" }), null);
+  const note = keptNote({ filedByApp: [{ name: "scan.pdf", rows: 3, addedForReview: 2 }], leftOut: 2 });
+  assert.equal(note.kind, "note");
+  assert.match(note.text, /scan\.pdf/);
+  assert.match(note.text, /נוספו 2 שורות כבויות לבדיקה/);
+});
