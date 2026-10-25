@@ -6,8 +6,9 @@ import { advancesReport, classificationLedger, inPeriod, periodContaining, profi
 import { openReportWindow } from "./report-viewer.js";
 import { buildPcn874, pcn874FileName } from "./pcn874.js";
 import { layoutReport, renderReportPdf } from "./reports-pdf.js";
+import { documentReportItems, readRowOriginal, renderDocumentReport } from "./document-report.js";
 import {
-  renderAdvancesReport, renderLedgerReport, renderPcn874Report, renderProfitLossReport, renderVatReport,
+  renderAdvancesReport, renderDocumentsReport, renderLedgerReport, renderPcn874Report, renderProfitLossReport, renderVatReport,
 } from "./reports-view.js";
 
 const REPORT_FILES = { vat: "vat", advances: "advances", profitLoss: "profit-loss", ledger: "ledger" };
@@ -17,7 +18,7 @@ const TEXT_TYPES = [{ description: "PCN874", accept: { "text/plain": [".txt"] } 
 // Default period: the reporting period of the latest declaration for VAT/advances, the year to date otherwise.
 export function defaultPeriod(kind, latestMonth, vatPeriod, advancesPeriod = vatPeriod) {
   if (!latestMonth) return { from: "", to: "" };
-  if (kind === "vat" || kind === "pcn874") return periodContaining(latestMonth, vatPeriod);
+  if (kind === "vat" || kind === "pcn874" || kind === "documents") return periodContaining(latestMonth, vatPeriod);
   if (kind === "advances") return periodContaining(latestMonth, advancesPeriod);
   return { from: `${latestMonth.slice(0, 4)}-01`, to: latestMonth };
 }
@@ -25,8 +26,11 @@ export function defaultPeriod(kind, latestMonth, vatPeriod, advancesPeriod = vat
 // getContext(client?) returns { client, dataRoot, names } or null when there is no client; without an argument it is the
 // client of the open declaration. `dialog` is the container with the controls (the reports view). onOpen() reveals it;
 // without onOpen a <dialog> container is shown modally. The returned open({ client, kind }) is used by the other
-// entry points (sidebar, client card).
-export function setupReports({ button, dialog, getContext, onError, onOpen, openViewer = openReportWindow, renderPdf = renderReportPdf }) {
+// entry points (sidebar, client card). renderDocuments draws the documents report (replaceable in tests: jsdom has no canvas).
+export function setupReports({
+  button, dialog, getContext, onError, onOpen, openViewer = openReportWindow, renderPdf = renderReportPdf,
+  renderDocuments = renderDocumentReport,
+}) {
   const part = (id) => dialog.querySelector(`#${id}`);
   const [kind, from, to, vatPeriod, percent, errorLine, statusLine, preview, show, saveAll, advancesPeriod] = [
     "reports-kind", "reports-from", "reports-to", "reports-vat-period", "reports-advance-percent", "reports-error",
@@ -118,6 +122,18 @@ export function setupReports({ button, dialog, getContext, onError, onOpen, open
       });
       return { scope, file, name: pcn874FileName(vatId, toIso), node: () => renderPcn874Report(file, info) };
     }
+    // The documents report (25 October 2026): every active row of the period with its original; drawn when shown.
+    if (reportKind === "documents") {
+      const items = documentReportItems(declarations, fromIso, toIso);
+      return {
+        scope: items,
+        name: `documents_${info.from.replace("/", "-")}_${info.to.replace("/", "-")}.pdf`,
+        node: () => renderDocumentsReport(items, info),
+        render: () => renderDocuments({
+          clientName, items, accounts: chart, readOriginal: ({ month, row }) => readRowOriginal(context.client.directory, month, row),
+        }),
+      };
+    }
     const data = {
       vat: () => vatReport(scope),
       advances: () => advancesReport(scope, { percent: advancePercent }),
@@ -194,7 +210,7 @@ export function setupReports({ button, dialog, getContext, onError, onOpen, open
         renderPreview();
         return;
       }
-      const { pdf, images } = await renderPdf(report.pages());
+      const { pdf, images } = report.render ? await report.render() : await renderPdf(report.pages());
       viewer.show({
         title: report.node().querySelector("h2")?.textContent ?? "דוח",
         pageUrls: images.map((image) => URL.createObjectURL(image)),

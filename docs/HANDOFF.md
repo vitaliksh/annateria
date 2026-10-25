@@ -6,7 +6,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 ## Start here (state on 24 October 2026)
 
 **State (end of 24 October).** `main` carries everything (last code commit de81d59, published; the page shows
-`2026.10.24 · de81d59`). Web 884 tests with 2.5.1 (870 at de81d59), 887 with the inbox lock of 25 October, Worker 69 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green in both.
+`2026.10.24 · de81d59`). Web 884 tests with 2.5.1 (870 at de81d59), 887 with the inbox lock of 25 October, 892 with the documents report, Worker 69 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green in both.
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
 (7.1 to 7.4, 7.6; 7.5 merged into 7.4). 6.1 (`run_report`) and phase 3 are in the backlog.
 
@@ -22,7 +22,7 @@ unseen. Web 884 tests.
 **Checked:** iPhone (Drive app scan, PDF 3.6 MB) → PC in about 15 s → inbox, and the scan gone from `phone (1)`. **Not verified:**
 an Android and the widget picking a folder that Anna's Drive holds as a shortcut (2.5.2, with Anna); deletion going to Drive's trash.
 
-**Anna's first real check, 25 October: 24 rows without their original (fixed, not yet published).** She scanned two piles (8
+**Anna's first real check, 25 October: 24 rows without their original (fixed, published a8764e4).** She scanned two piles (8
 and 17 pages) on the office copier and took the two PDFs into the inbox. While the run waited for her answer to "which client?",
 both files were moved to `inbox/_trash` by the remove button of the inbox dialog (two clicks, 16:14:52 and 16:14:55 UTC; why is
 not known). The agent then made the 24 rows from the facts it had already read, `move_file_to_declaration` failed on the missing
@@ -32,6 +32,11 @@ dialog are disabled (and refuse) while an assistant run is going, with a note on
 them); no code gives old rows their original. Found in the browser: `isBusy` read `let assistantRun` before its declaration
 (the harness bundle turns top-level `let` into `var`, so the tests did not see it); the declaration moved up and a test checks
 the order. Web 887 tests.
+
+**The documents report is back (25 October).** The PDF of ocr with the original of every row above its
+recognised fields ("PDF מסכם") had been removed on 17 October as dead code; Anna relies on it. It is now a kind of the
+reports page (`web/document-report.js`, `docs/REPORTS_SPEC.md`), not a button. Checked in a local Chrome on synthetic
+originals (a 3-page PDF and a photo): the right PDF page per row, a photo, and a row without an original. Web 892 tests. Renamed by the owner to "PDF מסכם".
 
 **Anna's two requests of 24 October (both built and published the same day; the owner said the rollout tasks of phase 8 will be done
 during the real work):**

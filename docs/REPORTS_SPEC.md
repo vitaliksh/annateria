@@ -64,3 +64,13 @@ and the August file has 58). With that class added, P&L expenses, ledger section
 - Header (24 October 2026, step 6.3.1): every page starts with Rivhit's top line: the client name on the right, "עוסק מורשה:" and
   the VAT dealer number (nine digits printed as `NNNNNNNN-N`) in the middle, the business address on the left; the last two
   only when the client card has them.
+
+## Documents report (25 October 2026)
+
+The kind "PDF מסכם" of the reports page (`web/document-report.js`): one A4 page per active row of the declarations
+whose month lies in the period (month by month, in table order), with the original of the row (a photo as it is; for a PDF
+the page the agent read the row from, drawn by pdf.js) above the fields of the table (full reference, account code with its
+name). A row without an original gets a page that says so. Rows recognised in ocr keep their yellow/green marks; rows of
+the agent have none (the extraction returns no boxes). The page lists the rows; "show" draws the PDF, saved to
+`clients/<client>/reports/documents_<from>_<to>.pdf`. It is not part of "save all" (it can be large). Ported from ocr
+`pdf-report.js` (`buildPdfReport`), which was removed here on 17 October as unused.

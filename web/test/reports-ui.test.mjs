@@ -15,7 +15,7 @@ import { memoryDirectory } from "./memory-directory.mjs";
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "index.html"), "utf8");
 const now = "2026-10-02T10:00:00.000Z";
 
-async function setup({ declarations = ["2026-01", "2026-02"], context = true, openViewer, renderPdf, periods = {} } = {}) {
+async function setup({ declarations = ["2026-01", "2026-02"], context = true, openViewer, renderPdf, renderDocuments, periods = {} } = {}) {
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/ocr/" });
   Object.assign(globalThis, { document: window.document, window });
   const dialog = window.document.querySelector("#reports-view");
@@ -40,6 +40,7 @@ async function setup({ declarations = ["2026-01", "2026-02"], context = true, op
     onError: (message) => errors.push(message),
     ...(openViewer ? { openViewer } : {}),
     ...(renderPdf ? { renderPdf } : {}),
+    ...(renderDocuments ? { renderDocuments } : {}),
   });
   const q = (id) => dialog.querySelector(`#${id}`);
   const open = async () => { window.document.querySelector("#open-reports").click(); await new Promise((r) => setTimeout(r, 80)); };
@@ -271,4 +272,34 @@ test("the PCN874 file is refused while the list has problems, then saved into th
   assert.match(text, /^O123456782202602/);
   assert.match(text, /\r\nT000000018202601020000000003412000000018\+0000000100000000000\r\n/);
   assert.match(text, /\r\nX123456782\r\n$/);
+});
+
+test("documents report: a kind of the list; the page lists the rows, the viewer gets one page per row with its original", async () => {
+  const viewer = fakeViewer();
+  const calls = [];
+  const renderDocuments = async (input) => {
+    calls.push(input);
+    const originals = await Promise.all(input.items.map((item) => input.readOriginal(item)));
+    return { pdf: new Blob(["%PDF"]), images: input.items.map(() => new Blob(["jpeg"])), originals };
+  };
+  const { q, open, click, client } = await setup({ openViewer: () => viewer, renderDocuments });
+  await open();
+  assert.equal(q("reports-kind").querySelector('option[value="documents"]').textContent, "PDF מסכם");
+  q("reports-kind").value = "documents";
+  q("reports-kind").dispatchEvent(new globalThis.window.Event("change"));
+  assert.deepEqual([q("reports-from").value, q("reports-to").value], ["02/2026", "02/2026"]);
+  const sheet = q("reports-preview").querySelector(".report-sheet");
+  assert.equal(sheet.querySelector("h2").textContent, "PDF מסכם");
+  const listed = sheet.querySelectorAll("tbody tr").length;
+  assert.ok(listed > 0);
+  await click("reports-show");
+  assert.equal(q("reports-error").textContent, "");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].items.length, listed);
+  assert.ok(calls[0].items.every((item) => item.month === "2026-02" && item.row.active));
+  assert.equal(calls[0].clientName, "Test Client");
+  assert.equal(viewer.shown.title, "PDF מסכם");
+  assert.equal(viewer.shown.pageUrls.length, listed);
+  assert.match(await viewer.shown.save(), /reports\/documents_02-2026_02-2026\.pdf/);
+  assert.ok(client.directory.children.get("reports").children.has("documents_02-2026_02-2026.pdf"));
 });

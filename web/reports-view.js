@@ -202,3 +202,14 @@ export function renderLedgerReport(ledger, context, statusLabel = (status) => (s
   children.push(el("p", `סה״כ לדוח: ${money(ledger.gross)} · ${money(ledger.net)} · ${money(ledger.vat)}`, "report-total grand"));
   return sheet(...children, footer());
 }
+
+// The documents report on the page: the list of its rows; the photos are in the PDF (document-report.js).
+export function renderDocumentsReport(items, context) {
+  const lines = items.map(({ month, position, row: item }) => row([
+    `${month.slice(5)}/${month.slice(0, 4)}`, String(position), item.values?.[0] ?? "", item.values?.[3] ?? "",
+    item.reference || item.values?.[5] || "", item.values?.[7] ?? "", item.imageFile ? "יש" : "אין",
+  ]));
+  const note = `${items.length} מסמכים · בחלון התצוגה כל מסמך בדף משלו, עם המקור והפענוח`;
+  const heads = ["חודש", "שורה", "תאריך", "ספק", "מס׳ מסמך", "כולל מע״מ", "מקור"];
+  return sheet(header("PDF מסכם", context, note), table(heads, lines, "report-table ledger"), footer());
+}
