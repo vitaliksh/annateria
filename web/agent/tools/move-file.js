@@ -44,6 +44,10 @@ export default {
     } catch (error) {
       if (error instanceof ToolError) throw error;
       if (error?.name === "AbortError") throw new ToolError("cancelled", "The run was cancelled.");
+      // The original left the inbox after it was read (the user removed it while the run was working): nothing was copied.
+      if (!images.length && error?.name === "NotFoundError") {
+        throw new ToolError("not_found", "The file is no longer in the inbox (it was removed during the run), so it was not moved and its rows have no original.");
+      }
       throw new ToolError("unavailable", "The file could not be moved; it stays in the inbox.");
     }
   },

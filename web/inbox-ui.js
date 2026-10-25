@@ -55,9 +55,11 @@ async function canvasThumbnail(file, entry, doc) {
 // ("parent" set) have an inbox folder. The store functions and `makeThumbnail(file, entry)` are replaceable in tests.
 // getOpenFolder() is the inbox folder of the client that is open in the journal (or null): the dialog offers it for new files.
 // onCounts({ total, byFolder }) is called whenever the index was read, for the sidebar. onCheck() is called by the button that
-// hands the files to the assistant.
+// hands the files to the assistant. isBusy() is true while the assistant runs: then no file may leave the inbox, because the run may
+// still have to file it with its rows (25 October 2026: two PDFs removed during a check left 24 rows without their original).
 export function setupInbox({
   dialog, openButton, getDataRoot, getClients, getOpenFolder = () => null, onError = () => {}, onCounts = () => {}, onCheck = () => {},
+  isBusy = () => false,
   add = addToInbox, ensure = ensureInbox, readIndex = readInboxIndex, reconcile = reconcileInbox, trash = moveToTrash, readFile = readInboxFile,
   makeThumbnail = null, confirm = confirmDialog, now = () => new Date().toISOString(),
 }) {
@@ -86,10 +88,14 @@ export function setupInbox({
     plate.className = `plate ${PLATE_CLASS[current.kind]}`;
     plate.textContent = current.text;
     const disabled = !root || running;
+    const checking = isBusy();
+    const total = index.files.length;
+    const note = checking ? " · הבדיקה פעילה, אי אפשר להסיר קבצים עד שתסתיים" : "";
+    countLine.textContent = total ? `בתיבה: ${plural(total, "קובץ אחד", "קבצים")}${note}` : "התיבה ריקה";
     pick.disabled = select.disabled = disabled;
-    clearButton.disabled = disabled || !index.files.length;
-    checkButton.disabled = disabled || !index.files.length;
-    for (const button of list.querySelectorAll("button")) button.disabled = disabled;
+    clearButton.disabled = disabled || checking || !total;
+    checkButton.disabled = disabled || checking || !total;
+    for (const button of list.querySelectorAll("button")) button.disabled = disabled || checking;
     zone.setAttribute("aria-disabled", String(disabled));
     zone.dataset.busy = String(running);
     problems.replaceChildren(...shown.map((text) => Object.assign(doc.createElement("li"), { textContent: text })));
@@ -154,8 +160,6 @@ export function setupInbox({
 
   function renderList() {
     listToken += 1;
-    const total = index.files.length;
-    countLine.textContent = total ? `בתיבה: ${plural(total, "קובץ אחד", "קבצים")}` : "התיבה ריקה";
     list.replaceChildren(...groups().flatMap(({ folder, entries }) => {
       const head = doc.createElement("h4");
       head.textContent = `${folderLabel(folder)} (${entries.length})`;
@@ -224,7 +228,7 @@ export function setupInbox({
   // Moves files to inbox/_trash/ (nothing is deleted for good) and says what happened.
   async function moveFiles(hashes, doneText) {
     const root = getDataRoot();
-    if (!root || running || !hashes.length) return;
+    if (!root || running || isBusy() || !hashes.length) return;
     errorLine.textContent = "";
     running = true;
     render();
@@ -255,7 +259,7 @@ export function setupInbox({
 
   clearButton.addEventListener("click", async () => {
     const hashes = index.files.map((entry) => entry.hash);
-    if (!hashes.length || running) return;
+    if (!hashes.length || running || isBusy()) return;
     const question = `להעביר ${plural(hashes.length, "קובץ אחד", "קבצים")} מהתיבה לפח? הקבצים יישמרו בתיקייה inbox/_trash ולא יימחקו.`;
     if (await confirm(question, { title: "ניקוי תיבת הקלט", confirmLabel: "העברה לפח" })) await moveFiles(hashes, "");
   });

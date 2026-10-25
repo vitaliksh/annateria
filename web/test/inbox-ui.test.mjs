@@ -245,6 +245,32 @@ test("clear all asks first; declining changes nothing, accepting moves everythin
   assert.match(ui.plate(), /נוסף קובץ אחד/, "the same file can be added again after the clean-up");
 });
 
+test("while the assistant checks the files none can be removed; adding still works", async () => {
+  let checking = false;
+  const asked = [];
+  const ui = setup({ isBusy: () => checking, confirm: async (question) => { asked.push(question); return true; } });
+  await fill(ui);
+  checking = true;
+  await ui.inbox.refreshCounts();
+  assert.equal([...ui.q("#inbox-list").querySelectorAll(".inbox-remove")].every((button) => button.disabled), true);
+  assert.equal(ui.q("#inbox-clear").disabled, true);
+  assert.match(ui.q("#inbox-count").textContent, /^בתיבה: 3 קבצים · /);
+  // A click that gets through anyway (a button enabled by hand) moves nothing.
+  ui.q(".inbox-remove").disabled = false;
+  ui.q(".inbox-remove").click();
+  ui.q("#inbox-clear").disabled = false;
+  ui.q("#inbox-clear").click();
+  await settle();
+  assert.deepEqual(asked, []);
+  assert.equal((await listPaths(ui.root)).some((path) => path.startsWith("inbox/_trash/")), false);
+  await ui.pickFiles([file("late.jpg", "four")]);
+  assert.match(ui.plate(), /נוסף קובץ אחד/);
+  checking = false;
+  await ui.inbox.refreshCounts();
+  assert.equal(ui.q(".inbox-remove").disabled, false);
+  assert.equal(ui.q("#inbox-count").textContent, "בתיבה: 4 קבצים");
+});
+
 test("problems of the move are listed and the files that stayed remain in the list", async () => {
   const ui = setup({ trash: async (root, hashes) => ({ moved: [], missing: [], failed: hashes.map((hash) => ({ name: "x", error: "נעול" })) }) });
   await fill(ui);
@@ -387,4 +413,12 @@ test("a refused permission is said plainly and nothing is written", async () => 
   await settle();
   assert.match(ui.errors[0], /הרשאה/);
   await assert.rejects(ui.root.getDirectoryHandle("inbox"), { name: "NotFoundError" });
+});
+
+test("the page declares the run it asks about before the inbox dialog asks for it", () => {
+  // setupInbox draws itself at once and asks isBusy(); a `let` declared further down app.js throws in the browser (the bundle of the
+  // test harness turns it into a var and hides that).
+  const app = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "app.js"), "utf8");
+  assert.match(app, /isBusy: \(\) => Boolean\(assistantRun\)/);
+  assert.ok(app.indexOf("let assistantRun = null;") > -1 && app.indexOf("let assistantRun = null;") < app.indexOf("inboxUi = setupInbox({"));
 });

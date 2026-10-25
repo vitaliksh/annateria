@@ -302,6 +302,9 @@ the registry so that this file and the code cannot drift apart.
   removed after the last copy is verified. A PDF is stored as the original (how the viewer shows a page is 4.4).
 - **Never.** Delete anything in a declaration; touch a locked month; move a file that has no row (it stays in the inbox
   with a note for the user).
+- **A file gone from the inbox** (removed after it was read, before the move): `not_found`, "no longer in the inbox", nothing
+  copied, the rows stay without an original. Any other failure is `unavailable` and the file stays in the inbox. While a run is
+  going the inbox dialog does not let the user remove files (25 October 2026).
 
 ### 5.4 Ask and propose (the user decides)
 

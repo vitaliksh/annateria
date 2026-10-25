@@ -613,6 +613,8 @@ const transfer = setupTransfer({
     else clientsHome.openClient(clientId);
   },
 });
+// The controller of the assistant run in progress (null when none); declared before the inbox dialog, which asks for it at once.
+let assistantRun = null;
 inboxUi = setupInbox({
   dialog: document.querySelector("#inbox-dialog"),
   openButton: document.querySelector("#open-inbox"),
@@ -623,6 +625,7 @@ inboxUi = setupInbox({
     return openId ? (workspaceControls?.getClients().active.find((client) => client.config?.clientId === openId)?.entryName ?? null) : null;
   },
   onCheck: () => assistant.trigger("process"),
+  isBusy: () => Boolean(assistantRun),
   onCounts: ({ byFolder }) => {
     inboxFileCounts = byFolder;
     workspaceControls?.renderSidebar?.();
@@ -735,7 +738,6 @@ const assistantFlow = createAssistantFlow({
   builtInChart: () => Object.fromEntries(Object.entries(builtInMapping).map(([code, name]) => [code, { name, type: "expense" }])),
   reserved: () => ({ ...builtInMapping, ...customMapping }),
 });
-let assistantRun = null;
 let assistantLastAnswer = "";
 async function runAssistant(kind, text) {
   if (!api) return assistant.addMessage("error", "החיבור לשרת ה‑AI אינו מוגדר.");
@@ -745,6 +747,7 @@ async function runAssistant(kind, text) {
   const counts = {};
   assistantRun = controller;
   assistant.setBusy(true);
+  inboxUi?.refreshCounts(); // the inbox dialog locks its remove buttons for the run
   assistant.setProgress("מתחיל…");
   try {
     const result = await assistantFlow.run({

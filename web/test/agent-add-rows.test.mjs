@@ -353,6 +353,19 @@ test("move_file_to_declaration: a failure leaves the original in the inbox; a fi
   assert.equal((await readInboxIndex(w.root)).files.some((entry) => entry.name === "photo.jpg"), true);
 });
 
+test("move_file_to_declaration: a file taken out of the inbox during the run is named as gone, not as staying there", async () => {
+  // 25 Oct 2026: two PDFs were moved to the trash while the run waited for an answer; the rows were made, the move then said
+  // "it stays in the inbox", which was not true.
+  const { w, dispatch, levi, handles } = await withRow([[rawRecord()]]);
+  const folder = await (await w.root.getDirectoryHandle("inbox")).getDirectoryHandle("_unsorted");
+  await folder.removeEntry("photo.jpg");
+  const result = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"], client: levi, months: ["2026-02"] });
+  assert.deepEqual([result.ok, result.error.code], [false, "not_found"]);
+  assert.match(result.error.message, /no longer in the inbox/);
+  assert.doesNotMatch(result.error.message, /stays in the inbox/);
+  assert.equal((await listPaths(w.root)).some((path) => path.includes("/images/")), false);
+});
+
 test("move_file_to_declaration: for the open table the page gives the rows their image", async () => {
   const attached = [];
   const live = { clientId: "id-Levi", month: "2026-02", rows: [], append: async (s) => s.map((_, i) => 4 + i), flush: async () => {}, attachImage: async (info) => { attached.push(info); return 1; } };
