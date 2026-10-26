@@ -14,7 +14,8 @@ import { AGENT_VERSION } from "../prompts.js";
 
 const UNSORTED = "_unsorted";
 
-// The proof that the document is for this client: the folder it was put in, the VAT number of the buyer, a buyer the user once confirmed
+// The proof that the document is for this client: the folder it was put in, the VAT number of the buyer (or of the supplier, for a
+// document the client issued itself: its own receipts, 26 October 2026), a buyer the user once confirmed
 // as this client and no other (alias, step 4.6.2), a button of the user, or another document of the same file that already has a row
 // of this client in this run (same_file). aliases(): the confirmed aliases of all clients, read once per call.
 async function verifyRouting(ctx, row, clientValue, factValue, aliases) {
@@ -25,7 +26,10 @@ async function verifyRouting(ctx, row, clientValue, factValue, aliases) {
   } else if (row.routed_by === "folder") {
     if (entry.folder === UNSORTED || entry.folder !== clientValue.folder) throw new ToolError("not_allowed", `The file is not in the inbox folder of this client (it is in ${entry.folder}).`);
   } else if (row.routed_by === "vat_id") {
-    if (!digits(record.buyer_vat_id) || digits(record.buyer_vat_id) !== digits(clientValue.vatId)) throw new ToolError("not_allowed", "The VAT number of the buyer on the document is not the VAT number of this client.");
+    const own = digits(clientValue.vatId);
+    if (!own || ![record.buyer_vat_id, record.supplier_vat_id].some((value) => digits(value) === own)) {
+      throw new ToolError("not_allowed", "Neither the buyer's nor the supplier's VAT number on the document is the VAT number of this client.");
+    }
   } else if (row.routed_by === "alias") {
     const buyer = buyerOf(record);
     if (!buyer) throw new ToolError("not_allowed", "The document prints no buyer, so no alias can prove its client.");
@@ -121,7 +125,7 @@ export async function addMissingRows(ctx, fileHandle, clientHandle) {
 export default {
   name: "add_rows",
   exclusive: true, // see move_file_to_declaration
-  description: "Put documents into the monthly table as draft rows, one per fact. You give the fact handle, the proof of the client (routed_by: folder when the file is in the inbox folder of this client, vat_id when the VAT number of the buyer on the document is the client's, alias when find_client gave match alias for the buyer of the document, user when the user clicked a button of an ask_user question about this file that carries this client, same_file when another document of the same file already has a row of this client), your decision (expense, not_expense, unclear), an account code of the client's chart for an expense, whether it needs a look, and a one-sentence Hebrew reason. The code copies every value from the fact, decides the month, excludes duplicates and documents of a previous year, applies the recognition percentages and sets the status; a row is ready only when nothing in the facts warns. Give month_override only when the user chose the month with a button (an ask_user option with that month).",
+  description: "Put documents into the monthly table as draft rows, one per fact. You give the fact handle, the proof of the client (routed_by: folder when the file is in the inbox folder of this client, vat_id when the VAT number of the buyer on the document is the client's, or the supplier's on a document the client issued, alias when find_client gave match alias for the buyer of the document, user when the user clicked a button of an ask_user question about this file that carries this client, same_file when another document of the same file already has a row of this client), your decision (expense, not_expense, unclear), an account code of the client's chart for an expense, whether it needs a look, and a one-sentence Hebrew reason. The code copies every value from the fact, decides the month, excludes duplicates and documents of a previous year, applies the recognition percentages and sets the status; a row is ready only when nothing in the facts warns. Give month_override only when the user chose the month with a button (an ask_user option with that month).",
   schema: {
     type: "object",
     required: ["client", "rows"],

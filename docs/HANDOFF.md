@@ -33,6 +33,13 @@ them); no code gives old rows their original. Found in the browser: `isBusy` rea
 (the harness bundle turns top-level `let` into `var`, so the tests did not see it); the declaration moved up and a test checks
 the order. Web 887 tests.
 
+**The client's own documents (26 October).** In the owner's re-run every page of both scans became a row with its original (18 + 8),
+but the 8 receipts the client issued herself (her VAT number as the supplier, a patient as the buyer) were asked about, and a wrong
+pick from the list filed them under another client. `vat_id` now proves the client by the supplier's VAT number as well, and such a
+document has no buyer mismatch (`AGENT_VERSION` `base-2026-10-26a`). The run took about 3.5 minutes (extraction of the 17-page PDF
+75 s; one turn of 9,600 thought tokens, 64 s, deciding 18 rows; 19 turns re-sending a prompt that grew to 44k tokens, 521k in all,
+388k cached); the owner finds 1.48 ₪ and 3 to 4 minutes per such run too much. Web 898 tests.
+
 **Nothing that came in is lost (Anna's rule, 25 October).** The owner's re-run of the two scans left 11
 documents of the 17-page file out of the table: `add_rows` rejected them (no buyer VAT number, or a mistyped one), the agent asked
 "which client?" only about the other file and never added them again, then filed the file anyway; its summary said all was done.

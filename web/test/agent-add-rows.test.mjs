@@ -38,7 +38,7 @@ test("add_rows: an invoice for the client becomes a ready row at the end of the 
   const row = rows[3];
   assert.deepEqual(row.values, ["20/02/26", "202", "paper", "Paper Shop", "512345679", "2002", "", "236.00", "200.00", "36.00", "100", "100"]);
   assert.deepEqual([row.active, row.statusText, row.statusClass, row.reference, row.documentKind, row.agentOpinion, row.confidence], [true, "מוכן לייצוא", "ready", "INV-2002", "expense_invoice", "חשבונית משרדית", "92%"]);
-  assert.deepEqual([row.agent.run, row.agent.version, row.agent.fact, row.agent.page, row.agent.reasons], [ctx.run.id, "base-2026-10-25a", fact, null, []]);
+  assert.deepEqual([row.agent.run, row.agent.version, row.agent.fact, row.agent.page, row.agent.reasons], [ctx.run.id, "base-2026-10-26a", fact, null, []]);
   assert.equal(row.agent.file.length, 64);
   assert.deepEqual(row.agent.skills, { classification: 3, "periods-and-duplicates": 2 }, "the version of every skill of the run is in the row (5.1)");
   assert.equal(ctx.handles.get("R", added.row).position, 4);
@@ -95,7 +95,7 @@ test("add_rows: a buyer that is another business, or no buyer on the document, i
   const [fact] = await other.factsOf("photo.jpg");
   const wrong = (await other.dispatch("add_rows", { client: other.levi, rows: [decision(fact)] })).rows[0];
   assert.deepEqual([wrong.state, wrong.error.code], ["rejected", "not_allowed"]);
-  assert.match(wrong.error.message, /VAT number of the buyer/);
+  assert.match(wrong.error.message, /the buyer's nor the supplier's VAT number/);
   const noBuyer = await session([[rawRecord({ buyer_vat_id: null })]]);
   const [lonely] = await noBuyer.factsOf("photo.jpg");
   assert.equal((await noBuyer.dispatch("add_rows", { client: noBuyer.levi, rows: [decision(lonely)] })).rows[0].error.code, "not_allowed");
@@ -518,4 +518,16 @@ test("a whole run: a file with rows that the model never filed is filed by the a
   const rows = (await loadDeclaration(w.levi.directory, "2026-02")).draft.rows.filter((row) => row.agent?.run === result.runId);
   assert.deepEqual(rows.map((row) => [row.reference, row.imageFile, row.active]), [["E-1", "001.jpg", true], ["E-2", "001.jpg", false]]);
   assert.ok(result.log.entries.some((entry) => entry.kind === "tool" && entry.name === "move_file_to_declaration" && entry.byApp));
+});
+
+// 26 October 2026: the client's own receipts (she is the supplier, the buyer is her patient) were asked about and then filed
+// under another client by a wrong click. A document the client issued is the client's: vat_id proves it by the supplier.
+test("add_rows: vat_id proves the client by the supplier's VAT number on a document the client issued", async () => {
+  const own = rawRecord({ document_number: "R-4887", supplier_name: "Levi Plumbing", supplier_vat_id: "514123456", buyer_name: "A patient", buyer_vat_id: null });
+  const other = rawRecord({ document_number: "X-1", supplier_vat_id: "512345679", buyer_vat_id: null });
+  const { dispatch, levi, factsOf } = await session([[own, other]]);
+  const [mine, foreign] = await factsOf("photo.jpg");
+  const result = await dispatch("add_rows", { client: levi, rows: [decision(mine), decision(foreign)] });
+  assert.equal(result.rows[0].state, "created");
+  assert.deepEqual([result.rows[1].state, result.rows[1].error.code], ["rejected", "not_allowed"], "neither the buyer nor the supplier is the client");
 });

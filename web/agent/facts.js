@@ -42,7 +42,10 @@ export async function computeFacts(ctx, args) {
   const review = pcnReview([row], { pcnRequired: profile.pcnRequired })[0];
   const pcn = review.applies ? { applies: true, threshold: review.threshold, over: review.over, allocation_missing: review.missingAllocation } : { applies: false };
   const homeUtility = profile.kind === "home" && isHomeUtility({ texts: [record.purpose, record.document_title] });
-  const buyerMismatch = Boolean(record.buyer_vat_id && digits(profile.vatId) && digits(record.buyer_vat_id) !== digits(profile.vatId));
+  // A document the client issued names the client's customer as the buyer, which is no mismatch.
+  const issuedByClient = Boolean(digits(profile.vatId) && digits(record.supplier_vat_id) === digits(profile.vatId));
+  const buyerMismatch = !issuedByClient
+    && Boolean(record.buyer_vat_id && digits(profile.vatId) && digits(record.buyer_vat_id) !== digits(profile.vatId));
 
   const reasons = new Set(record.issues);
   if (facts.exclude === "previous-year") reasons.add("previous_year");

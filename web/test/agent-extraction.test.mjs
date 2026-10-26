@@ -251,6 +251,9 @@ test("facts_for: a document addressed to another business, a low confidence, iss
   assert.equal(result.suggested_status, "review");
   const noBuyer = await factsFixture([rawRecord({ buyer_vat_id: null })]);
   assert.equal((await noBuyer.dispatch("facts_for", { fact: await noBuyer.factOf(), client: await noBuyer.client("Levi") })).buyer_mismatch, false);
+  // A document the client issued names the client's customer as the buyer: that is no mismatch (26 October 2026).
+  const issued = await factsFixture([rawRecord({ supplier_vat_id: "514123456", buyer_vat_id: "999999990" })]);
+  assert.equal((await issued.dispatch("facts_for", { fact: await issued.factOf(), client: await issued.client("Levi") })).buyer_mismatch, false);
 });
 
 test("facts_for: a PCN client needs a tick above the ceiling and an allocation number with VAT", async () => {

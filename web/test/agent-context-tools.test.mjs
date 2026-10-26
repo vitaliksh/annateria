@@ -239,7 +239,7 @@ test("the instruction has the agent read import files and name the wizard of the
   const { AGENT_VERSION } = await import("../agent/prompts.js");
   const ORCHESTRATOR_PROMPT = await orchestratorInstruction();
   const { default: listInbox } = await import("../agent/tools/list-inbox.js");
-  assert.equal(AGENT_VERSION, "base-2026-10-25a");
+  assert.equal(AGENT_VERSION, "base-2026-10-26a");
   assert.ok(ORCHESTRATOR_PROMPT.includes("read every spreadsheet, and every PDF that does not look like an invoice"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("with read_document, and never extract a spreadsheet with the vision model"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("say plainly when you cannot tell what a file is"));

@@ -260,7 +260,7 @@ the registry so that this file and the code cannot drift apart.
 - **Input.** `{ client, rows: [{ fact, routed_by, routing_ask?, decision, account?, needs_review, reason,
   month_override?: { month, ask } }] }`, at most 40 rows per call.
   - `routed_by`: `same_file` (25 October 2026: another document of the same file already has a row of this client in this
-    run), `folder` (the file sits in this client's inbox folder), `vat_id` (the fact's `buyer_vat_id` equals
+    run), `folder` (the file sits in this client's inbox folder), `vat_id` (the fact's `buyer_vat_id`, or its `supplier_vat_id` for a document the client issued itself (26 October 2026), equals
     the client's VAT number), `alias` (4.6.2: the buyer of the fact is a confirmed alias of this client and of no other client;
     when the fact prints the buyer's VAT number only the number counts, otherwise the exact normalised name; a client's own VAT
     number counts as its alias for the "no other client" check), or `user` (`routing_ask` names an answered question, or the user's message of this run
