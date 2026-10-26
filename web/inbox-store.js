@@ -144,8 +144,21 @@ async function writeInboxIndex(inbox, index) {
 }
 
 // SHA-256 of the images of every declaration of every client, and of the import originals in clients/<client>/imports/ (step 4.7),
-// whose size is in `sizes`. Equal bytes mean equal size, so only files of a matching size are read.
+// whose size is in `sizes`. Equal bytes mean equal size, so only files of a matching size are read. An image counts only while a row
+// of its declaration's table uses it (26 October 2026: rows deleted, the scan could not come in again); a declaration whose table
+// cannot be read counts all its images.
 // Returns Map(hash -> { client, month, file }); for an import original `month` is null and `imports` is true.
+// The image files that the rows of a declaration's table use, or null when the table cannot be read.
+async function usedImages(declarationHandle) {
+  try {
+    const draft = JSON.parse(await (await (await declarationHandle.getFileHandle("draft-table.json")).getFile()).text());
+    if (!Array.isArray(draft?.rows)) return null;
+    return new Set(draft.rows.map((row) => row?.imageFile).filter(Boolean));
+  } catch {
+    return null;
+  }
+}
+
 export async function declarationImageHashes(dataRoot, sizes) {
   const found = new Map();
   let clients;
@@ -169,8 +182,9 @@ export async function declarationImageHashes(dataRoot, sizes) {
       if (declarationHandle.kind !== "directory") continue;
       const images = await child(declarationHandle, "images");
       if (!images) continue;
+      const used = await usedImages(declarationHandle);
       for await (const [file, handle] of images.entries()) {
-        if (handle.kind !== "file") continue;
+        if (handle.kind !== "file" || (used && !used.has(file))) continue;
         const source = await handle.getFile();
         if (!sizes.has(source.size)) continue;
         const hash = await sha256Hex(await source.arrayBuffer());

@@ -139,6 +139,20 @@ test("images of any declaration count as already seen; the same size with other 
   ]);
 });
 
+// 26 October 2026: the owner deleted the rows of a scan and could not take the scan in again, because its PDF stayed in the images
+// of the month. A file of a month counts as seen only while a row of that month's table (active or not) uses it.
+test("an image of a month that no row of its table uses any more is not a duplicate; one that a row uses is", async () => {
+  const root = binaryDirectory();
+  await putFile(root, "clients/Levi/declarations/2026-10/images/001.pdf", bytesOf("USED-PDF"));
+  await putFile(root, "clients/Levi/declarations/2026-10/images/002.pdf", bytesOf("GONE-PDF"));
+  await putFile(root, "clients/Levi/declarations/2026-10/images/003.jpg", bytesOf("OFF-ROW1"));
+  const draft = { schemaVersion: 1, rows: [{ imageFile: "001.pdf", active: true }, { imageFile: "003.jpg", active: false }, { imageFile: "" }] };
+  await putFile(root, "clients/Levi/declarations/2026-10/draft-table.json", bytesOf(JSON.stringify(draft)));
+  const result = await addToInbox(root, [fileOf("used.pdf", "USED-PDF"), fileOf("gone.pdf", "GONE-PDF"), fileOf("off.jpg", "OFF-ROW1")], { now: NOW });
+  assert.deepEqual(result.added.map((entry) => entry.name), ["gone.pdf"]);
+  assert.deepEqual(result.duplicates.map((item) => [item.name, item.of.file]), [["used.pdf", "001.pdf"], ["off.jpg", "003.jpg"]]);
+});
+
 test("declarationImageHashes reads only files whose size can match", async () => {
   const root = binaryDirectory();
   await putFile(root, "clients/Levi/declarations/2026-08/images/a.jpg", bytesOf("12345"));

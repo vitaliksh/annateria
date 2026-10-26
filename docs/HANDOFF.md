@@ -33,6 +33,12 @@ them); no code gives old rows their original. Found in the browser: `isBusy` rea
 (the harness bundle turns top-level `let` into `var`, so the tests did not see it); the declaration moved up and a test checks
 the order. Web 887 tests.
 
+**A deleted row frees its original (26 October).** The inbox refuses bytes that are already an image of a declaration. Deleting rows
+leaves their original in `images/` (nothing in a declaration is deleted), so a scan whose rows were deleted could never come in
+again. Now an image counts as seen only while a row of its declaration's table uses it (a table that cannot be read counts all
+its images). The owner's own case was a different one: he dropped the 17-page scan, whose rows are still in the client's table,
+instead of the 8-page one (the names differ by `_0001`). Web 899 tests.
+
 **The client's own documents (26 October).** In the owner's re-run every page of both scans became a row with its original (18 + 8),
 but the 8 receipts the client issued herself (her VAT number as the supplier, a patient as the buyer) were asked about, and a wrong
 pick from the list filed them under another client. `vat_id` now proves the client by the supplier's VAT number as well, and such a
