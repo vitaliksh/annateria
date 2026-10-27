@@ -72,6 +72,10 @@ key). ocr keeps `rivhit-local-workspaces-v1`. Consequences: on first use the dat
 code typed once. `localStorage` keys `annateria-column-widths-v2` and `annateria-sidebar-v1` are identical in both apps
 (UI preferences only). On-disk format names such as `annateria-backup` and the encryption AAD strings are unchanged.
 
+The self-employed tax calculator (separate repository `vitaliksh/israel-self-employed-tax-calculator`) lives on the same
+origin. Its only storage is the `localStorage` key `taxParameters2026`. The sidebar button "מחשבון מס" opens it in a
+window named `tax-calculator` (`openTaxCalculator` in `web/sidebar.js`), cuts `window.opener` and passes it no data.
+
 ## Not tax advice
 
 The app supports bookkeeping decisions of a human; the reports follow `docs/REPORTS_SPEC.md`.

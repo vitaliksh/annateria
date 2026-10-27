@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
-import { DEFAULT_WIDTH, MAX_WIDTH, MIN_WIDTH, SIDEBAR_KEY, clampSidebarWidth, readSidebarState, setupSidebar } from "../sidebar.js";
+import {
+  DEFAULT_WIDTH, MAX_WIDTH, MIN_WIDTH, SIDEBAR_KEY, TAX_CALCULATOR_URL, clampSidebarWidth, openTaxCalculator, readSidebarState,
+  setupSidebar,
+} from "../sidebar.js";
 import { renderSidebarClients } from "../sidebar-clients.js";
 
 test("sidebar width is clamped and bad input falls back to the default", () => {
@@ -102,4 +105,35 @@ test("a client with files in the inbox shows their number next to the name", () 
   assert.deepEqual(badges, ["4", null]);
   renderSidebarClients(container, { clients, archivedMode: false, activeClientId: null, activeDeclarationId: null, expandedClientId: null }, handlers);
   assert.equal(container.querySelector(".inbox-count"), null);
+});
+
+function fakeWindow(href) {
+  const win = { location: { href }, opener: "page", focused: false, focus() { win.focused = true; } };
+  return win;
+}
+
+test("the tax calculator opens in its own window, cut off from this page", () => {
+  const win = fakeWindow("about:blank");
+  const calls = [];
+  const result = openTaxCalculator((...args) => { calls.push(args); return win; });
+  assert.equal(result, win);
+  assert.deepEqual(calls.map((call) => call[1]), ["tax-calculator"]);
+  assert.match(calls[0][2], /popup=yes/);
+  assert.equal(win.location.href, TAX_CALCULATOR_URL);
+  assert.equal(win.opener, null);
+  assert.equal(win.focused, true);
+});
+
+test("a second click brings the open calculator back without reloading it", () => {
+  const win = fakeWindow(`${TAX_CALCULATOR_URL}#typed`);
+  openTaxCalculator(() => win);
+  assert.equal(win.location.href, `${TAX_CALCULATOR_URL}#typed`);
+  assert.equal(win.opener, "page");
+  assert.equal(win.focused, true);
+});
+
+test("a refused calculator popup falls back to a new tab", () => {
+  const calls = [];
+  openTaxCalculator((...args) => { calls.push(args); return null; });
+  assert.deepEqual(calls[1], [TAX_CALCULATOR_URL, "_blank", "noopener"]);
 });

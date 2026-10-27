@@ -6,9 +6,10 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 ## Start here (state on 27 October 2026)
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
-`2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-26a`. Web 899 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals), Worker 69 (`2026.10.23.2`, Cloudflare `dd57e455`,
-untouched since), `npm run check` green in both.
+`2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-26a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button), Worker 69 (`2026.10.23.2`,
+Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
+"מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
 (7.1 to 7.4, 7.6; 7.5 merged into 7.4). 6.1 (`run_report`) and phase 3 are in the backlog.
 

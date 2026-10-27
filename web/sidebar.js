@@ -1,4 +1,5 @@
-// Docked sidebar: collapse to an icon rail, drag to resize, remember both. Also opens the settings dialog.
+// Docked sidebar: collapse to an icon rail, drag to resize, remember both. Also opens the settings dialog
+// and the tax calculator.
 
 export const SIDEBAR_KEY = "annateria-sidebar-v1";
 export const MIN_WIDTH = 220;
@@ -76,8 +77,29 @@ export function setupSidebar({ shell, sidebar, toggle, resizer, storage = global
   return { apply, getState: () => ({ ...state }) };
 }
 
+// The self-employed tax calculator is a separate app; it opens in its own window and shares nothing with this page.
+export const TAX_CALCULATOR_URL = "https://vitaliksh.github.io/israel-self-employed-tax-calculator/";
+const TAX_CALCULATOR_WINDOW = "tax-calculator";
+const TAX_CALCULATOR_FEATURES = "popup=yes,width=1100,height=850,resizable=yes";
+
+// A second click brings back the open window without reloading it, so the numbers typed there stay.
+// A refused popup falls back to a new tab.
+export function openTaxCalculator(open = (...args) => globalThis.window.open(...args)) {
+  const win = open("", TAX_CALCULATOR_WINDOW, TAX_CALCULATOR_FEATURES);
+  if (!win) return open(TAX_CALCULATOR_URL, "_blank", "noopener");
+  try {
+    if (win.location.href === "about:blank") {
+      win.opener = null;
+      win.location.href = TAX_CALCULATOR_URL;
+    }
+  } catch { /* the window shows another site: leave it as it is */ }
+  win.focus();
+  return win;
+}
+
 const shell = typeof document === "undefined" ? null : document.querySelector(".app-shell");
 if (shell) {
   setupSidebar({ shell, sidebar: shell.querySelector(".sidebar"), toggle: document.querySelector("#open-workspaces-drawer"), resizer: document.querySelector("#sidebar-resizer") });
   document.querySelector("#open-settings")?.addEventListener("click", () => document.querySelector("#settings-dialog").showModal());
+  document.querySelector("#open-tax-calculator")?.addEventListener("click", () => openTaxCalculator());
 }
