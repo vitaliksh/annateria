@@ -3,12 +3,41 @@
 Facts a new developer or agent needs that the code does not say. Keep it true: update it in the commit that changes
 the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must not be broken are in `../AGENTS.md`.
 
-## Start here (state on 24 October 2026)
+## Start here (state on 27 October 2026)
 
-**State (end of 24 October).** `main` carries everything (last code commit de81d59, published; the page shows
-`2026.10.24 · de81d59`). Web 884 tests with 2.5.1 (870 at de81d59), 887 with the inbox lock of 25 October, 892 with the documents report, 897 with "nothing is lost", Worker 69 (`2026.10.23.2`, Cloudflare `dd57e455`), `npm run check` green in both.
+**State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
+`2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-26a`. Web 899 tests (884 on 24 October; then 887 inbox lock, 892 documents
+report, 897 "nothing is lost", 898 own documents, 899 freed originals), Worker 69 (`2026.10.23.2`, Cloudflare `dd57e455`,
+untouched since), `npm run check` green in both.
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
 (7.1 to 7.4, 7.6; 7.5 merged into 7.4). 6.1 (`run_report`) and phase 3 are in the backlog.
+
+**Where the next session starts (27 October).** Anna's first real day (25 October) brought five fixes, all published (below, newest
+first). The owner and Anna are now checking them on real data; nothing is half done. Open:
+- **Which table is right.** During this debugging the owner's PC (`D:\ANNATERIA`) is the master (owner, 26 October): he deleted his
+  earlier rows and re-ran both scans there. The last run (26 October, about 3 minutes, no question, nothing added by the app) gave
+  the client 26 rows with their originals: 4 in 09/2026, 22 in 10/2026, her 8 own receipts as income 160; three rows inactive for
+  Anna (a possible duplicate of 200.91, tickets of 50 in another person's name, a road-6 detail page without date and amount).
+  Anna's PC still holds her own first run of 25 October for this client: settle with the owner which side wins before the two PCs
+  meet through Drive. The test client the owner used by mistake had its 10/2026 declaration deleted (its originals went with it).
+- **The eval was not run** for `base-2026-10-25a` and `base-2026-10-26a` (it needs the owner's access code: `npm run eval` with
+  `ANNATERIA_CODE`; it costs money).
+- **Speed and cost: postponed by the owner (27 October).** He sets Flash 3.6 for all three roles in his settings and finds it an
+  acceptable trade-off; he fears that optimisation brings regressions. Measured on the last run: extraction of the 17-page PDF 82 s
+  (the 8-page one 28 s in parallel), one turn deciding all 26 rows 47 s (6,700 thought tokens), 12 other turns about 45 s, the
+  orchestrator 284k prompt tokens of which 186k cached; the tokens of extraction are not logged. Proposed, in this order, if he asks:
+  log the usage of extraction; read a big PDF in chunks of 4 to 5 pages in parallel (overlap a page, join by document number);
+  facts_for for many facts in one call; no query_rows before the summary; a lower thinking level (a hypothesis: check the Gemini
+  docs first, then the eval); not Flash-Lite.
+- **Where the originals are** (answered 27 October, from the code): a filed original is copied to
+  `clients/<client>/declarations/<month>/images/NNN.<ext>` (to every month that holds a row of it) and leaves the inbox only after the
+  copy is read back and the rows have it; import originals in `clients/<client>/imports/`; a file removed from the inbox in
+  `inbox/_trash/` with its record in `index.trashed`; deleting a row never removes its original; the agent cannot delete anything.
+  Every Drive snapshot holds the whole data root with the images (`sync-store.js`, images always in) and is never overwritten, so an
+  older snapshot keeps what was later deleted. Exceptions: deleting a declaration removes its images from the PC; the USB backup
+  leaves the images out unless its "with images" box is ticked.
+- **Not verified:** "PDF מסכם" on real data (only synthetic originals), a HEIC original in it, the inbox lock during a real run with
+  the dialog open.
 
 **2.5 Phone scans into the inbox (Anna's show-stopper, 24 October; 2.5.1 done: published 9f72add, checked by the owner with his iPhone).** Anna scans with the Google Drive
 app's widget into `phone/` of the shared folder (`G:\My Drive\ANNATERIA\phone` on the owner's PC); `web/phone-intake.js` takes the
@@ -44,7 +73,8 @@ but the 8 receipts the client issued herself (her VAT number as the supplier, a 
 pick from the list filed them under another client. `vat_id` now proves the client by the supplier's VAT number as well, and such a
 document has no buyer mismatch (`AGENT_VERSION` `base-2026-10-26a`). The run took about 3.5 minutes (extraction of the 17-page PDF
 75 s; one turn of 9,600 thought tokens, 64 s, deciding 18 rows; 19 turns re-sending a prompt that grew to 44k tokens, 521k in all,
-388k cached); the owner finds 1.48 ₪ and 3 to 4 minutes per such run too much. Web 898 tests.
+388k cached); the owner first found 1.48 ₪ and 3 to 4 minutes per such run too much, then postponed any optimisation (above).
+Web 898 tests. The next run (with this fix) booked her 8 receipts as income 160 without a question.
 
 **Nothing that came in is lost (Anna's rule, 25 October).** The owner's re-run of the two scans left 11
 documents of the 17-page file out of the table: `add_rows` rejected them (no buyer VAT number, or a mistyped one), the agent asked
@@ -53,7 +83,8 @@ Now the code guarantees it (`AGENTS.md`): `move_file_to_declaration` adds every 
 inactive row to look at, the end of a run files every file with rows that the model did not file, and `same_file` routing lets the
 agent route the rest of a file. The instruction's "if a row was rejected, do not move the file" is gone (`AGENT_VERSION`
 `base-2026-10-25a`). **The eval was not run** (it needs the owner's access code: `npm run eval` with `ANNATERIA_CODE`). Also seen in
-that run, not fixed: the client's own income receipts (she is the supplier) were booked as expense 212. Web 897 tests.
+that run: the client's own income receipts (she is the supplier) were booked as expense 212; gone since the fix of 26 October
+(her own documents). Web 897 tests.
 
 **The documents report is back (25 October).** The PDF of ocr with the original of every row above its
 recognised fields ("PDF מסכם") had been removed on 17 October as dead code; Anna relies on it. It is now a kind of the
@@ -105,6 +136,8 @@ replaces both codes), going through the one-page Hebrew guide (a claude.ai artif
   overwrite what was taken.
 - The owner's folders `D:\ANNATERIA` and `D:\ANNATERIA-B` hold **test** clients: read them freely while debugging (files, times,
   hashes). Anna's real data: only when the owner asks. The shared folder is visible from the owner's PC under `G:\My Drive\ANNATERIA`.
+  Since the sync of 23 October `D:\ANNATERIA` also holds Anna's real clients (the owner debugs on them with her scans, 25 to 27
+  October, at his request): keep results out of the repository and name no client, amount or document in commits.
 - When writing to the owner, never put Hebrew inside a Russian or English line: mixed lines turn right-aligned and jumble. Name a
   button in Russian and give the Hebrew label on its own line.
 - Scripts that edit files: write them with the file tool, not in a shell here-document (backslashes and `\d`, `\(` got eaten twice).
