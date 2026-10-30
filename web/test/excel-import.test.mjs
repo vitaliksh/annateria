@@ -53,3 +53,12 @@ test("every imported row keeps the hash of its file when one is given, and is bo
   const [without] = buildImportedRows(parsedRows, { x: "203" }, { now: "2026-10-30T00:00:00.000Z", makeId: () => "id" });
   assert.equal("sourceHash" in without, false);
 });
+
+test("a credit note of income keeps VAT with the sign of its net, as the file does (Anna's journal 8/2026, invoice 140)", () => {
+  const credit = { kind: "income", net: -403.63, vat: -72.65, gross: -476.28, date: "2026-07-09", details: "הכנסות", classificationName: "הכנסות", reference1: "140" };
+  const sale = { ...credit, net: 24517.95, vat: 4413.23, gross: 28931.18, reference1: "139" };
+  const [creditRow, saleRow] = buildImportedRows([credit, sale], { "הכנסות": "160" }, { now: "2026-10-30T00:00:00.000Z", makeId: () => "id" });
+  assert.deepEqual(creditRow.values.slice(7, 10), ["-476.28", "-403.63", "-72.65"]);
+  assert.equal(creditRow.rawVat, "-72.65");
+  assert.deepEqual(saleRow.values.slice(7, 10), ["28931.18", "24517.95", "4413.23"]);
+});

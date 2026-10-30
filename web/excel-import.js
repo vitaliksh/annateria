@@ -15,9 +15,10 @@ function displayedReference(value) {
 }
 
 function importedRow(row, code, index, { now, makeId, sourceHash }) {
-  // The file signs VAT opposite to net for expenses; the app keeps VAT with the sign of net.
-  const vat = row.kind === "credit" ? -Math.abs(row.vat) : Math.abs(row.vat);
+  // The file signs VAT opposite to net for expenses and like net for income; the app keeps VAT with the sign of net, so a credit
+  // note of income (net and VAT both negative in the file) stays negative too.
   const net = row.net;
+  const vat = (net < 0 || (!net && row.gross < 0) ? -1 : 1) * Math.abs(row.vat);
   const gross = round2(net + vat);
   return {
     documentId: `import-${index + 1}-${makeId()}`,
