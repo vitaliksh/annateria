@@ -7,7 +7,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
 `2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-26a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button), Worker 69 (`2026.10.23.2`,
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
@@ -15,6 +15,16 @@ Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5,
 
 **Where the next session starts (27 October).** Anna's first real day (25 October) brought five fixes, all published (below, newest
 first). The owner and Anna are now checking them on real data; nothing is half done. Open:
+- **A photographed ledger of another program is read line by line** (30 October, owner; skills `invoice-extraction` 2 and
+  `classification` 4, code unchanged). A new client's "כרטסת סעיפים" (three phone photos, not Rivhit) became three useless rows in
+  10/2026: the reading took each page for one yearly report and placed it by the report's period. Now every listed line is a
+  record (dated by its line, no period, reference as number; the business of the heading is the buyer, or the supplier in an
+  income section; tax and National Insurance payments are payment_confirmation), so each line lands in the month of its date and
+  missing months are created as for invoices. The owner checks the result once by hand against Anna's profit-and-loss sheet (no
+  code check, owner's decision). **Known, not fixed:** the ledger's property tax and electricity of a home client are already 25%,
+  and the row rule cuts them to 25% again; a dense page may exceed the 20,000-byte tool result; a PDF ledger of another program
+  still goes to `ledger_check` (Rivhit only). **Not verified:** the eval (needs the owner's code; it stubs extraction anyway) and
+  the real reading of the photos.
 - **Which table is right.** During this debugging the owner's PC (`D:\ANNATERIA`) is the master (owner, 26 October): he deleted his
   earlier rows and re-ran both scans there. The last run (26 October, about 3 minutes, no question, nothing added by the app) gave
   the client 26 rows with their originals: 4 in 09/2026, 22 in 10/2026, her 8 own receipts as income 160; three rows inactive for

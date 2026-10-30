@@ -68,8 +68,17 @@ test("each model call gets only its skills: the orchestrator never reads the ext
   for (const name of ["classification", "periods-and-duplicates", "pcn-allocation", "month-closing-checklist"]) assert.ok(orchestrator.includes(`SKILL ${name}`), name);
   assert.equal(orchestrator.includes("You only read; you never classify"), false);
   assert.equal(extraction.includes("THE SOFTWARE COMPUTES") || extraction.includes("decision expense"), false);
-  assert.deepEqual(skillVersions(skills), { "invoice-extraction": 1, classification: 3, "periods-and-duplicates": 2, "pcn-allocation": 1, "month-closing-checklist": 1 });
+  assert.deepEqual(skillVersions(skills), { "invoice-extraction": 2, classification: 4, "periods-and-duplicates": 2, "pcn-allocation": 1, "month-closing-checklist": 1 });
   assert.equal(BASE_PROMPT.includes("decision expense (a tax invoice"), false, "the base prompt keeps only the mechanics");
+});
+
+test("a ledger page is read line by line: one record per listed document, dated by its line, no period of the report", async () => {
+  const skills = await diskSkills();
+  const extraction = instructionFor("extraction", skills);
+  assert.ok(extraction.includes("A LIST OF BOOKED DOCUMENTS"));
+  assert.ok(extraction.includes("Return one record for every line that lists one document"));
+  assert.ok(extraction.includes("period_from and period_to are null"));
+  assert.ok(instructionFor("orchestrator", skills).includes("each record stands for the document on its line"));
 });
 
 test("loading: every skill must come, and the error names each one that did not", async () => {
@@ -137,6 +146,6 @@ test("the run log names the version of the instruction and of each skill", async
   const path = (await listPaths(w.root)).find((item) => item.startsWith("common/agent-runs/"));
   const log = JSON.parse(new TextDecoder().decode(await readFileBytes(w.root, path)));
   assert.equal(log.runId, result.runId);
-  assert.deepEqual(log.agent, { version: "base-2026-10-26a", skills: { "invoice-extraction": 1, classification: 3, "periods-and-duplicates": 2, "pcn-allocation": 1, "month-closing-checklist": 1 } });
+  assert.deepEqual(log.agent, { version: "base-2026-10-26a", skills: { "invoice-extraction": 2, classification: 4, "periods-and-duplicates": 2, "pcn-allocation": 1, "month-closing-checklist": 1 } });
   assert.ok(Array.isArray(log.entries));
 });
