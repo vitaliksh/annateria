@@ -397,6 +397,22 @@ test("a whole run: list, read, find the client, check, add the row, file the ori
   assert.equal((await readInboxIndex(w.root)).files.some((entry) => entry.name === "photo.jpg"), false);
 });
 
+test("a whole run says how many of the rows of each month are to look at (the panel's card \"לטיפולך\", C5)", async () => {
+  const { runAgent } = await import("../agent/run.js");
+  const { scriptedModel, reply, say } = await import("./agent-fixtures.mjs");
+  const w = await world({ extraction: scriptedExtraction([answers(rawRecord({ document_number: "RUN-7" }))]) });
+  const last = (request, name) => request.contents.at(-1).parts.map((part) => part.functionResponse).find((item) => item.name === name)?.response;
+  const model = scriptedModel([
+    reply(call("list_inbox", { kind: "image" })),
+    (request) => reply(call("extract_document", { file: last(request, "list_inbox").files[0].file }), call("find_client", { name: "Levi" })),
+    () => reply(call("add_rows", { client: "C1", rows: [decision("F1.1", { reason: "לא ברור", needs_review: true })] })),
+    () => reply(call("move_file_to_declaration", { file: "F1", client: "C1", months: ["2026-02"] })),
+    () => reply(say("done")),
+  ]);
+  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, ui: recordingUi() });
+  assert.deepEqual(result.added, [{ clientId: "id-Levi", month: "2026-02", count: 1, review: 1 }]);
+});
+
 test("a whole run: two moves called in one turn are done one after the other; both files are filed, both rows have their image", async () => {
   const { runAgent } = await import("../agent/run.js");
   const { scriptedModel, reply, say } = await import("./agent-fixtures.mjs");

@@ -250,6 +250,56 @@ test("the button of the dock says what it does and what it does not do", () => {
   assert.match(q("#assistant-process").title, /מוסיף שורות לטבלאות.*מתייק את המקורות.*שואל כשצריך/);
 });
 
+test("the card לטיפולך lists what is left after a run, each with its button, and follows the import card (C5)", () => {
+  const { assistant, q, commands, root } = setup();
+  assistant.setBusy(true);
+  assistant.ui.importCard(importCard());
+  assistant.setBusy(false);
+  const todo = assistant.showTodo({
+    rows: [{ clientId: "c1", client: "Levi", month: "2026-08", count: 5, review: 2 }, { clientId: "c1", client: "Levi", month: "2026-07", count: 3 }],
+    inbox: 1,
+  });
+  assert.equal(root.querySelector("#assistant-feed").lastElementChild, todo, "it is the last thing in the feed");
+  assert.equal(todo.dataset.kind, "todo");
+  const lines = [...todo.querySelectorAll("li")];
+  assert.deepEqual(lines.map((line) => line.querySelector("p").textContent), [
+    "ייבוא journal-08.xlsx ל«Levi» לא הושלם", "2 שורות לבדיקה ב-08/2026 של «Levi»", "קובץ אחד נשאר בתיבת הקלט",
+  ]);
+  assert.deepEqual(lines.map((line) => line.querySelector("button").textContent), ["בדיקה וייבוא", "08/2026", "תיבת קלט"]);
+  lines[0].querySelector("button").click();
+  assert.deepEqual([commands.at(-1).type, commands.at(-1).card.id], ["import", "I1"], "the same wizard as the card's own button");
+  commands.at(-1).report({ text: "הייבוא בוצע.", done: true });
+  assert.deepEqual([lines[0].dataset.state, lines[0].querySelector("button").disabled], ["done", true]);
+  lines[1].querySelector("button").click();
+  lines[2].querySelector("button").click();
+  assert.deepEqual(commands.slice(-2), [{ type: "open", clientId: "c1", month: "2026-08" }, { type: "inbox" }]);
+  assert.ok(q("[data-kind='todo']"));
+});
+
+test("nothing left after a run: no card לטיפולך; an import already done is not listed", () => {
+  const { assistant, root, commands } = setup();
+  assert.equal(assistant.showTodo({ rows: [{ clientId: "c1", client: "Levi", month: "2026-08", count: 2 }] }), null);
+  assistant.setBusy(true);
+  assistant.ui.importCard(importCard());
+  assistant.setBusy(false);
+  [...root.querySelectorAll(".assistant-card[data-kind='import'] button")].find((item) => item.textContent === "בדיקה וייבוא").click();
+  commands.at(-1).report({ text: "הייבוא בוצע.", done: true });
+  assert.equal(assistant.showTodo({}), null);
+  assert.equal(root.querySelector("[data-kind='todo']"), null);
+});
+
+test("a long final answer is folded under a control that shows it all; a short one is not", () => {
+  const { assistant, root } = setup();
+  const long = assistant.addMessage("assistant", "א".repeat(300), { fold: true });
+  assert.ok(long.classList.contains("folded"));
+  const more = long.nextElementSibling;
+  assert.equal(more.textContent, "הצג את כל הסיכום");
+  more.click();
+  assert.equal(long.classList.contains("folded"), false);
+  assert.equal(root.querySelector("#assistant-feed").contains(more), false);
+  assert.equal(assistant.addMessage("assistant", "קצר", { fold: true }).classList.contains("folded"), false);
+});
+
 test("one check, one name: the dock's button counts the files waiting and is off with an empty inbox (C3)", () => {
   const { assistant, q, root } = setup();
   const inboxButton = root.ownerDocument.querySelector("#inbox-check");

@@ -58,6 +58,7 @@ const money = (value) => value.toLocaleString("he-IL", { minimumFractionDigits: 
 const importProblemText = (item) => (IMPORT_PROBLEMS[item.code] ?? problemText)(item) ?? item.code;
 
 const ADDED_STATES = ["created", "moved_month", "already_added"];
+const FOLD_AFTER = 240; // characters of a final answer shown before "הצג את כל הסיכום"
 
 // What the run has done so far, for the progress line: documents read of the files found, rows added, originals filed.
 function summaryOf(counts) {
@@ -110,6 +111,7 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
   ].map(part);
   const doc = root.ownerDocument;
   let busy = false;
+  let runImports = []; // the import cards of the current or last run: { card, box, wizard, todo }
   let waiting = null; // files in the inbox, null until the page has counted them
   const processTitle = processButton.title;
   let shown = "";
@@ -173,17 +175,70 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     clearInterval(timer);
     timer = null;
     if (value) {
+      runImports = [];
       open(true);
       timer = setInterval(drawProgress, 1000);
       timer.unref?.();
     } else setProgress("");
   }
 
-  function addMessage(kind, text) {
+  // fold: a long answer shows its first lines and a control that shows the rest, so that the card "לטיפולך" under it stays in view
+  // (docs/UI_REDESIGN_PROPOSAL.md, C5).
+  function addMessage(kind, text, { fold = false } = {}) {
     const message = element("div", "assistant-message", text);
     message.dataset.kind = kind; // user | assistant | note | error
-    return add(message);
+    add(message);
+    if (fold && text.length > FOLD_AFTER) {
+      message.classList.add("folded");
+      const more = button("הצג את כל הסיכום", "link small");
+      more.addEventListener("click", () => { message.classList.remove("folded"); more.remove(); });
+      message.after(more);
+    }
+    return message;
   }
+
+  // What is left for the user after a run, built by the page from what the run did, not from the agent's words: the import cards of
+  // this run that are not done, the months with rows to look at, the files left in the inbox. Each line has the button that goes
+  // there. rows: [{ clientId, client, month, review }]; inbox: a number of files. Nothing to do: no card.
+  function showTodo({ rows = [], inbox = 0 } = {}) {
+    const imports = runImports.filter((entry) => entry.box.dataset.state !== "answered");
+    const reviewed = rows.filter((item) => item.review > 0);
+    if (!imports.length && !reviewed.length && !inbox) return null;
+    const box = element("div", "assistant-card");
+    box.dataset.kind = "todo";
+    box.append(element("p", "card-text", "לטיפולך"));
+    const list = element("ul", "todo-list");
+    const line = (text, label, onClick) => {
+      const item = element("li");
+      const go = button(label, "small");
+      go.addEventListener("click", onClick);
+      item.append(text, go);
+      list.append(item);
+      return { item, go };
+    };
+    for (const entry of imports) {
+      const text = isolated("", ["ייבוא ", { name: entry.card.file.name }, ` ל«${entry.card.client.name}» לא הושלם`]);
+      entry.todo = line(text, "בדיקה וייבוא", () => { entry.box.scrollIntoView?.({ block: "nearest" }); entry.wizard.click(); });
+    }
+    for (const { clientId, client, month, review } of reviewed) {
+      const count = review === 1 ? "שורה אחת" : `${review} שורות`;
+      line(element("p", "", `${count} לבדיקה ב-${formatMonth(month)} של «${client}»`), formatMonth(month), () => onCommand({ type: "open", clientId, month }));
+    }
+    if (inbox) {
+      const text = inbox === 1 ? "קובץ אחד נשאר בתיבת הקלט" : `${inbox} קבצים נשארו בתיבת הקלט`;
+      line(element("p", "", text), "תיבת קלט", () => onCommand({ type: "inbox" }));
+    }
+    box.append(list);
+    add(box);
+    open(true);
+    return box;
+  }
+  // A line of the card "לטיפולך" follows its import card: done there, done here.
+  const drawTodoLine = (entry) => {
+    if (!entry.todo || entry.box.dataset.state !== "answered") return;
+    entry.todo.item.dataset.state = "done";
+    entry.todo.go.disabled = true;
+  };
 
   // Where the rows of a run went: one button per month that opens it. months: [{ clientId, month, count }].
   function showPlaced(months) {
@@ -404,6 +459,8 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     const status = element("p", "card-answer muted", "");
     const actions = element("div", "card-options");
     const wizard = button("בדיקה וייבוא", "small");
+    const entry = { card, box, wizard, todo: null };
+    runImports.push(entry);
     wizard.addEventListener("click", () => {
       if (busy) { status.textContent = "יש להמתין לסיום הריצה."; return; }
       status.textContent = "";
@@ -412,6 +469,7 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
         report: ({ text, done = false, state = "" }) => {
           status.textContent = text;
           if (done) { wizard.disabled = true; box.dataset.state = "answered"; } else if (state) box.dataset.state = state;
+          drawTodoLine(entry);
         },
       });
     });
@@ -444,5 +502,5 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
   });
 
   open(false);
-  return { open, setBusy, setWaiting, addMessage, trigger: start, setProgress, showPlaced, ui: { ask, propose, importCard }, isBusy: () => busy };
+  return { open, setBusy, setWaiting, addMessage, trigger: start, setProgress, showPlaced, showTodo, ui: { ask, propose, importCard }, isBusy: () => busy };
 }

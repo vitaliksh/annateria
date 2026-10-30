@@ -9,6 +9,7 @@ Built one commit per change on the branch `claude/wizardly-snyder-83391f`, not o
 | C2 one-click clean import | built; checked in the local page |
 | C3 one name for the check | built; checked in the local page |
 | C4 left-out rows under "to look at" | built after a reproducing test; checked in the local page |
+| C5 "for you" card at the end of a run | built; checked in the local page with a scripted model |
 
 ## The goal in one sentence
 

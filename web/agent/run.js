@@ -73,13 +73,18 @@ export async function runAgent({
   let malformed = 0;
   const progress = (event) => { try { onProgress?.(event); } catch { /* a faulty listener must not stop the run */ } };
   // Where the rows of this run went: [{ clientId, month, count }], oldest month first.
+  // review: how many of them are to look at (for the panel's "for you" card), set only when there are some.
   const placed = () => {
     const counts = new Map();
+    const review = new Map();
     for (const item of run.addedFacts.values()) {
       const clientId = item.row ? ctx.handles.get("R", item.row).clientId : null;
       if (clientId) counts.set(`${clientId}|${item.month}`, (counts.get(`${clientId}|${item.month}`) ?? 0) + 1);
+      if (clientId && item.status === "review") review.set(`${clientId}|${item.month}`, (review.get(`${clientId}|${item.month}`) ?? 0) + 1);
     }
-    return [...counts].map(([key, count]) => ({ clientId: key.split("|")[0], month: key.split("|")[1], count })).sort((a, b) => a.month.localeCompare(b.month));
+    return [...counts].map(([key, count]) => ({
+      clientId: key.split("|")[0], month: key.split("|")[1], count, ...(review.get(key) ? { review: review.get(key) } : {}),
+    })).sort((a, b) => a.month.localeCompare(b.month));
   };
   // The files of the inbox that were shown but not filed, once the run has done any work on files: [{ name, folder }].
   const left = () => {

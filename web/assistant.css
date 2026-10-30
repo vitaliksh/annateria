@@ -154,6 +154,40 @@
   border-inline-start-color: var(--success);
 }
 
+/* "לטיפולך": what is left after a run, one line and one button each (C5). */
+.assistant-card[data-kind="todo"] {
+  border: 2px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.todo-list {
+  display: grid;
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todo-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+
+.todo-list li[data-state="done"] p {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.assistant-message.folded {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .assistant-card p {
   margin: 0;
 }
