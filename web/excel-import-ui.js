@@ -82,6 +82,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
   const unknownText = part("excel-import-unknown-text");
   const warningList = part("excel-import-warnings");
   const [codesLine, codesButton] = ["excel-import-codes", "excel-import-codes-open"].map(part);
+  const [quickLine, quickWarnings] = ["excel-import-quick", "excel-import-quick-warnings"].map(part);
   let prepared = null;
   let context = null;
   let target = null;
@@ -135,6 +136,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
     run.disabled = true;
     nextButton.disabled = true;
     resultLine.textContent = "";
+    quickLine.hidden = quickWarnings.hidden = true;
     setStep("file");
     closeNow.checked = false;
     target = null;
@@ -342,6 +344,8 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
     // Opens the wizard with `selected` (a File) already read, for the open client. onCommitted({ month }) runs after the rows were
     // written and resolves with a line for the user (or nothing); it runs only if the file read is still this one. sourceHash (the
     // SHA-256 of the file) goes into every row, so that the row can open its original later.
+    // A file with nothing to decide (docs/UI_REDESIGN_PROPOSAL.md, C2) opens on the month step, where its summary and warnings are
+    // repeated: one click on "ייבוא" finishes it. Anything to decide keeps the check step first.
     async openWith(selected, { onCommitted, month: suggestedMonth, sourceHash } = {}) {
       context = getContext();
       if (!context) return onError("יש לבחור תחילה תיקיית נתונים ולקוח לפני ייבוא מ-Excel.");
@@ -349,6 +353,15 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
       preset = onCommitted ? { file: selected, onCommitted, sourceHash } : null;
       dialog.showModal();
       await load(selected, suggestedMonth);
+      if (!prepared || prepared.errors.length || !prepared.rows.length || prepared.unknown.length) return;
+      if (Object.keys(prepared.suggested).length) return;
+      await refreshTarget();
+      if (!["missing", "empty"].includes(target?.state)) return;
+      quickLine.textContent = summary.textContent;
+      quickWarnings.replaceChildren(...[...warningList.children].map((item) => item.cloneNode(true)));
+      quickLine.hidden = false;
+      quickWarnings.hidden = !quickWarnings.children.length;
+      setStep("month");
     },
   };
 }

@@ -286,13 +286,17 @@ test("диалог импорта: на первом шаге видно, ест
 const wait = async (condition) => { for (let i = 0; i < 100 && !condition(); i += 1) await new Promise((r) => setTimeout(r, 10)); };
 const withoutMonth = (grid) => grid.map((line) => line.map((cell) => (typeof cell === "string" && cell.startsWith("לחודש") ? "" : cell)));
 
-test("openWith: the wizard opens at the check with the file already read; once the rows are written the host is told, once", async () => {
+test("openWith: a clean file opens on the month step with the file already read; once the rows are written the host is told, once", async () => {
   const { dialog, calls, q, wizard, dataRoot } = await setup();
   const committed = [];
   await wizard.openWith(xlsxFile(buildJournalGrid({ month: 8 })), { onCommitted: async ({ month }) => { committed.push(month); return "המקור הועבר."; } });
   assert.equal(dialog.open, true);
-  assert.equal(dialog.dataset.step, "check");
+  assert.equal(dialog.dataset.step, "month", "nothing to decide: one click on ייבוא finishes it (C2)");
   assert.match(q("excel-import-summary").textContent, new RegExp(`^${SAMPLE_ROWS.length} שורות`));
+  assert.equal(q("excel-import-quick").hidden, false);
+  assert.equal(q("excel-import-quick").textContent, q("excel-import-summary").textContent, "the summary is repeated on the month step");
+  assert.match(q("excel-import-quick-warnings").textContent, /אזהרה: ל-\d+ שורות סטטוס «טיוטא»/, "and so are the warnings");
+  assert.equal(q("excel-import-quick-warnings").hidden, false);
   assert.equal(q("excel-import-month").value, "08/2026");
   assert.deepEqual(committed, [], "nothing happens before the user writes");
   await wait(() => !q("excel-import-run").disabled);
@@ -302,6 +306,20 @@ test("openWith: the wizard opens at the check with the file already read; once t
   assert.equal(dialog.dataset.step, "done");
   assert.match(q("excel-import-result").textContent, /^יובאו \d+ שורות להצהרה 08\/2026\. המקור הועבר\.$/);
   assert.equal((await readChartOfAccounts(dataRoot))[203].name, "אחזקה");
+});
+
+test("openWith: a file with something to decide keeps the check step first (new code names, a month that has rows)", async () => {
+  const unknown = await setup();
+  await unknown.wizard.openWith(xlsxFile(buildJournalGrid({ rows: SAMPLE_ROWS.map((row, i) => (i ? row : { ...row, cls: "ספרים" })) })));
+  assert.equal(unknown.dialog.dataset.step, "check");
+  assert.equal(unknown.q("excel-import-quick").hidden, true);
+  const filled = await setup();
+  await seed(filled.client, "2026-08");
+  await filled.wizard.openWith(xlsxFile(buildJournalGrid({ month: 8 })));
+  assert.equal(filled.dialog.dataset.step, "check");
+  const broken = await setup();
+  await broken.wizard.openWith(xlsxFile(buildJournalGrid({ footer: { totalVat: "1.00" } })));
+  assert.equal(broken.dialog.dataset.step, "check");
 });
 
 test("openWith: a failure of the host after the write is told to the user and never undoes the import", async () => {

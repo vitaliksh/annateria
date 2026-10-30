@@ -7,7 +7,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
 `2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-30a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states), Worker 69 (`2026.10.23.2`,
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
@@ -26,6 +26,11 @@ first). The owner and Anna are now checking them on real data; nothing is half d
     green, button off, inbox 3 → 2. **Browser pane note:** while the pane is hidden Chrome holds back the dialog's `close` event
     until the page draws again (a screenshot lets it through); a real window is not affected. **Not verified:** the codes and
     ledger-check dialogs and the income report in a browser (unit tests only), the published page.
+  - **C2, a clean Excel journal from a card imports with one click.** `openWith` (`excel-import-ui.js`, changed existing
+    code) opens on the month step when there is nothing to decide (no error, no new code name, no type the file suggested,
+    target month missing or empty); the summary line and the warnings are repeated there (`#excel-import-quick`,
+    `#excel-import-quick-warnings` in `index.html`). Anything to decide keeps the check step. Checked in the local page: card →
+    month step with summary and the "טיוטא" warning → "ייבוא" → done, card green. **Not verified:** the published page.
 - **A credit note of income keeps its negative VAT** (30 October, owner). The Excel import flipped VAT to positive for every
   row that was not an expense credit, so Anna's credit invoice 140 of 8/2026 (net -403.63, VAT -72.65) came in with VAT
   +72.65 and output VAT 145.30 too high. VAT now takes the sign of net for every row (`excel-import.js`). Only that one row

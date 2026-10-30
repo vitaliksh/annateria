@@ -6,6 +6,7 @@ Built one commit per change on the branch `claude/wizardly-snyder-83391f`, not o
 | Change | State |
 | --- | --- |
 | C1 card states | built; checked in the local page with a scripted model (see `HANDOFF.md`) |
+| C2 one-click clean import | built; checked in the local page |
 
 ## The goal in one sentence
 
