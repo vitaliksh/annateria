@@ -69,7 +69,7 @@ async function addOne(ctx, clientHandle, clientValue, chart, row, aliases, optio
   const snapshot = buildRowSnapshot({
     record, entry, documentId: `agent-${entry.hash.slice(0, 16)}-p${record.page ?? 0}`, decision: row.decision, account, accountName: account ? chart[account].name : "",
     facts: computed.facts, kind: computed.profile.kind, month, reason: row.reason, needsReview: row.needs_review,
-    agent: { run: ctx.run.id, version: AGENT_VERSION, skills: { ...ctx.skills }, fact: row.fact },
+    agent: { run: ctx.run.id, version: AGENT_VERSION, skills: { ...ctx.skills }, fact: row.fact, ...(row.left_out ? { leftOut: true } : {}) },
   });
   const [position] = await ctx.services.rows.append(clientValue.clientId, month, [snapshot]);
   const handle = ctx.handles.create("R", `${clientValue.clientId}|${month}|${position}`, { clientId: clientValue.clientId, month, documentId: snapshot.documentId, position });
@@ -108,7 +108,8 @@ export async function addMissingRows(ctx, fileHandle, clientHandle) {
   const noAliases = async () => ({});
   const added = [];
   for (const fact of missing) {
-    const row = { fact, routed_by: "same_file", decision: "unclear", needs_review: true, reason: LEFT_OUT_REASON };
+    // left_out marks the row for the table, which counts it under "לבדיקה" although it is off.
+    const row = { fact, routed_by: "same_file", decision: "unclear", needs_review: true, reason: LEFT_OUT_REASON, left_out: true };
     let result;
     try {
       result = await addOne(ctx, clientHandle, clientValue, chart, row, noAliases);

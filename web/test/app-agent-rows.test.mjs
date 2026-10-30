@@ -56,6 +56,20 @@ test("a row that needs a look, and a row the code excluded, keep their own statu
   assert.deepEqual([rows()[1].cells[16].textContent, rows()[1].cells[17].querySelector("input").checked, rows()[1].classList.contains("not-for-export")], ["כפילות — המסמך כבר הוזן", false, true]);
 });
 
+test("a row added so that nothing is lost is off and still counted under לבדיקה (C4)", async () => {
+  const { app, rows, document } = await loadApp();
+  const { selected } = await openMonth();
+  await app.activateDeclaration(selected);
+  const leftOut = snapshot({ document_number: "L-1" }, { decision: "unclear", account: null, needsReview: true, documentId: "l", agent: { run: "r1", version: "v1", fact: "F1.2", leftOut: true } });
+  const plain = snapshot({ document_number: "U-1" }, { decision: "unclear", account: null, needsReview: true, documentId: "u" });
+  app.appendSnapshots([{ ...leftOut, imageFile: "001.jpg" }, { ...plain, imageFile: "002.jpg" }]);
+  assert.deepEqual(rows().map((row) => row.cells[17].querySelector("input").checked), [false, false]);
+  await new Promise((resolve) => setTimeout(resolve, 50)); // the toolbar counts after the table changed
+  const labels = [...document.querySelectorAll("#filter-menu .menu-panel button")].map((button) => button.textContent);
+  assert.ok(labels.includes("לבדיקה · 1"), labels.join(" | "));
+  assert.match(document.querySelector("#journal-summary").textContent, /לבדיקה\s*1/);
+});
+
 test("the data of the agent survives the saving of the table and the reopening of the month", async () => {
   const { app, rows } = await loadApp();
   const { selected, client } = await openMonth();

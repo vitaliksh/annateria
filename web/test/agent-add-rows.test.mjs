@@ -474,6 +474,8 @@ test("move_file_to_declaration: a document of the file that got no row gets one 
   const [, missing] = rows;
   assert.deepEqual([missing.active, missing.statusClass, missing.values[1], missing.values[3], missing.imageFile], [false, "review", "", "Fuel", "001.jpg"]);
   assert.match(missing.agentOpinion, /לא נקלט על ידי הסוכן/);
+  // The table counts it under "לבדיקה" by this mark, although it is off (docs/UI_REDESIGN_PROPOSAL.md, C4).
+  assert.deepEqual([missing.agent.leftOut, rows[0].agent.leftOut], [true, undefined]);
   assert.equal((await readInboxIndex(w.root)).files.some((entry) => entry.name === "photo.jpg"), false);
 });
 

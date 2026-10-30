@@ -307,7 +307,8 @@ the registry so that this file and the code cannot drift apart.
 - **Nothing that came in is lost** (Anna, 25 October 2026). Before the copy, every document (fact) of the file that has no row
   yet in this run gets one in the same client's table: decision `unclear` (no account, so inactive), needs a look, reason
   "not taken by the agent, added so that it is not lost"; its month is the code's, or the first month of the file's rows when
-  that month is locked. The result lists them as `added_for_review`. If such a row cannot be written the file stays in the
+  that month is locked. The row carries `agent.leftOut`, so the table counts it under "לבדיקה" although it is off
+  (`journal-toolbar.js`). The result lists them as `added_for_review`. If such a row cannot be written the file stays in the
   inbox (`conflict`). At the end of every run (completed, stopped, failed) the code itself files every file that got rows
   and was not filed (log entry `byApp`), and the panel says so.
 - **A file gone from the inbox** (removed after it was read, before the move): `not_found`, "no longer in the inbox", nothing

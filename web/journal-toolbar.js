@@ -16,7 +16,17 @@ export function rowKinds(row) {
   const excluded = row.classList.contains("not-for-export");
   const duplicate = row.dataset?.duplicate === "true";
   const flagged = Boolean(status?.classList.contains("review")) && (Boolean(row.dataset?.imageFile) || duplicate);
-  return { review: !excluded && flagged, duplicate, excluded };
+  return { review: (!excluded || leftOut(row)) && flagged, duplicate, excluded };
+}
+
+// A row the code added for a document the agent left out ("nothing is lost", add-rows.js) is off until the user decides,
+// and still to look at (docs/UI_REDESIGN_PROPOSAL.md, C4).
+function leftOut(row) {
+  try {
+    return JSON.parse(row.dataset?.agent || "{}").leftOut === true;
+  } catch {
+    return false;
+  }
 }
 
 export function matchesFilter(row, filter) {

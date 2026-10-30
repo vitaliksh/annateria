@@ -40,6 +40,18 @@ test("a row needs review only when flagged, included, and either photographed or
   assert.deepEqual(FILTERS.map((filter) => filter.key), ["all", "review", "duplicate", "excluded"]);
 });
 
+test("a row added so that nothing is lost counts as to look at, although it is off (C4)", () => {
+  const { addRow } = page();
+  const leftOut = addRow({ id: "a", state: "review", excluded: true });
+  leftOut.dataset.agent = JSON.stringify({ run: "r1", leftOut: true });
+  assert.deepEqual(rowKinds(leftOut), { review: true, duplicate: false, excluded: true });
+  const otherAgentRow = addRow({ id: "b", state: "review", excluded: true });
+  otherAgentRow.dataset.agent = JSON.stringify({ run: "r1" });
+  assert.equal(rowKinds(otherAgentRow).review, false, "any other row that is off stays out of the count, as before");
+  assert.equal(matchesFilter(leftOut, "review"), true);
+  assert.equal(matchesFilter(leftOut, "excluded"), true);
+});
+
 test("the filter menu lists counts, filters rows, and disables empty filters", () => {
   const { records, addRow, menu } = page();
   addRow({ id: "a" });
