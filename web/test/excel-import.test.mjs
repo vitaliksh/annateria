@@ -45,3 +45,11 @@ test("импорт Excel: ссылка 2 не теряется молча", () =
   assert.deepEqual(importWarnings(parsed), []);
   assert.deepEqual(importWarnings([{ reference2: "9" }, { reference2: "" }]).map((w) => w.code), ["reference2-dropped"]);
 });
+
+test("every imported row keeps the hash of its file when one is given, and is booked", () => {
+  const parsedRows = [{ kind: "expense", net: 100, vat: -18, gross: 118, date: "2026-01-01", details: "Shop A", classificationName: "x", reference1: "1001" }];
+  const [withSource] = buildImportedRows(parsedRows, { x: "203" }, { now: "2026-10-30T00:00:00.000Z", makeId: () => "id", sourceHash: "a".repeat(64) });
+  assert.deepEqual([withSource.sourceHash, withSource.booked], ["a".repeat(64), true]);
+  const [without] = buildImportedRows(parsedRows, { x: "203" }, { now: "2026-10-30T00:00:00.000Z", makeId: () => "id" });
+  assert.equal("sourceHash" in without, false);
+});

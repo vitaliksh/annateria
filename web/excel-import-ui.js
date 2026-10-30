@@ -87,7 +87,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
   let target = null;
   let targetCheck = 0;
   let loaded = null; // the file that `prepared` was read from
-  let preset = null; // { file, onCommitted } of a wizard opened with openWith: what to do once the rows are written
+  let preset = null; // { file, onCommitted, sourceHash } of a wizard opened with openWith: what to do once the rows are written
 
   // The dialog keeps one size; the step only decides which panel and which buttons are shown (see dialogs.css).
   const STEP_ORDER = ["file", "check", "month", "done"];
@@ -325,6 +325,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
         dataRoot: context.dataRoot,
         client: context.client,
         reserved: context.reserved,
+        sourceHash: preset && loaded === preset.file ? preset.sourceHash : undefined,
       });
       const filed = await afterCommit(iso);
       await onImported(result, iso);
@@ -339,12 +340,13 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
   return {
     refreshCodes: () => context && reset(),
     // Opens the wizard with `selected` (a File) already read, for the open client. onCommitted({ month }) runs after the rows were
-    // written and resolves with a line for the user (or nothing); it runs only if the file read is still this one.
-    async openWith(selected, { onCommitted, month: suggestedMonth } = {}) {
+    // written and resolves with a line for the user (or nothing); it runs only if the file read is still this one. sourceHash (the
+    // SHA-256 of the file) goes into every row, so that the row can open its original later.
+    async openWith(selected, { onCommitted, month: suggestedMonth, sourceHash } = {}) {
       context = getContext();
       if (!context) return onError("יש לבחור תחילה תיקיית נתונים ולקוח לפני ייבוא מ-Excel.");
       reset();
-      preset = onCommitted ? { file: selected, onCommitted } : null;
+      preset = onCommitted ? { file: selected, onCommitted, sourceHash } : null;
       dialog.showModal();
       await load(selected, suggestedMonth);
     },

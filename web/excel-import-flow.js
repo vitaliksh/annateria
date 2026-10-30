@@ -80,7 +80,7 @@ function suggestTypes(prepared) {
 // `newAccounts` is [{ name, code, type }] for every name in prepared.unknown; `typeChanges` is [{ name, type }] for
 // known names whose type this client sees differently (stored for this client only). The chart is saved first:
 // imported rows refer to its codes, and an extended chart is harmless if the import then fails.
-export async function commitImport(prepared, { newAccounts = [], typeChanges = [], month, closeNow, replace = false, dataRoot, client, reserved = {}, now }) {
+export async function commitImport(prepared, { newAccounts = [], typeChanges = [], month, closeNow, replace = false, dataRoot, client, reserved = {}, now, sourceHash }) {
   const types = { ...prepared.types };
   for (const { name, type } of [...newAccounts, ...typeChanges]) types[name] = type;
   if (recheckImport(prepared, types).length) throw new Error("בקובץ יש שגיאות. לא ניתן לייבא.");
@@ -92,7 +92,7 @@ export async function commitImport(prepared, { newAccounts = [], typeChanges = [
   }
   const { codes, unknown } = matchClassNames(prepared.rows.map((row) => row.classificationName), chart);
   if (unknown.length) throw new Error(`חסר קוד מיון עבור: ${unknown.join(", ")}`);
-  const rows = buildImportedRows(prepared.rows, codes, { now });
+  const rows = buildImportedRows(prepared.rows, codes, { now, sourceHash });
   chart = own ? await saveClientChart(client.directory, chart, { reserved, now }) : await saveChartOfAccounts(dataRoot, chart, reserved);
   const declaration = await importRowsIntoDeclaration({
     clientDirectory: client.directory,

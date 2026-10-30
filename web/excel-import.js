@@ -14,7 +14,7 @@ function displayedReference(value) {
   return digits ? digits.slice(-4) : "";
 }
 
-function importedRow(row, code, index, { now, makeId }) {
+function importedRow(row, code, index, { now, makeId, sourceHash }) {
   // The file signs VAT opposite to net for expenses; the app keeps VAT with the sign of net.
   const vat = row.kind === "credit" ? -Math.abs(row.vat) : Math.abs(row.vat);
   const net = row.net;
@@ -45,6 +45,7 @@ function importedRow(row, code, index, { now, makeId }) {
     highlights: [],
     active: true,
     booked: true,
+    ...(sourceHash ? { sourceHash } : {}),
     agentOpinion: "יובא מקובץ Excel",
     confidence: "",
     statusText: "יובא מ-Excel",
@@ -52,11 +53,12 @@ function importedRow(row, code, index, { now, makeId }) {
   };
 }
 
-// `codes` maps classification name -> chart code (matchClassNames). Every name must be mapped first.
-export function buildImportedRows(rows, codes, { now = new Date().toISOString(), makeId = () => crypto.randomUUID() } = {}) {
+// `codes` maps classification name -> chart code (matchClassNames). Every name must be mapped first. sourceHash: the SHA-256 of the
+// file the rows come from, kept in every row so that its original can be opened (source-view.js).
+export function buildImportedRows(rows, codes, { now = new Date().toISOString(), makeId = () => crypto.randomUUID(), sourceHash } = {}) {
   const missing = [...new Set(rows.map((row) => row.classificationName).filter((name) => !codes[name]))];
   if (missing.length) throw new Error(`חסר קוד מיון עבור: ${missing.join(", ")}`);
-  return rows.map((row, index) => importedRow(row, codes[row.classificationName], index, { now, makeId }));
+  return rows.map((row, index) => importedRow(row, codes[row.classificationName], index, { now, makeId, sourceHash }));
 }
 
 // Reference 2 has no place in the app model; tell the user instead of dropping it silently.

@@ -7,7 +7,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
 `2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-30a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note), Worker 69 (`2026.10.23.2`,
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
@@ -15,6 +15,13 @@ Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5,
 
 **Where the next session starts (27 October).** Anna's first real day (25 October) brought five fixes, all published (below, newest
 first). The owner and Anna are now checking them on real data; nothing is half done. Open:
+- **The column "מקור" opens the source, also of an Excel row** (30 October, owner). The column and its buttons say "מקור" (photo
+  "מקור #N", PDF "מקור PDF #N"). A row written by the Excel wizard from a card keeps `sourceHash` (SHA-256 of the file); its
+  button "מקור Excel" finds the file in `clients/<client>/imports/` by that hash (a renamed copy too) and draws its sheets as a
+  text-only table, right to left (`source-view.js`, SheetJS as the wizard). Rows imported before have no hash and show "—";
+  the inbox refuses the same file again (its hash is in imports/), so linking them means deleting the import copy and the rows
+  first. Checked in the built-in browser with the real August journal (local only). **Not verified:** the app's window with a
+  data folder, the published page; the ledger check does not pass a hash yet.
 - **Booked amounts are never cut again** (30 October, owner). Anna books property tax and electricity of a home client at
   25% already (her journal and the old ledger: "ארנונה 25%" 845 is the sum of the booked lines), but the page applied the
   25% rule to every row on every opening of a month, so imported rows (meant to be 100/100) and percentages typed by hand fell

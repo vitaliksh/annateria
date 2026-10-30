@@ -89,7 +89,7 @@ test("the rows made from one file get its image: the button names the kind, the 
   await saveSourceImage(month, "001.pdf", new File([new Uint8Array([37, 80, 68, 70])], "001.pdf", { type: "application/pdf" }));
   const attached = await app.attachRowImages({ fileHash: entry.hash, imageFile: "001.pdf", imageIndex: 1 });
   assert.equal(attached, 1, "only the row made from that file");
-  assert.deepEqual([rows()[0].dataset.imageFile, rows()[0].dataset.imageIndex, rows()[0].cells[13].textContent], ["001.pdf", "1", "PDF #1"]);
+  assert.deepEqual([rows()[0].dataset.imageFile, rows()[0].dataset.imageIndex, rows()[0].cells[13].textContent], ["001.pdf", "1", "מקור PDF #1"]);
   assert.equal(rows()[1].dataset.imageFile ?? "", "");
   assert.equal(app.rowSnapshot(rows()[0]).imageFile, "001.pdf");
 });
@@ -171,5 +171,22 @@ test("a HEIC original: the window says it is loading instead of staying black, a
   assert.equal(created.document.querySelector("#document-image").hasAttribute("src"), false);
   // In the test the decoder cannot be loaded from the CDN, as when the browser is offline.
   for (let tries = 0; tries < 50 && note.textContent.startsWith("טוען"); tries += 1) await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.deepEqual([note.hidden, note.textContent], [false, "לא ניתן להציג את תמונה #3 בדפדפן."]);
+  assert.deepEqual([note.hidden, note.textContent], [false, "לא ניתן להציג את מקור #3 בדפדפן."]);
+});
+
+test("a row imported from Excel has a source button that finds its file in imports/ by its hash; a missing file is said in the window", async () => {
+  const { app, rows, window } = await loadApp();
+  const { selected } = await openMonth([{ ...snapshot(), agent: undefined, sourceHash: "e".repeat(64), booked: true }]);
+  await app.activateDeclaration(selected);
+  const button = rows()[0].cells[13].querySelector("button");
+  assert.equal(button.textContent, "מקור Excel");
+  assert.equal(app.rowSnapshot(rows()[0]).sourceHash, "e".repeat(64));
+  const created = { focus() {}, document: window.document.implementation.createHTMLDocument("p") };
+  const names = [];
+  window.open = (url, name) => { names.push(name); return created; };
+  button.click();
+  assert.deepEqual(names, ["document-source"]);
+  assert.equal(created.document.body.textContent, "טוען את הקובץ, רק רגע…");
+  for (let tries = 0; tries < 50 && created.document.body.textContent.startsWith("טוען"); tries += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(created.document.body.textContent, "קובץ המקור לא נמצא בתיקיית imports של הלקוח.");
 });

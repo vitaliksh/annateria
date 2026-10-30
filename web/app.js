@@ -1,6 +1,7 @@
 import { setupWorkspaceControls } from "./workspace.js";
 import { pdfSourceFileName } from "./pdf-import.js";
 import { isHeic, viewableImage } from "./heic-view.js";
+import { findImportFile, renderNote, renderSheets, sheetTexts } from "./source-view.js";
 import {
   finalizeDeclaration,
   reopenLockedDeclaration,
@@ -570,7 +571,7 @@ function setRowImage(row, blob, imageFile, imageIndex) {
   const open = document.createElement("button");
   open.type = "button";
   open.className = "photo-button";
-  open.textContent = isPdfRow(row) ? `PDF #${imageIndex}` : `תמונה #${imageIndex}`;
+  open.textContent = isPdfRow(row) ? `מקור PDF #${imageIndex}` : `מקור #${imageIndex}`;
   open.addEventListener("click", () => openPhoto(row.imageUrl, imageIndex, row));
   row.cells[13].replaceChildren(open);
   imageCount = Math.max(imageCount, imageIndex);
@@ -824,6 +825,7 @@ async function openImportWizard({ card, report }) {
     report({ text: "האשף נפתח." });
     await wizard.openWith(file, {
       month: card.month ?? "",
+      sourceHash: entry.hash,
       onCommitted: async () => {
         try {
           const { importFile } = await fileImportOriginal(dataRoot, entry, client.directory);
@@ -1301,12 +1303,36 @@ function openPhoto(imageUrl, imageIndex, row = null) {
   const title = doc.querySelector("#document-title");
   const image = doc.querySelector("#document-image");
   const note = doc.querySelector("#document-note");
-  title.textContent = `תמונה #${imageIndex}`;
+  title.textContent = `מקור #${imageIndex}`;
   image.dataset.pending = "";
   note.hidden = true;
   if (row && !row.viewUrl && isHeic(row.dataset.imageFile, row.documentImage)) showHeic(row, imageIndex, image, note);
   else image.src = row?.viewUrl || imageUrl;
   imagePopup.focus();
+}
+// The button of a row imported from a file (an Excel journal): its original is in the client's imports/ folder.
+function sourceButton(row) {
+  const open = document.createElement("button");
+  open.type = "button";
+  open.className = "photo-button";
+  open.textContent = "מקור Excel";
+  open.addEventListener("click", () => openSource(row));
+  return open;
+}
+// Opens the window first (still inside the click, so it is not blocked), then finds the file by its hash and draws it.
+async function openSource(row) {
+  const popup = window.open("", "document-source", "popup=yes,width=1100,height=800,resizable=yes,scrollbars=yes");
+  if (!popup) return showError("הדפדפן חסם את חלון המקור. יש לאפשר חלונות קופצים לאתר זה.");
+  const title = "מקור Excel";
+  renderNote(popup.document, title, "טוען את הקובץ, רק רגע…");
+  popup.focus();
+  try {
+    const file = committedWorkspace ? await findImportFile(committedWorkspace.directory, row.dataset.sourceHash) : null;
+    if (!file) return renderNote(popup.document, title, "קובץ המקור לא נמצא בתיקיית imports של הלקוח.");
+    renderSheets(popup.document, `${title}: ${file.name}`, await sheetTexts(file));
+  } catch (error) {
+    renderNote(popup.document, title, `לא ניתן להציג את קובץ המקור: ${error.message}`);
+  }
 }
 // A HEIC original is shown as a JPEG made once and kept on the row; a click on another row meanwhile wins. The first one takes
 // a few seconds (the decoder is downloaded), so the window says so instead of staying black.
@@ -1322,7 +1348,7 @@ async function showHeic(row, imageIndex, image, note) {
     image.src = row.viewUrl;
     note.hidden = true;
   } catch {
-    if (image.dataset.pending === request) note.textContent = `לא ניתן להציג את תמונה #${imageIndex} בדפדפן.`;
+    if (image.dataset.pending === request) note.textContent = `לא ניתן להציג את מקור #${imageIndex} בדפדפן.`;
   }
 }
 
@@ -1371,7 +1397,7 @@ function addPendingRecord(imageUrl, receivedAt, documentId, imageIndex, insertAf
     open = document.createElement("button");
   open.type = "button";
   open.className = "photo-button";
-  open.textContent = `תמונה #${imageIndex}`;
+  open.textContent = `מקור #${imageIndex}`;
   open.addEventListener("click", () => openPhoto(row.imageUrl || imageUrl, imageIndex, row));
   photo.append(open);
   row.append(photo);
@@ -1505,6 +1531,7 @@ function rowSnapshot(row) {
     highlights: row.highlights || [],
     active: Boolean(row.cells[17].querySelector("input")?.checked),
     ...(row.dataset.booked ? { booked: true } : {}),
+    ...(row.dataset.sourceHash ? { sourceHash: row.dataset.sourceHash } : {}),
     agentOpinion: row.cells[14].textContent.trim(),
     confidence: row.cells[15].textContent.trim(),
     statusText: row.cells[16].childNodes[0]?.textContent?.trim() || row.cells[16].textContent.trim(),
@@ -1523,7 +1550,8 @@ function restoreRow(saved, blob) {
     ),
     values = Array.isArray(saved.values) ? saved.values : [];
   row.dataset.imageFile = saved.imageFile || "";
-  if (!blob) row.cells[13].textContent = "—";
+  if (saved.sourceHash) row.dataset.sourceHash = saved.sourceHash;
+  if (!blob) row.cells[13].replaceChildren(saved.sourceHash ? sourceButton(row) : "—");
   row.dataset.rawNet = String(saved.rawNet || 0);
   row.dataset.rawVat = String(saved.rawVat || 0);
   row.dataset.vatPercent = String(saved.vatPercent ?? (Number(saved.rawVat) ? 18 : 0));
