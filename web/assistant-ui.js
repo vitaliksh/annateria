@@ -110,6 +110,8 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
   ].map(part);
   const doc = root.ownerDocument;
   let busy = false;
+  let waiting = null; // files in the inbox, null until the page has counted them
+  const processTitle = processButton.title;
   let shown = "";
   let since = 0;
   let timer = null;
@@ -151,9 +153,22 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     drawProgress();
   }
 
+  // The check button says how many files wait and is off with an empty inbox: a run there would only find nothing
+  // (docs/UI_REDESIGN_PROPOSAL.md, C3). The inbox dialog's button has the same name and starts the same run.
+  function drawProcess() {
+    processButton.disabled = busy || waiting === 0;
+    processButton.textContent = waiting ? `${COMMAND_LABELS.process} (${waiting})` : COMMAND_LABELS.process;
+    processButton.title = waiting === 0 ? "תיבת הקלט ריקה" : processTitle;
+  }
+  function setWaiting(count) {
+    waiting = Number.isInteger(count) ? count : null;
+    drawProcess();
+  }
+
   function setBusy(value) {
     busy = value;
-    for (const control of [processButton, leftButton, input, sendButton]) control.disabled = value;
+    for (const control of [leftButton, input, sendButton]) control.disabled = value;
+    drawProcess();
     cancelButton.hidden = !value;
     clearInterval(timer);
     timer = null;
@@ -429,5 +444,5 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
   });
 
   open(false);
-  return { open, setBusy, addMessage, trigger: start, setProgress, showPlaced, ui: { ask, propose, importCard }, isBusy: () => busy };
+  return { open, setBusy, setWaiting, addMessage, trigger: start, setProgress, showPlaced, ui: { ask, propose, importCard }, isBusy: () => busy };
 }

@@ -632,9 +632,10 @@ inboxUi = setupInbox({
   },
   onCheck: () => assistant.trigger("process"),
   isBusy: () => Boolean(assistantRun),
-  onCounts: ({ byFolder }) => {
+  onCounts: ({ total, byFolder }) => {
     inboxFileCounts = byFolder;
     workspaceControls?.renderSidebar?.();
+    assistant.setWaiting(total);
   },
   onError: showError,
 });

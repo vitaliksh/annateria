@@ -250,6 +250,25 @@ test("the button of the dock says what it does and what it does not do", () => {
   assert.match(q("#assistant-process").title, /מוסיף שורות לטבלאות.*מתייק את המקורות.*שואל כשצריך/);
 });
 
+test("one check, one name: the dock's button counts the files waiting and is off with an empty inbox (C3)", () => {
+  const { assistant, q, root } = setup();
+  const inboxButton = root.ownerDocument.querySelector("#inbox-check");
+  assert.equal(inboxButton.textContent, q("#assistant-process").textContent, "the inbox dialog's button has the same name");
+  assistant.setWaiting(3);
+  assert.deepEqual([q("#assistant-process").textContent, q("#assistant-process").disabled], ["בדוק מסמכים חדשים (3)", false]);
+  assert.match(q("#assistant-process").title, /מוסיף שורות לטבלאות/);
+  assistant.setWaiting(0);
+  assert.deepEqual([q("#assistant-process").textContent, q("#assistant-process").disabled, q("#assistant-process").title], ["בדוק מסמכים חדשים", true, "תיבת הקלט ריקה"]);
+  assistant.setBusy(true);
+  assistant.setBusy(false);
+  assert.equal(q("#assistant-process").disabled, true, "the end of a run does not switch it on with an empty inbox");
+  assistant.setWaiting(2);
+  assistant.setBusy(true);
+  assert.equal(q("#assistant-process").disabled, true, "off during a run");
+  assistant.setBusy(false);
+  assert.equal(q("#assistant-process").disabled, false);
+});
+
 const proposal = () => ({
   id: "P1", client: { id: "id-Levi", name: "Levi Plumbing" }, title: "תיקון",
   changes: [
