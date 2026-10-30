@@ -4,11 +4,53 @@ body {
   overflow: hidden;
 }
 
+/* Rows: top bar, the strip "ממתין לך" (empty while hidden), workspace, assistant dock, status bar. Each child has its row, so the
+   hidden strip does not move the others. */
 .app-shell {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   height: 100vh;
   height: 100dvh;
+}
+
+.app-shell > .topbar { grid-row: 1; }
+.app-shell > .waiting { grid-row: 2; }
+.app-shell > .workspace { grid-row: 3; }
+.app-shell > .assistant { grid-row: 4; }
+.app-shell > .statusbar { grid-row: 5; }
+
+/* The strip "ממתין לך" (waiting-ui.js): one button per thing that waits for the user. */
+.app-shell > .waiting {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s4);
+  border-bottom: 1px solid var(--warning-border);
+  background: var(--warning-soft);
+}
+
+.app-shell > .waiting[hidden] {
+  display: none;
+}
+
+.waiting-title {
+  color: var(--warning);
+  font-size: var(--fs-sm);
+}
+
+.waiting-item {
+  padding: 2px var(--s3);
+  border: 1px solid var(--warning-border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+}
+
+.waiting-item:hover {
+  border-color: var(--warning);
 }
 
 /* Top bar. The wordmark is last in the flow, which puts it in the top-left corner of the right-to-left page. */

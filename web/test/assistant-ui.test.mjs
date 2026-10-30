@@ -276,6 +276,36 @@ test("the card לטיפולך lists what is left after a run, each with its butt
   assert.ok(q("[data-kind='todo']"));
 });
 
+test("the panel tells the page what waits in its feed and opens at it on request (C6)", async () => {
+  const told = [];
+  const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/annateria/" });
+  const root = window.document.querySelector("#assistant");
+  const commands = [];
+  const assistant = setupAssistant({ root, onCommand: (command) => commands.push(command), onPending: (pending) => told.push(pending) });
+  assistant.ui.importCard(importCard());
+  assert.deepEqual(told.at(-1), { questions: 0, imports: [{ name: "journal-08.xlsx" }] });
+  const controller = new AbortController();
+  const answered = assistant.ui.ask(card(), { signal: controller.signal });
+  assert.deepEqual(told.at(-1), { questions: 1, imports: [{ name: "journal-08.xlsx" }] });
+  assistant.open(false);
+  assert.equal(assistant.reveal({ kind: "question" }), true);
+  assert.equal(root.querySelector("#assistant-body").hidden, false, "the panel opens at the card");
+  [...root.querySelectorAll(".assistant-card[data-kind='question'] button")].find((item) => item.textContent === "Levi").click();
+  await answered;
+  assert.equal(told.at(-1).questions, 0);
+  assert.equal(assistant.reveal({ kind: "question" }), false, "no open question any more");
+  assert.equal(assistant.reveal({ kind: "import", index: 0 }), true);
+  [...root.querySelectorAll(".assistant-card[data-kind='import'] button")].find((item) => item.textContent === "בדיקה וייבוא").click();
+  commands.at(-1).report({ text: "לא יובא", state: "unfinished" });
+  assert.deepEqual(told.at(-1).imports, [{ name: "journal-08.xlsx" }], "not finished still waits");
+  commands.at(-1).report({ text: "הייבוא בוצע.", done: true });
+  assert.deepEqual(told.at(-1).imports, []);
+  const stopped = new AbortController();
+  assistant.ui.ask(card(), { signal: stopped.signal });
+  stopped.abort();
+  assert.equal(told.at(-1).questions, 0, "a stopped run leaves no question waiting");
+});
+
 test("nothing left after a run: no card לטיפולך; an import already done is not listed", () => {
   const { assistant, root, commands } = setup();
   assert.equal(assistant.showTodo({ rows: [{ clientId: "c1", client: "Levi", month: "2026-08", count: 2 }] }), null);

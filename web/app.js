@@ -37,6 +37,7 @@ import { checkModelConnection, createModelClient } from "./model-client.js";
 import { setupTransfer } from "./transfer-ui.js";
 import { setupInbox } from "./inbox-ui.js";
 import { watchWizard } from "./import-card-flow.js";
+import { setupWaiting } from "./waiting-ui.js";
 import { setupPhoneIntake } from "./phone-ui.js";
 import { progressLabel, setupAssistant } from "./assistant-ui.js";
 import { buildMessage, createAssistantFlow, keptNote, leftNote, resultNote } from "./assistant-flow.js";
@@ -428,7 +429,20 @@ const folderPathInput = document.querySelector("#data-root-path");
 folderPathInput.addEventListener("change", () => {
   if (dataRoot) saveUiSettings(dataRoot, { folderPath: folderPathInput.value }).catch((error) => showError(`לא ניתן לשמור את הנתיב: ${error.message}`));
 });
-setupJournalToolbar({
+// The strip "ממתין לך" (docs/UI_REDESIGN_PROPOSAL.md, C6): the panel, the inbox and the toolbar tell it what waits; a click goes there.
+const waiting = setupWaiting({ root: document.querySelector("#waiting"), onGo: (target) => goToWaiting(target) });
+function goToWaiting({ kind, index }) {
+  if (kind === "inbox") return inboxUi?.open();
+  if (kind === "review") {
+    if (committedWorkspace && currentDeclaration) {
+      clientsHome.showJournal({ clientId: committedWorkspace.config.clientId, month: currentDeclaration.month });
+    }
+    return journalToolbar.setFilter("review");
+  }
+  assistant.reveal({ kind, index });
+}
+const journalToolbar = setupJournalToolbar({
+  onCounts: (counts) => waiting.set("review", counts.review),
   records: document.querySelector("#records"),
   menu: document.querySelector("#filter-menu"),
   summary: {
@@ -636,6 +650,7 @@ inboxUi = setupInbox({
     inboxFileCounts = byFolder;
     workspaceControls?.renderSidebar?.();
     assistant.setWaiting(total);
+    waiting.set("inbox", total);
   },
   onError: showError,
 });
@@ -886,6 +901,7 @@ function applyProposalToTable(proposal, kept) {
 }
 const assistant = setupAssistant({
   root: document.querySelector("#assistant"),
+  onPending: ({ questions, imports }) => { waiting.set("question", questions); waiting.set("imports", imports); },
   onApply: async (proposal, kept) => applyProposalToTable(proposal, kept),
   // A rule the user confirmed on a question card ("זכור ללקוח" ticked, its answer clicked) goes into rules.md of that client (step 4.6).
   onRemember: async ({ clientId, rule }) => {

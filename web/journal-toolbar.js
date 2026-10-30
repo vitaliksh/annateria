@@ -34,7 +34,8 @@ export function matchesFilter(row, filter) {
 }
 
 // menu: <details class="menu"> with a <summary> and a .menu-panel; summary: { element, compute() -> figures from journal-summary.js }
-export function setupJournalToolbar({ records, menu, summary }) {
+// onCounts({ all, review, duplicate, excluded }) is told the counts on every refresh.
+export function setupJournalToolbar({ records, menu, summary, onCounts = () => {} }) {
   const doc = records.ownerDocument;
   let filter = "all";
   const dataRows = () => [...records.querySelectorAll("tr[data-document-id]")];
@@ -53,6 +54,7 @@ export function setupJournalToolbar({ records, menu, summary }) {
   function refresh() {
     const rows = dataRows();
     const counts = Object.fromEntries(FILTERS.map(({ key }) => [key, rows.filter((row) => matchesFilter(row, key)).length]));
+    onCounts(counts);
     if (filter !== "all" && !counts[filter]) filter = "all";
     for (const { key, label, button } of items) {
       button.textContent = key === "all" ? `${label} · ${rows.length}` : `${label} · ${counts[key]}`;
@@ -97,5 +99,6 @@ export function setupJournalToolbar({ records, menu, summary }) {
   const Observer = doc.defaultView?.MutationObserver;
   if (Observer) new Observer(schedule).observe(records, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "data-duplicate"], characterData: true });
   refresh();
-  return { refresh, getFilter: () => filter };
+  // setFilter(key) shows only the rows of that filter, as a click in the menu does (the strip "ממתין לך" uses it for "לבדיקה").
+  return { refresh, getFilter: () => filter, setFilter: (key) => { filter = key; refresh(); } };
 }

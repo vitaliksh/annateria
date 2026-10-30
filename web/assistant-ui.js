@@ -103,7 +103,9 @@ function valueText(field, value) {
 // the user ticked "זכור ללקוח" and clicked the answer the rule belongs to. onRememberAlias({ clientId, vatId, name }) keeps the printed buyer of
 // the documents of a "which client?" question as an alias of the chosen client (step 4.6.2) and resolves with { added }; it is called only after
 // the user ticked that box and chose a client.
-export function setupAssistant({ root, onCommand, onApply = null, onRemember = null, onRememberAlias = null }) {
+// onPending({ questions, imports }) is called whenever a question card or an import card opens or ends; reveal({ kind, index })
+// opens the panel at the first open question (kind "question") or at the index-th import card not done (kind "import").
+export function setupAssistant({ root, onCommand, onApply = null, onRemember = null, onRememberAlias = null, onPending = () => {} }) {
   const part = (id) => root.querySelector(`#${id}`);
   const [toggle, progress, body, feed, form, input, sendButton, processButton, leftButton, reportButton, cancelButton, minimizeButton] = [
     "assistant-toggle", "assistant-progress", "assistant-body", "assistant-feed", "assistant-form", "assistant-input", "assistant-send",
@@ -112,6 +114,11 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
   const doc = root.ownerDocument;
   let busy = false;
   let runImports = []; // the import cards of the current or last run: { card, box, wizard, todo }
+  const allImports = []; // every import card of this page, for the strip "ממתין לך"
+  const openQuestions = new Set(); // question cards waiting for an answer
+  const pendingImports = () => allImports.filter((entry) => entry.box.dataset.state !== "answered");
+  // Tells the page what waits in the feed (docs/UI_REDESIGN_PROPOSAL.md, C6): { questions, imports: [{ name }] }.
+  const notify = () => onPending({ questions: openQuestions.size, imports: pendingImports().map((entry) => ({ name: entry.card.file.name })) });
   let waiting = null; // files in the inbox, null until the page has counted them
   const processTitle = processButton.title;
   let shown = "";
@@ -318,6 +325,8 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
       const finish = async (answer, shown) => {
         if (finished) return;
         finished = true;
+        openQuestions.delete(box);
+        notify();
         lock(box);
         box.dataset.state = "answered";
         box.append(element("p", "card-answer", `נבחר: ${shown}`));
@@ -367,11 +376,15 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
       signal?.addEventListener("abort", () => {
         if (finished) return;
         finished = true;
+        openQuestions.delete(box);
+        notify();
         lock(box);
         box.dataset.state = "cancelled";
         box.append(element("p", "card-answer muted", "הריצה הופסקה"));
       }, { once: true });
       add(box);
+      openQuestions.add(box);
+      notify();
       open(true);
     });
   }
@@ -461,6 +474,7 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     const wizard = button("בדיקה וייבוא", "small");
     const entry = { card, box, wizard, todo: null };
     runImports.push(entry);
+    allImports.push(entry);
     wizard.addEventListener("click", () => {
       if (busy) { status.textContent = "יש להמתין לסיום הריצה."; return; }
       status.textContent = "";
@@ -470,12 +484,14 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
           status.textContent = text;
           if (done) { wizard.disabled = true; box.dataset.state = "answered"; } else if (state) box.dataset.state = state;
           drawTodoLine(entry);
+          notify();
         },
       });
     });
     actions.append(wizard);
     box.append(actions, status);
     add(box);
+    notify();
     open(true);
   }
 
@@ -502,5 +518,17 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
   });
 
   open(false);
-  return { open, setBusy, setWaiting, addMessage, trigger: start, setProgress, showPlaced, showTodo, ui: { ask, propose, importCard }, isBusy: () => busy };
+  function reveal({ kind, index = 0 }) {
+    const box = kind === "question" ? [...openQuestions][0] : pendingImports()[index]?.box;
+    if (!box) return false;
+    open(true);
+    box.scrollIntoView?.({ block: "nearest" });
+    box.querySelector("button:not(:disabled)")?.focus();
+    return true;
+  }
+
+  return {
+    open, setBusy, setWaiting, addMessage, trigger: start, setProgress, showPlaced, showTodo, reveal,
+    ui: { ask, propose, importCard }, isBusy: () => busy,
+  };
 }

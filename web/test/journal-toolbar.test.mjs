@@ -52,6 +52,18 @@ test("a row added so that nothing is lost counts as to look at, although it is o
   assert.equal(matchesFilter(leftOut, "excluded"), true);
 });
 
+test("the toolbar tells its counts on every refresh and can be set to a filter from outside (the strip, C6)", () => {
+  const { records, addRow, menu } = page();
+  addRow({ id: "a" });
+  addRow({ id: "b", state: "review" });
+  const told = [];
+  const toolbar = setupJournalToolbar({ records, menu, summary: null, onCounts: (counts) => told.push(counts) });
+  assert.deepEqual(told.at(-1), { all: 2, review: 1, duplicate: 0, excluded: 0 });
+  toolbar.setFilter("review");
+  assert.equal(toolbar.getFilter(), "review");
+  assert.deepEqual([...records.querySelectorAll("tr")].map((row) => row.hidden), [true, false]);
+});
+
 test("the filter menu lists counts, filters rows, and disables empty filters", () => {
   const { records, addRow, menu } = page();
   addRow({ id: "a" });

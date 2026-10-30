@@ -7,7 +7,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
 `2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-30a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you"), Worker 69 (`2026.10.23.2`,
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
@@ -51,6 +51,17 @@ first). The owner and Anna are now checking them on real data; nothing is half d
     file it): the card listed the import, "שורה אחת לבדיקה ב-08/2026" and "קובץ אחד נשאר בתיבת הקלט"; the month button
     opened 08/2026; the import line was struck through after a one-click import. **Seen there, not changed:** an Excel journal
     for a month that already has the agent's rows asks to replace them (the wizard's rule, so C2 keeps the check step).
+  - **C6, the strip "ממתין לך" under the top bar**, on every view, hidden when nothing waits (`waiting-ui.js`, `#waiting`). Parts
+    and sources: an open question of the agent and import cards not done (`onPending` of `setupAssistant`, new option), files
+    in the inbox (the inbox's `onCounts`), rows to look at in the open month (`onCounts` of `setupJournalToolbar`, new option).
+    A click: `reveal` opens the panel at the card; the inbox dialog; the open month with the filter "לבדיקה" (`setFilter`, new).
+    The shell grid has a row for it and every child has its row (`shell.css`), so the hidden strip moves nothing. Changed
+    existing code: `setupAssistant` (the option, `notify` on cards), `setupJournalToolbar` (the option, `setFilter`),
+    `shell.css` rows. Checked in the local page with a scripted model: after the run the strip said "ייבוא שלא הושלם:
+    journal-08-2026.xlsx", "2 קבצים בתיבת הקלט", and after opening 08/2026 "שורה אחת לבדיקה בחודש הפתוח"; with the panel
+    minimized the import entry opened it at the card; from the clients home the rows entry opened 08/2026 filtered; the inbox
+    entry opened the dialog. An import card is gone after a reload (the feed is memory only), its file still counts in the
+    inbox. **Not verified:** a question card waiting (unit test only), a narrow window, the published page.
 - **A credit note of income keeps its negative VAT** (30 October, owner). The Excel import flipped VAT to positive for every
   row that was not an expense credit, so Anna's credit invoice 140 of 8/2026 (net -403.63, VAT -72.65) came in with VAT
   +72.65 and output VAT 145.30 too high. VAT now takes the sign of net for every row (`excel-import.js`). Only that one row
@@ -442,6 +453,9 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   the Gemini declaration from one schema), `handles.js`, `limits.js`, `run-log.js`, `gemini.js` (the model of the loop over `model-client.js`), `services.js` (the only way for
   a tool to reach data), `tools/` (nine so far: `list_inbox`, `read_document`, `extract_document`, `find_client`, `get_client_context`, `query_rows`, `facts_for`, `ask_user`, `propose_change`),
   `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `web/assistant-ui.js` (the dock), `web/assistant-flow.js` (runs the agent for the dock), `assistant.css`, `web/model-settings-ui.js` (the model selects of the settings), `fact-record.js`, `prompts.js` (the base prompt and `AGENT_VERSION`), `skills.js` (parse, load and assemble the skills), `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
+- **"Nothing waits unseen" (UI redesign, 30 October):** `web/import-card-flow.js` (how a wizard opened from an import card
+  ended, C1), `web/waiting-ui.js` (the strip "ממתין לך" under the top bar, C6). The card "לטיפולך" is `showTodo` in
+  `assistant-ui.js` (C5).
 - **Skills (5.1, 5.2):** `web/skills/<name>/SKILL.md` (four: `invoice-extraction`, `classification`, `periods-and-duplicates`, `pcn-allocation`), `web/agent/skills.js`; tests `test/skills.test.mjs`, helper `test/skills-fixture.mjs`, ledger
   `test/fixtures/skill-hashes.json`.
 - **Eval (5.3):** `web/eval/eval-core.mjs` (builds a case, runs it through `createAssistantFlow`, checks), `web/eval/run-eval.mjs` (`npm run eval`),
