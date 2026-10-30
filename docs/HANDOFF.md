@@ -76,6 +76,14 @@ first). The owner and Anna are now checking them on real data; nothing is half d
     the strip then said "…בחודש הפתוח". A possible duplicate is found only when a month is drawn, so the saved count can be
     one higher until that month is opened and saved. **Not verified:** many clients (the time to read their tables), the
     published page.
+  - **Follow-up after the owner's try** (C1–C7 are on `main`, 157095e; the follow-up is on the same branch, not pushed).
+    **F1, a chip of rows names its client and its month.** The strip's parts "review" (open month) and "months" became one
+    part `rows`: one chip per client and month, "אווה · 09/2026: 4 שורות לבדיקה", the open month first (the toolbar's live
+    count), then the saved counts; at most four (`ROW_CHIPS`), then "+N", which opens the clients list (its column
+    "לבדיקה"). An import chip names its client too (`onPending` gives `client`). A chip opens its month filtered
+    (`openRowsToLook`). Checked in the local page with two synthetic clients: "לקוח לדוגמה · 08/2026: שורה אחת לבדיקה" and
+    "Levi Demo · 09/2026: 3 שורות לבדיקה"; the second opened Levi Demo 09/2026 filtered. **Not verified:** "+N" in a
+    browser (unit test only).
 - **A credit note of income keeps its negative VAT** (30 October, owner). The Excel import flipped VAT to positive for every
   row that was not an expense credit, so Anna's credit invoice 140 of 8/2026 (net -403.63, VAT -72.65) came in with VAT
   +72.65 and output VAT 145.30 too high. VAT now takes the sign of net for every row (`excel-import.js`). Only that one row

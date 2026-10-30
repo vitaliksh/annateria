@@ -102,6 +102,7 @@ let dataRoot = null,
   modelSettings = null,
   inboxFileCounts = {},
   reviewByMonth = [], // rows to look at in the open months of every client, from the saved tables (C7)
+  openReview = 0, // rows to look at in the open month, the toolbar's live count
   reviewTimer = null,
   reviewShape = "",
   workspace = null,
@@ -447,13 +448,8 @@ folderPathInput.addEventListener("change", () => {
 const waiting = setupWaiting({ root: document.querySelector("#waiting"), onGo: (target) => goToWaiting(target) });
 function goToWaiting({ kind, index }) {
   if (kind === "inbox") return inboxUi?.open();
-  if (kind === "months") return openReviewMonth();
-  if (kind === "review") {
-    if (committedWorkspace && currentDeclaration) {
-      clientsHome.showJournal({ clientId: committedWorkspace.config.clientId, month: currentDeclaration.month });
-    }
-    return journalToolbar.setFilter("review");
-  }
+  if (kind === "rows") return openRowsToLook(rowsToLook()[index]);
+  if (kind === "more") return clientsHome.showHome();
   assistant.reveal({ kind, index });
 }
 // C7: rows to look at in the other open months, counted from the saved tables a moment after a save, a run, an import or a
@@ -465,11 +461,18 @@ function scheduleReviewCounts() {
 async function countReview() {
   reviewByMonth = await reviewCounts(workspaceControls?.getClients().active ?? []);
   workspaceControls?.renderSidebar?.();
-  showOtherMonths();
+  waiting.set("rows", rowsToLook());
 }
-function showOtherMonths() {
-  const open = committedWorkspace && currentDeclaration ? `${committedWorkspace.config.clientId}|${currentDeclaration.month}` : "";
-  waiting.set("months", reviewByMonth.filter((item) => `${item.clientId}|${item.month}` !== open));
+// Rows to look at, one item per client and month, with the client's name: the open month first (the toolbar's live count),
+// then the other open months from the saved tables.
+function rowsToLook() {
+  const names = new Map((workspaceControls?.getClients().active ?? []).map((client) => [client.id, client.clientName]));
+  const openId = committedWorkspace && currentDeclaration ? committedWorkspace.config.clientId : null;
+  const isOpen = (item) => item.clientId === openId && item.month === currentDeclaration?.month;
+  const open = openId && openReview ? [{ clientId: openId, month: currentDeclaration.month, count: openReview }] : [];
+  const nameOf = (id) => names.get(id) ?? (id === openId ? committedWorkspace.config.clientName : "");
+  const named = (item) => ({ ...item, client: nameOf(item.clientId) });
+  return [...open, ...reviewByMonth.filter((item) => !isOpen(item))].map(named);
 }
 // The sidebar redraws often; the tables are read again only when the clients or their open months changed.
 function countReviewWhenChanged() {
@@ -479,17 +482,18 @@ function countReviewWhenChanged() {
   reviewShape = shape;
   scheduleReviewCounts();
 }
-async function openReviewMonth() {
-  const isOpen = (item) => committedWorkspace?.config.clientId === item.clientId && currentDeclaration?.month === item.month;
-  const first = reviewByMonth.find((item) => !isOpen(item));
-  if (!first) return;
-  await workspaceControls.openDeclaration(first.clientId, first.month);
+// A chip of rows opens its client's month with the filter "לבדיקה".
+async function openRowsToLook(item) {
+  if (!item) return;
+  const isOpen = committedWorkspace?.config.clientId === item.clientId && currentDeclaration?.month === item.month;
+  if (isOpen) clientsHome.showJournal({ clientId: item.clientId, month: item.month });
+  else await workspaceControls.openDeclaration(item.clientId, item.month);
   journalToolbar.setFilter("review");
 }
 const journalToolbar = setupJournalToolbar({
   onCounts: (counts) => {
-    waiting.set("review", counts.review);
-    showOtherMonths();
+    openReview = counts.review;
+    waiting.set("rows", rowsToLook());
   },
   records: document.querySelector("#records"),
   menu: document.querySelector("#filter-menu"),

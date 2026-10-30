@@ -283,10 +283,10 @@ test("the panel tells the page what waits in its feed and opens at it on request
   const commands = [];
   const assistant = setupAssistant({ root, onCommand: (command) => commands.push(command), onPending: (pending) => told.push(pending) });
   assistant.ui.importCard(importCard());
-  assert.deepEqual(told.at(-1), { questions: 0, imports: [{ name: "journal-08.xlsx" }] });
+  assert.deepEqual(told.at(-1), { questions: 0, imports: [{ name: "journal-08.xlsx", client: "Levi" }] });
   const controller = new AbortController();
   const answered = assistant.ui.ask(card(), { signal: controller.signal });
-  assert.deepEqual(told.at(-1), { questions: 1, imports: [{ name: "journal-08.xlsx" }] });
+  assert.deepEqual(told.at(-1), { questions: 1, imports: [{ name: "journal-08.xlsx", client: "Levi" }] });
   assistant.open(false);
   assert.equal(assistant.reveal({ kind: "question" }), true);
   assert.equal(root.querySelector("#assistant-body").hidden, false, "the panel opens at the card");
@@ -297,7 +297,7 @@ test("the panel tells the page what waits in its feed and opens at it on request
   assert.equal(assistant.reveal({ kind: "import", index: 0 }), true);
   [...root.querySelectorAll(".assistant-card[data-kind='import'] button")].find((item) => item.textContent === "בדיקה וייבוא").click();
   commands.at(-1).report({ text: "לא יובא", state: "unfinished" });
-  assert.deepEqual(told.at(-1).imports, [{ name: "journal-08.xlsx" }], "not finished still waits");
+  assert.deepEqual(told.at(-1).imports, [{ name: "journal-08.xlsx", client: "Levi" }], "not finished still waits");
   commands.at(-1).report({ text: "הייבוא בוצע.", done: true });
   assert.deepEqual(told.at(-1).imports, []);
   const stopped = new AbortController();

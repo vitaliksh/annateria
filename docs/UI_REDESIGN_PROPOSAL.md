@@ -13,6 +13,13 @@ Built one commit per change on the branch `claude/wizardly-snyder-83391f`, not o
 | C6 "waiting for you" strip | built; checked in the local page with a scripted model |
 | C7 rows to look at across months and clients | built; checked in the local page with a scripted model |
 
+**Follow-up after the owner tried C1–C7 on the published page** (30 October 2026). A chip "4 שורות לבדיקה בחודש הפתוח"
+filtered the table and nothing said whose rows they were. Agreed with the owner, one commit each:
+
+| Item | State |
+| --- | --- |
+| F1 every chip of rows names its client and one month, at most four, then "+N" to the clients list | built; checked in the local page |
+
 ## The goal in one sentence
 
 Whatever the user still has to do (finish an import, answer a question, look at rows, handle files left in the inbox) is shown
