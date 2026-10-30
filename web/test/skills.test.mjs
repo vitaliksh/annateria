@@ -146,6 +146,6 @@ test("the run log names the version of the instruction and of each skill", async
   const path = (await listPaths(w.root)).find((item) => item.startsWith("common/agent-runs/"));
   const log = JSON.parse(new TextDecoder().decode(await readFileBytes(w.root, path)));
   assert.equal(log.runId, result.runId);
-  assert.deepEqual(log.agent, { version: "base-2026-10-26a", skills: { "invoice-extraction": 2, classification: 4, "periods-and-duplicates": 2, "pcn-allocation": 1, "month-closing-checklist": 1 } });
+  assert.deepEqual(log.agent, { version: "base-2026-10-30a", skills: { "invoice-extraction": 2, classification: 4, "periods-and-duplicates": 2, "pcn-allocation": 1, "month-closing-checklist": 1 } });
   assert.ok(Array.isArray(log.entries));
 });

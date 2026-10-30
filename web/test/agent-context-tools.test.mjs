@@ -239,7 +239,7 @@ test("the instruction has the agent read import files and name the wizard of the
   const { AGENT_VERSION } = await import("../agent/prompts.js");
   const ORCHESTRATOR_PROMPT = await orchestratorInstruction();
   const { default: listInbox } = await import("../agent/tools/list-inbox.js");
-  assert.equal(AGENT_VERSION, "base-2026-10-26a");
+  assert.equal(AGENT_VERSION, "base-2026-10-30a");
   assert.ok(ORCHESTRATOR_PROMPT.includes("read every spreadsheet, and every PDF that does not look like an invoice"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("with read_document, and never extract a spreadsheet with the vision model"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("say plainly when you cannot tell what a file is"));
@@ -283,7 +283,7 @@ test("the instruction sends a journal to prepare_import and never lets the model
   assert.ok(ORCHESTRATOR_PROMPT.includes("is prepared with prepare_import, kind journal"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("you import nothing, the user opens the wizard, so never say that a file was imported"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("its counts and problems, never numbers of your own"));
-  assert.ok(ORCHESTRATOR_PROMPT.includes('the button "פתח אשף"'));
+  assert.ok(ORCHESTRATOR_PROMPT.includes('the button "בדיקה וייבוא"'));
   assert.ok(ORCHESTRATOR_PROMPT.includes("prepare an import file for the user's wizard (prepare_import)"));
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /you cannot import them yet/);
   assert.match(prepareImport.description, /write nothing and the wizard opens only when the user clicks/);

@@ -386,7 +386,7 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     box.append(list);
     const status = element("p", "card-answer muted", "");
     const actions = element("div", "card-options");
-    const wizard = button("פתח אשף", "small");
+    const wizard = button("בדיקה וייבוא", "small");
     wizard.addEventListener("click", () => {
       if (busy) { status.textContent = "יש להמתין לסיום הריצה."; return; }
       status.textContent = "";

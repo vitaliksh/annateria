@@ -420,7 +420,7 @@ The shared function is `lockProblems(rows, { pcnRequired })` in `web/lock-check.
   root. The same file with the same kind twice returns the stored result (`already_prepared`).
 - **Effect.** Reads the file and calls the preparers that the wizards call first (`prepareImport`, `prepareLedger`,
   `prepareReconcile`, `readIncomeReportFile`): a read-only parse, nothing is written. Stores the prepared result in the run and
-  shows a card with the summary, the checks and problems, the reason, and the button "פתח אשף". **The button belongs to the
+  shows a card with the summary, the checks and problems, the reason, and the button "בדיקה וייבוא". **The button belongs to the
   page**: a click opens the existing wizard dialog of that kind with the file preloaded; the wizard's own steps, its
   confirmations and its own copies before writing stay as they are. After the wizard has written successfully the page, not the
   agent, files the original: copy to `clients/<client>/imports/`, read back and compare the hash, then drop the inbox

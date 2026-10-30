@@ -355,7 +355,7 @@ test("the button of the card asks the page to open the wizard, and the page tell
   const { assistant, q, commands } = setup();
   const data = importCard();
   assistant.ui.importCard(data);
-  const button = [...q(".assistant-card[data-kind='import']").querySelectorAll("button")].find((item) => item.textContent === "פתח אשף");
+  const button = [...q(".assistant-card[data-kind='import']").querySelectorAll("button")].find((item) => item.textContent === "בדיקה וייבוא");
   button.click();
   assert.equal(commands.length, 1);
   assert.deepEqual([commands[0].type, commands[0].card.id, commands[0].card.file.hash], ["import", "I1", "a".repeat(64)]);
@@ -371,7 +371,7 @@ test("the button of the card waits while a run is on", () => {
   const { assistant, q, commands } = setup();
   assistant.ui.importCard(importCard());
   assistant.setBusy(true);
-  [...q(".assistant-card[data-kind='import']").querySelectorAll("button")].find((item) => item.textContent === "פתח אשף").click();
+  [...q(".assistant-card[data-kind='import']").querySelectorAll("button")].find((item) => item.textContent === "בדיקה וייבוא").click();
   assert.deepEqual(commands, []);
   assert.match(q(".assistant-card[data-kind='import'] .card-answer").textContent, /להמתין לסיום הריצה/);
 });

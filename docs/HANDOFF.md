@@ -6,7 +6,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 ## Start here (state on 27 October 2026)
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
-`2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-26a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
+`2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-30a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
 report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
@@ -31,7 +31,7 @@ first). The owner and Anna are now checking them on real data; nothing is half d
   Anna (a possible duplicate of 200.91, tickets of 50 in another person's name, a road-6 detail page without date and amount).
   Anna's PC still holds her own first run of 25 October for this client: settle with the owner which side wins before the two PCs
   meet through Drive. The test client the owner used by mistake had its 10/2026 declaration deleted (its originals went with it).
-- **The eval was not run** for `base-2026-10-25a` and `base-2026-10-26a` (it needs the owner's access code: `npm run eval` with
+- **The eval was not run** for `base-2026-10-25a`, `base-2026-10-26a` and `base-2026-10-30a` (it needs the owner's access code: `npm run eval` with
   `ANNATERIA_CODE`; it costs money).
 - **Speed and cost: postponed by the owner (27 October).** He sets Flash 3.6 for all three roles in his settings and finds it an
   acceptable trade-off; he fears that optimisation brings regressions. Measured on the last run: extraction of the 17-page PDF 82 s
