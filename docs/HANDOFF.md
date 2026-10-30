@@ -90,6 +90,10 @@ first). The owner and Anna are now checking them on real data; nothing is half d
     the sidebar is redrawn when the toolbar's count changes). Changed existing code: `renderSidebarClients` (`waitingBadge`),
     the sidebar's counts in `app.js`, `sidebar.css`. Checked in the local page: "לקוח לדוגמה 3" (2 files + 1 row), "Levi Demo
     3", "09/2026 3".
+    **F3, a filter that is on says so.** `#filter-line` above the table (`drawLine` in `journal-toolbar.js`, new options `line`
+    and `where`): "מציג: שורות לבדיקה · Levi Demo · 09/2026" and "הצג הכול", for every filter, from the strip or from the menu
+    (it was silent before). Changed existing code: `refresh` of the toolbar, `index.html`, `journal.css`. Checked in the local
+    page: the Levi Demo chip → the line; "הצג הכול" → all rows, line hidden.
 - **A credit note of income keeps its negative VAT** (30 October, owner). The Excel import flipped VAT to positive for every
   row that was not an expense credit, so Anna's credit invoice 140 of 8/2026 (net -403.63, VAT -72.65) came in with VAT
   +72.65 and output VAT 145.30 too high. VAT now takes the sign of net for every row (`excel-import.js`). Only that one row

@@ -64,6 +64,29 @@ test("the toolbar tells its counts on every refresh and can be set to a filter f
   assert.deepEqual([...records.querySelectorAll("tr")].map((row) => row.hidden), [true, false]);
 });
 
+test("a filter that is on says so above the table, with whose rows and a button that shows all again (F3)", () => {
+  const { records, addRow, menu, document } = page();
+  addRow({ id: "a" });
+  addRow({ id: "b", state: "review" });
+  const line = document.querySelector("#filter-line");
+  assert.ok(line, "the page has the line");
+  const toolbar = setupJournalToolbar({ records, menu, summary: null, line, where: () => ({ client: "אווה", month: "09/2026" }) });
+  assert.equal(line.hidden, true, "nothing to say while all rows are shown");
+  toolbar.setFilter("review");
+  assert.equal(line.hidden, false);
+  assert.equal(line.querySelector("span").textContent, "מציג: שורות לבדיקה · אווה · 09/2026");
+  assert.equal(line.querySelector("bdi").textContent, "אווה");
+  const all = line.querySelector("button");
+  assert.equal(all.textContent, "הצג הכול");
+  all.click();
+  assert.deepEqual([toolbar.getFilter(), line.hidden], ["all", true]);
+  assert.deepEqual([...records.querySelectorAll("tr")].map((row) => row.hidden), [false, false]);
+  menu.querySelector("[data-filter='excluded']").disabled = false;
+  toolbar.setFilter("duplicate");
+  assert.equal(toolbar.getFilter(), "all", "a filter with no rows is not kept, and no line is shown");
+  assert.equal(line.hidden, true);
+});
+
 test("the filter menu lists counts, filters rows, and disables empty filters", () => {
   const { records, addRow, menu } = page();
   addRow({ id: "a" });

@@ -494,6 +494,10 @@ async function openRowsToLook(item) {
   journalToolbar.setFilter("review");
 }
 const journalToolbar = setupJournalToolbar({
+  line: document.querySelector("#filter-line"),
+  where: () => (committedWorkspace && currentDeclaration
+    ? { client: committedWorkspace.config.clientName, month: formatMonth(currentDeclaration.month) }
+    : null),
   onCounts: (counts) => {
     const changed = openReview !== counts.review;
     openReview = counts.review;

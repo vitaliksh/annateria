@@ -404,3 +404,23 @@ td .photo-button {
 .pcn-approve span::after {
   content: attr(data-label);
 }
+
+/* "מציג: שורות לבדיקה · אווה · 09/2026" above the table while a filter is on (journal-toolbar.js, F3). */
+.filter-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  margin: 0 0 var(--s2);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.filter-line[hidden] {
+  display: none;
+}

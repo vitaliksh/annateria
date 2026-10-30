@@ -11,6 +11,9 @@ export const FILTERS = [
   { key: "excluded", label: "מחוץ לדוחות" },
 ];
 
+// What a filter shows, in the line above the table.
+const SHOWN = { review: "שורות לבדיקה", duplicate: "כפילויות", excluded: "שורות מחוץ לדוחות" };
+
 export function rowKinds(row) {
   const status = row.cells?.[16];
   const excluded = row.classList.contains("not-for-export");
@@ -41,8 +44,9 @@ export function matchesFilter(row, filter) {
 }
 
 // menu: <details class="menu"> with a <summary> and a .menu-panel; summary: { element, compute() -> figures from journal-summary.js }
-// onCounts({ all, review, duplicate, excluded }) is told the counts on every refresh.
-export function setupJournalToolbar({ records, menu, summary, onCounts = () => {} }) {
+// onCounts({ all, review, duplicate, excluded }) is told the counts on every refresh. line: the element above the table that says
+// which rows are shown while a filter is on (docs/UI_REDESIGN_PROPOSAL.md, F3); where() returns { client, month } of the table.
+export function setupJournalToolbar({ records, menu, summary, onCounts = () => {}, line = null, where = () => null }) {
   const doc = records.ownerDocument;
   let filter = "all";
   const dataRows = () => [...records.querySelectorAll("tr[data-document-id]")];
@@ -73,6 +77,7 @@ export function setupJournalToolbar({ records, menu, summary, onCounts = () => {
       summaryLabel.dataset.active = filter === "all" ? "" : FILTERS.find((item) => item.key === filter).label;
     }
     for (const row of rows) row.hidden = !matchesFilter(row, filter);
+    drawLine();
     if (summary?.element) {
       let parts = [];
       try {
@@ -93,6 +98,24 @@ export function setupJournalToolbar({ records, menu, summary, onCounts = () => {
         return item;
       }));
     }
+  }
+
+  // "מציג: שורות לבדיקה · אווה · 09/2026" and a button that shows all rows again; hidden while all rows are shown.
+  function drawLine() {
+    if (!line) return;
+    line.hidden = filter === "all";
+    if (line.hidden) return line.replaceChildren();
+    const place = where();
+    const text = doc.createElement("span");
+    text.append(`מציג: ${SHOWN[filter]}`);
+    if (place?.client) text.append(" · ", Object.assign(doc.createElement("bdi"), { textContent: place.client }));
+    if (place?.month) text.append(` · ${place.month}`);
+    const all = doc.createElement("button");
+    all.type = "button";
+    all.className = "secondary small";
+    all.textContent = "הצג הכול";
+    all.addEventListener("click", () => { filter = "all"; refresh(); });
+    line.replaceChildren(text, all);
   }
 
   let scheduled = false;
