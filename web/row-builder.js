@@ -60,11 +60,13 @@ export function excludeText(facts, month) {
   return `כפילות — המסמך כבר הוזן ב‑${formatMonth(match.month)}${match.status === "open" ? "" : " (הצהרה נעולה)"}`;
 }
 
-// The percentages of the business rule (the same as applyBusinessRule of the page) and the amounts they give.
+// The percentages of the business rule (the same as applyBusinessRule of the page) and the amounts they give. A line of a ledger
+// (record.booked) carries the amounts as they were already booked, recognition included: it stays at 100 %.
 export function recognition({ record, account, kind, accountName = "" }) {
-  const homeUtility = kind === "home" && isHomeUtility({ accountName, texts: [record.purpose, record.document_title] });
+  const homeUtility = !record.booked && kind === "home" && isHomeUtility({ accountName, texts: [record.purpose, record.document_title] });
   const expensePercent = homeUtility ? 25 : 100;
-  const vatPercent = record.vat ? (homeUtility ? 25 : LIMITED_VAT_CODES.includes(account) ? 66.67 : 100) : 100;
+  const limitedVat = !record.booked && LIMITED_VAT_CODES.includes(account);
+  const vatPercent = record.vat ? (homeUtility ? 25 : limitedVat ? 66.67 : 100) : 100;
   return { expensePercent, vatPercent, amounts: recognisedAmounts(record.net, record.vat, expensePercent, vatPercent) };
 }
 
@@ -113,6 +115,7 @@ export function buildRowSnapshot({ record, entry, documentId, decision, account,
     pcnApproved: "",
     highlights: [],
     active: coded && !excluded,
+    ...(record.booked ? { booked: true } : {}),
     agentOpinion: opinion,
     confidence: `${record.confidence}%`,
     statusText,

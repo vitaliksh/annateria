@@ -87,3 +87,12 @@ test("a row without an explanation from the model says so; every code reason of 
 test("a page of a PDF is kept in the row's agent data", () => {
   assert.equal(build({ record: record({ page: 3 }) }).agent.page, 3);
 });
+
+test("a line of a ledger (booked) keeps 100 %: its amounts already hold the recognised share; only a true booked counts", () => {
+  const line = record({ purpose: "חשמל", document_title: "חשמל", booked: true });
+  assert.equal(line.booked, true);
+  assert.deepEqual([recognition({ record: line, account: "204", kind: "home" }).expensePercent, recognition({ record: line, account: "806", kind: "home" }).vatPercent], [100, 100]);
+  assert.equal(record({ booked: "yes" }).booked, undefined);
+  assert.equal(record().booked, undefined);
+  assert.equal(recognition({ record: record({ purpose: "חשמל" }), account: "204", kind: "home" }).expensePercent, 25);
+});

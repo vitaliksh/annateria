@@ -16,12 +16,12 @@ const snapshot = (overrides = {}, extra = {}) => buildRowSnapshot({
   reason: "חשבונית משרדית", needsReview: false, agent: { run: "r1", version: "v1", fact: "F1.1" }, ...extra,
 });
 
-async function openMonth(rows = []) {
+async function openMonth(rows = [], businessKind = "office") {
   const client = binaryDirectory("Client");
   const created = await createDeclaration(client, { clientId: "c1", month: "2026-02" });
   await saveDraft(created.directory, created.declaration, rows);
   const loaded = await loadDeclaration(client, "2026-02");
-  const config = { clientId: "c1", clientName: "Client", businessActivity: "x", businessKind: "office" };
+  const config = { clientId: "c1", clientName: "Client", businessActivity: "x", businessKind };
   return { client, selected: { workspace: { config, directory: client, parent: {} }, declaration: loaded.declaration, directory: loaded.directory, draft: loaded.draft } };
 }
 
@@ -120,4 +120,39 @@ test("the original of a PDF row opens in the viewer of the browser at the page o
   assert.equal(opened[0].created.closed, true);
   assert.equal(opened.length, 2);
   assert.equal(opened[1].url, "");
+});
+
+// Electricity of a home client: the agent gives 25 %; a line of a ledger (amounts as already booked) keeps 100 %.
+const electricity = (overrides = {}, extra = {}) => snapshot({ supplier_name: "Electric Co", purpose: "חשמל", document_title: "חשבון חשמל", ...overrides }, { kind: "home", account: "204", ...extra });
+
+test("a home client: the agent's electricity is 25 %, a booked ledger line keeps 100 % and says so in the saved row", async () => {
+  const { app, rows } = await loadApp({ businessKind: "home" });
+  const { selected } = await openMonth([], "home");
+  await app.activateDeclaration(selected);
+  app.appendSnapshots([electricity(), electricity({ booked: true }, { documentId: "agent-ffff-p1" })]);
+  const [bill, line] = rows().map((row) => JSON.parse(JSON.stringify(app.rowSnapshot(row))));
+  assert.deepEqual(bill.values.slice(8, 12), ["50.00", "9.00", "25", "25"]);
+  assert.equal(bill.booked, undefined);
+  assert.deepEqual(line.values.slice(8, 12), ["200.00", "36.00", "100", "100"]);
+  assert.equal(line.booked, true);
+});
+
+test("a home client: percentages saved in the table stay when the month is opened again", async () => {
+  const typed = { ...electricity(), values: [...electricity().values.slice(0, 7), "236.00", "200.00", "36.00", "100", "100"] };
+  const { app, rows } = await loadApp({ businessKind: "home" });
+  const { selected } = await openMonth([typed, { ...electricity({ booked: true }), documentId: "agent-ffff-p1" }], "home");
+  await app.activateDeclaration(selected);
+  assert.deepEqual(rows().map((row) => [...app.rowSnapshot(row).values.slice(8, 12)]), [["200.00", "36.00", "100", "100"], ["200.00", "36.00", "100", "100"]]);
+});
+
+test("a home client: saving the client card again keeps the percentages; a new kind of business applies the rule", async () => {
+  const typed = { ...electricity(), values: [...electricity().values.slice(0, 7), "236.00", "200.00", "36.00", "100", "100"] };
+  const { app, rows } = await loadApp({ businessKind: "home" });
+  const { selected } = await openMonth([typed], "home");
+  await app.activateDeclaration(selected);
+  app.updateWorkspace({ ...selected.workspace, config: { ...selected.workspace.config, clientName: "Client renamed" } });
+  assert.deepEqual([...app.rowSnapshot(rows()[0]).values.slice(10)], ["100", "100"]);
+  app.updateWorkspace({ ...selected.workspace, config: { ...selected.workspace.config, businessKind: "office" } });
+  app.updateWorkspace({ ...selected.workspace, config: { ...selected.workspace.config, businessKind: "home" } });
+  assert.deepEqual([...app.rowSnapshot(rows()[0]).values.slice(10)], ["25", "25"]);
 });

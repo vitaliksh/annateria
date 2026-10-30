@@ -7,7 +7,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
 `2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-30a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view), Worker 69 (`2026.10.23.2`,
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
@@ -15,6 +15,13 @@ Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5,
 
 **Where the next session starts (27 October).** Anna's first real day (25 October) brought five fixes, all published (below, newest
 first). The owner and Anna are now checking them on real data; nothing is half done. Open:
+- **Booked amounts are never cut again** (30 October, owner). Anna books property tax and electricity of a home client at
+  25% already (her journal and the old ledger: "ארנונה 25%" 845 is the sum of the booked lines), but the page applied the
+  25% rule to every row on every opening of a month, so imported rows (meant to be 100/100) and percentages typed by hand fell
+  back to 25%. Now: rows of an Excel journal, of the ledger check and ledger lines read by the agent (record `booked`,
+  `invoice-extraction` 3) are saved with `booked: true` and the rule skips them; opening a month keeps the saved percentages;
+  a client edit re-applies the rule only when the kind of business changed. **Rows saved before the fix keep what they have:**
+  earlier Excel imports of home clients may hold 25% on such accounts; fix by hand (it now stays) or import again.
 - **HEIC originals are shown** (30 October, owner). Chrome and Edge show no HEIC, so the picture window of an iPhone photo was
   empty. `heic-view.js` turns the original into a JPEG in memory when it is opened (heic-to 1.6.5 from jsdelivr, libheif 1.23.5,
   the build without unsafe-eval, about 3 MB, loaded only then); the file in the declaration is unchanged. Checked in the built-in
@@ -26,8 +33,8 @@ first). The owner and Anna are now checking them on real data; nothing is half d
   record (dated by its line, no period, reference as number; the business of the heading is the buyer, or the supplier in an
   income section; tax and National Insurance payments are payment_confirmation), so each line lands in the month of its date and
   missing months are created as for invoices. The owner checks the result once by hand against Anna's profit-and-loss sheet (no
-  code check, owner's decision). **Known, not fixed:** the ledger's property tax and electricity of a home client are already 25%,
-  and the row rule cuts them to 25% again; a dense page may exceed the 20,000-byte tool result; a PDF ledger of another program
+  code check, owner's decision). **Fixed the same day:** the ledger's property tax and electricity of a home client were cut to
+  25% a second time (see "Booked amounts" above). **Known, not fixed:** a dense page may exceed the 20,000-byte tool result; a PDF ledger of another program
   still goes to `ledger_check` (Rivhit only). **Not verified:** the eval (needs the owner's code; it stubs extraction anyway) and
   the real reading of the photos.
 - **Which table is right.** During this debugging the owner's PC (`D:\ANNATERIA`) is the master (owner, 26 October): he deleted his

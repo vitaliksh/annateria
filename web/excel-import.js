@@ -44,6 +44,7 @@ function importedRow(row, code, index, { now, makeId }) {
     form6111Code: "",
     highlights: [],
     active: true,
+    booked: true,
     agentOpinion: "יובא מקובץ Excel",
     confidence: "",
     statusText: "יובא מ-Excel",

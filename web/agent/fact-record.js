@@ -33,6 +33,7 @@ export const RECORD_SCHEMA = {
     purpose: text,
     confidence: { type: "integer", minimum: 0, maximum: 100 },
     issues: { type: "array", items: { type: "string", enum: MODEL_ISSUES } },
+    booked: { type: "boolean", description: "True only for a line of a list of documents already entered in the books." },
   },
 };
 
@@ -77,5 +78,6 @@ export function normalizeRecord(raw, { isImage = false } = {}) {
     purpose: cleanText(raw.purpose),
     confidence: Math.max(0, Math.min(100, Math.round(raw.confidence))),
     issues: Object.freeze([...issues].sort()),
+    ...(raw.booked === true ? { booked: true } : {}),
   });
 }

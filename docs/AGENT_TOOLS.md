@@ -148,6 +148,7 @@ orchestrator's decision, `include` to the code.
 | `purpose` | text | What was bought, a few Hebrew words |
 | `confidence` | 0 to 100 | Of the whole record |
 | `issues` | list of codes | From the model: `blurred`, `date_unclear`, `amount_unclear`, `cropped`, `handwritten`, `other_language`. Added by code: `amounts_mismatch` (net + vat differs from total after rounding), `bad_vat_id` (`taxIdProblem`), `no_date`, `foreign_currency` |
+| `booked` | true or absent | From the model: the record is a line of a list of documents already entered in the books (a ledger). Its amounts hold the recognised share already, so the code never applies the 25 % home rule or the 66.67 % VAT rule to it, and the row is saved with `booked: true` |
 
 After the model answers, the code validates the JSON against the schema, normalises dates (`dateKey`) and ids,
 recomputes the amount check, and stores the record. From then on the record is **immutable** for the run.

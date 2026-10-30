@@ -212,7 +212,7 @@ async function activateDeclaration(selected) {
   currentClient.textContent = `לקוח: ${workspace.config.clientName} · הצהרה: ${formatMonth(currentDeclaration.month)}`;
   journalTitle.textContent = currentClient.textContent;
   clientsHome.showJournal({ clientId: workspace.config.clientId, month: currentDeclaration.month });
-  applyBusinessRules();
+  // The saved percentages stand (a choice of the user, or amounts already booked); the rule runs when a row is made or recoded.
   status.textContent = currentDeclaration.status === "open" ? "" : "ההצהרה נעולה לקריאה בלבד.";
   updateStartAvailability();
   return true;
@@ -226,8 +226,10 @@ function updateWorkspace(selected) {
       journalTitle.textContent = currentClient.textContent;
     }
     businessActivity.value = selected.config.businessActivity;
+    const kindChanged = businessKind.value !== selected.config.businessKind;
     businessKind.value = selected.config.businessKind;
-    applyBusinessRules();
+    // Only a new kind of business re-applies the rule: any other edit of the client keeps the percentages of the rows.
+    if (kindChanged) applyBusinessRules();
     pcnJournal?.refresh();
   }
 }
@@ -1171,7 +1173,9 @@ function updateDuplicateState(row) {
   row.dataset.duplicate = "true";
   setStatus(row, "חשד לכפילות לפי אסמכתא — נדרש עיון", "review");
 }
+// Amounts already booked elsewhere (an Excel journal, a line of a ledger) carry their recognition: the rule never cuts them again.
 function applyBusinessRule(row) {
+  if (row.dataset.booked) return recalculateRow(row);
   const code = row.cells[1].querySelector("select")?.value,
     homeUtility =
       businessKind.value === "home" &&
@@ -1492,6 +1496,7 @@ function rowSnapshot(row) {
     agent: row.dataset.agent ? JSON.parse(row.dataset.agent) : undefined,
     highlights: row.highlights || [],
     active: Boolean(row.cells[17].querySelector("input")?.checked),
+    ...(row.dataset.booked ? { booked: true } : {}),
     agentOpinion: row.cells[14].textContent.trim(),
     confidence: row.cells[15].textContent.trim(),
     statusText: row.cells[16].childNodes[0]?.textContent?.trim() || row.cells[16].textContent.trim(),
@@ -1519,6 +1524,7 @@ function restoreRow(saved, blob) {
     if (saved[field]) row.dataset[key] = saved[field];
   row.highlights = Array.isArray(saved.highlights) ? saved.highlights : [];
   if (saved.agent) row.dataset.agent = JSON.stringify(saved.agent);
+  if (saved.booked) row.dataset.booked = "true";
   row.replaceChild(editableCell(values[1]), row.cells[1]);
   row.replaceChild(editableCell(displayDate(values[0])), row.cells[2]);
   values.slice(2, 12).forEach((value, index) => row.replaceChild(editableCell(value), row.cells[index + 3]));

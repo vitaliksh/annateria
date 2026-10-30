@@ -11,7 +11,7 @@ const exposed = [
   "applyRecord", "addPendingRecord", "restoreRow", "rowSnapshot", "recalculateRow", "manualAmountChanged",
   "displayDate", "displayedReference", "normalReference", "receivedAtText", "cellValue",
   "nextFreeClassificationCode", "applyBusinessRules", "loadCustomMapping", "showError", "activateDeclaration", "saveCurrentDraft",
-  "appendSnapshots", "attachRowImages", "setRowImage", "openPhoto", "applyProposalToTable",
+  "appendSnapshots", "attachRowImages", "setRowImage", "openPhoto", "applyProposalToTable", "updateWorkspace",
 ];
 
 async function bundleApp() {

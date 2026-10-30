@@ -32,6 +32,19 @@ test("импортированные строки без изображения 
   assert.equal(rows()[0].cells[13].textContent, "—");
 });
 
+test("a home client: an imported property tax keeps 100 %, on open and after a change of its account (amounts already booked)", async () => {
+  const { app, rows } = await loadApp({ businessKind: "home" });
+  await app.loadCustomMapping(rootWithChart(SEED_CHART_OF_ACCOUNTS));
+  for (const saved of imported()) app.restoreRow(saved, null);
+  app.applyBusinessRules();
+  assert.deepEqual(rows().map((row) => plain(app.rowSnapshot(row)).values), imported().map((row) => row.values));
+  const tax = rows().find((row) => app.rowSnapshot(row).values[3] === "Council E");
+  const select = tax.cells[1].querySelector("select");
+  select.dispatchEvent(new tax.ownerDocument.defaultView.Event("change"));
+  assert.deepEqual(plain(app.rowSnapshot(tax).values.slice(7)), ["500.00", "500.00", "0.00", "100", "100"]);
+  assert.equal(app.rowSnapshot(tax).booked, true);
+});
+
 test("коды плана счетов показываются названиями после загрузки корня", async () => {
   const { app, rows } = await loadApp();
   await app.loadCustomMapping(rootWithChart(SEED_CHART_OF_ACCOUNTS));
