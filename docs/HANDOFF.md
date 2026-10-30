@@ -84,6 +84,12 @@ first). The owner and Anna are now checking them on real data; nothing is half d
     (`openRowsToLook`). Checked in the local page with two synthetic clients: "לקוח לדוגמה · 08/2026: שורה אחת לבדיקה" and
     "Levi Demo · 09/2026: 3 שורות לבדיקה"; the second opened Levi Demo 09/2026 filtered. **Not verified:** "+N" in a
     browser (unit test only).
+    **F2, one badge per client in the sidebar.** The client's badge (was: files in its inbox only, `inbox-count`) is now
+    `waiting-count`: files in its inbox plus rows to look at in its open months, each part in the tooltip ("קבצים בתיבת הקלט: 2
+    · שורות לבדיקה: 1"); a month shows its rows with the same badge. The open month counts live (`reviewList` in `app.js`,
+    the sidebar is redrawn when the toolbar's count changes). Changed existing code: `renderSidebarClients` (`waitingBadge`),
+    the sidebar's counts in `app.js`, `sidebar.css`. Checked in the local page: "לקוח לדוגמה 3" (2 files + 1 row), "Levi Demo
+    3", "09/2026 3".
 - **A credit note of income keeps its negative VAT** (30 October, owner). The Excel import flipped VAT to positive for every
   row that was not an expense credit, so Anna's credit invoice 140 of 8/2026 (net -403.63, VAT -72.65) came in with VAT
   +72.65 and output VAT 145.30 too high. VAT now takes the sign of net for every row (`excel-import.js`). Only that one row

@@ -19,6 +19,7 @@ filtered the table and nothing said whose rows they were. Agreed with the owner,
 | Item | State |
 | --- | --- |
 | F1 every chip of rows names its client and one month, at most four, then "+N" to the clients list | built; checked in the local page |
+| F2 a sidebar badge per client (files + rows to look at) and per month (rows) | built; checked in the local page |
 
 ## The goal in one sentence
 

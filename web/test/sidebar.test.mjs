@@ -96,8 +96,8 @@ test("a month with rows to look at shows their number beside it (C7)", () => {
     expandedClientId: "Alpha", reviewCounts: { "Alpha|2026-02": 3 },
   }, handlers);
   const choices = [...container.querySelectorAll(".declaration-choice")];
-  assert.deepEqual(choices.map((choice) => choice.querySelector(".review-count")?.textContent ?? ""), ["3", ""]);
-  assert.equal(choices[0].querySelector(".review-count").title, "שורות לבדיקה: 3");
+  assert.deepEqual(choices.map((choice) => choice.querySelector(".waiting-count")?.textContent ?? ""), ["3", ""]);
+  assert.equal(choices[0].querySelector(".waiting-count").title, "שורות לבדיקה: 3");
 });
 
 test("archived clients get no new-declaration button and an empty list explains itself", () => {
@@ -108,14 +108,19 @@ test("archived clients get no new-declaration button and an empty list explains 
   assert.match(container.textContent, /אין לקוחות בארכיון/);
 });
 
-test("a client with files in the inbox shows their number next to the name", () => {
+test("a client shows one badge with all it waits for: files in its inbox and rows to look at in its months (F2)", () => {
   const container = root(), handlers = { onClient() {}, onMenu() {}, onDeclaration() {}, onNewDeclaration() {} };
-  const clients = [{ ...client("Alpha"), entryName: "Alpha dir" }, { ...client("Beta"), entryName: "Beta dir" }];
-  renderSidebarClients(container, { clients, archivedMode: false, activeClientId: null, activeDeclarationId: null, expandedClientId: null, inboxCounts: { "Alpha dir": 4, "Beta dir": 0, "Other": 9 } }, handlers);
-  const badges = [...container.querySelectorAll(".client-item")].map((item) => item.querySelector(".inbox-count")?.textContent ?? null);
-  assert.deepEqual(badges, ["4", null]);
+  const clients = [{ ...client("Alpha"), entryName: "Alpha dir" }, { ...client("Beta"), entryName: "Beta dir" }, { ...client("Gamma"), entryName: "Gamma dir" }];
+  renderSidebarClients(container, {
+    clients, archivedMode: false, activeClientId: null, activeDeclarationId: null, expandedClientId: null,
+    inboxCounts: { "Alpha dir": 4, "Beta dir": 0, "Other": 9 }, reviewCounts: { "Alpha|2026-08": 2, "Alpha|2026-09": 1, "Gamma|2026-09": 5 },
+  }, handlers);
+  const badges = [...container.querySelectorAll(".client-item")].map((item) => item.querySelector(".waiting-count"));
+  assert.deepEqual(badges.map((badge) => badge?.textContent ?? null), ["7", null, "5"]);
+  assert.equal(badges[0].title, "קבצים בתיבת הקלט: 4 · שורות לבדיקה: 3");
+  assert.equal(badges[2].title, "שורות לבדיקה: 5");
   renderSidebarClients(container, { clients, archivedMode: false, activeClientId: null, activeDeclarationId: null, expandedClientId: null }, handlers);
-  assert.equal(container.querySelector(".inbox-count"), null);
+  assert.equal(container.querySelector(".waiting-count"), null);
 });
 
 function fakeWindow(href) {

@@ -224,8 +224,12 @@ body[data-view="clients"] #nav-clients {
   background: var(--success);
 }
 
-/* Rows to look at in a month (review-counts.js, C7). */
-.review-count {
+/* What waits for a client or in a month (sidebar-clients.js, F2): amber, to look at. */
+.app-shell[data-sidebar="collapsed"] .waiting-count {
+  display: none;
+}
+
+.waiting-count {
   display: inline-grid;
   flex: none;
   place-items: center;

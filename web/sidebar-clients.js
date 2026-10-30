@@ -16,9 +16,18 @@ function actionButton(root, className, label, onClick) {
   return button;
 }
 
+// The badge of what waits (docs/UI_REDESIGN_PROPOSAL.md, F2): the sum of the parts, and each part in the tooltip. Null when nothing waits.
+function waitingBadge(root, parts) {
+  const shown = parts.filter((part) => part.count > 0);
+  if (!shown.length) return null;
+  const badge = node(root, "span", "waiting-count", String(shown.reduce((sum, part) => sum + part.count, 0)));
+  badge.title = shown.map((part) => `${part.label}: ${part.count}`).join(" · ");
+  return badge;
+}
+
 // handlers: { onClient(client), onMenu(client), onDeclaration(client, month), onNewDeclaration(client) }
-// inboxCounts: files waiting in inbox/<client folder>/ by folder name; a client with files shows the number.
-// reviewCounts: rows to look at by "<client id>|<month>" (review-counts.js); such a month shows the number.
+// inboxCounts: files waiting in inbox/<client folder>/ by folder name. reviewCounts: rows to look at by "<client id>|<month>"
+// (review-counts.js). A client shows one badge with all it waits for; a month, its rows to look at.
 export function renderSidebarClients(root, {
   clients, archivedMode, activeClientId, activeDeclarationId, expandedClientId, inboxCounts = {}, reviewCounts = {},
 }, handlers) {
@@ -32,12 +41,13 @@ export function renderSidebarClients(root, {
     choose.setAttribute("aria-expanded", String(expanded));
     choose.title = client.clientName;
     choose.append(node(root, "span", "avatar", [...client.clientName][0] || "?"), node(root, "span", "label", client.clientName));
-    const waiting = inboxCounts[client.entryName] ?? 0;
-    if (waiting > 0) {
-      const badge = node(root, "span", "inbox-count", String(waiting));
-      badge.title = `קבצים בתיבת הקלט: ${waiting}`;
-      choose.append(badge);
-    }
+    let rows = 0;
+    for (const [key, count] of Object.entries(reviewCounts)) if (key.startsWith(`${client.id}|`)) rows += count;
+    const badge = waitingBadge(root, [
+      { label: "קבצים בתיבת הקלט", count: inboxCounts[client.entryName] ?? 0 },
+      { label: "שורות לבדיקה", count: rows },
+    ]);
+    if (badge) choose.append(badge);
     const menu = actionButton(root, "client-overflow", "⋯", () => handlers.onMenu(client));
     menu.setAttribute("aria-label", `פעולות עבור ${client.clientName}`);
     row.append(choose, menu);
@@ -54,11 +64,8 @@ export function renderSidebarClients(root, {
         dot.title = declaration.status === "open" ? "פתוחה" : "נעולה";
         choice.append(node(root, "span", "label", formatMonth(declaration.month)), dot);
         const review = reviewCounts[`${client.id}|${declaration.month}`] ?? 0;
-        if (review > 0) {
-          const mark = node(root, "span", "review-count", String(review));
-          mark.title = `שורות לבדיקה: ${review}`;
-          choice.insertBefore(mark, dot);
-        }
+        const mark = waitingBadge(root, [{ label: "שורות לבדיקה", count: review }]);
+        if (mark) choice.insertBefore(mark, dot);
         list.append(choice);
       }
       if (!client.config?.archived) list.append(actionButton(root, "new-declaration", "+ הצהרה חדשה", () => handlers.onNewDeclaration(client)));

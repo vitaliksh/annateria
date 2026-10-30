@@ -360,7 +360,7 @@ sync.refresh().catch(() => {});
 sync.start();
 const workspaceControls = setupWorkspaceControls({
   getInboxCounts: () => inboxFileCounts,
-  getReviewCounts: () => Object.fromEntries(reviewByMonth.map((item) => [`${item.clientId}|${item.month}`, item.count])),
+  getReviewCounts: () => Object.fromEntries(reviewList().map((item) => [`${item.clientId}|${item.month}`, item.count])),
   onClientsChanged: () => {
     clientsHome.refresh();
     // Later, not now: the first call comes from inside setupWorkspaceControls, before workspaceControls exists.
@@ -430,7 +430,7 @@ clientsHome.bind(workspaceControls, {
   onError: showError,
   getReviewCounts: () => {
     const sums = {};
-    for (const item of reviewByMonth) sums[item.clientId] = (sums[item.clientId] ?? 0) + item.count;
+    for (const item of reviewList()) sums[item.clientId] = (sums[item.clientId] ?? 0) + item.count;
     return sums;
   },
   onOpenReports: (clientId, kind) => {
@@ -463,16 +463,19 @@ async function countReview() {
   workspaceControls?.renderSidebar?.();
   waiting.set("rows", rowsToLook());
 }
-// Rows to look at, one item per client and month, with the client's name: the open month first (the toolbar's live count),
-// then the other open months from the saved tables.
-function rowsToLook() {
-  const names = new Map((workspaceControls?.getClients().active ?? []).map((client) => [client.id, client.clientName]));
+// Rows to look at, one item per client and month: the open month first (the toolbar's live count), then the other open months
+// from the saved tables. It must not touch workspaceControls: the sidebar asks for it while that is being made.
+function reviewList() {
   const openId = committedWorkspace && currentDeclaration ? committedWorkspace.config.clientId : null;
   const isOpen = (item) => item.clientId === openId && item.month === currentDeclaration?.month;
   const open = openId && openReview ? [{ clientId: openId, month: currentDeclaration.month, count: openReview }] : [];
-  const nameOf = (id) => names.get(id) ?? (id === openId ? committedWorkspace.config.clientName : "");
-  const named = (item) => ({ ...item, client: nameOf(item.clientId) });
-  return [...open, ...reviewByMonth.filter((item) => !isOpen(item))].map(named);
+  return [...open, ...reviewByMonth.filter((item) => !isOpen(item))];
+}
+// The same, with the client's name, for the strip.
+function rowsToLook() {
+  const names = new Map((workspaceControls?.getClients().active ?? []).map((client) => [client.id, client.clientName]));
+  const nameOf = (id) => names.get(id) ?? (id === committedWorkspace?.config.clientId ? committedWorkspace.config.clientName : "");
+  return reviewList().map((item) => ({ ...item, client: nameOf(item.clientId) }));
 }
 // The sidebar redraws often; the tables are read again only when the clients or their open months changed.
 function countReviewWhenChanged() {
@@ -492,8 +495,10 @@ async function openRowsToLook(item) {
 }
 const journalToolbar = setupJournalToolbar({
   onCounts: (counts) => {
+    const changed = openReview !== counts.review;
     openReview = counts.review;
     waiting.set("rows", rowsToLook());
+    if (changed) workspaceControls?.renderSidebar?.();
   },
   records: document.querySelector("#records"),
   menu: document.querySelector("#filter-menu"),
