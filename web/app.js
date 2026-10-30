@@ -1243,7 +1243,10 @@ function openPhoto(imageUrl, imageIndex, row = null) {
     title.id = "document-title";
     note.id = "document-note";
     note.hidden = true;
-    note.style.cssText = "position:absolute;inset:0;margin:0;display:grid;place-items:center;font-size:22px;color:#ddd;pointer-events:none";
+    // No display of its own: an inline display would beat the hidden attribute and keep the note over the photo.
+    note.style.cssText =
+      "position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);margin:0;" +
+      "text-align:center;font-size:22px;color:#ddd;pointer-events:none";
     controls.style.cssText = "display:flex;gap:8px";
     bar.style.cssText =
       "height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;background:#34566c";

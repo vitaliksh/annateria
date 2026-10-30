@@ -172,6 +172,11 @@ test("a HEIC original: the window says it is loading instead of staying black, a
   // In the test the decoder cannot be loaded from the CDN, as when the browser is offline.
   for (let tries = 0; tries < 50 && note.textContent.startsWith("טוען"); tries += 1) await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual([note.hidden, note.textContent], [false, "לא ניתן להציג את מקור #3 בדפדפן."]);
+  // The note has no display of its own, which would beat the hidden attribute and leave it over the photo.
+  assert.equal(note.style.display, "");
+  app.setRowImage(rows()[0], new File([new Uint8Array([1])], "004.jpg", { type: "image/jpeg" }), "004.jpg", 4);
+  rows()[0].cells[13].querySelector("button").click();
+  assert.equal(note.hidden, true);
 });
 
 test("a row imported from Excel has a source button that finds its file in imports/ by its hash; a missing file is said in the window", async () => {
