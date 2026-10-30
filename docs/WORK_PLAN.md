@@ -445,6 +445,9 @@ transfer files was tried and dropped as impractical, and overwriting files in Dr
 Gmail fetch through OAuth; PCN874 file; tax ID on report PDFs; clean-up of old snapshots; Claude as an alternative
 model behind the same proxy.
 
+- **UI redesign: nothing waits unseen** (owner, 30 October 2026, after an Excel import he believed done was only opened):
+  the proposal with findings and seven changes in a recommended order is `docs/UI_REDESIGN_PROPOSAL.md`. Nothing is built
+  until the owner approves a change; each approved change is one step and one commit.
 - **App help skill** (owner's reminder, 21 October 2026): a skill of the agent in the app that answers questions about ANNATERIA
   itself: where a button is, how to do something ("how do I add a client?", "where is the backup?"), what a message means. It
   must be written from the real interface (`index.html` labels) and kept in step with it, for example by a test that every button
