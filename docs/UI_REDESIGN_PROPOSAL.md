@@ -1,7 +1,11 @@
 # UI redesign proposal: nothing waits unseen
 
-Status: **proposal, waiting for the owner's approval** (30 October 2026). No code was changed for it. Each change below is one
-step = one commit, started only after the owner's "yes" for that change.
+Status: **approved by the owner for all seven changes** (30 October 2026: "implement it, then we'll try if it is good or not").
+Built one commit per change on the branch `claude/wizardly-snyder-83391f`, not on `main` until the owner tries it.
+
+| Change | State |
+| --- | --- |
+| C1 card states | built; checked in the local page with a scripted model (see `HANDOFF.md`) |
 
 ## The goal in one sentence
 

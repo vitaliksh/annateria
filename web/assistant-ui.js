@@ -357,10 +357,12 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
   }
 
   // A file prepared by the agent. The button asks the page to open the wizard (onCommand type "import"); the page reports back what
-  // happened to the file through `report`. The card stays after the run, so the button can be pressed later.
+  // happened to the file through `report`. The card stays after the run, so the button can be pressed later. Its state (data-state)
+  // is waiting, opened, unfinished (the wizard was closed before it wrote) or answered (done).
   function importCard(card) {
     const box = element("div", "assistant-card");
     box.dataset.kind = "import";
+    box.dataset.state = "waiting";
     box.append(element("p", "card-text", card.reason));
     box.append(isolated("card-about muted", [`${IMPORT_KINDS[card.kind] ?? card.kind} · `, { name: card.file.name }, ` · לקוח «${card.client.name}»`]));
     const { summary, totals } = card;
@@ -392,7 +394,10 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
       status.textContent = "";
       onCommand({
         type: "import", card,
-        report: ({ text, done = false }) => { status.textContent = text; if (done) { wizard.disabled = true; box.dataset.state = "answered"; } },
+        report: ({ text, done = false, state = "" }) => {
+          status.textContent = text;
+          if (done) { wizard.disabled = true; box.dataset.state = "answered"; } else if (state) box.dataset.state = state;
+        },
       });
     });
     actions.append(wizard);

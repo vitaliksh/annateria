@@ -134,6 +134,26 @@
   opacity: .65;
 }
 
+/* An import card shows how far its file got: waiting or opened (accent), unfinished (warning), done (success). */
+.assistant-card[data-kind="import"] {
+  border-inline-start: 4px solid var(--accent);
+}
+
+.assistant-card[data-kind="import"][data-state="unfinished"] {
+  border-color: var(--warning-border);
+  border-inline-start-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.assistant-card[data-kind="import"][data-state="unfinished"] .card-answer {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.assistant-card[data-kind="import"][data-state="answered"] {
+  border-inline-start-color: var(--success);
+}
+
 .assistant-card p {
   margin: 0;
 }

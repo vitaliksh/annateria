@@ -446,8 +446,9 @@ Gmail fetch through OAuth; PCN874 file; tax ID on report PDFs; clean-up of old s
 model behind the same proxy.
 
 - **UI redesign: nothing waits unseen** (owner, 30 October 2026, after an Excel import he believed done was only opened):
-  the proposal with findings and seven changes in a recommended order is `docs/UI_REDESIGN_PROPOSAL.md`. Nothing is built
-  until the owner approves a change; each approved change is one step and one commit.
+  the proposal with findings and seven changes in a recommended order is `docs/UI_REDESIGN_PROPOSAL.md`. The owner approved
+  all seven the same day; they are built one commit each on the branch `claude/wizardly-snyder-83391f` (the table at the top
+  of the proposal says which), and go to `main` only after he has tried them.
 - **App help skill** (owner's reminder, 21 October 2026): a skill of the agent in the app that answers questions about ANNATERIA
   itself: where a button is, how to do something ("how do I add a client?", "where is the backup?"), what a message means. It
   must be written from the real interface (`index.html` labels) and kept in step with it, for example by a test that every button

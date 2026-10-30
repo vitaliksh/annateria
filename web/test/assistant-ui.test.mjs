@@ -359,9 +359,16 @@ test("the button of the card asks the page to open the wizard, and the page tell
   button.click();
   assert.equal(commands.length, 1);
   assert.deepEqual([commands[0].type, commands[0].card.id, commands[0].card.file.hash], ["import", "I1", "a".repeat(64)]);
-  commands[0].report({ text: "האשף נפתח." });
+  assert.equal(q(".assistant-card[data-kind='import']").dataset.state, "waiting");
+  commands[0].report({ text: "האשף נפתח.", state: "opened" });
   assert.equal(q(".assistant-card[data-kind='import'] .card-answer").textContent, "האשף נפתח.");
+  assert.equal(q(".assistant-card[data-kind='import']").dataset.state, "opened");
+  commands[0].report({ text: "לא יובא: האשף נסגר לפני הסוף. הקובץ נשאר בתיבת הקלט.", state: "unfinished" });
+  assert.equal(q(".assistant-card[data-kind='import']").dataset.state, "unfinished");
+  assert.match(q(".assistant-card[data-kind='import'] .card-answer").textContent, /^לא יובא/);
   assert.equal(button.disabled, false, "the wizard can be opened again if it was closed without writing");
+  commands[0].report({ text: "הלקוח לא נמצא ברשימת הלקוחות." });
+  assert.equal(q(".assistant-card[data-kind='import']").dataset.state, "unfinished", "a report without a state keeps the state");
   commands[0].report({ text: "הייבוא בוצע.", done: true });
   assert.equal(button.disabled, true);
   assert.equal(q(".assistant-card[data-kind='import']").dataset.state, "answered");

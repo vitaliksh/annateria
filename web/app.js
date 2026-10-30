@@ -36,6 +36,7 @@ import { setupAccess } from "./access-ui.js";
 import { checkModelConnection, createModelClient } from "./model-client.js";
 import { setupTransfer } from "./transfer-ui.js";
 import { setupInbox } from "./inbox-ui.js";
+import { watchWizard } from "./import-card-flow.js";
 import { setupPhoneIntake } from "./phone-ui.js";
 import { progressLabel, setupAssistant } from "./assistant-ui.js";
 import { buildMessage, createAssistantFlow, keptNote, leftNote, resultNote } from "./assistant-flow.js";
@@ -822,11 +823,14 @@ async function openImportWizard({ card, report }) {
       if (committedWorkspace?.config.clientId !== client.config.clientId) return report({ text: "הלקוח לא נפתח, האשף לא נפתח." });
     }
     const file = await readInboxFile(dataRoot, entry);
-    report({ text: "האשף נפתח." });
+    report({ text: "האשף נפתח.", state: "opened" });
+    const dialog = { journal: "#excel-import-dialog", ledger_codes: "#ledger-codes-dialog", ledger_check: "#ledger-check-dialog" }[card.kind];
+    const watch = watchWizard({ dialog: dialog ? document.querySelector(dialog) : null, report });
     await wizard.openWith(file, {
       month: card.month ?? "",
       sourceHash: entry.hash,
       onCommitted: async () => {
+        watch.committed();
         try {
           const { importFile } = await fileImportOriginal(dataRoot, entry, client.directory);
           inboxUi?.refreshCounts();
@@ -838,6 +842,7 @@ async function openImportWizard({ card, report }) {
         }
       },
     });
+    watch.opened();
   } catch (error) {
     report({ text: `לא בוצע: ${error.message}` });
   }
