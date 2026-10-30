@@ -22,6 +22,7 @@ filtered the table and nothing said whose rows they were. Agreed with the owner,
 | F2 a sidebar badge per client (files + rows to look at) and per month (rows) | built; checked in the local page |
 | F3 a line above the filtered table, "מציג: שורות לבדיקה · client · month", and "הצג הכול" | built; checked in the local page |
 | F4 amber for "to look at", red only for "unfinished, you must act", in the strip, the badges and the card | built; checked in the local page |
+| F5 the status bar: no copy of the strip, one short red line only for red cases, clickable | built; checked in the local page |
 
 ## The goal in one sentence
 

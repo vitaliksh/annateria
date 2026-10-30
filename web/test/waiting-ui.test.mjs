@@ -11,10 +11,11 @@ const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "i
 function setup() {
   const { window } = new JSDOM(html);
   const root = window.document.querySelector("#waiting");
+  const alert = window.document.querySelector("#waiting-alert");
   const gone = [];
-  const waiting = setupWaiting({ root, onGo: (target) => gone.push(target) });
+  const waiting = setupWaiting({ root, alert, onGo: (target) => gone.push(target) });
   const texts = () => [...root.querySelectorAll(".waiting-item")].map((item) => item.textContent);
-  return { root, waiting, gone, texts };
+  return { root, alert, waiting, gone, texts };
 }
 const rows = (...items) => items.map(([client, month, count]) => ({ clientId: client, client, month, count }));
 
@@ -60,6 +61,23 @@ test("red only for an import closed before it finished; everything else amber (F
   waiting.set("rows", rows(["A", "2026-01", 1]));
   const levels = [...root.querySelectorAll(".waiting-item")].map((item) => [item.dataset.kind, item.dataset.level]);
   assert.deepEqual(levels, [["question", "look"], ["import", "act"], ["import", "look"], ["inbox", "look"], ["rows", "look"]]);
+});
+
+test("the status bar shows one short red line only while something red waits, and a click goes there (F5)", () => {
+  const { alert, waiting, gone } = setup();
+  assert.ok(alert.closest(".statusbar"), "it lives in the status bar");
+  waiting.set("inbox", 3);
+  waiting.set("rows", rows(["A", "2026-01", 1]));
+  waiting.set("imports", [{ name: "b.xlsx", client: "B", state: "waiting" }]);
+  assert.equal(alert.hidden, true, "nothing red: no copy of the strip");
+  waiting.set("imports", [{ name: "b.xlsx", client: "B", state: "waiting" }, { name: "a.xlsx", client: "A", state: "unfinished" }]);
+  assert.deepEqual([alert.hidden, alert.textContent], [false, "A · ייבוא שלא הושלם: a.xlsx"]);
+  alert.click();
+  assert.deepEqual(gone, [{ kind: "import", index: 1 }]);
+  waiting.set("imports", [{ name: "a.xlsx", client: "A", state: "unfinished" }, { name: "c.xlsx", client: "C", state: "unfinished" }]);
+  assert.equal(alert.textContent, "A · ייבוא שלא הושלם: a.xlsx (+1)");
+  waiting.set("imports", []);
+  assert.equal(alert.hidden, true);
 });
 
 test("a click says where to go", () => {

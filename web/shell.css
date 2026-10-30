@@ -53,6 +53,26 @@ body {
   border-color: var(--warning);
 }
 
+/* The status bar's one red line (waiting-ui.js, F5): only while something red waits; a click goes there. */
+.statusbar-alert {
+  flex: none;
+  max-width: 50%;
+  overflow: hidden;
+  padding: 1px var(--s3);
+  border: 1px solid var(--error-border);
+  border-radius: 999px;
+  background: var(--error-soft);
+  color: var(--error);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusbar-alert[hidden] {
+  display: none;
+}
+
 /* Red only for "unfinished, you must act" (F4). */
 .waiting-item[data-level="act"] {
   border-color: var(--error-border);

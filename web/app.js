@@ -447,7 +447,9 @@ folderPathInput.addEventListener("change", () => {
   if (dataRoot) saveUiSettings(dataRoot, { folderPath: folderPathInput.value }).catch((error) => showError(`לא ניתן לשמור את הנתיב: ${error.message}`));
 });
 // The strip "ממתין לך" (docs/UI_REDESIGN_PROPOSAL.md, C6): the panel, the inbox and the toolbar tell it what waits; a click goes there.
-const waiting = setupWaiting({ root: document.querySelector("#waiting"), onGo: (target) => goToWaiting(target) });
+const waiting = setupWaiting({
+  root: document.querySelector("#waiting"), alert: document.querySelector("#waiting-alert"), onGo: (target) => goToWaiting(target),
+});
 function goToWaiting({ kind, index }) {
   if (kind === "inbox") return inboxUi?.open();
   if (kind === "rows") return openRowsToLook(rowsToLook()[index]);

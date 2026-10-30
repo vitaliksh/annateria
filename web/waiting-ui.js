@@ -14,7 +14,8 @@ export const levelOf = (item) => (item.state === "unfinished" ? "act" : "look");
 
 // Parts: question (open questions of the agent), imports ([{ name, client }] of import cards not done), inbox (files), rows
 // ([{ clientId, client, month, count }] of rows to look at, one per client and month, in the order to show).
-export function setupWaiting({ root, onGo = () => {} }) {
+// alert: an element of the status bar that shows one short red line, only while something red waits (F5); a click goes there.
+export function setupWaiting({ root, alert = null, onGo = () => {} }) {
   const doc = root.ownerDocument;
   const state = { question: 0, imports: [], inbox: 0, rows: [] };
 
@@ -52,6 +53,20 @@ export function setupWaiting({ root, onGo = () => {} }) {
       go.addEventListener("click", () => onGo({ kind, index }));
       return go;
     }));
+    drawAlert(shown);
+  }
+
+  // The status bar copies nothing of the strip but the first red item, and how many more red ones there are.
+  function drawAlert(shown) {
+    if (!alert) return;
+    const red = shown.filter((item) => item.level === "act");
+    alert.hidden = !red.length;
+    if (!red.length) return alert.replaceChildren();
+    const [first] = red;
+    const isolated = (name) => Object.assign(doc.createElement("bdi"), { textContent: name });
+    alert.replaceChildren(...first.parts.map((part) => (typeof part === "string" ? part : isolated(part.name))));
+    if (red.length > 1) alert.append(` (+${red.length - 1})`);
+    alert.onclick = () => onGo({ kind: first.kind, index: first.index });
   }
 
   draw();
