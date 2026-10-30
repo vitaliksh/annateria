@@ -1,5 +1,6 @@
 import { setupWorkspaceControls } from "./workspace.js";
 import { pdfSourceFileName } from "./pdf-import.js";
+import { isHeic, viewableImage } from "./heic-view.js";
 import {
   finalizeDeclaration,
   reopenLockedDeclaration,
@@ -563,6 +564,7 @@ function setRowImage(row, blob, imageFile, imageIndex) {
   row.dataset.imageIndex = String(imageIndex);
   row.documentImage = blob;
   row.imageUrl = URL.createObjectURL(blob);
+  row.viewUrl = undefined;
   const open = document.createElement("button");
   open.type = "button";
   open.className = "photo-button";
@@ -1288,9 +1290,28 @@ function openPhoto(imageUrl, imageIndex, row = null) {
     };
     image.ondragstart = (event) => event.preventDefault();
   }
-  doc.querySelector("#document-title").textContent = `תמונה #${imageIndex}`;
-  doc.querySelector("#document-image").src = imageUrl;
+  const title = doc.querySelector("#document-title");
+  const image = doc.querySelector("#document-image");
+  title.textContent = `תמונה #${imageIndex}`;
+  image.dataset.pending = "";
+  if (row && !row.viewUrl && isHeic(row.dataset.imageFile, row.documentImage)) showHeic(row, imageIndex, title, image);
+  else image.src = row?.viewUrl || imageUrl;
   imagePopup.focus();
+}
+// A HEIC original is shown as a JPEG made once and kept on the row; a click on another row meanwhile wins.
+async function showHeic(row, imageIndex, title, image) {
+  const request = crypto.randomUUID();
+  image.dataset.pending = request;
+  image.removeAttribute("src");
+  title.textContent = `תמונה #${imageIndex} · טוען את התמונה…`;
+  try {
+    row.viewUrl ??= URL.createObjectURL(await viewableImage(row.documentImage, row.dataset.imageFile));
+    if (image.dataset.pending !== request) return;
+    image.src = row.viewUrl;
+    title.textContent = `תמונה #${imageIndex}`;
+  } catch {
+    if (image.dataset.pending === request) title.textContent = `תמונה #${imageIndex} · לא ניתן להציג את התמונה בדפדפן`;
+  }
 }
 
 // Adds the rows of a periodic income report read from its text layer.
