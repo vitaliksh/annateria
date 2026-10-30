@@ -70,7 +70,8 @@ function badge(root, declaration) {
 }
 
 // handlers: { onOpen(id), onNew(), onSearch(query), onToggleArchived(), onChooseRoot(), onGrant() }
-export function renderClientsHome(root, { clients, archivedCount, showingArchived, query, hasRoot, needsPermission = false }, handlers) {
+// review: rows to look at in the open declarations, by client id (review-counts.js); shown in the column "לבדיקה".
+export function renderClientsHome(root, { clients, archivedCount, showingArchived, query, hasRoot, needsPermission = false, review = {} }, handlers) {
   root.replaceChildren();
   const head = el(root, "div", "view-head");
   head.append(el(root, "h2", "", showingArchived ? "לקוחות בארכיון" : "לקוחות"));
@@ -113,7 +114,7 @@ export function renderClientsHome(root, { clients, archivedCount, showingArchive
 
   const table = el(root, "table", "data-table clients-table");
   const headRow = table.createTHead().insertRow();
-  for (const label of ["לקוח", "פעילות", "הצהרה אחרונה", "פתוחות", "נעולות"]) headRow.append(el(root, "th", "", label));
+  for (const label of ["לקוח", "פעילות", "הצהרה אחרונה", "פתוחות", "נעולות", "לבדיקה"]) headRow.append(el(root, "th", "", label));
   const body = table.createTBody();
   for (const client of shown) {
     const summary = clientSummary(client);
@@ -124,6 +125,10 @@ export function renderClientsHome(root, { clients, archivedCount, showingArchive
     row.insertCell().textContent = summary.last ? formatMonth(summary.last) : "—";
     row.insertCell().textContent = String(summary.open);
     row.insertCell().textContent = String(summary.locked);
+    const toLook = review[summary.id] ?? 0;
+    const cell = row.insertCell();
+    cell.textContent = toLook ? String(toLook) : "—";
+    if (toLook) cell.className = "review-cell";
     row.addEventListener("dblclick", () => handlers.onOpen(summary.id));
   }
   const card = el(root, "div", "card table-card");

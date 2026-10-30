@@ -7,7 +7,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
 `2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-30a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip), Worker 69 (`2026.10.23.2`,
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip, 942 all months), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
@@ -62,6 +62,20 @@ first). The owner and Anna are now checking them on real data; nothing is half d
     minimized the import entry opened it at the card; from the clients home the rows entry opened 08/2026 filtered; the inbox
     entry opened the dialog. An import card is gone after a reload (the feed is memory only), its file still counts in the
     inbox. **Not verified:** a question card waiting (unit test only), a narrow window, the published page.
+  - **C7, rows to look at in every open month.** `review-counts.js` reads the saved table of each open, not archived
+    declaration of every active client and counts its rows by the toolbar's rule (`needsLook`, now shared by `rowKinds` and
+    `savedRowNeedsLook`; a test draws the same month and gets the same number). Shown as a column "לבדיקה" in the clients home,
+    a number beside the month in the sidebar, and in the strip as "{n} שורות לבדיקה ב-{months}" for months other than the
+    open one (a click opens the first, filtered). Counted again a second after a save, the end of a run, an import from a card,
+    or a change of the clients or their months. Changed existing code: `rowKinds`, `renderSidebarClients` and
+    `renderClientsHome` (new options with defaults, a sixth column), `setupWorkspaceControls` (`getReviewCounts`),
+    `clientsHome.bind`, `saveCurrentDraft`, `runAssistant`. **Found in the browser, not by the tests:** the first sidebar
+    drawing runs inside `setupWorkspaceControls`, so the hook must wait (`queueMicrotask`) or the page stops with a
+    `ReferenceError`; jsdom never reaches that path. Checked in the local page: after a scripted run, without opening the
+    month, home column "1", sidebar "08/2026 1", strip "שורה אחת לבדיקה ב-08/2026"; its click opened 08/2026 filtered, and
+    the strip then said "…בחודש הפתוח". A possible duplicate is found only when a month is drawn, so the saved count can be
+    one higher until that month is opened and saved. **Not verified:** many clients (the time to read their tables), the
+    published page.
 - **A credit note of income keeps its negative VAT** (30 October, owner). The Excel import flipped VAT to positive for every
   row that was not an expense credit, so Anna's credit invoice 140 of 8/2026 (net -403.63, VAT -72.65) came in with VAT
   +72.65 and output VAT 145.30 too high. VAT now takes the sign of net for every row (`excel-import.js`). Only that one row
@@ -454,8 +468,8 @@ the published page (0.3 shipped a missing `let` that only a browser showed).
   a tool to reach data), `tools/` (nine so far: `list_inbox`, `read_document`, `extract_document`, `find_client`, `get_client_context`, `query_rows`, `facts_for`, `ask_user`, `propose_change`),
   `adapters/` (`documents.js`: inside of files; `extraction.js`: the vision call), `web/assistant-ui.js` (the dock), `web/assistant-flow.js` (runs the agent for the dock), `assistant.css`, `web/model-settings-ui.js` (the model selects of the settings), `fact-record.js`, `prompts.js` (the base prompt and `AGENT_VERSION`), `skills.js` (parse, load and assemble the skills), `models.js`, `kinds.js`, `semaphore.js`; `rules-store.js` (reads `rules.md`). Specification: `docs/AGENT_TOOLS.md`. Not wired into `app.js` yet (4.3).
 - **"Nothing waits unseen" (UI redesign, 30 October):** `web/import-card-flow.js` (how a wizard opened from an import card
-  ended, C1), `web/waiting-ui.js` (the strip "ממתין לך" under the top bar, C6). The card "לטיפולך" is `showTodo` in
-  `assistant-ui.js` (C5).
+  ended, C1), `web/waiting-ui.js` (the strip "ממתין לך" under the top bar, C6), `web/review-counts.js` (rows to look at in
+  every open month, read from the saved tables, C7). The card "לטיפולך" is `showTodo` in `assistant-ui.js` (C5).
 - **Skills (5.1, 5.2):** `web/skills/<name>/SKILL.md` (four: `invoice-extraction`, `classification`, `periods-and-duplicates`, `pcn-allocation`), `web/agent/skills.js`; tests `test/skills.test.mjs`, helper `test/skills-fixture.mjs`, ledger
   `test/fixtures/skill-hashes.json`.
 - **Eval (5.3):** `web/eval/eval-core.mjs` (builds a case, runs it through `createAssistantFlow`, checks), `web/eval/run-eval.mjs` (`npm run eval`),

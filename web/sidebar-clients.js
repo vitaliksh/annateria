@@ -18,7 +18,10 @@ function actionButton(root, className, label, onClick) {
 
 // handlers: { onClient(client), onMenu(client), onDeclaration(client, month), onNewDeclaration(client) }
 // inboxCounts: files waiting in inbox/<client folder>/ by folder name; a client with files shows the number.
-export function renderSidebarClients(root, { clients, archivedMode, activeClientId, activeDeclarationId, expandedClientId, inboxCounts = {} }, handlers) {
+// reviewCounts: rows to look at by "<client id>|<month>" (review-counts.js); such a month shows the number.
+export function renderSidebarClients(root, {
+  clients, archivedMode, activeClientId, activeDeclarationId, expandedClientId, inboxCounts = {}, reviewCounts = {},
+}, handlers) {
   root.replaceChildren();
   for (const client of clients) {
     const expanded = client.id === expandedClientId;
@@ -50,6 +53,12 @@ export function renderSidebarClients(root, { clients, archivedMode, activeClient
         dot.dataset.state = declaration.status === "open" ? "open" : "locked";
         dot.title = declaration.status === "open" ? "פתוחה" : "נעולה";
         choice.append(node(root, "span", "label", formatMonth(declaration.month)), dot);
+        const review = reviewCounts[`${client.id}|${declaration.month}`] ?? 0;
+        if (review > 0) {
+          const mark = node(root, "span", "review-count", String(review));
+          mark.title = `שורות לבדיקה: ${review}`;
+          choice.insertBefore(mark, dot);
+        }
         list.append(choice);
       }
       if (!client.config?.archived) list.append(actionButton(root, "new-declaration", "+ הצהרה חדשה", () => handlers.onNewDeclaration(client)));

@@ -2,19 +2,29 @@
 // and on every view, hidden when nothing waits. The page feeds each part from its own source (the panel, the inbox, the journal
 // toolbar) through set(); a click calls onGo({ kind, index }) and the page goes there. This file only draws.
 
+import { formatMonth } from "./month-format.js";
+
 const count = (value, one, many) => (value === 1 ? one : `${value} ${many}`);
 
+// The months of the part "months", at most three, then "…".
+function monthsText(months) {
+  const shown = [...new Set(months.map((item) => formatMonth(item.month)))];
+  return shown.length > 3 ? `${shown.slice(0, 3).join(", ")}…` : shown.join(", ");
+}
+
 // Parts: question (open questions of the agent), imports ([{ name }] of import cards not done), inbox (files), review (rows to look
-// at in the open month).
+// at in the open month), months ([{ clientId, month, count }] of rows to look at in the other open months, C7).
 export function setupWaiting({ root, onGo = () => {} }) {
   const doc = root.ownerDocument;
-  const state = { question: 0, imports: [], inbox: 0, review: 0 };
+  const state = { question: 0, imports: [], inbox: 0, review: 0, months: [] };
+  const inMonths = () => state.months.reduce((sum, item) => sum + item.count, 0);
 
   const items = () => [
     ...(state.question ? [{ kind: "question", text: "שאלה של העוזר ממתינה לתשובה" }] : []),
     ...state.imports.map((item, index) => ({ kind: "import", index, text: `ייבוא שלא הושלם: ${item.name}` })),
     ...(state.inbox ? [{ kind: "inbox", text: `${count(state.inbox, "קובץ אחד", "קבצים")} בתיבת הקלט` }] : []),
     ...(state.review ? [{ kind: "review", text: `${count(state.review, "שורה אחת", "שורות")} לבדיקה בחודש הפתוח` }] : []),
+    ...(inMonths() ? [{ kind: "months", text: `${count(inMonths(), "שורה אחת", "שורות")} לבדיקה ב-${monthsText(state.months)}` }] : []),
   ];
 
   function draw() {
@@ -43,7 +53,7 @@ export function setupWaiting({ root, onGo = () => {} }) {
   return {
     set(part, value) {
       if (!(part in state)) return;
-      state[part] = value ?? (part === "imports" ? [] : 0);
+      state[part] = value ?? (Array.isArray(state[part]) ? [] : 0);
       draw();
     },
     items,

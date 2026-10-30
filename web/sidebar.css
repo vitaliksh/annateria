@@ -224,6 +224,23 @@ body[data-view="clients"] #nav-clients {
   background: var(--success);
 }
 
+/* Rows to look at in a month (review-counts.js, C7). */
+.review-count {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-inline-start: auto;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .state-dot[data-state="locked"] {
   background: var(--info);
 }

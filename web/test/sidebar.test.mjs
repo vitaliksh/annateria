@@ -89,6 +89,17 @@ test("the sidebar list marks the active client, shows declarations of the expand
   assert.deepEqual(calls, [["declaration", "Alpha", "2026-01"], ["new", "Alpha"], ["menu", "Beta"], ["client", "Beta"]]);
 });
 
+test("a month with rows to look at shows their number beside it (C7)", () => {
+  const container = root(), handlers = { onClient() {}, onMenu() {}, onDeclaration() {}, onNewDeclaration() {} };
+  renderSidebarClients(container, {
+    clients: [client("Alpha", [declaration("2026-01"), declaration("2026-02")])], archivedMode: false, activeClientId: "Alpha", activeDeclarationId: null,
+    expandedClientId: "Alpha", reviewCounts: { "Alpha|2026-02": 3 },
+  }, handlers);
+  const choices = [...container.querySelectorAll(".declaration-choice")];
+  assert.deepEqual(choices.map((choice) => choice.querySelector(".review-count")?.textContent ?? ""), ["3", ""]);
+  assert.equal(choices[0].querySelector(".review-count").title, "שורות לבדיקה: 3");
+});
+
 test("archived clients get no new-declaration button and an empty list explains itself", () => {
   const container = root(), handlers = { onClient() {}, onMenu() {}, onDeclaration() {}, onNewDeclaration() {} };
   renderSidebarClients(container, { clients: [client("Old", [declaration("2026-01")], true)], archivedMode: true, activeClientId: null, activeDeclarationId: null, expandedClientId: "Old" }, handlers);

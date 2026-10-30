@@ -15,8 +15,15 @@ export function rowKinds(row) {
   const status = row.cells?.[16];
   const excluded = row.classList.contains("not-for-export");
   const duplicate = row.dataset?.duplicate === "true";
-  const flagged = Boolean(status?.classList.contains("review")) && (Boolean(row.dataset?.imageFile) || duplicate);
-  return { review: (!excluded || leftOut(row)) && flagged, duplicate, excluded };
+  const review = needsLook({
+    flagged: Boolean(status?.classList.contains("review")), excluded, image: Boolean(row.dataset?.imageFile), duplicate, leftOut: leftOut(row),
+  });
+  return { review, duplicate, excluded };
+}
+
+// The one rule of "לבדיקה", for a drawn row (rowKinds) and for a saved one (review-counts.js), so their numbers agree.
+export function needsLook({ flagged, excluded, image, duplicate = false, leftOut: left = false }) {
+  return (!excluded || left) && flagged && (image || duplicate);
 }
 
 // A row the code added for a document the agent left out ("nothing is lost", add-rows.js) is off until the user decides,

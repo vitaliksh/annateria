@@ -7,6 +7,7 @@ import { formatMonth } from "./month-format.js";
 
 export function createClientsHome(doc = document) {
   let report = () => {};
+  let reviewOf = () => ({}); // rows to look at by client id (C7)
   let openReports = () => {};
   let exportMonth = () => {};
   const homeRoot = doc.querySelector("#clients-view"), cardRoot = doc.querySelector("#client-view"), journalRoot = doc.querySelector("#journal-view"), crumb = doc.querySelector("#breadcrumb"), reportsRoot = doc.querySelector("#reports-view"), navReports = doc.querySelector("#nav-reports");
@@ -48,7 +49,7 @@ export function createClientsHome(doc = document) {
     if (!controls) return renderCrumb();
     const state = controls.getClients();
     if (view === "clients") {
-      renderClientsHome(homeRoot, { clients: showingArchived ? state.archived : state.active, archivedCount: state.archived.length, showingArchived, query, hasRoot: state.hasRoot, needsPermission: state.needsPermission }, {
+      renderClientsHome(homeRoot, { clients: showingArchived ? state.archived : state.active, archivedCount: state.archived.length, showingArchived, query, hasRoot: state.hasRoot, needsPermission: state.needsPermission, review: reviewOf() }, {
         onOpen: openClient,
         onNew: openNewClientForm,
         onSearch: (value) => { query = value; render(); doc.querySelector("#clients-search")?.focus(); },
@@ -115,7 +116,8 @@ export function createClientsHome(doc = document) {
   }
 
   return {
-    bind(workspaceControls, { onError, onOpenReports, onExportMonth } = {}) {
+    bind(workspaceControls, { onError, onOpenReports, onExportMonth, getReviewCounts } = {}) {
+      if (getReviewCounts) reviewOf = getReviewCounts;
       controls = workspaceControls;
       if (onError) report = onError;
       if (onOpenReports) openReports = onOpenReports;

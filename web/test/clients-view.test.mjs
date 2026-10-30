@@ -34,13 +34,22 @@ test("the clients home shows a table, opens a client by its name and reports sea
   renderClientsHome(container, { clients: [client("Alpha", [declaration("2026-03")]), client("Beta")], archivedCount: 2, showingArchived: false, query: "", hasRoot: true }, handlers);
   const rows = [...container.querySelectorAll("tbody tr")];
   assert.equal(rows.length, 2);
-  assert.deepEqual([...rows[0].cells].map((cell) => cell.textContent), ["Alpha", "Alpha activity", "03/2026", "1", "0"]);
+  assert.deepEqual([...rows[0].cells].map((cell) => cell.textContent), ["Alpha", "Alpha activity", "03/2026", "1", "0", "—"]);
   assert.equal(rows[1].cells[2].textContent, "—");
   rows[0].querySelector("button").click();
   container.querySelector("#clients-search").dispatchEvent(new container.ownerDocument.defaultView.Event("input"));
   buttonByText(container, "ארכיון (2)").click();
   buttonByText(container, "+ לקוח חדש").click();
   assert.deepEqual(calls, [["open", "Alpha"], ["search", ""], ["archive"], ["new"]]);
+});
+
+test("the clients home has a column לבדיקה with the rows to look at in each client's open months (C7)", () => {
+  const container = root();
+  const handlers = { onOpen() {}, onNew() {}, onSearch() {}, onToggleArchived() {}, onChooseRoot() {} };
+  renderClientsHome(container, { clients: [client("Alpha"), client("Beta")], archivedCount: 0, showingArchived: false, query: "", hasRoot: true, review: { Beta: 4 } }, handlers);
+  assert.equal([...container.querySelectorAll("th")].at(-1).textContent, "לבדיקה");
+  const last = [...container.querySelectorAll("tbody tr")].map((row) => row.cells[5]);
+  assert.deepEqual(last.map((cell) => [cell.textContent, cell.className]), [["—", ""], ["4", "review-cell"]]);
 });
 
 test("the clients home explains an empty state: no data root, no clients, no search result", () => {

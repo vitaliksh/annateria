@@ -38,6 +38,7 @@ import { setupTransfer } from "./transfer-ui.js";
 import { setupInbox } from "./inbox-ui.js";
 import { watchWizard } from "./import-card-flow.js";
 import { setupWaiting } from "./waiting-ui.js";
+import { reviewCounts } from "./review-counts.js";
 import { setupPhoneIntake } from "./phone-ui.js";
 import { progressLabel, setupAssistant } from "./assistant-ui.js";
 import { buildMessage, createAssistantFlow, keptNote, leftNote, resultNote } from "./assistant-flow.js";
@@ -100,6 +101,9 @@ let dataRoot = null,
   inboxUi = null,
   modelSettings = null,
   inboxFileCounts = {},
+  reviewByMonth = [], // rows to look at in the open months of every client, from the saved tables (C7)
+  reviewTimer = null,
+  reviewShape = "",
   workspace = null,
   committedWorkspace = null,
   currentDeclaration = null,
@@ -355,7 +359,12 @@ sync.refresh().catch(() => {});
 sync.start();
 const workspaceControls = setupWorkspaceControls({
   getInboxCounts: () => inboxFileCounts,
-  onClientsChanged: () => clientsHome.refresh(),
+  getReviewCounts: () => Object.fromEntries(reviewByMonth.map((item) => [`${item.clientId}|${item.month}`, item.count])),
+  onClientsChanged: () => {
+    clientsHome.refresh();
+    // Later, not now: the first call comes from inside setupWorkspaceControls, before workspaceControls exists.
+    queueMicrotask(countReviewWhenChanged);
+  },
   onClientOpen: (clientId) => clientsHome.openClient(clientId),
   newClientDialog: document.querySelector("#new-client-dialog"),
   newClientError: document.querySelector("#new-client-error"),
@@ -418,6 +427,11 @@ const workspaceControls = setupWorkspaceControls({
 });
 clientsHome.bind(workspaceControls, {
   onError: showError,
+  getReviewCounts: () => {
+    const sums = {};
+    for (const item of reviewByMonth) sums[item.clientId] = (sums[item.clientId] ?? 0) + item.count;
+    return sums;
+  },
   onOpenReports: (clientId, kind) => {
     const state = workspaceControls.getClients();
     const client = [...state.active, ...state.archived].find((item) => item.id === clientId);
@@ -433,6 +447,7 @@ folderPathInput.addEventListener("change", () => {
 const waiting = setupWaiting({ root: document.querySelector("#waiting"), onGo: (target) => goToWaiting(target) });
 function goToWaiting({ kind, index }) {
   if (kind === "inbox") return inboxUi?.open();
+  if (kind === "months") return openReviewMonth();
   if (kind === "review") {
     if (committedWorkspace && currentDeclaration) {
       clientsHome.showJournal({ clientId: committedWorkspace.config.clientId, month: currentDeclaration.month });
@@ -441,8 +456,41 @@ function goToWaiting({ kind, index }) {
   }
   assistant.reveal({ kind, index });
 }
+// C7: rows to look at in the other open months, counted from the saved tables a moment after a save, a run, an import or a
+// change of the clients and their months; the open month is the toolbar's own count.
+function scheduleReviewCounts() {
+  clearTimeout(reviewTimer);
+  reviewTimer = setTimeout(() => countReview().catch(() => {}), 1000);
+}
+async function countReview() {
+  reviewByMonth = await reviewCounts(workspaceControls?.getClients().active ?? []);
+  workspaceControls?.renderSidebar?.();
+  showOtherMonths();
+}
+function showOtherMonths() {
+  const open = committedWorkspace && currentDeclaration ? `${committedWorkspace.config.clientId}|${currentDeclaration.month}` : "";
+  waiting.set("months", reviewByMonth.filter((item) => `${item.clientId}|${item.month}` !== open));
+}
+// The sidebar redraws often; the tables are read again only when the clients or their open months changed.
+function countReviewWhenChanged() {
+  const monthsOf = (client) => (client.declarations ?? []).map(({ declaration }) => `${declaration.month}${declaration.status}`).join(",");
+  const shape = (workspaceControls?.getClients().active ?? []).map((client) => `${client.id}:${monthsOf(client)}`).join(";");
+  if (shape === reviewShape) return;
+  reviewShape = shape;
+  scheduleReviewCounts();
+}
+async function openReviewMonth() {
+  const isOpen = (item) => committedWorkspace?.config.clientId === item.clientId && currentDeclaration?.month === item.month;
+  const first = reviewByMonth.find((item) => !isOpen(item));
+  if (!first) return;
+  await workspaceControls.openDeclaration(first.clientId, first.month);
+  journalToolbar.setFilter("review");
+}
 const journalToolbar = setupJournalToolbar({
-  onCounts: (counts) => waiting.set("review", counts.review),
+  onCounts: (counts) => {
+    waiting.set("review", counts.review);
+    showOtherMonths();
+  },
   records: document.querySelector("#records"),
   menu: document.querySelector("#filter-menu"),
   summary: {
@@ -803,6 +851,7 @@ async function runAssistant(kind, text) {
     assistantRun = null;
     assistant.setBusy(false);
     inboxUi?.refreshCounts();
+    scheduleReviewCounts(); // the agent writes to months that are not open
   }
 }
 // The button of an import card (step 4.7): opens the wizard of its kind (Excel import, classification codes, ledger check) with the file from the
@@ -851,6 +900,7 @@ async function openImportWizard({ card, report }) {
       sourceHash: entry.hash,
       onCommitted: async () => {
         watch.committed();
+        scheduleReviewCounts();
         try {
           const { importFile } = await fileImportOriginal(dataRoot, entry, client.directory);
           inboxUi?.refreshCounts();
@@ -934,6 +984,7 @@ async function saveCurrentDraft() {
       [...records.querySelectorAll("tr[data-document-id]")].map(rowSnapshot),
     );
     sync.changed();
+    scheduleReviewCounts();
   } catch (error) {
     showError("לא ניתן לשמור טיוטה מקומית: " + error.message);
     throw error;

@@ -11,6 +11,7 @@ Built one commit per change on the branch `claude/wizardly-snyder-83391f`, not o
 | C4 left-out rows under "to look at" | built after a reproducing test; checked in the local page |
 | C5 "for you" card at the end of a run | built; checked in the local page with a scripted model |
 | C6 "waiting for you" strip | built; checked in the local page with a scripted model |
+| C7 rows to look at across months and clients | built; checked in the local page with a scripted model |
 
 ## The goal in one sentence
 

@@ -41,6 +41,12 @@
   white-space: nowrap;
 }
 
+/* A client with rows to look at in its open months (C7). */
+.clients-table td.review-cell {
+  color: var(--warning);
+  font-weight: 700;
+}
+
 .table-card {
   padding: var(--s2) var(--s3);
 }

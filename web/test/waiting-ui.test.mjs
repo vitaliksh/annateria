@@ -43,6 +43,18 @@ test("each part that waits is one button, in a fixed order, and the strip hides 
   assert.equal(root.hidden, true);
 });
 
+test("rows to look at in other open months are one entry with their months, at most three shown (C7)", () => {
+  const { waiting, texts, gone, root } = setup();
+  waiting.set("months", [{ clientId: "a", month: "2026-07", count: 2 }, { clientId: "b", month: "2026-07", count: 1 }]);
+  assert.deepEqual(texts(), ["3 שורות לבדיקה ב-07/2026"]);
+  waiting.set("months", ["2026-05", "2026-06", "2026-07", "2026-08"].map((month) => ({ clientId: "a", month, count: 1 })));
+  assert.deepEqual(texts(), ["4 שורות לבדיקה ב-05/2026, 06/2026, 07/2026…"]);
+  root.querySelector(".waiting-item").click();
+  assert.deepEqual(gone, [{ kind: "months", index: undefined }]);
+  waiting.set("months", []);
+  assert.equal(root.hidden, true);
+});
+
 test("a click says where to go", () => {
   const { root, waiting, gone } = setup();
   waiting.set("imports", [{ name: "a.xlsx" }, { name: "b.xlsx" }]);
