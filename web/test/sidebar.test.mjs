@@ -119,8 +119,22 @@ test("a client shows one badge with all it waits for: files in its inbox and row
   assert.deepEqual(badges.map((badge) => badge?.textContent ?? null), ["7", null, "5"]);
   assert.equal(badges[0].title, "קבצים בתיבת הקלט: 4 · שורות לבדיקה: 3");
   assert.equal(badges[2].title, "שורות לבדיקה: 5");
+  assert.deepEqual(badges.map((badge) => badge?.dataset.level ?? null), ["look", null, "look"], "amber: to look at");
   renderSidebarClients(container, { clients, archivedMode: false, activeClientId: null, activeDeclarationId: null, expandedClientId: null }, handlers);
   assert.equal(container.querySelector(".waiting-count"), null);
+});
+
+test("a client with an import closed before it finished gets a red badge; one not opened yet counts in amber (F4)", () => {
+  const container = root(), handlers = { onClient() {}, onMenu() {}, onDeclaration() {}, onNewDeclaration() {} };
+  const clients = [client("Alpha"), client("Beta")];
+  const imports = [{ clientId: "Alpha", state: "unfinished" }, { clientId: "Beta", state: "waiting" }];
+  renderSidebarClients(container, {
+    clients, archivedMode: false, activeClientId: null, activeDeclarationId: null, expandedClientId: null, imports, reviewCounts: { "Alpha|2026-08": 2 },
+  }, handlers);
+  const badges = [...container.querySelectorAll(".client-item .waiting-count")];
+  assert.deepEqual(badges.map((badge) => [badge.textContent, badge.dataset.level]), [["3", "act"], ["1", "look"]]);
+  assert.equal(badges[0].title, "ייבוא שלא הושלם: 1 · שורות לבדיקה: 2");
+  assert.equal(badges[1].title, "ייבוא שממתין: 1");
 });
 
 function fakeWindow(href) {

@@ -103,6 +103,7 @@ let dataRoot = null,
   inboxFileCounts = {},
   reviewByMonth = [], // rows to look at in the open months of every client, from the saved tables (C7)
   openReview = 0, // rows to look at in the open month, the toolbar's live count
+  pendingImports = [], // import cards not done, from the panel: [{ name, client, clientId, state }]
   reviewTimer = null,
   reviewShape = "",
   workspace = null,
@@ -361,6 +362,7 @@ sync.start();
 const workspaceControls = setupWorkspaceControls({
   getInboxCounts: () => inboxFileCounts,
   getReviewCounts: () => Object.fromEntries(reviewList().map((item) => [`${item.clientId}|${item.month}`, item.count])),
+  getPendingImports: () => pendingImports,
   onClientsChanged: () => {
     clientsHome.refresh();
     // Later, not now: the first call comes from inside setupWorkspaceControls, before workspaceControls exists.
@@ -964,7 +966,12 @@ function applyProposalToTable(proposal, kept) {
 }
 const assistant = setupAssistant({
   root: document.querySelector("#assistant"),
-  onPending: ({ questions, imports }) => { waiting.set("question", questions); waiting.set("imports", imports); },
+  onPending: ({ questions, imports }) => {
+    waiting.set("question", questions);
+    waiting.set("imports", imports);
+    pendingImports = imports;
+    workspaceControls?.renderSidebar?.();
+  },
   onApply: async (proposal, kept) => applyProposalToTable(proposal, kept),
   // A rule the user confirmed on a question card ("זכור ללקוח" ticked, its answer clicked) goes into rules.md of that client (step 4.6).
   onRemember: async ({ clientId, rule }) => {

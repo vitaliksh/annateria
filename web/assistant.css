@@ -139,14 +139,15 @@
   border-inline-start: 4px solid var(--accent);
 }
 
+/* Red only for what was started and not finished, you must act (F4); amber is for what is to look at. */
 .assistant-card[data-kind="import"][data-state="unfinished"] {
-  border-color: var(--warning-border);
-  border-inline-start-color: var(--warning);
-  background: var(--warning-soft);
+  border-color: var(--error-border);
+  border-inline-start-color: var(--error);
+  background: var(--error-soft);
 }
 
 .assistant-card[data-kind="import"][data-state="unfinished"] .card-answer {
-  color: var(--warning);
+  color: var(--error);
   font-weight: 600;
 }
 

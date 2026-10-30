@@ -8,6 +8,9 @@ import { formatMonth } from "./month-format.js";
 const count = (value, one, many) => (value === 1 ? one : `${value} ${many}`);
 // Chips of rows shown before "+N", which opens the list of all clients and their rows to look at.
 export const ROW_CHIPS = 4;
+// Colours (F4): "act" (red) only for what was started and not finished, an import wizard closed before it wrote; everything
+// else waits to be looked at, "look" (amber).
+export const levelOf = (item) => (item.state === "unfinished" ? "act" : "look");
 
 // Parts: question (open questions of the agent), imports ([{ name, client }] of import cards not done), inbox (files), rows
 // ([{ clientId, client, month, count }] of rows to look at, one per client and month, in the order to show).
@@ -20,7 +23,7 @@ export function setupWaiting({ root, onGo = () => {} }) {
     ...(state.question ? [{ kind: "question", parts: ["שאלה של העוזר ממתינה לתשובה"] }] : []),
     ...state.imports.map((item, index) => {
       const client = item.client ? [{ name: item.client }, " · "] : [];
-      return { kind: "import", index, parts: [...client, "ייבוא שלא הושלם: ", { name: item.name }] };
+      return { kind: "import", index, level: levelOf(item), parts: [...client, "ייבוא שלא הושלם: ", { name: item.name }] };
     }),
     ...(state.inbox ? [{ kind: "inbox", parts: [`${count(state.inbox, "קובץ אחד", "קבצים")} בתיבת הקלט`] }] : []),
     ...state.rows.slice(0, ROW_CHIPS).map((item, index) => {
@@ -36,11 +39,12 @@ export function setupWaiting({ root, onGo = () => {} }) {
     const title = doc.createElement("strong");
     title.className = "waiting-title";
     title.textContent = "ממתין לך";
-    root.replaceChildren(title, ...shown.map(({ kind, index, parts }) => {
+    root.replaceChildren(title, ...shown.map(({ kind, index, parts, level = "look" }) => {
       const go = doc.createElement("button");
       go.type = "button";
       go.className = "waiting-item";
       go.dataset.kind = kind;
+      go.dataset.level = level;
       // A name is isolated, so that a Latin name is not turned around by the Hebrew text.
       const isolated = (name) => Object.assign(doc.createElement("bdi"), { textContent: name });
       go.append(...parts.map((part) => (typeof part === "string" ? part : isolated(part.name))));

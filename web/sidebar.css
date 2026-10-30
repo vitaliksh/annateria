@@ -229,6 +229,11 @@ body[data-view="clients"] #nav-clients {
   display: none;
 }
 
+.waiting-count[data-level="act"] {
+  background: var(--error-soft);
+  color: var(--error);
+}
+
 .waiting-count {
   display: inline-grid;
   flex: none;

@@ -17,19 +17,22 @@ function actionButton(root, className, label, onClick) {
 }
 
 // The badge of what waits (docs/UI_REDESIGN_PROPOSAL.md, F2): the sum of the parts, and each part in the tooltip. Null when nothing waits.
+// A part with level "act" (an import closed before it finished) makes the badge red, as in the strip (F4); otherwise amber.
 function waitingBadge(root, parts) {
   const shown = parts.filter((part) => part.count > 0);
   if (!shown.length) return null;
   const badge = node(root, "span", "waiting-count", String(shown.reduce((sum, part) => sum + part.count, 0)));
   badge.title = shown.map((part) => `${part.label}: ${part.count}`).join(" · ");
+  badge.dataset.level = shown.some((part) => part.level === "act") ? "act" : "look";
   return badge;
 }
 
 // handlers: { onClient(client), onMenu(client), onDeclaration(client, month), onNewDeclaration(client) }
 // inboxCounts: files waiting in inbox/<client folder>/ by folder name. reviewCounts: rows to look at by "<client id>|<month>"
-// (review-counts.js). A client shows one badge with all it waits for; a month, its rows to look at.
+// (review-counts.js). imports: [{ clientId, state }] of import cards not done. A client shows one badge with all it waits for;
+// a month, its rows to look at.
 export function renderSidebarClients(root, {
-  clients, archivedMode, activeClientId, activeDeclarationId, expandedClientId, inboxCounts = {}, reviewCounts = {},
+  clients, archivedMode, activeClientId, activeDeclarationId, expandedClientId, inboxCounts = {}, reviewCounts = {}, imports = [],
 }, handlers) {
   root.replaceChildren();
   for (const client of clients) {
@@ -43,7 +46,11 @@ export function renderSidebarClients(root, {
     choose.append(node(root, "span", "avatar", [...client.clientName][0] || "?"), node(root, "span", "label", client.clientName));
     let rows = 0;
     for (const [key, count] of Object.entries(reviewCounts)) if (key.startsWith(`${client.id}|`)) rows += count;
+    const own = imports.filter((item) => item.clientId === client.id);
+    const unfinished = own.filter((item) => item.state === "unfinished").length;
     const badge = waitingBadge(root, [
+      { label: "ייבוא שלא הושלם", count: unfinished, level: "act" },
+      { label: "ייבוא שממתין", count: own.length - unfinished },
       { label: "קבצים בתיבת הקלט", count: inboxCounts[client.entryName] ?? 0 },
       { label: "שורות לבדיקה", count: rows },
     ]);

@@ -52,6 +52,16 @@ test(`at most ${ROW_CHIPS} chips of rows, then +N, which opens the list of all c
   assert.deepEqual(gone, [{ kind: "more", index: undefined }]);
 });
 
+test("red only for an import closed before it finished; everything else amber (F4)", () => {
+  const { root, waiting } = setup();
+  waiting.set("imports", [{ name: "a.xlsx", client: "A", state: "unfinished" }, { name: "b.xlsx", client: "B", state: "waiting" }]);
+  waiting.set("inbox", 2);
+  waiting.set("question", 1);
+  waiting.set("rows", rows(["A", "2026-01", 1]));
+  const levels = [...root.querySelectorAll(".waiting-item")].map((item) => [item.dataset.kind, item.dataset.level]);
+  assert.deepEqual(levels, [["question", "look"], ["import", "act"], ["import", "look"], ["inbox", "look"], ["rows", "look"]]);
+});
+
 test("a click says where to go", () => {
   const { root, waiting, gone } = setup();
   waiting.set("imports", [{ name: "a.xlsx", client: "A" }, { name: "b.xlsx", client: "B" }]);

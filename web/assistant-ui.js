@@ -119,7 +119,10 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
   const pendingImports = () => allImports.filter((entry) => entry.box.dataset.state !== "answered");
   // Tells the page what waits in the feed (docs/UI_REDESIGN_PROPOSAL.md, C6): { questions, imports: [{ name }] }.
   const notify = () => onPending({
-    questions: openQuestions.size, imports: pendingImports().map(({ card }) => ({ name: card.file.name, client: card.client.name })),
+    questions: openQuestions.size,
+    imports: pendingImports().map(({ card, box }) => ({
+      name: card.file.name, client: card.client.name, clientId: card.client.id, state: box.dataset.state,
+    })),
   });
   let waiting = null; // files in the inbox, null until the page has counted them
   const processTitle = processButton.title;

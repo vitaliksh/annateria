@@ -94,6 +94,15 @@ first). The owner and Anna are now checking them on real data; nothing is half d
     and `where`): "מציג: שורות לבדיקה · Levi Demo · 09/2026" and "הצג הכול", for every filter, from the strip or from the menu
     (it was silent before). Changed existing code: `refresh` of the toolbar, `index.html`, `journal.css`. Checked in the local
     page: the Levi Demo chip → the line; "הצג הכול" → all rows, line hidden.
+    **F4, two colours.** Amber: to look at (rows, files, a question, an import not opened yet). Red: started and not
+    finished, you must act; today only an import card in state `unfinished` (`levelOf` in `waiting-ui.js`). The strip's
+    chips and the sidebar badges carry `data-level` look / act; the import card's "not imported" state turned from amber to
+    red. The sidebar badge of a client also counts its import cards not done (`imports` option, from the panel's
+    `onPending`, which now gives `clientId` and `state`); new tooltip parts "ייבוא שלא הושלם" (red) and "ייבוא שממתין".
+    Checked in the local page: wizard closed half-way → the chip "לקוח לדוגמה · ייבוא שלא הושלם: …" red, the client's badge red
+    ("4": 1 import, 2 files, 1 row), the card red; the other chips and Levi Demo's badge amber. **Known:** the unfinished
+    file is counted twice in the client's badge (as an import and as a file in the inbox). "A month that cannot be closed" and
+    errors have no source yet, so nothing else is red.
 - **A credit note of income keeps its negative VAT** (30 October, owner). The Excel import flipped VAT to positive for every
   row that was not an expense credit, so Anna's credit invoice 140 of 8/2026 (net -403.63, VAT -72.65) came in with VAT
   +72.65 and output VAT 145.30 too high. VAT now takes the sign of net for every row (`excel-import.js`). Only that one row

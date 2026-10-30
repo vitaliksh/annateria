@@ -53,6 +53,18 @@ body {
   border-color: var(--warning);
 }
 
+/* Red only for "unfinished, you must act" (F4). */
+.waiting-item[data-level="act"] {
+  border-color: var(--error-border);
+  background: var(--error-soft);
+  color: var(--error);
+  font-weight: 600;
+}
+
+.waiting-item[data-level="act"]:hover {
+  border-color: var(--error);
+}
+
 /* Top bar. The wordmark is last in the flow, which puts it in the top-left corner of the right-to-left page. */
 .topbar {
   display: flex;
