@@ -156,3 +156,20 @@ test("a home client: saving the client card again keeps the percentages; a new k
   app.updateWorkspace({ ...selected.workspace, config: { ...selected.workspace.config, businessKind: "home" } });
   assert.deepEqual([...app.rowSnapshot(rows()[0]).values.slice(10)], ["25", "25"]);
 });
+
+test("a HEIC original: the window says it is loading instead of staying black, and says so when the browser cannot show it", async () => {
+  const { app, rows, window } = await loadApp();
+  const { selected } = await openMonth();
+  await app.activateDeclaration(selected);
+  const created = { closed: false, focus() {}, close() { this.closed = true; }, document: window.document.implementation.createHTMLDocument("p") };
+  window.open = () => created;
+  app.appendSnapshots([snapshot()]);
+  app.setRowImage(rows()[0], new File([new Uint8Array([1])], "003.heic", { type: "" }), "003.heic", 3);
+  rows()[0].cells[13].querySelector("button").click();
+  const note = created.document.querySelector("#document-note");
+  assert.deepEqual([note.hidden, note.textContent], [false, "טוען את התמונה, רק רגע…"]);
+  assert.equal(created.document.querySelector("#document-image").hasAttribute("src"), false);
+  // In the test the decoder cannot be loaded from the CDN, as when the browser is offline.
+  for (let tries = 0; tries < 50 && note.textContent.startsWith("טוען"); tries += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual([note.hidden, note.textContent], [false, "לא ניתן להציג את תמונה #3 בדפדפן."]);
+});

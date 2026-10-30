@@ -1236,8 +1236,12 @@ function openPhoto(imageUrl, imageIndex, row = null) {
       out = doc.createElement("button"),
       plus = doc.createElement("button"),
       image = doc.createElement("img"),
+      note = doc.createElement("p"),
       viewport = doc.createElement("div");
     title.id = "document-title";
+    note.id = "document-note";
+    note.hidden = true;
+    note.style.cssText = "position:absolute;inset:0;margin:0;display:grid;place-items:center;font-size:22px;color:#ddd;pointer-events:none";
     controls.style.cssText = "display:flex;gap:8px";
     bar.style.cssText =
       "height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;background:#34566c";
@@ -1252,7 +1256,7 @@ function openPhoto(imageUrl, imageIndex, row = null) {
       controls.append(button);
     });
     bar.append(title, controls);
-    viewport.append(image);
+    viewport.append(image, note);
     doc.body.append(bar, viewport);
     image.draggable = false;
     let zoomLevel = 1,
@@ -1296,25 +1300,29 @@ function openPhoto(imageUrl, imageIndex, row = null) {
   }
   const title = doc.querySelector("#document-title");
   const image = doc.querySelector("#document-image");
+  const note = doc.querySelector("#document-note");
   title.textContent = `תמונה #${imageIndex}`;
   image.dataset.pending = "";
-  if (row && !row.viewUrl && isHeic(row.dataset.imageFile, row.documentImage)) showHeic(row, imageIndex, title, image);
+  note.hidden = true;
+  if (row && !row.viewUrl && isHeic(row.dataset.imageFile, row.documentImage)) showHeic(row, imageIndex, image, note);
   else image.src = row?.viewUrl || imageUrl;
   imagePopup.focus();
 }
-// A HEIC original is shown as a JPEG made once and kept on the row; a click on another row meanwhile wins.
-async function showHeic(row, imageIndex, title, image) {
+// A HEIC original is shown as a JPEG made once and kept on the row; a click on another row meanwhile wins. The first one takes
+// a few seconds (the decoder is downloaded), so the window says so instead of staying black.
+async function showHeic(row, imageIndex, image, note) {
   const request = crypto.randomUUID();
   image.dataset.pending = request;
   image.removeAttribute("src");
-  title.textContent = `תמונה #${imageIndex} · טוען את התמונה…`;
+  note.textContent = "טוען את התמונה, רק רגע…";
+  note.hidden = false;
   try {
     row.viewUrl ??= URL.createObjectURL(await viewableImage(row.documentImage, row.dataset.imageFile));
     if (image.dataset.pending !== request) return;
     image.src = row.viewUrl;
-    title.textContent = `תמונה #${imageIndex}`;
+    note.hidden = true;
   } catch {
-    if (image.dataset.pending === request) title.textContent = `תמונה #${imageIndex} · לא ניתן להציג את התמונה בדפדפן`;
+    if (image.dataset.pending === request) note.textContent = `לא ניתן להציג את תמונה #${imageIndex} בדפדפן.`;
   }
 }
 

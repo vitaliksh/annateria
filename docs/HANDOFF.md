@@ -7,7 +7,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
 `2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-30a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts), Worker 69 (`2026.10.23.2`,
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
@@ -25,7 +25,8 @@ first). The owner and Anna are now checking them on real data; nothing is half d
 - **HEIC originals are shown** (30 October, owner). Chrome and Edge show no HEIC, so the picture window of an iPhone photo was
   empty. `heic-view.js` turns the original into a JPEG in memory when it is opened (heic-to 1.6.5 from jsdelivr, libheif 1.23.5,
   the build without unsafe-eval, about 3 MB, loaded only then); the file in the declaration is unchanged. Checked in the built-in
-  browser on one real HEIC page (raw HEIC not shown, JPEG 4284x5712 shown, about 7 s with the download). **Not verified:** the
+  browser on one real HEIC page (raw HEIC not shown, JPEG 4284x5712 shown, about 7 s with the download). While it loads the
+  window shows "טוען את התמונה, רק רגע…" in its middle (owner: the black window looked broken), and an error there. **Not verified:** the
   popup of the app itself (needs a data folder) and the published page; "PDF מסכם" still embeds HEIC as it is.
 - **A photographed ledger of another program is read line by line** (30 October, owner; skills `invoice-extraction` 2 and
   `classification` 4, code unchanged). A new client's "כרטסת סעיפים" (three phone photos, not Rivhit) became three useless rows in
