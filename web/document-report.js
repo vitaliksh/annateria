@@ -4,7 +4,9 @@
 // the owner's request as a kind of the reports page.
 import { getDeclarationDirectory, readSourceImage } from "./declaration-store.js";
 import { jpegPagesToPdf } from "./document-package.js";
+import { isHeic, viewableImage } from "./heic-view.js";
 import { loadPdfJs } from "./pdf-import.js";
+import { findImportFile, sheetTexts } from "./source-view.js";
 
 const PAGE_WIDTH = 1240, PAGE_HEIGHT = 1754, RENDER_SCALE = 2, MARGIN = 70;
 // [label, index in row.values], two per line: right column first.
@@ -34,9 +36,10 @@ export function documentFieldValues(row, accounts = {}) {
   });
 }
 
-// The original of a row as a Blob, or null when the row has none or its file is gone.
+// The original of a row as a Blob, or null when the row has none or its file is gone. A row imported from Excel has no image;
+// its original is the file kept in imports/ (found by sourceHash, source-view.js).
 export async function readRowOriginal(clientDirectory, month, row) {
-  if (!row.imageFile) return null;
+  if (!row.imageFile) return row.sourceHash ? findImportFile(clientDirectory, row.sourceHash) : null;
   try {
     return await readSourceImage(await getDeclarationDirectory(clientDirectory, month), row.imageFile);
   } catch (error) {
@@ -46,11 +49,41 @@ export async function readRowOriginal(clientDirectory, month, row) {
 }
 
 const isPdf = (blob, name) => blob.type === "application/pdf" || /\.pdf$/i.test(name || "");
+const isSheet = (blob) => /\.(xlsx|xls|xlsm)$/i.test(blob.name || "");
 
-// Draws originals: a photo as it is, a PDF page through pdf.js. A PDF is opened once for all its rows.
+// A number as a spreadsheet shows it ("4,413.23", "(72.65)") without its sign, or null for any other text.
+function cellNumber(text) {
+  const match = /^\(?-?([\d,]+(?:\.\d+)?)\)?$/.exec(String(text ?? "").trim());
+  return match ? Number(match[1].replace(/,/g, "")) : null;
+}
+
+// Whether a line of a spreadsheet is the one a row was imported from: it holds the net of the row (the file and the app may
+// differ in the sign) and, when the row has a document number, that number too. A row with no net marks nothing.
+export function isRowLine(cells, row) {
+  const net = Math.abs(Number(row.values?.[8]));
+  if (!net) return false;
+  const reference = String(row.values?.[5] ?? "").replace(/\D/g, "");
+  const hasNet = cells.some((cell) => {
+    const value = cellNumber(cell);
+    return value !== null && Math.abs(value - net) < 0.005;
+  });
+  const hasReference = !reference || cells.some((cell) => {
+    const text = String(cell).trim();
+    return /^\d+$/.test(text) && text.endsWith(reference);
+  });
+  return hasNet && hasReference;
+}
+
+// Draws originals: a photo as it is (an iPhone HEIC photo converted first), a PDF page through pdf.js. A PDF is opened once for
+// all its rows, a HEIC photo converted once.
 function createOriginalDrawer(loadPdf = loadPdfJs) {
   const pdfs = new Map();
+  const photos = new Map();
   return async (blob, name, page) => {
+    if (isHeic(name, blob)) {
+      if (!photos.has(name)) photos.set(name, viewableImage(blob, name));
+      return createImageBitmap(await photos.get(name));
+    }
     if (!isPdf(blob, name)) return createImageBitmap(blob);
     if (!pdfs.has(name)) {
       const pdfjs = await loadPdf();
@@ -122,6 +155,36 @@ function drawContained(context, image, x, y, width, height) {
   return box;
 }
 
+// A spreadsheet original drawn as its table, right to left (the first cell on the right), shrunk to fit the box. The line the row
+// was imported from is marked yellow.
+function drawSheet(context, sheets, row, x, y, width, height) {
+  const lines = sheets.flatMap((sheet) => sheet.rows);
+  const count = Math.max(0, ...lines.map((cells) => cells.length));
+  const pad = 8, lineHeight = 28;
+  context.font = "16px Arial";
+  const widths = Array.from({ length: count }, (_, index) =>
+    Math.max(0, ...lines.map((cells) => context.measureText(cells[index] ?? "").width)) + pad * 2);
+  const total = widths.reduce((sum, value) => sum + value, 0);
+  const scale = Math.min(1, (width - 20) / total, (height - 20) / (lines.length * lineHeight));
+  context.save();
+  context.translate(x + (width + total * scale) / 2, y + 10);
+  context.scale(scale, scale);
+  for (const [at, cells] of lines.entries()) {
+    const top = at * lineHeight;
+    context.fillStyle = isRowLine(cells, row) ? "rgba(255, 232, 77, 0.75)" : "white";
+    context.fillRect(-total, top, total, lineHeight);
+    let right = 0;
+    for (const [index, columnWidth] of widths.entries()) {
+      context.strokeStyle = "#ccd7de";
+      context.lineWidth = 1;
+      context.strokeRect(right - columnWidth, top, columnWidth, lineHeight);
+      drawText(context, fitText(context, cells[index] ?? "", columnWidth - pad * 2), right - pad, top + lineHeight / 2, "16px Arial");
+      right -= columnWidth;
+    }
+  }
+  context.restore();
+}
+
 // Rows recognised in ocr carry the boxes Gemini returned (0..1000): yellow for the document, green for amounts.
 function drawHighlights(context, regions, box) {
   for (const region of regions || []) {
@@ -135,9 +198,10 @@ function drawHighlights(context, regions, box) {
 }
 
 // items: documentReportItems(); readOriginal(item) -> Blob | null. Resolves with { pdf, images } like renderReportPdf.
-export async function renderDocumentReport({ clientName, items, readOriginal, accounts = {}, now = new Date(), loadPdf }) {
+export async function renderDocumentReport({ clientName, items, readOriginal, accounts = {}, now = new Date(), loadPdf, loadSheet }) {
   if (!items.length) throw new Error("אין מסמכים פעילים בתקופה שנבחרה.");
   const drawOriginal = createOriginalDrawer(loadPdf);
+  const sheets = new Map();
   const stamp = new Intl.DateTimeFormat("he-IL", { dateStyle: "short", timeStyle: "short" }).format(now);
   const images = [];
   for (const [index, { month, position, row }] of items.entries()) {
@@ -154,7 +218,14 @@ export async function renderDocumentReport({ clientName, items, readOriginal, ac
     context.strokeRect(frame.x, frame.y, frame.width, frame.height);
     const blob = await readOriginal({ month, position, row });
     let problem = blob ? "" : "לשורה זו אין מקור.";
-    if (blob) {
+    if (blob && isSheet(blob)) {
+      try {
+        if (!sheets.has(row.sourceHash)) sheets.set(row.sourceHash, sheetTexts(blob, loadSheet ? { loadLibrary: loadSheet } : {}));
+        drawSheet(context, await sheets.get(row.sourceHash), row, frame.x, frame.y, frame.width, frame.height);
+      } catch {
+        problem = `לא ניתן להציג את המקור (${blob.name}).`;
+      }
+    } else if (blob) {
       try {
         const image = await drawOriginal(blob, `${month}/${row.imageFile}`, row.agent?.page);
         const box = drawContained(context, image, frame.x, frame.y, frame.width, frame.height);

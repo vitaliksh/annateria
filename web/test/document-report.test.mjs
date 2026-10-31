@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { documentFieldValues, documentReportItems, readRowOriginal, renderDocumentReport } from "../document-report.js";
+import { sha256Hex } from "../inbox-store.js";
+import {
+  documentFieldValues, documentReportItems, isRowLine, readRowOriginal, renderDocumentReport,
+} from "../document-report.js";
 import { binaryDirectory, putFile } from "./memory-binary-directory.mjs";
 
 const values = (overrides = {}) => {
@@ -44,4 +47,26 @@ test("documents report: the original of a row is read from the images of its mon
 
 test("documents report: an empty period is refused before anything is drawn", async () => {
   await assert.rejects(renderDocumentReport({ clientName: "X", items: [], readOriginal: async () => null }), /אין מסמכים/);
+});
+
+test("documents report: a row imported from Excel has the file kept in imports/ as its original", async () => {
+  const client = binaryDirectory("client");
+  const bytes = new TextEncoder().encode("journal");
+  await putFile(client, "imports/8 (2).xlsx", bytes);
+  const original = await readRowOriginal(client, "2026-08", { imageFile: "", sourceHash: await sha256Hex(bytes) });
+  assert.equal(original.name, "8 (2).xlsx");
+  assert.equal(await readRowOriginal(client, "2026-08", { imageFile: "", sourceHash: "0".repeat(64) }), null);
+});
+
+test("documents report: the line of the journal a row came from has its net and its document number", () => {
+  const header = ["סוג", "מע״מ", "", "סכום ללא מע״מ", "סכום כולל", "", "אסמכתא"];
+  const invoice = ["חשבונית", "4,413.23", "", "24,517.95", "28,931.18", "", "139"];
+  const credit = ["זיכוי", "(72.65)", "", "(403.63)", "(476.28)", "", "140"];
+  const total = ["", "9,206.25", "", "", "סה״כ"];
+  const row = (net, reference) => ({ values: values({ 5: reference, 8: net }) });
+  assert.deepEqual([header, invoice, credit, total].map((cells) => isRowLine(cells, row("24517.95", "139"))), [false, true, false, false]);
+  assert.equal(isRowLine(credit, row("-403.63", "140")), true, "the file shows a credit in brackets");
+  assert.equal(isRowLine(credit, row("-403.63", "141")), false, "another document number");
+  assert.equal(isRowLine(["ארנונה", "0.00", "", "213.00"], row("213.00", "")), true, "a line with no document number");
+  assert.equal(isRowLine(["", "0.00"], row("0.00", "")), false, "a row with no net marks nothing");
 });
