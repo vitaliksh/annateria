@@ -67,6 +67,26 @@ test("диалог отчётов: период по умолчанию — ме
   assert.deepEqual([q("reports-from").value, q("reports-to").value], ["01/2026", "02/2026"]);
 });
 
+test("диалог отчётов: период выбирается списками месяца и года и не сбрасывается при смене отчёта", async () => {
+  const { q, open } = await setup();
+  await open();
+  const change = (id, value) => { q(id).value = value; q(id).dispatchEvent(new globalThis.window.Event("change")); };
+  assert.deepEqual([q("reports-from-month").value, q("reports-from-year").value], ["02", "2026"]);
+  assert.deepEqual([...q("reports-from-year").options].map((option) => option.value), ["2025", "2026", "2027"]);
+  change("reports-kind", "profitLoss");
+  assert.deepEqual([q("reports-from").value, q("reports-to").value], ["01/2026", "02/2026"], "untouched: the default of the report");
+  change("reports-from-month", "02");
+  change("reports-to-month", "01");
+  change("reports-to-year", "2027");
+  assert.deepEqual([q("reports-from").value, q("reports-to").value], ["02/2026", "01/2027"]);
+  change("reports-kind", "vat");
+  change("reports-kind", "documents");
+  assert.deepEqual([q("reports-from").value, q("reports-to").value], ["02/2026", "01/2027"], "the chosen period stays");
+  assert.deepEqual([q("reports-to-month").value, q("reports-to-year").value], ["01", "2027"]);
+  await open();
+  assert.deepEqual([q("reports-from").value, q("reports-to").value], ["02/2026", "02/2026"], "a new opening sets the default");
+});
+
 test("диалог отчётов: пустая последняя декларация не скрывает период с данными", async () => {
   const { q, open, click, client } = await setup({ declarations: ["2026-01"] });
   const { createDeclaration } = await import("../declaration-store.js");

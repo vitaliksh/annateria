@@ -38,7 +38,10 @@ export function setupReports({
   ].map(part);
   const [savePcn, savePcnAs] = ["reports-save-pcn", "reports-save-pcn-as"].map(part);
   const pcnOption = kind.querySelector("option[value=\"pcn874\"]");
+  const pickers = [from, to].map((input) => ({ input, month: part(`${input.id}-month`), year: part(`${input.id}-year`) }));
   let context = null;
+  // A period the user chose stays when another report is picked; only a new opening of the page sets the default again.
+  let periodChosen = false;
   let entries = [];
   let declarations = [];
   let chart = {};
@@ -51,10 +54,28 @@ export function setupReports({
     savePcn.hidden = savePcnAs.hidden = !pcn;
   };
 
+  // The month and year lists show the MM/YYYY value of their hidden input; the years are those of the declarations, one more on
+  // each side, and the year shown.
+  const showPickers = () => {
+    const years = declarations.map((item) => Number(item.month.slice(0, 4)));
+    for (const { input, month, year } of pickers) {
+      if (!month || !year) continue;
+      const [shownMonth, shownYear] = input.value.split("/");
+      const all = [...years, Number(shownYear) || new Date().getFullYear()];
+      const first = Math.min(...all) - 1;
+      const count = Math.max(...all) + 2 - first;
+      year.replaceChildren(...Array.from({ length: count }, (_, index) =>
+        Object.assign(dialog.ownerDocument.createElement("option"), { textContent: String(first + index) })));
+      month.value = shownMonth ?? "";
+      year.value = shownYear ?? "";
+    }
+  };
+
   const applyDefaultPeriod = () => {
     const period = defaultPeriod(kind.value, latestMonth, vatPeriod.value, advancesPeriod.value);
     from.value = formatMonth(period.from);
     to.value = formatMonth(period.to);
+    showPickers();
   };
 
   async function open({ client, kind: wantedKind } = {}) {
@@ -80,6 +101,7 @@ export function setupReports({
       if (pcnOption) pcnOption.hidden = !context.client.config?.pcnRequired;
       if (pcnOption?.hidden && kind.value === "pcn874") kind.value = "vat";
       showActions();
+      periodChosen = false;
       applyDefaultPeriod();
       renderPreview();
       if (onOpen) onOpen(context);
@@ -89,8 +111,21 @@ export function setupReports({
     }
   }
   button?.addEventListener("click", () => open());
-  kind.addEventListener("change", () => { showActions(); applyDefaultPeriod(); renderPreview(); });
+  kind.addEventListener("change", () => {
+    showActions();
+    if (!periodChosen) applyDefaultPeriod();
+    renderPreview();
+  });
   for (const field of [vatPeriod, advancesPeriod]) field.addEventListener("change", () => { applyDefaultPeriod(); renderPreview(); });
+  for (const { input, month, year } of pickers) {
+    for (const list of [month, year].filter(Boolean)) {
+      list.addEventListener("change", () => {
+        input.value = `${month.value}/${year.value}`;
+        periodChosen = true;
+        renderPreview();
+      });
+    }
+  }
   for (const field of [from, to, percent]) {
     field.addEventListener("input", () => renderPreview());
     field.addEventListener("change", () => renderPreview());
@@ -102,7 +137,7 @@ export function setupReports({
     statusLine.textContent = "";
     const [fromIso, toIso] = [parseMonthText(from.value), parseMonthText(to.value)];
     if (!fromIso || !toIso || fromIso > toIso) {
-      errorLine.textContent = "יש להזין תקופה תקינה בפורמט MM/YYYY (תחילה לא אחרי הסוף).";
+      errorLine.textContent = "יש לבחור תקופה תקינה (תחילה לא אחרי הסוף).";
       return null;
     }
     const advancePercent = percent.value === "" ? null : Number(percent.value);

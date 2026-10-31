@@ -12,6 +12,12 @@
   font-weight: 600;
 }
 
+/* A month of the period: a month and a year chosen from lists */
+.month-pair {
+  display: flex;
+  gap: var(--s1);
+}
+
 .reports-actions {
   display: flex;
   flex-wrap: wrap;
