@@ -7,7 +7,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
 `2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-30a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip, 942 all months; follow-up F1–F5: 946; documents report with HEIC and Excel originals: 948; report period lists: 949; reopen without a reason: 950; months closed by default: 958; the red line of the reports: 960; the inbox of a month: 964), Worker 69 (`2026.10.23.2`,
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip, 942 all months; follow-up F1–F5: 946; documents report with HEIC and Excel originals: 948; report period lists: 949; reopen without a reason: 950; months closed by default: 958; the red line of the reports: 960; the inbox of a month: 964; the order of work: 970), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
@@ -45,6 +45,14 @@ first). The owner and Anna are now checking them on real data; nothing is half d
   (`workspace.js` `getInboxMonthCounts`). Changed existing code: `checkEntry`, `addToInboxNow`, `inboxCounts`; in `inbox-ui.js`
   `render`, `groups`, `itemOf`, `renderList`, `submit`, `open`; the month row of `sidebar-clients.js`. The agent does not read
   `month` yet (9.6). **Not verified:** the published page.
+  **9.5, the order of work:** `month-choice.js` (`#month-choice-dialog`) asks for a client and a month; `ensureMonthShown` and
+  `openInbox` (`app.js`) use it for every way into the inbox from outside a month (the sidebar button through the new
+  `beforeOpen` of `setupInbox`, the strip, the dock's inbox line). `#open-month-inbox` and `#reopen-declaration` (moved out of
+  `#more-menu`) are in the top bar, `journal-only`. The command `process` goes through `processShownMonth`: no month shown → a
+  message in the dock; a closed month → `reopenMonth` (the reopen handler made a function that resolves true when open) first.
+  Changed existing code: the reopen handler, `onCommand`, `goToWaiting` (`app.js`); the entry button of `inbox-ui.js`;
+  `index.html`; `shell.css` (top bar buttons keep one line). **Not verified:** the published page; the dialog's Hebrew texts (title, sentence, labels, the "no months" line)
+  were written in the step and wait for the owner's look.
 - **UI redesign "nothing waits unseen"** (30 October, owner approved all of `docs/UI_REDESIGN_PROPOSAL.md`; branch
   `claude/wizardly-snyder-83391f`, not on `main` yet: the owner tries it first). One commit per change:
   - **C1, the import card says how its wizard ended.** New `import-card-flow.js` (`watchWizard`): the page listens for the

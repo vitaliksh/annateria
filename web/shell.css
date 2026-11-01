@@ -134,6 +134,12 @@ body {
   flex: 1;
 }
 
+/* The buttons of the month (step 9.5) keep their label on one line; the breadcrumb gives way first. */
+.topbar > button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 /* Menus: <details class="menu"> with a button-like summary and a floating panel */
 .menu {
   position: relative;

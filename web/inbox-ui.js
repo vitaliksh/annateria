@@ -58,12 +58,13 @@ async function canvasThumbnail(file, entry, doc) {
 // getOpenFolder() is the inbox folder of the client that is open in the journal (or null); getOpenMonth() the month shown in the
 // journal (or null). Step 9.4: new files go to that client and month, or without a client and month when no month is shown; the
 // client list only shows it. A file without a month can be taken into the shown month.
-// onCounts({ total, byFolder, byMonth }) is called whenever the index was read, for the sidebar. onCheck() is called by the button that
+// onCounts({ total, byFolder, byMonth }) is called whenever the index was read, for the sidebar. beforeOpen() runs before the entry
+// button opens the dialog. onCheck() is called by the button that
 // hands the files to the assistant. isBusy() is true while the assistant runs: then no file may leave the inbox, because the run may
 // still have to file it with its rows (25 October 2026: two PDFs removed during a check left 24 rows without their original).
 export function setupInbox({
   dialog, openButton, getDataRoot, getClients, getOpenFolder = () => null, getOpenMonth = () => null, onError = () => {}, onCounts = () => {},
-  onCheck = () => {}, isBusy = () => false,
+  onCheck = () => {}, isBusy = () => false, beforeOpen = async () => true,
   add = addToInbox, ensure = ensureInbox, readIndex = readInboxIndex, reconcile = reconcileInbox, trash = moveToTrash, readFile = readInboxFile,
   take = takeIntoMonth,
   makeThumbnail = null, confirm = confirmDialog, now = () => new Date().toISOString(),
@@ -365,7 +366,10 @@ export function setupInbox({
     dialog.showModal();
   }
 
-  openButton.addEventListener("click", open);
+  // Step 9.5: the page may first have the user choose a client and a month (beforeOpen resolves false to stay closed).
+  openButton.addEventListener("click", async () => {
+    if (await beforeOpen()) await open();
+  });
   render();
   return { open, submit, refreshCounts, getState: () => ({ running }) };
 }

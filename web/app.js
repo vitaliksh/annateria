@@ -50,6 +50,7 @@ import { setupClientRules } from "./client-rules-ui.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
 import { closedMonthText, lockProblems } from "./lock-check.js";
 import { closeOpenMonths } from "./month-lock.js";
+import { setupMonthChoice } from "./month-choice.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
 import { isHomeUtility } from "./home-utilities.js";
 import {
@@ -464,7 +465,7 @@ const waiting = setupWaiting({
   root: document.querySelector("#waiting"), alert: document.querySelector("#waiting-alert"), onGo: (target) => goToWaiting(target),
 });
 function goToWaiting({ kind, index }) {
-  if (kind === "inbox") return inboxUi?.open();
+  if (kind === "inbox") return openInbox();
   if (kind === "rows") return openRowsToLook(rowsToLook()[index]);
   if (kind === "more") return clientsHome.showHome();
   assistant.reveal({ kind, index });
@@ -713,6 +714,28 @@ const transfer = setupTransfer({
 });
 // The controller of the assistant run in progress (null when none); declared before the inbox dialog, which asks for it at once.
 let assistantRun = null;
+// Step 9.5: the order of work is client → month → the table or the inbox. A way into the inbox from outside a month asks first.
+const monthChoice = setupMonthChoice({
+  dialog: document.querySelector("#month-choice-dialog"),
+  getClients: () => workspaceControls?.getClients().active ?? [],
+  getCurrentClientId: () => committedWorkspace?.config.clientId ?? null,
+  onEmpty: () => showError("אין עדיין חודשים ללקוחות. יש ליצור חודש בכרטיס הלקוח."),
+});
+// True when the journal shows a month; otherwise the user chooses a client and a month, which open in the journal.
+async function ensureMonthShown() {
+  if (document.body.dataset.view === "journal" && currentDeclaration) return true;
+  const choice = await monthChoice.choose();
+  if (!choice) return false;
+  await workspaceControls.openDeclaration(choice.clientId, choice.month);
+  return document.body.dataset.view === "journal" && Boolean(currentDeclaration);
+}
+async function openInbox() {
+  try {
+    if (await ensureMonthShown()) await inboxUi?.open();
+  } catch (error) {
+    showError(`לא ניתן לפתוח הצהרה: ${error.message}`);
+  }
+}
 inboxUi = setupInbox({
   dialog: document.querySelector("#inbox-dialog"),
   openButton: document.querySelector("#open-inbox"),
@@ -726,6 +749,10 @@ inboxUi = setupInbox({
   getOpenMonth: () => (document.body.dataset.view === "journal" ? (currentDeclaration?.month ?? null) : null),
   onCheck: () => assistant.trigger("process"),
   isBusy: () => Boolean(assistantRun),
+  beforeOpen: () => ensureMonthShown().catch((error) => {
+    showError(`לא ניתן לפתוח הצהרה: ${error.message}`);
+    return false;
+  }),
   onCounts: ({ total, byFolder, byMonth }) => {
     inboxFileCounts = byFolder;
     inboxMonthCounts = byMonth ?? {};
@@ -1011,11 +1038,21 @@ const assistant = setupAssistant({
     if (command.type === "cancel") assistantRun?.abort();
     else if (command.type === "report") reports.open();
     else if (command.type === "import") openImportWizard(command);
-    else if (command.type === "inbox") inboxUi?.open();
+    else if (command.type === "inbox") openInbox();
+    else if (command.type === "process") processShownMonth();
     else if (command.type === "open") workspaceControls?.openDeclaration(command.clientId, command.month).catch((error) => showError(`לא ניתן לפתוח הצהרה: ${error.message}`));
     else runAssistant(command.type, command.text);
   },
 });
+// Step 9.5: "check new documents" works on the month shown in the journal; a closed month is opened first (the user's click).
+async function processShownMonth() {
+  if (document.body.dataset.view !== "journal" || !currentDeclaration) {
+    assistant.addMessage("error", "יש לפתוח חודש של לקוח לפני בדיקת מסמכים.");
+    return;
+  }
+  if (currentDeclaration.status !== "open" && !(await reopenMonth())) return;
+  runAssistant("process");
+}
 async function saveCurrentDraft() {
   if (!currentDeclaration || currentDeclaration.status !== "open" || !currentDeclarationDirectory) return;
   clearTimeout(draftSaveTimer);
@@ -1818,9 +1855,12 @@ closeDeclarationButton.addEventListener("click", async () => {
     updateStartAvailability();
   }
 });
-reopenDeclarationButton.addEventListener("click", async () => {
-  if (!committedWorkspace || currentDeclaration?.status !== "closed" || !currentDeclarationDirectory) return;
-  // One click opens the month: no dialog and no reason (step 9.2); reopenLog still gets a fixed one.
+reopenDeclarationButton.addEventListener("click", () => reopenMonth());
+document.querySelector("#open-month-inbox").addEventListener("click", () => openInbox());
+// One click opens the closed month on screen: no dialog and no reason (step 9.2); reopenLog still gets a fixed one. True when open.
+async function reopenMonth() {
+  if (!committedWorkspace || currentDeclaration?.status !== "closed" || !currentDeclarationDirectory) return false;
+  let opened = false;
   try {
     currentDeclaration = await reopenLockedDeclaration({
       clientDirectory: committedWorkspace.directory,
@@ -1830,11 +1870,13 @@ reopenDeclarationButton.addEventListener("click", async () => {
     });
     setTableLocked(false);
     status.textContent = "ההצהרה נפתחה מחדש. אפשר לערוך ולנעול שוב.";
+    opened = true;
   } catch (error) {
     showError(`לא ניתן לפתוח מחדש את ההצהרה: ${error.message}`);
   }
   updateStartAvailability();
-});
+  return opened;
+}
 openPackage?.addEventListener("click", async () => {
   try {
     const directory = await window.showDirectoryPicker({ mode: "readwrite", startIn: "documents" }),
