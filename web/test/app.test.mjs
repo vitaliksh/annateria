@@ -224,7 +224,7 @@ test("the lock button is shown by default and the reopen button stays hidden wit
   assert.equal(document.querySelector("#close-declaration").textContent, "נעילת הצהרה");
   assert.equal(document.querySelector("#close-declaration").hidden, false);
   assert.equal(document.querySelector("#reopen-declaration").hidden, true);
-  assert.ok(document.querySelector("#reopen-dialog #reopen-reason"));
+  assert.equal(document.querySelector("#reopen-dialog"), null, "no reason is asked to reopen (step 9.2)");
 });
 
 test("the facts of fresh OCR (reference, title, period, kind) are kept in the row", async () => {

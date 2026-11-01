@@ -15,8 +15,8 @@ import { setupLedgerCheck } from "./ledger-check-ui.js";
 import { setupRowsMove } from "./rows-move-ui.js";
 import { buildIncomeRows, hasIncomeRow, readIncomeReportFile } from "./income-report.js";
 import { setupLedgerCodes } from "./ledger-codes-ui.js";
-import { confirmDialog, dialogResult } from "./confirm-dialog.js";
-import { NO_EXPORT_MARKER, declarationActions } from "./declaration-core.js";
+import { confirmDialog } from "./confirm-dialog.js";
+import { CLICK_REOPEN_REASON, NO_EXPORT_MARKER, declarationActions } from "./declaration-core.js";
 import { formatMonth } from "./month-format.js";
 import { createClientsHome } from "./clients-home.js";
 import { setupJournalColumns } from "./journal-columns.js";
@@ -1727,7 +1727,7 @@ closeDeclarationButton.addEventListener("click", async () => {
   pcnJournal?.refresh();
   const [lockProblem] = lockProblems(snapshots, { pcnRequired: Boolean(committedWorkspace.config.pcnRequired) });
   if (lockProblem) return showError(lockProblemText(lockProblem));
-  const closeMessage = "לנעול את ההצהרה? הטבלה תינעל והשורות יצטרפו להיסטוריה. אפשר לפתוח מחדש עם ציון סיבה.";
+  const closeMessage = "לנעול את ההצהרה? הטבלה תינעל והשורות יצטרפו להיסטוריה. אפשר לפתוח מחדש.";
   if (!(await confirmDialog(closeMessage, { title: "נעילת הצהרה", confirmLabel: "נעילה" }))) return;
   closeDeclarationButton.disabled = true;
   status.textContent = "סוגר הצהרה…";
@@ -1755,28 +1755,13 @@ closeDeclarationButton.addEventListener("click", async () => {
 });
 reopenDeclarationButton.addEventListener("click", async () => {
   if (!committedWorkspace || currentDeclaration?.status !== "closed" || !currentDeclarationDirectory) return;
-  const dialog = document.querySelector("#reopen-dialog"),
-    reason = dialog.querySelector("#reopen-reason"),
-    errorLine = dialog.querySelector("#reopen-error");
-  reason.value = "";
-  errorLine.textContent = "";
-  const answer = await dialogResult(dialog, {
-    accept: dialog.querySelector("#reopen-confirm"),
-    getValue: () => {
-      if (!reason.value.trim()) throw new Error("יש להזין סיבה לפתיחה מחדש.");
-      return reason.value.trim();
-    },
-    onInvalid: (error) => {
-      errorLine.textContent = error.message;
-    },
-  });
-  if (!answer) return;
+  // One click opens the month: no dialog and no reason (step 9.2); reopenLog still gets a fixed one.
   try {
     currentDeclaration = await reopenLockedDeclaration({
       clientDirectory: committedWorkspace.directory,
       declarationDirectory: currentDeclarationDirectory,
       declaration: currentDeclaration,
-      reason: answer,
+      reason: CLICK_REOPEN_REASON,
     });
     setTableLocked(false);
     status.textContent = "ההצהרה נפתחה מחדש. אפשר לערוך ולנעול שוב.";

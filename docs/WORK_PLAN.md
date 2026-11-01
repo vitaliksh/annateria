@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status (27 October 2026; 25 to 27 October: fixes after Anna's first real day, see the decision log and `HANDOFF.md`): **phases 0, 1, 5 and 7 done; phase 2 done but for 2.5 (phone camera → inbox, Anna's show-stopper, planned 24 October, next); phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** **1 November 2026: phase 9 planned (after Anna's test session: one month at a time, the VAT month); next 9.2.** This file is the single source of truth for what is
+Status (27 October 2026; 25 to 27 October: fixes after Anna's first real day, see the decision log and `HANDOFF.md`): **phases 0, 1, 5 and 7 done; phase 2 done but for 2.5 (phone camera → inbox, Anna's show-stopper, planned 24 October, next); phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** **1 November 2026: phase 9 planned (after Anna's test session: one month at a time, the VAT month); 9.2 built, the owner's check next.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -448,12 +448,13 @@ inbox**: the inbox belongs to one client and one month, every document the agent
 every month is closed unless the user has just opened it. Anna can move the VAT of a row to another month. One step, one commit,
 the owner's "yes" between steps.
 
-- [ ] **9.1 The plan and the rules.** This phase, the decision log, `AGENTS.md` (product rules), a note of the planned amendment
-  in `docs/AGENT_TOOLS.md`. No code. *Done when:* the owner approves the text.
+- [x] **9.1 The plan and the rules.** This phase, the decision log, `AGENTS.md` (product rules), a note of the planned amendment
+  in `docs/AGENT_TOOLS.md`. No code. *Done when:* the owner approves the text. (Approved and pushed 1 November 2026, ec1282b.)
 - [ ] **9.2 Opening a closed month without a reason.** The reopen button opens the month at once: no dialog, no reason. The
   declaration format is unchanged: `reopenLog` still needs a reason, so the page writes a fixed one. *Done when:* tests (the
   log gets the fixed reason, the history entries of the month are removed as today); the owner opens a closed month on the
-  published page with one click.
+  published page with one click. (Built 1 November 2026: `CLICK_REOPEN_REASON`, the reason dialog removed; web 950 tests.
+  Unticked until the owner's check.)
 - [ ] **9.3 Every month is closed by default ("one lock", owner, 1 November 2026).** Anna sees only closed and open. A month is
   open only after the user's click; the app closes it by itself when the user leaves it (another month, another client, the
   clients home, the tab closed) and, at start, closes a month left open (a crash, a closed laptop), only while this PC holds the
