@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status (27 October 2026; 25 to 27 October: fixes after Anna's first real day, see the decision log and `HANDOFF.md`): **phases 0, 1, 5 and 7 done; phase 2 done but for 2.5 (phone camera → inbox, Anna's show-stopper, planned 24 October, next); phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** This file is the single source of truth for what is
+Status (27 October 2026; 25 to 27 October: fixes after Anna's first real day, see the decision log and `HANDOFF.md`): **phases 0, 1, 5 and 7 done; phase 2 done but for 2.5 (phone camera → inbox, Anna's show-stopper, planned 24 October, next); phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** **1 November 2026: phase 9 planned (after Anna's test session: one month at a time, the VAT month); next 9.2.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -440,6 +440,75 @@ transfer files was tried and dropped as impractical, and overwriting files in Dr
   `HANDOFF.md`.
 - [ ] **8.4** Restore drill from Drive and from USB into an empty folder.
 
+## Phase 9 — After Anna's test session: one month at a time
+
+Goal (owner, 31 October 2026, after a test session with Anna; decisions of 1 November in the decision log): a new document can
+never land in a month that was already reported to the Tax Authority. The work goes **client → month → the table or the
+inbox**: the inbox belongs to one client and one month, every document the agent reads goes into that month and no other, and
+every month is closed unless the user has just opened it. Anna can move the VAT of a row to another month. One step, one commit,
+the owner's "yes" between steps.
+
+- [ ] **9.1 The plan and the rules.** This phase, the decision log, `AGENTS.md` (product rules), a note of the planned amendment
+  in `docs/AGENT_TOOLS.md`. No code. *Done when:* the owner approves the text.
+- [ ] **9.2 Opening a closed month without a reason.** The reopen button opens the month at once: no dialog, no reason. The
+  declaration format is unchanged: `reopenLog` still needs a reason, so the page writes a fixed one. *Done when:* tests (the
+  log gets the fixed reason, the history entries of the month are removed as today); the owner opens a closed month on the
+  published page with one click.
+- [ ] **9.3 Every month is closed by default ("one lock", owner, 1 November 2026).** Anna sees only closed and open. A month is
+  open only after the user's click; the app closes it by itself when the user leaves it (another month, another client, the
+  clients home, the tab closed) and, at start, closes a month left open (a crash, a closed laptop), only while this PC holds the
+  baton. While an agent run writes into the month it stays open, and is closed when the run ends if the user has left it. A
+  month the user creates opens for work and is closed like any other when left. The checks of the lock button (`lock-check.js`: no active row, PCN rows not approved or without an
+  allocation number) stop blocking: closing always succeeds, and the same checks become a red line in the month and in the
+  reports. Every other writer refuses a closed month with "open the month first": the Excel wizard, the move of rows, the ledger
+  check, the transfer import. The first start after the update closes every open month once (an explicit, versioned migration
+  with a test and a copy of `history.jsonl` and of each `declaration.json` before it). *Open in the step:* does a long pause
+  (the baton's 10 minutes) also close the month. *Done when:* tests (closed on leaving, at start, after a run; a write to a closed
+  month refused by every writer; the migration and its copy; the checks shown and not blocking); the owner on the published page:
+  open, leave, the month is closed again.
+- [ ] **9.4 The inbox of a month.** Files are kept in `inbox/<client>/<YYYY-MM>/` (the index entry gets the month; the SHA-256
+  duplicate check is unchanged). The inbox dialog is opened from a month: its title names the client and the month, the client
+  list is shown but disabled. Files with no month (phone scans, which arrive in `inbox/_unsorted/`, and every file already in
+  the inbox before this step) are listed in every month's dialog as "without a month", with a button that takes a file into this
+  month (moved inside the inbox, hash checked). The sidebar counts files per month. Hebrew texts: the owner's wording first.
+  *Done when:* tests (a dropped file lands in the month's folder, a duplicate is still skipped, a file without a month is taken
+  into the month, old files keep their place until taken); the owner drops files into one month and takes a phone scan into it
+  on the published page.
+- [ ] **9.5 The order of work.** Client → month → the table or the inbox: the inbox button lives in the month's view; any other
+  way into the inbox first asks for the client and the month, or goes away (decided with the owner in the step). The button
+  "check new documents" works on the open month only; in a closed month its click opens the month first. *Done when:* tests of
+  the routes; the owner walks the order on the published page.
+- [ ] **9.6 The agent works on the open month only.** A run gets one client and one month from the page; `list_inbox` sees only
+  that month's folder; every row goes into that month (the code's month, `month_override`, the routing proofs `folder`,
+  `vat_id`, `alias`, `user`, `same_file`, the question `choose_client` and the questions of the month go away). The facts stay
+  as warnings, never as a move: the buyer's VAT number is another client's or unknown, the document date lies far from the
+  month, another year, a likely duplicate → the row is written and marked to look at. "Nothing is lost" stays: every document
+  of every file of the month becomes a row of the month. Enforced in code, not only in the prompt: the lowest layer refuses a
+  write to another client or month (test). Instruction, skills (`npm run eval` first), `AGENT_TOOLS.md`, `AGENT_VERSION`.
+  *Done when:* tests and the eval green; the owner runs one real month on the published page and every row is in it.
+- [ ] **9.7 Imports write into the selected month** (owner, 1 November 2026: "everything into the selected month"; it replaces
+  the decision of 30 October that each document of a photographed ledger goes to its own month). The Excel journal, the
+  ledger check and the income report, opened from a card of the month, write all their rows into that month; rows dated in
+  another month are counted on the wizard's summary ("N rows from other months") and marked to look at; Anna moves them with
+  the existing move of rows. The classification-codes ledger is not monthly and does not change. *Done when:* tests per kind;
+  the owner imports one real journal into one month.
+- [ ] **9.8 The column "VAT month"** (owner, 1 November 2026: expenses and income; a list of months for every client, also
+  for two-month VAT periods: a move inside one period changes nothing in the report). A list of months (month and year, no
+  confusion at the turn of the year); by default the month of the table; the code warns when the chosen month lies outside the
+  deduction window it already knows (`intake-facts.js`). When another month is chosen, the row's VAT shows 0 (the original
+  amount is kept, choosing the own month again restores it) and the code writes a line "moved VAT" into the chosen month: the
+  same VAT, net 0 (so the profit and loss counts the row once), the supplier or customer, document number and date, allocation
+  number and the same original. That line is read only; it changes or goes only through the source row. The chosen month must
+  be open; while it is closed the source row's choice is locked. The agent never sets this column. Two commits:
+  - [ ] **9.8.1 The column and the moved line.** *Done when:* tests (move, move back, change the target, a closed target
+    refused, net counted once); the owner moves the VAT of one expense and one sale on the published page.
+  - [ ] **9.8.2 Reports and PCN874.** `vatReport` knows the move: a sale whose VAT moved is not an exempt sale, the moved line
+    counts in the target month; the PCN874 line of a moved purchase goes into the target month with the source document's
+    details; the documents report shows the original for the moved line. *Question for Anna before this step:* how a sale
+    whose VAT moved appears in the PCN874 file (sales are often one aggregated `L` line). *Done when:* tests; the owner checks
+    the VAT report of both months on the published page.
+- [ ] **9.9 A real day with Anna.** Her notes in `HANDOFF.md`.
+
 ## Later (not planned yet)
 
 Gmail fetch through OAuth; PCN874 file; tax ID on report PDFs; clean-up of old snapshots; Claude as an alternative
@@ -577,3 +646,4 @@ model behind the same proxy.
 | 2026-10-30 | **Excel import: a credit note of income keeps its negative VAT** (found while checking the new client's August; owner: "fix and push"). `importedRow` made VAT positive unless the row was an expense credit, so an income credit (net and VAT negative in the file) got +VAT: output VAT of 8/2026 was 9,436.74 instead of the file's 9,291.44. VAT now takes the sign of net for every row. Reproduced by a test first. Changed existing code: `importedRow` (`excel-import.js`). Scanned the owner's data: that row is the only one. Web 917 → 918 tests. |
 | 2026-10-31 | **The documents report shows HEIC photos and Excel originals** (owner: "producing the PDF report for the new client I see no source, only 'the row has no source'; it is important, Excel or PDF must be there too"). Rows of an iPhone photo failed to draw (`createImageBitmap` cannot read HEIC); rows written by the Excel wizard have no image, only `sourceHash`. The report now converts HEIC like the photo window (`heic-view.js`, once per file) and, for a row with `sourceHash`, finds the file in `imports/` (`readRowOriginal`) and draws its sheet as a table, the line of the row marked yellow (`isRowLine`: same net, same document number). PDF originals were already drawn. Changed existing code: `readRowOriginal`, `createOriginalDrawer`, `renderDocumentReport` (new optional `loadSheet`) in `document-report.js`. Checked in the built-in browser on a local page with the new client's photo and journal: both pages drawn, the credit line marked. Web 946 → 948 tests. **Not verified:** the report from the app with a data folder, the published page. |
 | 2026-10-31 | **Reports page: the period stays, and is chosen from month and year lists** (owner: "when you choose the period, then change the report, the period jumps back to some default; the edit boxes are not handy"). Every change of the report applied that report's default period. Now the default is set when the page opens and on a change of report only while the user has not chosen a period. The MM/YYYY boxes became a month list and a year list each (like the new declaration dialog), writing the same MM/YYYY value into hidden inputs, so the rest of the page is unchanged; the years are those of the declarations, one more on each side. The period error no longer mentions the MM/YYYY format. Changed existing code: `setupReports` (`reports-ui.js`), `index.html`, `reports.css`. Web 948 → 949 tests. **Not verified:** the page with a data folder, the published page (the lists were looked at on a local copy without data). |
+| 2026-11-01 | **One month at a time** (owner, after Anna's test session of 31 October; phase 9). Every month is closed unless the user has just opened it; opening is one click without a reason; the app closes a month by itself when the user leaves it ("one lock", chosen over two levels "submitted" plus "view only"); the checks of the lock button become warnings. The inbox belongs to one client and one month; every document the agent reads goes into the open month and no other, the facts that pointed elsewhere become warnings on the row. The import wizards also write everything into the selected month: this replaces the decision of 30 October that each document of a photographed ledger goes to its own month. New column "VAT month" for expenses and income, a list of months for every client: the code moves the VAT into a read-only line of the chosen month. |

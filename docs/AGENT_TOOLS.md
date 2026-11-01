@@ -18,6 +18,12 @@ code accepts it as routing proof (`add_rows` `routed_by: "alias"`, `find_client`
 **Amendment of 17 October 2026 (step 5.1):** the rules of the work moved out of `web/agent/prompts.js` into `web/skills/<name>/SKILL.md`; see
 section 2, "Skills". The tools, their count (14) and their contracts did not change.
 
+**Planned amendment, approved 1 November 2026, not built (`WORK_PLAN.md` phase 9, step 9.6):** a run works on one client and
+one month, given by the page (the month the user opened). `list_inbox` sees only that month's inbox folder; `add_rows` writes
+every row into that month, and the lowest layer refuses any other client or month. The routing proofs (`routed_by`), the code's
+choice of the month, `month_override`, the question `choose_client` and the questions of the month go away; what pointed to
+another client or month becomes a reason on the row to look at. Until step 9.6 the sections below describe the code as it is.
+
 What this document fixes: the run, the conventions every tool follows, the facts that extraction returns, and for each
 tool its inputs, outputs, validation, effects and what it may never do. What it leaves to later steps: the Hebrew
 wording of prompts and skills (phase 5), the panel layout (4.3), the exact model ids (phase 3).
