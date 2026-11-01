@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { closedMonthText, lockProblemText, lockProblems } from "../lock-check.js";
+import { closedMonthText, lockProblemText, lockProblems, periodProblems } from "../lock-check.js";
 import { approvalKey } from "../pcn-review.js";
 
 // values: date, account, purpose, supplier, supplier id, reference, allocation, gross, net, vat.
@@ -45,4 +45,16 @@ test("a closed month and ready_to_close use this one check, and the lock button 
   assert.match(shown, /closedMonthText\(problems\)/);
   const tool = readFileSync(new URL("../agent/tools/ready-to-close.js", import.meta.url), "utf8");
   assert.match(tool, /lockProblems\(rows, \{ pcnRequired: profile\.pcnRequired \}\)/);
+});
+
+test("periodProblems: the months of the period with something found, oldest first (step 9.3)", () => {
+  const active = { active: true, values: [] };
+  const declarations = [
+    { month: "2026-03", rows: [] }, { month: "2026-01", rows: [] }, { month: "2026-02", rows: [active] }, { month: "2026-04", rows: [] },
+  ];
+  assert.deepEqual(periodProblems(declarations, "2026-01", "2026-03"), [
+    { month: "2026-01", problems: [{ code: "no_active_row", count: 0 }] },
+    { month: "2026-03", problems: [{ code: "no_active_row", count: 0 }] },
+  ]);
+  assert.deepEqual(periodProblems(declarations, "2026-02", "2026-02"), []);
 });

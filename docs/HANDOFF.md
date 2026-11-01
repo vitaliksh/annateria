@@ -7,7 +7,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
 `2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-30a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip, 942 all months; follow-up F1–F5: 946; documents report with HEIC and Excel originals: 948; report period lists: 949; reopen without a reason: 950; months closed by default: 958), Worker 69 (`2026.10.23.2`,
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip, 942 all months; follow-up F1–F5: 946; documents report with HEIC and Excel originals: 948; report period lists: 949; reopen without a reason: 950; months closed by default: 958; the red line of the reports: 960), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
@@ -33,6 +33,10 @@ first). The owner and Anna are now checking them on real data; nothing is half d
   old rule: the description of `ready_to_close` ("the refusals of the lock button") and the PCN plate ("before the lock"),
   changed with the agent texts in 9.6. **Not verified:** the published page (not pushed until 9.6), the time a sweep takes on a
   real data root with every client.
+  **The red line of the reports (9.3, second commit):** `periodProblems` (`lock-check.js`) runs `lockProblems` on the saved rows
+  of each month of the chosen period; the reports page writes one line per month into the new `#reports-checks` (red like
+  `#reports-error`, hidden when empty), on every preview. Changed existing code: `renderPreview` (`reports-ui.js`),
+  `index.html`, `reports.css`. **Not verified:** the published page.
 - **UI redesign "nothing waits unseen"** (30 October, owner approved all of `docs/UI_REDESIGN_PROPOSAL.md`; branch
   `claude/wizardly-snyder-83391f`, not on `main` yet: the owner tries it first). One commit per change:
   - **C1, the import card says how its wizard ended.** New `import-card-flow.js` (`watchWizard`): the page listens for the

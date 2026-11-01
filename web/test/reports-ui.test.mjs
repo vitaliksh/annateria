@@ -323,3 +323,15 @@ test("documents report: a kind of the list; the page lists the rows, the viewer 
   assert.match(await viewer.shown.save(), /reports\/documents_02-2026_02-2026\.pdf/);
   assert.ok(client.directory.children.get("reports").children.has("documents_02-2026_02-2026.pdf"));
 });
+
+test("step 9.3: the page says in red which months of the period the checks of the lock find something in", async () => {
+  const { q, open, client, window } = await setup({ declarations: ["2026-01"] });
+  const { createDeclaration, saveDraft } = await import("../declaration-store.js");
+  const empty = await createDeclaration(client.directory, { clientId: "c1", month: "2026-02" });
+  await saveDraft(empty.directory, empty.declaration, [{ active: false, values: ["01/02/26"] }]);
+  await open();
+  assert.equal(q("reports-checks").textContent, "", "the default period, 01/2026, has active rows");
+  q("reports-to").value = "02/2026";
+  q("reports-to").dispatchEvent(new window.Event("change"));
+  assert.equal(q("reports-checks").textContent, "02/2026: אין בהצהרה שורה פעילה.");
+});

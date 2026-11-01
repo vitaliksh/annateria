@@ -474,7 +474,8 @@ the owner's "yes" between steps.
   Worker), never during a run; a sweep skipped for the baton runs when the plate turns green. The writers already refused a
   closed month, so they did not change. Web 958 tests. *Found in the step, for 9.7 and 9.8:* with one open month at a time, the
   move of rows and the move of VAT can only reach a month that does not exist yet; how they may write into a closed month is to
-  be decided before 9.7.)
+  be decided before 9.7. The red line of the reports followed in a second commit: one line per month of the chosen period;
+  web 960 tests.)
 - [ ] **9.4 The inbox of a month.** Files are kept in `inbox/<client>/<YYYY-MM>/` (the index entry gets the month; the SHA-256
   duplicate check is unchanged). The inbox dialog is opened from a month: its title names the client and the month, the client
   list is shown but disabled. Files with no month (phone scans, which arrive in `inbox/_unsorted/`, and every file already in

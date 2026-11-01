@@ -26,6 +26,16 @@ export function closedMonthText(problems) {
     .join(" ");
 }
 
+// The months of a period whose saved rows the checks find something in, for the red line of the reports page (step 9.3).
+// declarations: [{ month, rows }] (loadReportDeclarations); from, to: "YYYY-MM". Resolves to [{ month, problems }], oldest first.
+export function periodProblems(declarations, from, to, { pcnRequired = false } = {}) {
+  return declarations
+    .filter(({ month }) => month >= from && month <= to)
+    .map(({ month, rows }) => ({ month, problems: lockProblems(rows, { pcnRequired }) }))
+    .filter(({ problems }) => problems.length)
+    .sort((left, right) => left.month.localeCompare(right.month));
+}
+
 // The message of the lock button for one problem.
 export function lockProblemText({ code, count }) {
   if (code === "no_active_row") return "יש לסמן לפחות שורה פעילה לפני נעילת ההצהרה.";

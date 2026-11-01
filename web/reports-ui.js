@@ -1,5 +1,6 @@
 // Reports page: pick a report and period, see it at once, show it in a child window, save it (or all reports) as PDF.
 import { readEffectiveChart } from "./chart-of-accounts.js";
+import { closedMonthText, periodProblems } from "./lock-check.js";
 import { formatMonth, parseMonthText } from "./month-format.js";
 import { loadReportDeclarations, readReportSettings, saveReportSettings } from "./report-data.js";
 import { advancesReport, classificationLedger, inPeriod, periodContaining, profitLoss, reportEntries, vatReport } from "./reports.js";
@@ -36,7 +37,7 @@ export function setupReports({
     "reports-kind", "reports-from", "reports-to", "reports-vat-period", "reports-advance-percent", "reports-error",
     "reports-status", "reports-preview", "reports-show", "reports-save-all", "reports-advances-period",
   ].map(part);
-  const [savePcn, savePcnAs] = ["reports-save-pcn", "reports-save-pcn-as"].map(part);
+  const [savePcn, savePcnAs, checks] = ["reports-save-pcn", "reports-save-pcn-as", "reports-checks"].map(part);
   const pcnOption = kind.querySelector("option[value=\"pcn874\"]");
   const pickers = [from, to].map((input) => ({ input, month: part(`${input.id}-month`), year: part(`${input.id}-year`) }));
   let context = null;
@@ -185,9 +186,14 @@ export function setupReports({
   // The page shows the chosen report at once; unusable parameters just leave the preview empty (show/save explain why).
   function renderPreview() {
     preview.replaceChildren();
+    if (checks) checks.textContent = "";
     if (!context) return;
     const [fromIso, toIso] = [parseMonthText(from.value), parseMonthText(to.value)];
     if (!fromIso || !toIso || fromIso > toIso) return;
+    // Step 9.3: the lock no longer stops on its checks, so the page says in red which months of the period they find something in.
+    const found = periodProblems(declarations, fromIso, toIso, { pcnRequired: Boolean(context.client.config?.pcnRequired) });
+    const lines = found.map(({ month, problems }) => `${formatMonth(month)}: ${closedMonthText(problems)}`);
+    if (checks) checks.textContent = lines.join("\n");
     const advancePercent = percent.value === "" ? null : Number(percent.value);
     const validPercent = advancePercent !== null && advancePercent >= 0 && advancePercent <= 100;
     if (kind.value === "advances" && !validPercent) return;
