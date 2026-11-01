@@ -4,7 +4,9 @@
 import { confirmDialog } from "./confirm-dialog.js";
 import {
   ACCEPTED_EXTENSIONS, UNSORTED, addToInbox, ensureInbox, inboxCounts, moveToTrash, readInboxFile, readInboxIndex, reconcileInbox, refusalReason,
+  takeIntoMonth,
 } from "./inbox-store.js";
+import { formatMonth } from "./month-format.js";
 
 const PLATE_CLASS = { info: "plate-info", success: "plate-success", warning: "plate-warning", error: "plate-error" };
 const DIRECTORY_REASON = "תיקייה: יש לגרור קבצים ולא תיקיות";
@@ -53,14 +55,17 @@ async function canvasThumbnail(file, entry, doc) {
 
 // getClients() returns this PC's active clients ({ entryName, clientName, parent, ... }); only those inside the data root
 // ("parent" set) have an inbox folder. The store functions and `makeThumbnail(file, entry)` are replaceable in tests.
-// getOpenFolder() is the inbox folder of the client that is open in the journal (or null): the dialog offers it for new files.
-// onCounts({ total, byFolder }) is called whenever the index was read, for the sidebar. onCheck() is called by the button that
+// getOpenFolder() is the inbox folder of the client that is open in the journal (or null); getOpenMonth() the month shown in the
+// journal (or null). Step 9.4: new files go to that client and month, or without a client and month when no month is shown; the
+// client list only shows it. A file without a month can be taken into the shown month.
+// onCounts({ total, byFolder, byMonth }) is called whenever the index was read, for the sidebar. onCheck() is called by the button that
 // hands the files to the assistant. isBusy() is true while the assistant runs: then no file may leave the inbox, because the run may
 // still have to file it with its rows (25 October 2026: two PDFs removed during a check left 24 rows without their original).
 export function setupInbox({
-  dialog, openButton, getDataRoot, getClients, getOpenFolder = () => null, onError = () => {}, onCounts = () => {}, onCheck = () => {},
-  isBusy = () => false,
+  dialog, openButton, getDataRoot, getClients, getOpenFolder = () => null, getOpenMonth = () => null, onError = () => {}, onCounts = () => {},
+  onCheck = () => {}, isBusy = () => false,
   add = addToInbox, ensure = ensureInbox, readIndex = readInboxIndex, reconcile = reconcileInbox, trash = moveToTrash, readFile = readInboxFile,
+  take = takeIntoMonth,
   makeThumbnail = null, confirm = confirmDialog, now = () => new Date().toISOString(),
 }) {
   const part = (id) => dialog.querySelector(`#${id}`);
@@ -69,6 +74,7 @@ export function setupInbox({
     "inbox-check",
   ].map(part);
   const navBadge = openButton.querySelector("[data-inbox-total]");
+  const title = part("inbox-title");
   const doc = dialog.ownerDocument;
   // The phone guide (step 2.4) is a plain help dialog; the button only opens it.
   part("inbox-guide").addEventListener("click", () => doc.querySelector("#phone-guide-dialog")?.showModal());
@@ -80,11 +86,18 @@ export function setupInbox({
   let listToken = 0;
 
   const homeClients = () => (getClients() ?? []).filter((client) => client.parent && client.entryName);
+  // The client folder and the month that new files go to, or null when no month of a client of the data root is shown.
+  const target = () => {
+    const folder = getOpenFolder(), month = getOpenMonth();
+    return folder && month && homeClients().some((client) => client.entryName === folder) ? { folder, month } : null;
+  };
   const setMessage = (kind, text, lines = []) => { message = { kind, text }; shown = lines; render(); };
 
   function render() {
     const root = getDataRoot();
-    const current = message ?? { kind: root ? "info" : "warning", text: root ? "גררו לכאן תמונות, PDF וקובצי Excel, או בחרו קבצים. הקבצים נשמרים בתיבת הקלט ואינם נשלחים לשום מקום." : "יש לבחור תחילה תיקיית נתונים." };
+    const intro = "גררו לכאן תמונות, PDF וקובצי Excel, או בחרו קבצים. הקבצים נשמרים בתיבת הקלט ואינם נשלחים לשום מקום.";
+    const noMonth = target() ? "" : " לא נפתח חודש: הקבצים יישמרו ללא חודש.";
+    const current = message ?? { kind: root ? "info" : "warning", text: root ? intro + noMonth : "יש לבחור תחילה תיקיית נתונים." };
     plate.className = `plate ${PLATE_CLASS[current.kind]}`;
     plate.textContent = current.text;
     const disabled = !root || running;
@@ -92,7 +105,8 @@ export function setupInbox({
     const total = index.files.length;
     const note = checking ? " · הבדיקה פעילה, אי אפשר להסיר קבצים עד שתסתיים" : "";
     countLine.textContent = total ? `בתיבה: ${plural(total, "קובץ אחד", "קבצים")}${note}` : "התיבה ריקה";
-    pick.disabled = select.disabled = disabled;
+    pick.disabled = disabled;
+    select.disabled = true;
     clearButton.disabled = disabled || checking || !total;
     checkButton.disabled = disabled || checking || !total;
     for (const button of list.querySelectorAll("button")) button.disabled = disabled || checking;
@@ -110,16 +124,27 @@ export function setupInbox({
   }
 
   const folderLabel = (folder) => (folder === UNSORTED ? "ללא שיוך" : homeClients().find((client) => client.entryName === folder)?.clientName ?? folder);
-  const where = (of) => of.folder ? `בתיבת הקלט (${folderLabel(of.folder)})` : of.imports ? `בקבצים שיובאו של «${of.client}»` : `בהצהרה ${of.month} של «${of.client}»`;
+  const groupLabel = (folder, month) => (folder === UNSORTED ? folderLabel(folder) : `${folderLabel(folder)} · ${month ? formatMonth(month) : "ללא חודש"}`);
+  const where = (of) => {
+    if (of.folder) return `בתיבת הקלט (${groupLabel(of.folder, of.month)})`;
+    return of.imports ? `בקבצים שיובאו של «${of.client}»` : `בהצהרה ${of.month} של «${of.client}»`;
+  };
 
-  // Unassigned first, then the clients in the order of the sidebar, then folders that no client owns any more.
+  // The shown month first; then unassigned, then the clients in the order of the sidebar (without a month before their months,
+  // newest month first), then folders that no client owns any more.
   function groups() {
     const order = [UNSORTED, ...homeClients().map((client) => client.entryName)];
-    const folders = [...new Set(index.files.map((entry) => entry.folder))].sort((a, b) => {
-      const rank = (folder) => (order.includes(folder) ? order.indexOf(folder) : order.length);
-      return rank(a) - rank(b) || a.localeCompare(b, "he");
-    });
-    return folders.map((folder) => ({ folder, entries: index.files.filter((entry) => entry.folder === folder) }));
+    const shownMonth = target();
+    const keys = [...new Map(index.files.map((entry) => [`${entry.folder}|${entry.month ?? ""}`, entry])).values()]
+      .map(({ folder, month }) => ({ folder, month: month ?? null }));
+    const rank = ({ folder, month }) => {
+      if (shownMonth && folder === shownMonth.folder && month === shownMonth.month) return -1;
+      return order.includes(folder) ? order.indexOf(folder) : order.length;
+    };
+    const newest = (a, b) => (b.month ?? "9999").localeCompare(a.month ?? "9999");
+    keys.sort((a, b) => rank(a) - rank(b) || a.folder.localeCompare(b.folder, "he") || newest(a, b));
+    const of = ({ folder, month }) => index.files.filter((entry) => entry.folder === folder && (entry.month ?? null) === month);
+    return keys.map((key) => ({ ...key, entries: of(key) }));
   }
 
   function itemOf(entry) {
@@ -140,7 +165,16 @@ export function setupInbox({
     remove.textContent = "הסר";
     remove.setAttribute("aria-label", `הסר את ${entry.name} מהתיבה`);
     remove.addEventListener("click", () => moveFiles([entry.hash], `הועבר לפח: ${entry.name}`));
-    item.append(box, text, remove);
+    item.append(box, text);
+    if (!entry.month && target()) {
+      const takeButton = doc.createElement("button");
+      takeButton.type = "button";
+      takeButton.className = "secondary small inbox-take";
+      takeButton.textContent = "לחודש הזה";
+      takeButton.addEventListener("click", () => takeFile(entry));
+      item.append(takeButton);
+    }
+    item.append(remove);
     return item;
   }
 
@@ -160,9 +194,9 @@ export function setupInbox({
 
   function renderList() {
     listToken += 1;
-    list.replaceChildren(...groups().flatMap(({ folder, entries }) => {
+    list.replaceChildren(...groups().flatMap(({ folder, month, entries }) => {
       const head = doc.createElement("h4");
-      head.textContent = `${folderLabel(folder)} (${entries.length})`;
+      head.textContent = `${groupLabel(folder, month)} (${entries.length})`;
       return [head, ...entries.map(itemOf)];
     }));
     render();
@@ -201,10 +235,9 @@ export function setupInbox({
     running = true;
     setMessage("info", "קולט קבצים…");
     try {
-      const folder = select.value || UNSORTED;
-      if (folder !== UNSORTED && !homeClients().some((client) => client.entryName === folder)) throw new Error("הלקוח שנבחר אינו זמין.");
+      const place = target() ?? { folder: UNSORTED };
       await allowWrite(root);
-      const result = accepted.length ? await add(root, accepted, { folder, now: now() }) : { added: [], duplicates: [], failed: [] };
+      const result = accepted.length ? await add(root, accepted, { ...place, now: now() }) : { added: [], duplicates: [], failed: [] };
       const notTaken = turnedAway.length + result.failed.length;
       const parts = [result.added.length ? `${result.added.length === 1 ? "נוסף" : "נוספו"} ${plural(result.added.length, "קובץ אחד", "קבצים")}` : "לא נוספו קבצים"];
       if (result.duplicates.length) parts.push(`${plural(result.duplicates.length, "קובץ כפול", "כפולים")} דולג${result.duplicates.length === 1 ? "" : "ו"}`);
@@ -240,6 +273,27 @@ export function setupInbox({
       ];
       const text = !result.moved.length ? "לא הועברו קבצים" : hashes.length === 1 ? doneText : `הועברו לפח: ${result.moved.length}`;
       setMessage(result.failed.length ? "warning" : "success", text, problemLines);
+    } catch (error) {
+      setMessage("error", error.message);
+      errorLine.textContent = error.message;
+      onError("תיבת הקלט: " + error.message);
+    } finally {
+      running = false;
+      await refreshCounts();
+    }
+  }
+
+  // Takes a file without a month into the shown month (step 9.4). Not while the assistant runs: it may still file the file.
+  async function takeFile(entry) {
+    const root = getDataRoot(), shownMonth = target();
+    if (!root || !shownMonth || running || isBusy()) return;
+    errorLine.textContent = "";
+    running = true;
+    render();
+    try {
+      await allowWrite(root);
+      await take(root, entry.hash, shownMonth);
+      setMessage("success", `הועבר ל־${formatMonth(shownMonth.month)}: ${entry.name}`);
     } catch (error) {
       setMessage("error", error.message);
       errorLine.textContent = error.message;
@@ -304,8 +358,9 @@ export function setupInbox({
       onError("תיבת הקלט: " + error.message);
     }
     fillClients();
-    const openFolder = getOpenFolder();
-    if (openFolder && [...select.options].some((item) => item.value === openFolder)) select.value = openFolder;
+    const shownMonth = target();
+    select.value = shownMonth ? shownMonth.folder : "";
+    title.textContent = shownMonth ? `תיבת קלט · ${folderLabel(shownMonth.folder)} · ${formatMonth(shownMonth.month)}` : "תיבת קלט";
     await refreshCounts();
     dialog.showModal();
   }

@@ -102,6 +102,7 @@ let dataRoot = null,
   inboxUi = null,
   modelSettings = null,
   inboxFileCounts = {},
+  inboxMonthCounts = {}, // files waiting per "<client folder>|<month>" (step 9.4)
   reviewByMonth = [], // rows to look at in the open months of every client, from the saved tables (C7)
   openReview = 0, // rows to look at in the open month, the toolbar's live count
   pendingImports = [], // import cards not done, from the panel: [{ name, client, clientId, state }]
@@ -368,6 +369,7 @@ sync.refresh().catch(() => {});
 sync.start();
 const workspaceControls = setupWorkspaceControls({
   getInboxCounts: () => inboxFileCounts,
+  getInboxMonthCounts: () => inboxMonthCounts,
   getReviewCounts: () => Object.fromEntries(reviewList().map((item) => [`${item.clientId}|${item.month}`, item.count])),
   getPendingImports: () => pendingImports,
   onClientsChanged: () => {
@@ -720,10 +722,13 @@ inboxUi = setupInbox({
     const openId = committedWorkspace?.config.clientId;
     return openId ? (workspaceControls?.getClients().active.find((client) => client.config?.clientId === openId)?.entryName ?? null) : null;
   },
+  // Step 9.4: the month shown in the journal takes the new files.
+  getOpenMonth: () => (document.body.dataset.view === "journal" ? (currentDeclaration?.month ?? null) : null),
   onCheck: () => assistant.trigger("process"),
   isBusy: () => Boolean(assistantRun),
-  onCounts: ({ total, byFolder }) => {
+  onCounts: ({ total, byFolder, byMonth }) => {
     inboxFileCounts = byFolder;
+    inboxMonthCounts = byMonth ?? {};
     workspaceControls?.renderSidebar?.();
     assistant.setWaiting(total);
     waiting.set("inbox", total);

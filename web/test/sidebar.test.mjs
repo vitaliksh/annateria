@@ -137,6 +137,17 @@ test("a client with an import closed before it finished gets a red badge; one no
   assert.equal(badges[1].title, "ייבוא שממתין: 1");
 });
 
+test("step 9.4: a month of the open client counts the files waiting in its inbox, beside its rows to look at", () => {
+  const container = root(), handlers = { onClient() {}, onMenu() {}, onDeclaration() {}, onNewDeclaration() {} };
+  const clients = [{ ...client("Alpha", [declaration("2026-09"), declaration("2026-10")]), entryName: "Alpha dir" }];
+  renderSidebarClients(container, {
+    clients, archivedMode: false, activeClientId: null, activeDeclarationId: null, expandedClientId: "Alpha",
+    inboxCounts: { "Alpha dir": 3 }, inboxMonthCounts: { "Alpha dir|2026-10": 2 }, reviewCounts: { "Alpha|2026-10": 1 },
+  }, handlers);
+  const months = [...container.querySelectorAll(".declaration-choice")].map((choice) => choice.querySelector(".waiting-count")?.title ?? null);
+  assert.deepEqual(months, ["קבצים בתיבת הקלט: 2 · שורות לבדיקה: 1", null], "newest month first");
+});
+
 function fakeWindow(href) {
   const win = { location: { href }, opener: "page", focused: false, focus() { win.focused = true; } };
   return win;

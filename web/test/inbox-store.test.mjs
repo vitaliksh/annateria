@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import {
   UNSORTED, addToInbox, copyToClientImports, copyToDeclarationImages, declarationImageHashes, ensureInbox, fileImportOriginal, inboxCounts, isInboxFolder, moveOutOfInbox, moveToTrash, nextImageNumber, readInboxFile,
-  readInboxIndex, reconcileInbox, refusalReason, safeFileName, sha256Hex,
+  readInboxIndex, reconcileInbox, refusalReason, safeFileName, sha256Hex, takeIntoMonth,
 } from "../inbox-store.js";
 import { binaryDirectory, listPaths, putFile, readFileBytes } from "./memory-binary-directory.mjs";
 
@@ -239,10 +239,10 @@ async function filled() {
 
 test("inboxCounts counts files per folder and ignores the trash", async () => {
   const { root, files } = await filled();
-  assert.deepEqual(inboxCounts(await readInboxIndex(root)), { total: 3, byFolder: { Levi: 2, _unsorted: 1 } });
+  assert.deepEqual(inboxCounts(await readInboxIndex(root)), { total: 3, byFolder: { Levi: 2, _unsorted: 1 }, byMonth: {} });
   await moveToTrash(root, [files[0].hash]);
-  assert.deepEqual(inboxCounts(await readInboxIndex(root)), { total: 2, byFolder: { Levi: 1, _unsorted: 1 } });
-  assert.deepEqual(inboxCounts({ files: [] }), { total: 0, byFolder: {} });
+  assert.deepEqual(inboxCounts(await readInboxIndex(root)), { total: 2, byFolder: { Levi: 1, _unsorted: 1 }, byMonth: {} });
+  assert.deepEqual(inboxCounts({ files: [] }), { total: 0, byFolder: {}, byMonth: {} });
 });
 
 test("readInboxFile returns the stored bytes", async () => {
@@ -466,4 +466,37 @@ test("a filed import original is a duplicate of the same bytes dropped again, an
   assert.equal(again.added.length, 0);
   assert.deepEqual(again.duplicates.map((item) => [item.name, item.reason, item.of]), [["copy.xlsx", "declaration", { client: "Levi", month: null, file: "journal.xlsx", imports: true }]]);
   assert.equal((await declarationImageHashes(root, new Set([13]))).get(sha("journal bytes")).imports, true);
+});
+
+test("step 9.4: a file added for a month records it; the counts tell each month; a month needs a client folder", async () => {
+  const root = binaryDirectory("root");
+  const added = await addToInbox(root, [fileOf("a.pdf", "aaa")], { folder: "Client", month: "2026-10", now: NOW });
+  assert.equal(added.added[0].month, "2026-10");
+  await addToInbox(root, [fileOf("b.pdf", "bbb")], { folder: "Client", now: NOW });
+  await addToInbox(root, [fileOf("c.jpg", "ccc")], { now: NOW });
+  const index = await readInboxIndex(root);
+  assert.deepEqual(index.files.map((entry) => entry.month ?? null), ["2026-10", null, null]);
+  assert.deepEqual(inboxCounts(index), { total: 3, byFolder: { Client: 2, [UNSORTED]: 1 }, byMonth: { "Client|2026-10": 1 } });
+  await assert.rejects(addToInbox(root, [fileOf("d.pdf", "ddd")], { month: "2026-10" }), /חודש/);
+  await assert.rejects(addToInbox(root, [fileOf("d.pdf", "ddd")], { folder: "Client", month: "2026-13" }), /חודש/);
+  const again = await addToInbox(root, [fileOf("a again.pdf", "aaa")], { folder: "Client", month: "2026-11", now: NOW });
+  assert.equal(again.duplicates[0].reason, "inbox", "the same bytes are still a duplicate, whatever the month");
+});
+
+test("step 9.4: takeIntoMonth moves a file without a month into the month of a client, and refuses one that has a month", async () => {
+  const root = binaryDirectory("root");
+  await addToInbox(root, [fileOf("scan.jpg", "scan")], { now: NOW });
+  await addToInbox(root, [fileOf("own.pdf", "own")], { folder: "Client", now: NOW });
+  await putFile(root, "inbox/Client/scan.jpg", "an older file of the same name");
+  const moved = await takeIntoMonth(root, sha("scan"), { folder: "Client", month: "2026-10" });
+  assert.deepEqual([moved.folder, moved.storedName, moved.month], ["Client", "scan (2).jpg", "2026-10"]);
+  assert.equal(new TextDecoder().decode(await readFileBytes(root, "inbox/Client/scan (2).jpg")), "scan");
+  assert.equal((await listPaths(root)).includes("inbox/_unsorted/scan.jpg"), false, "the original left _unsorted");
+  const kept = await takeIntoMonth(root, sha("own"), { folder: "Client", month: "2026-10" });
+  assert.deepEqual([kept.folder, kept.storedName, kept.month], ["Client", "own.pdf", "2026-10"]);
+  const index = await readInboxIndex(root);
+  assert.deepEqual(index.files.map((entry) => `${entry.folder}/${entry.storedName} ${entry.month}`), ["Client/scan (2).jpg 2026-10", "Client/own.pdf 2026-10"]);
+  await assert.rejects(takeIntoMonth(root, sha("own"), { folder: "Client", month: "2026-11" }), /כבר יש חודש/);
+  await assert.rejects(takeIntoMonth(root, sha("nothing"), { folder: "Client", month: "2026-11" }), /אינו בתיבת הקלט/);
+  await assert.rejects(takeIntoMonth(root, sha("own"), { folder: UNSORTED, month: "2026-11" }), /חודש לא חוקי/);
 });

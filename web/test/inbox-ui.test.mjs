@@ -19,9 +19,12 @@ function setup({ withRoot = true, clients = [levi, outsider], ...options } = {})
   dialog.showModal = () => { dialog.open = true; };
   const root = binaryDirectory("data");
   const errors = [];
+  // The client and month shown in the journal (step 9.4); a test changes them as the user opens a month.
+  const shown = { folder: null, month: null };
   const inbox = setupInbox({
     dialog, openButton: window.document.querySelector("#open-inbox"), getDataRoot: () => (withRoot ? root : null),
-    getClients: () => clients, onError: (message) => errors.push(message), now: () => "2026-10-17T09:00:00.000Z", ...options,
+    getClients: () => clients, onError: (message) => errors.push(message), now: () => "2026-10-17T09:00:00.000Z",
+    getOpenFolder: () => shown.folder, getOpenMonth: () => shown.month, ...options,
   });
   const q = (selector) => dialog.querySelector(selector);
   const pickFiles = async (files) => {
@@ -36,7 +39,8 @@ function setup({ withRoot = true, clients = [levi, outsider], ...options } = {})
     await settle();
     return event;
   };
-  return { window, dialog, root, errors, inbox, q, pickFiles, drop, plate: () => q("#inbox-summary").textContent, lines: () => [...q("#inbox-problems").children].map((li) => li.textContent) };
+  const show = (folder, month) => Object.assign(shown, { folder, month });
+  return { window, dialog, root, errors, inbox, q, pickFiles, drop, show, plate: () => q("#inbox-summary").textContent, lines: () => [...q("#inbox-problems").children].map((li) => li.textContent) };
 }
 
 test("the page has the inbox dialog and its entry point", () => {
@@ -79,12 +83,17 @@ test("the picker stores the files unchanged in _unsorted and reports the count",
   assert.equal(ui.q("#inbox-file").value, "", "the picker is cleared so the same file can be chosen again");
 });
 
-test("the chosen client decides the folder", async () => {
+test("step 9.4: the month shown in the journal takes the new files; the client list only shows its client", async () => {
   const ui = setup();
+  ui.show("Levi", "2026-10");
   await ui.inbox.open();
-  ui.q("#inbox-client").value = "Levi";
+  assert.equal(ui.q("#inbox-client").value, "Levi");
+  assert.equal(ui.q("#inbox-client").disabled, true);
+  ui.q("#inbox-client").value = "";
   await ui.pickFiles([file("inv.pdf", "invoice")]);
-  assert.deepEqual(await listPaths(ui.root), ["inbox/Levi/inv.pdf", "inbox/index.json"]);
+  assert.deepEqual(await listPaths(ui.root), ["inbox/Levi/inv.pdf", "inbox/index.json"], "the list cannot send it elsewhere");
+  const index = JSON.parse(new TextDecoder().decode(await readFileBytes(ui.root, "inbox/index.json")));
+  assert.equal(index.files[0].month, "2026-10");
 });
 
 test("a drop reports added files, duplicates, refused types and folders", async () => {
@@ -156,15 +165,14 @@ test("a failure of the store is shown and passed on; the dialog stays usable", a
   assert.equal(calls, 2);
 });
 
-test("a client that disappeared since the dialog was filled is refused", async () => {
-  const clients = [levi];
-  const ui = setup({ clients });
+test("step 9.4: without a shown month, or with a client that has no inbox folder here, new files go without a client", async () => {
+  const ui = setup();
   await ui.inbox.open();
-  ui.q("#inbox-client").value = "Levi";
-  clients.length = 0;
+  assert.match(ui.plate(), /לא נפתח חודש: הקבצים יישמרו ללא חודש\.$/);
   await ui.pickFiles([file("a.pdf", "a")]);
-  assert.equal(ui.plate(), "הלקוח שנבחר אינו זמין.");
-  assert.deepEqual(await listPaths(ui.root), []);
+  ui.show("Elsewhere", "2026-10");
+  await ui.pickFiles([file("b.pdf", "b")]);
+  assert.deepEqual(await listPaths(ui.root), ["inbox/_unsorted/a.pdf", "inbox/_unsorted/b.pdf", "inbox/index.json"]);
 });
 
 test("filesFromDrop falls back to dataTransfer.files when there are no items", () => {
@@ -176,9 +184,9 @@ test("filesFromDrop falls back to dataTransfer.files when there are no items", (
 const items = (ui) => [...ui.q("#inbox-list").children].map((node) => (node.tagName === "H4" ? node.textContent : node.querySelector("strong").textContent));
 const fill = async (ui) => {
   await ui.inbox.open();
-  ui.q("#inbox-client").value = "Levi";
+  ui.show("Levi", "2026-10");
   await ui.pickFiles([file("inv-1.pdf", "one"), file("photo.jpg", "two")]);
-  ui.q("#inbox-client").value = "";
+  ui.show(null, null);
   await ui.pickFiles([file("loose.png", "three")]);
 };
 
@@ -191,11 +199,11 @@ test("the list shows unassigned files first, then each client, with counts, size
   const counts = [];
   const ui = setup({ onCounts: (value) => counts.push(value) });
   await fill(ui);
-  assert.deepEqual(items(ui), ["ללא שיוך (1)", "loose.png", "Levi Ltd (2)", "inv-1.pdf", "photo.jpg"]);
+  assert.deepEqual(items(ui), ["ללא שיוך (1)", "loose.png", "Levi Ltd · 10/2026 (2)", "inv-1.pdf", "photo.jpg"]);
   assert.equal(ui.q("#inbox-count").textContent, "בתיבה: 3 קבצים");
   assert.match(ui.q(".inbox-item .muted").textContent, /^1 KB · 2026-10-01$/);
   assert.equal(ui.q(".inbox-thumb").textContent, "PNG");
-  assert.deepEqual(counts.at(-1), { total: 3, byFolder: { Levi: 2, _unsorted: 1 } });
+  assert.deepEqual(counts.at(-1), { total: 3, byFolder: { Levi: 2, _unsorted: 1 }, byMonth: { "Levi|2026-10": 2 } });
   const badge = ui.window.document.querySelector("[data-inbox-total]");
   assert.equal(badge.hidden, false);
   assert.equal(badge.textContent, "3");
@@ -217,9 +225,9 @@ test("removing one file moves it to _trash and updates the list and the counts",
   ui.q(".inbox-item[data-hash] .inbox-remove").click();
   await settle();
   assert.equal(ui.plate(), "הועבר לפח: loose.png");
-  assert.deepEqual(items(ui), ["Levi Ltd (2)", "inv-1.pdf", "photo.jpg"]);
+  assert.deepEqual(items(ui), ["Levi Ltd · 10/2026 (2)", "inv-1.pdf", "photo.jpg"]);
   assert.deepEqual(await listPaths(ui.root), ["inbox/Levi/inv-1.pdf", "inbox/Levi/photo.jpg", "inbox/_trash/loose.png", "inbox/index.json"]);
-  assert.deepEqual(counts.at(-1), { total: 2, byFolder: { Levi: 2 } });
+  assert.deepEqual(counts.at(-1), { total: 2, byFolder: { Levi: 2 }, byMonth: { "Levi|2026-10": 2 } });
   assert.equal(ui.window.document.querySelector("[data-inbox-total]").textContent, "2");
 });
 
@@ -358,19 +366,38 @@ test("the select says it is for the files that are added now", () => {
   assert.match(html, /<label>שיוך ללקוח, לקבצים שמוסיפים עכשיו <select id="inbox-client">/);
 });
 
-test("the client that is open in the journal is offered as the folder of new files; without one the choice stays as it was", async () => {
-  const open = setup({ getOpenFolder: () => "Levi" });
+test("step 9.4: the title names the shown client and month; without one the client list shows no client", async () => {
+  const open = setup();
+  open.show("Levi", "2026-10");
   open.window.document.querySelector("#open-inbox").click();
   await settle();
-  assert.equal(open.q("#inbox-client").value, "Levi");
-  const unknown = setup({ getOpenFolder: () => "Elsewhere" });
+  assert.equal(open.q("#inbox-title").textContent, "תיבת קלט · Levi Ltd · 10/2026");
+  const unknown = setup();
+  unknown.show("Elsewhere", "2026-10");
   unknown.window.document.querySelector("#open-inbox").click();
   await settle();
-  assert.equal(unknown.q("#inbox-client").value, "", "a client that has no inbox folder here is not offered");
-  const none = setup();
-  none.window.document.querySelector("#open-inbox").click();
+  assert.equal(unknown.q("#inbox-client").value, "", "a client that has no inbox folder here is not shown");
+  assert.equal(unknown.q("#inbox-title").textContent, "תיבת קלט");
+});
+
+test("step 9.4: a file without a month is taken into the shown month; the shown month comes first in the list", async () => {
+  const counts = [];
+  const ui = setup({ onCounts: (value) => counts.push(value) });
+  await fill(ui);
+  await ui.drop({ files: [file("scan.jpg", "scan")] });
+  assert.equal(ui.q(".inbox-take"), null, "no month is shown: nothing to take into");
+  ui.show("Levi", "2026-11");
+  await ui.inbox.open();
+  assert.deepEqual(items(ui).filter((text) => text.includes("(")), ["ללא שיוך (2)", "Levi Ltd · 10/2026 (2)"]);
+  const scan = [...ui.q("#inbox-list").querySelectorAll(".inbox-item")].find((item) => item.textContent.includes("scan.jpg"));
+  scan.querySelector(".inbox-take").click();
   await settle();
-  assert.equal(none.q("#inbox-client").value, "");
+  assert.equal(ui.plate(), "הועבר ל־11/2026: scan.jpg");
+  assert.deepEqual(items(ui).filter((text) => text.includes("(")), ["Levi Ltd · 11/2026 (1)", "ללא שיוך (1)", "Levi Ltd · 10/2026 (2)"]);
+  assert.ok((await listPaths(ui.root)).includes("inbox/Levi/scan.jpg"));
+  assert.deepEqual(counts.at(-1).byMonth, { "Levi|2026-10": 2, "Levi|2026-11": 1 });
+  const dated = [...ui.q("#inbox-list").querySelectorAll(".inbox-item")].find((item) => item.textContent.includes("inv-1.pdf"));
+  assert.equal(dated.querySelector(".inbox-take"), null, "a file that has a month has no button");
 });
 
 // Seen on 23 October 2026: after a reload Chrome lets the page read the data root but refuses to write until it asked.

@@ -1,9 +1,10 @@
 // The inbox: originals dropped by the user wait in <data root>/inbox/<client folder>/ or inbox/_unsorted/ until the
-// assistant (phase 4) moves them into a declaration. No AI is involved here. inbox/index.json records every file by its
+// assistant (phase 4) moves them into a declaration. A file of a client folder may belong to one month of that client (`month`
+// of its index entry, step 9.4); a file without a month waits until the user takes it into a month. No AI is involved here. inbox/index.json records every file by its
 // SHA-256, so the same bytes are never stored twice, neither in the inbox nor among the images of a declaration.
 // The index is rewritten as a whole after every file: callers add files one batch at a time (no locking here).
 const INBOX_NAME = "inbox", INDEX_NAME = "index.json", UNSORTED = "_unsorted", TRASH = "_trash";
-const INDEX_VERSION = 1, HASH = /^[0-9a-f]{64}$/;
+const INDEX_VERSION = 1, HASH = /^[0-9a-f]{64}$/, MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const FORBIDDEN = /[\\/:*?"<>|\u0000-\u001f]/g;
 const RESERVED_DEVICE = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 const MAX_STEM = 120;
@@ -110,7 +111,8 @@ function checkEntry(entry) {
   const text = (value) => typeof value === "string" && value !== "";
   return entry && typeof entry === "object" && HASH.test(entry.hash) && text(entry.name) && text(entry.storedName)
     && text(entry.folder) && Number.isInteger(entry.size) && entry.size > 0 && typeof entry.type === "string"
-    && (entry.sourceDate === null || text(entry.sourceDate)) && text(entry.addedAt);
+    && (entry.sourceDate === null || text(entry.sourceDate)) && text(entry.addedAt)
+    && (entry.month === undefined || (MONTH.test(entry.month) && entry.folder !== UNSORTED));
 }
 
 // `trashed` (optional) records what moved to inbox/_trash/: the entry as it was, plus trashedName and trashedAt.
@@ -220,13 +222,14 @@ async function storeFile(directory, storedName, bytes) {
   }
 }
 
-// Adds files (File objects) to inbox/<folder>/. Returns
+// Adds files (File objects) to inbox/<folder>/, for one month of that client when `month` is given (step 9.4). Returns
 //   added:      index entries of the stored files,
 //   duplicates: { name, reason: "inbox" | "declaration", of } for bytes that were already seen,
 //   failed:     { name, error } for files that could not be stored (the rest of the batch continues).
 export const addToInbox = (...args) => oneAtATime(() => addToInboxNow(...args));
-async function addToInboxNow(dataRoot, files, { folder = UNSORTED, now = new Date().toISOString() } = {}) {
+async function addToInboxNow(dataRoot, files, { folder = UNSORTED, month = null, now = new Date().toISOString() } = {}) {
   if (!isInboxFolder(folder)) throw new Error("שם תיקייה לא חוקי בתיבת הקלט.");
+  if (month !== null && (!MONTH.test(month) || folder === UNSORTED)) throw new Error("חודש לא חוקי בתיבת הקלט.");
   await ensureInbox(dataRoot);
   const inbox = await inboxDirectory(dataRoot), directory = await inbox.getDirectoryHandle(folder, { create: true });
   const index = await readInboxIndex(dataRoot);
@@ -244,7 +247,10 @@ async function addToInboxNow(dataRoot, files, { folder = UNSORTED, now = new Dat
       const storedName = uniqueName(safeFileName(name), taken);
       await storeFile(directory, storedName, bytes);
       taken.add(storedName.toLowerCase());
-      const entry = { hash, name, storedName, folder, size: bytes.length, type: typeOf(file, name), sourceDate: sourceDateOf(file), addedAt: now };
+      const entry = {
+        hash, name, storedName, folder, size: bytes.length, type: typeOf(file, name), sourceDate: sourceDateOf(file), addedAt: now,
+        ...(month ? { month } : {}),
+      };
       index.files.push(entry);
       try { await writeInboxIndex(inbox, index); } catch (error) {
         index.files.pop();
@@ -261,11 +267,15 @@ async function addToInboxNow(dataRoot, files, { folder = UNSORTED, now = new Dat
   return result;
 }
 
-// Files waiting per folder: { total, byFolder: { <folder>: n } }. The trash is not counted.
+// Files waiting per folder and per month of a folder: { total, byFolder: { <folder>: n }, byMonth: { "<folder>|<month>": n } }.
+// The trash is not counted.
 export function inboxCounts(index) {
-  const byFolder = {};
-  for (const entry of index.files) byFolder[entry.folder] = (byFolder[entry.folder] ?? 0) + 1;
-  return { total: index.files.length, byFolder };
+  const byFolder = {}, byMonth = {};
+  for (const entry of index.files) {
+    byFolder[entry.folder] = (byFolder[entry.folder] ?? 0) + 1;
+    if (entry.month) byMonth[`${entry.folder}|${entry.month}`] = (byMonth[`${entry.folder}|${entry.month}`] ?? 0) + 1;
+  }
+  return { total: index.files.length, byFolder, byMonth };
 }
 
 // The stored file of an index entry (a File), for thumbnails and, later, for reading by the assistant.
@@ -324,6 +334,39 @@ async function moveToTrashNow(dataRoot, hashes, { now = new Date().toISOString()
     }
   }
   return result;
+}
+
+// Takes a file without a month into one month of a client (step 9.4): a file of another folder (inbox/_unsorted/, a phone scan) is
+// copied into inbox/<folder>/, read back and compared, the index is written, and only then the original is removed. Resolves with
+// the new index entry. Refuses a file that already has a month or is no longer in the index.
+export const takeIntoMonth = (...args) => oneAtATime(() => takeIntoMonthNow(...args));
+async function takeIntoMonthNow(dataRoot, hash, { folder, month }) {
+  if (!isInboxFolder(folder) || folder === UNSORTED || !MONTH.test(month)) throw new Error("חודש לא חוקי בתיבת הקלט.");
+  const inbox = await inboxDirectory(dataRoot), index = await readInboxIndex(dataRoot);
+  const entry = index.files.find((item) => item.hash === hash);
+  if (!entry) throw new Error("הקובץ כבר אינו בתיבת הקלט.");
+  if (entry.month) throw new Error("לקובץ כבר יש חודש.");
+  if (entry.folder === folder) {
+    const taken = { ...entry, month };
+    index.files = index.files.map((item) => (item === entry ? taken : item));
+    await writeInboxIndex(inbox, index);
+    return taken;
+  }
+  const source = await inbox.getDirectoryHandle(entry.folder), target = await inbox.getDirectoryHandle(folder, { create: true });
+  const bytes = new Uint8Array(await (await (await source.getFileHandle(entry.storedName)).getFile()).arrayBuffer());
+  if (bytes.length !== entry.size || (await sha256Hex(bytes)) !== entry.hash) throw new Error("הקובץ בתיבת הקלט שונה ממה שנרשם באינדקס.");
+  const storedName = uniqueName(entry.storedName, await directoryNames(target));
+  await storeFile(target, storedName, bytes);
+  const taken = { ...entry, folder, storedName, month };
+  index.files = index.files.map((item) => (item === entry ? taken : item));
+  try {
+    await writeInboxIndex(inbox, index);
+  } catch (error) {
+    await target.removeEntry?.(storedName).catch(() => {});
+    throw error;
+  }
+  await source.removeEntry(entry.storedName).catch(() => {});
+  return taken;
 }
 
 // --- filing an original into a declaration (the agent tool move_file_to_declaration, docs/AGENT_TOOLS.md, 5.3) ---
