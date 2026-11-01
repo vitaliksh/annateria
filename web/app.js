@@ -48,7 +48,8 @@ import { appendRule } from "./rules-store.js";
 import { addAlias } from "./aliases-store.js";
 import { setupClientRules } from "./client-rules-ui.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
-import { lockProblemText, lockProblems } from "./lock-check.js";
+import { closedMonthText, lockProblems } from "./lock-check.js";
+import { closeOpenMonths } from "./month-lock.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
 import { isHomeUtility } from "./home-utilities.js";
 import {
@@ -106,6 +107,8 @@ let dataRoot = null,
   pendingImports = [], // import cards not done, from the panel: [{ name, client, clientId, state }]
   reviewTimer = null,
   reviewShape = "",
+  sweepChain = Promise.resolve(), // the sweeps of step 9.3, one at a time
+  sweepDue = false, // a sweep waits until this PC may work: a new data root, or a sweep skipped meanwhile
   workspace = null,
   committedWorkspace = null,
   currentDeclaration = null,
@@ -222,8 +225,10 @@ async function activateDeclaration(selected) {
   journalTitle.textContent = currentClient.textContent;
   clientsHome.showJournal({ clientId: workspace.config.clientId, month: currentDeclaration.month });
   // The saved percentages stand (a choice of the user, or amounts already booked); the rule runs when a row is made or recoded.
-  status.textContent = currentDeclaration.status === "open" ? "" : "ההצהרה נעולה לקריאה בלבד.";
+  if (currentDeclaration.status === "open") status.textContent = "";
+  else showClosedMonth();
   updateStartAvailability();
+  sweepMonths(); // step 9.3: any other open month (the month left, months a wizard wrote into) is closed
   return true;
 }
 function updateWorkspace(selected) {
@@ -278,7 +283,9 @@ async function switchDataRoot(selected) {
   backup.remind();
   sync.refresh().catch(() => {});
   // 7.4.3: another data folder may need the other device's copy first (or no longer).
-  if (api) baton.check().catch(() => {});
+  sweepDue = true;
+  if (api) baton.check().then(sweepWhenDue).catch(() => {});
+  else sweepWhenDue();
   clientsHome.showHome();
   dataRootTitle.textContent = `תיקיית נתונים: ${selected.name}`;
   workspace = null;
@@ -441,6 +448,10 @@ clientsHome.bind(workspaceControls, {
     if (client) reports.open({ client, kind });
   },
   onExportMonth: (clientId, month) => transfer.openExport({ clientId, month }),
+  // Step 9.3: going to the clients or to a client card leaves the month, which is closed.
+  onViewChange: (view) => {
+    if (view === "clients" || view === "client") sweepMonths();
+  },
 });
 const folderPathInput = document.querySelector("#data-root-path");
 folderPathInput.addEventListener("change", () => {
@@ -752,7 +763,10 @@ const baton = setupBaton({
     return sync.lastPushInfo();
   },
   ensureLoggedIn: () => accessUi.ensureLoggedIn(),
-  onChange: () => setTableLocked(Boolean(currentDeclaration) && currentDeclaration.status !== "open"),
+  onChange: () => {
+    setTableLocked(Boolean(currentDeclaration) && currentDeclaration.status !== "open");
+    sweepWhenDue();
+  },
   // 7.4.3: the other device's last copy is taken before this one works; then the view is read again from the folder.
   isPending: async (snapshot) => {
     if (!dataRoot) return null;
@@ -869,6 +883,7 @@ async function runAssistant(kind, text) {
     assistant.setBusy(false);
     inboxUi?.refreshCounts();
     scheduleReviewCounts(); // the agent writes to months that are not open
+    sweepMonths(); // step 9.3: the months the run wrote into are closed again
   }
 }
 // The button of an import card (step 4.7): opens the wizard of its kind (Excel import, classification codes, ledger check) with the file from the
@@ -1011,6 +1026,53 @@ async function saveCurrentDraft() {
     showError("לא ניתן לשמור טיוטה מקומית: " + error.message);
     throw error;
   }
+}
+// Step 9.3 ("one lock"): a month is open only while the user is in it. The sweep closes every other open month of the data root
+// (month-lock.js); only while this PC holds the baton (or there is no Worker) and the agent does not run, one sweep at a time; a
+// sweep skipped for the baton runs when the plate turns green. The month on screen is kept while the journal or the reports show
+// it; its unsaved edits are saved first.
+function sweepMonths() {
+  sweepChain = sweepChain
+    .then(async () => {
+      if (!dataRoot || assistantRun) return;
+      if (api && baton.state() !== "here") {
+        sweepDue = true;
+        return;
+      }
+      const root = dataRoot;
+      await saveCurrentDraft();
+      const view = document.body.dataset.view;
+      const keep = view === "journal" || view === "reports" ? (currentDeclaration?.declarationId ?? null) : null;
+      const { closed, failed } = await closeOpenMonths({ root, keep });
+      if (root !== dataRoot) return;
+      const shown = closed.find((item) => item.declaration.declarationId === currentDeclaration?.declarationId);
+      if (shown) {
+        currentDeclaration = shown.declaration;
+        setTableLocked(true);
+        updateStartAvailability();
+        showClosedMonth();
+      }
+      if (closed.length) {
+        sync.changed();
+        await workspaceControls?.refreshFromUserAction();
+      }
+      if (failed.length) showError(`לא ניתן לנעול: ${failed.map((item) => `${item.client} ${formatMonth(item.month)}`).join(", ")}`);
+    })
+    .catch((error) => showError(`לא ניתן לנעול את החודשים הפתוחים: ${error.message}`));
+  return sweepChain;
+}
+// At start, after the data of the other device arrived, and after a skipped sweep: once this PC may work.
+function sweepWhenDue() {
+  if (!sweepDue || !dataRoot || (api && baton.state() !== "here")) return;
+  sweepDue = false;
+  sweepMonths();
+}
+// The status line of a closed month: read only, and in red what the checks of the lock button found (step 9.3).
+function showClosedMonth(prefix = "ההצהרה נעולה לקריאה בלבד.") {
+  const rows = [...records.querySelectorAll("tr[data-document-id]")].map(rowSnapshot);
+  const problems = lockProblems(rows, { pcnRequired: Boolean(committedWorkspace?.config.pcnRequired) });
+  if (problems.length) showError(`${prefix} ${closedMonthText(problems)}`);
+  else status.textContent = prefix;
 }
 function queueDraftSave() {
   if (!currentDeclaration || currentDeclaration.status !== "open" || !currentDeclarationDirectory) return;
@@ -1723,10 +1785,8 @@ closeDeclarationButton.addEventListener("click", async () => {
     return showError("יש לבחור הצהרה פתוחה לפני הסגירה.");
   const allRows = [...records.querySelectorAll("tr[data-document-id]")],
     snapshots = allRows.map((row, index) => ({ ...rowSnapshot(row), tableRow: index + 1 }));
-  // The same check as ready_to_close of the agent (lock-check.js); the first problem is the message.
+  // Step 9.3: the checks of lock-check.js no longer stop the lock; the closed month shows them in red (showClosedMonth).
   pcnJournal?.refresh();
-  const [lockProblem] = lockProblems(snapshots, { pcnRequired: Boolean(committedWorkspace.config.pcnRequired) });
-  if (lockProblem) return showError(lockProblemText(lockProblem));
   const closeMessage = "לנעול את ההצהרה? הטבלה תינעל והשורות יצטרפו להיסטוריה. אפשר לפתוח מחדש.";
   if (!(await confirmDialog(closeMessage, { title: "נעילת הצהרה", confirmLabel: "נעילה" }))) return;
   closeDeclarationButton.disabled = true;
@@ -1742,7 +1802,7 @@ closeDeclarationButton.addEventListener("click", async () => {
     });
     setTableLocked(true);
     updateStartAvailability();
-    status.textContent = "ההצהרה ננעלה. ההיסטוריה עודכנה.";
+    showClosedMonth("ההצהרה ננעלה. ההיסטוריה עודכנה.");
     sync.changed();
   } catch (error) {
     if (error.name !== "AbortError") {

@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { lockProblemText, lockProblems } from "../lock-check.js";
+import { closedMonthText, lockProblemText, lockProblems } from "../lock-check.js";
 import { approvalKey } from "../pcn-review.js";
 
 // values: date, account, purpose, supplier, supplier id, reference, allocation, gross, net, vat.
@@ -30,13 +30,19 @@ test("for a PCN client an invoice above the ceiling blocks until it is approved 
   assert.deepEqual(lockProblems([approvedWithout], { pcnRequired: true }), [{ code: "pcn_blocked", count: 1 }], "approved, still no number");
   assert.equal(lockProblemText({ code: "pcn_blocked", count: 2 }), "יש 2 שורות מעל סף מספר ההקצאה שלא אושרו או שחסר להן מספר הקצאה. יש להשלים לפני הנעילה.");
   assert.match(lockProblemText({ code: "pcn_blocked", count: 1 }), /^יש 1 שורה /);
+  assert.equal(closedMonthText([{ code: "no_active_row", count: 0 }, { code: "pcn_blocked", count: 2 }]),
+    "אין בהצהרה שורה פעילה. יש 2 שורות מעל סף מספר ההקצאה שלא אושרו או שחסר להן מספר הקצאה.");
+  assert.match(closedMonthText([{ code: "pcn_blocked", count: 1 }]), /^יש 1 שורה /);
 });
 
-test("the lock button and ready_to_close use this one check", () => {
+test("a closed month and ready_to_close use this one check, and the lock button no longer stops on it (step 9.3)", () => {
   const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
   const handler = app.slice(app.indexOf('closeDeclarationButton.addEventListener("click"'), app.indexOf("reopenDeclarationButton.addEventListener"));
-  assert.match(handler, /lockProblems\(snapshots, \{ pcnRequired: /);
-  assert.match(handler, /showError\(lockProblemText\(lockProblem\)\)/);
+  assert.doesNotMatch(handler, /lockProblems\(|lockProblemText\(/);
+  assert.match(handler, /showClosedMonth\("ההצהרה ננעלה\. ההיסטוריה עודכנה\."\)/);
+  const shown = app.slice(app.indexOf("function showClosedMonth("), app.indexOf("function queueDraftSave("));
+  assert.match(shown, /lockProblems\(rows, \{ pcnRequired: /);
+  assert.match(shown, /closedMonthText\(problems\)/);
   const tool = readFileSync(new URL("../agent/tools/ready-to-close.js", import.meta.url), "utf8");
   assert.match(tool, /lockProblems\(rows, \{ pcnRequired: profile\.pcnRequired \}\)/);
 });

@@ -17,6 +17,15 @@ export function lockProblems(rows, { pcnRequired = false } = {}) {
   return problems;
 }
 
+// The red line of a closed month (step 9.3): the checks no longer stop the lock, the month says what they found.
+export function closedMonthText(problems) {
+  return problems
+    .map(({ code, count }) => code === "no_active_row"
+      ? "אין בהצהרה שורה פעילה."
+      : `יש ${count} ${plural(count, "שורה", "שורות")} מעל סף מספר ההקצאה שלא אושרו או שחסר להן מספר הקצאה.`)
+    .join(" ");
+}
+
 // The message of the lock button for one problem.
 export function lockProblemText({ code, count }) {
   if (code === "no_active_row") return "יש לסמן לפחות שורה פעילה לפני נעילת ההצהרה.";

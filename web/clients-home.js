@@ -10,6 +10,7 @@ export function createClientsHome(doc = document) {
   let reviewOf = () => ({}); // rows to look at by client id (C7)
   let openReports = () => {};
   let exportMonth = () => {};
+  let onView = () => {}; // the page closes the open month when the user leaves it (step 9.3)
   const homeRoot = doc.querySelector("#clients-view"), cardRoot = doc.querySelector("#client-view"), journalRoot = doc.querySelector("#journal-view"), crumb = doc.querySelector("#breadcrumb"), reportsRoot = doc.querySelector("#reports-view"), navReports = doc.querySelector("#nav-reports");
   let controls = null, view = "clients", clientId = null, journalMonth = null, query = "", showingArchived = false, showingArchivedDeclarations = false, settings = null, settingsToken = 0;
 
@@ -40,7 +41,9 @@ export function createClientsHome(doc = document) {
   }
 
   function render() {
+    const before = doc.body.dataset.view;
     doc.body.dataset.view = view;
+    if (before !== view) onView(view);
     homeRoot.hidden = view !== "clients";
     cardRoot.hidden = view !== "client";
     journalRoot.hidden = view !== "journal";
@@ -116,12 +119,13 @@ export function createClientsHome(doc = document) {
   }
 
   return {
-    bind(workspaceControls, { onError, onOpenReports, onExportMonth, getReviewCounts } = {}) {
+    bind(workspaceControls, { onError, onOpenReports, onExportMonth, getReviewCounts, onViewChange } = {}) {
       if (getReviewCounts) reviewOf = getReviewCounts;
       controls = workspaceControls;
       if (onError) report = onError;
       if (onOpenReports) openReports = onOpenReports;
       if (onExportMonth) exportMonth = onExportMonth;
+      if (onViewChange) onView = onViewChange;
       navReports?.addEventListener("click", () => openReports(clientId));
       doc.querySelector("#nav-clients")?.addEventListener("click", () => {
         showHome();
