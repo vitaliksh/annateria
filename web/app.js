@@ -883,6 +883,10 @@ const assistantFlow = createAssistantFlow({
   reserved: () => ({ ...builtInMapping, ...customMapping }),
 });
 let assistantLastAnswer = "";
+function assistantScope() {
+  if (document.body.dataset.view !== "journal" || !committedWorkspace || !currentDeclaration) return null;
+  return { clientId: committedWorkspace.config.clientId, month: currentDeclaration.month };
+}
 async function runAssistant(kind, text) {
   if (!api) return assistant.addMessage("error", "החיבור לשרת ה‑AI אינו מוגדר.");
   if (!dataRoot) return assistant.addMessage("error", "יש לבחור תחילה תיקיית נתונים.");
@@ -900,7 +904,7 @@ async function runAssistant(kind, text) {
         active: committedWorkspace ? { clientName: committedWorkspace.config.clientName, month: currentDeclaration?.month ?? null } : null,
       }),
       // Step 9.6: the run writes only into the month shown in the journal; without one it only reads.
-      scope: view === "journal" && committedWorkspace && currentDeclaration ? { clientId: committedWorkspace.config.clientId, month: currentDeclaration.month } : null,
+      scope: assistantScope(),
       ui: assistant.ui,
       signal: controller.signal,
       onProgress: (event) => {

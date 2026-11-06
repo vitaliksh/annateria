@@ -12,6 +12,7 @@ const exposed = [
   "displayDate", "displayedReference", "normalReference", "receivedAtText", "cellValue",
   "nextFreeClassificationCode", "applyBusinessRules", "loadCustomMapping", "showError", "activateDeclaration", "saveCurrentDraft",
   "appendSnapshots", "attachRowImages", "setRowImage", "openPhoto", "applyProposalToTable", "updateWorkspace", "switchDataRoot", "sweepMonths",
+  "assistantScope",
 ];
 
 async function bundleApp() {
