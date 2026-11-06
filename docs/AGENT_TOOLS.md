@@ -33,8 +33,13 @@ still speak of routing proofs, `choose_client`, `month_override` or months chose
 
 **Amendment of 6 November 2026 (step 9.7):** a closed month is filed and paid and takes nothing. New reason `doc_before_month` (a
 document dated before the open month, unless it has a period or is of a previous year). `prepare_import` has no `month`: whatever
-a file writes goes into the open month of the run; the card carries that month. Problems: `month_differs` (the file names another
-month, also for the income report), `rows_other_months`, `operations_other_months`; `summary.report_month` for the income report.
+a file writes goes into the open month of the run; the card carries that month. Problems: `month_differs` (the income report names
+another month), `rows_other_months`, `operations_other_months`; `summary.report_month` for the income report.
+
+**Amendment of 6 November 2026 (step 9.7.1):** files of Rivhit are the books of their months and go there: a journal into the month
+of its header, an operation of a ledger into its own month; a closed or missing month other than the open one is written after the
+user's yes in the wizard and closed again. New problems `journal_other_month`, `month_closed_ask`; `rows_other_months` only for a
+journal without a month. The agent writes none of this: the wizard does, at the user's click.
 
 What this document fixes: the run, the conventions every tool follows, the facts that extraction returns, and for each
 tool its inputs, outputs, validation, effects and what it may never do. What it leaves to later steps: the Hebrew

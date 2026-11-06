@@ -7,7 +7,7 @@ import { buildImportedRows } from "../excel-import.js";
 import { importRowsIntoDeclaration } from "../excel-import-store.js";
 import { parseJournalGrid } from "../excel-journal.js";
 import { ledgerOperations, reconcile } from "../ledger-reconcile.js";
-import { commitReconcile, prepareReconcile } from "../ledger-reconcile-flow.js";
+import { commitReconcile, monthsToApprove, prepareReconcile } from "../ledger-reconcile-flow.js";
 import { buildJournalGrid, SAMPLE_ROWS } from "./excel-journal-fixture.mjs";
 import { ledgerRowsGrid } from "./ledger-fixture.mjs";
 import { memoryDirectory } from "./memory-directory.mjs";
@@ -92,22 +92,32 @@ test("сверка: пропущенные операции предлагают
   assert.deepEqual([again.matched, again.missing.length, again.extra.length], [SAMPLE_ROWS.length + 1, 0, 0]);
 });
 
-// Step 9.7: everything chosen goes into the open month, whatever its date; a closed month does not stop it.
-test("the ledger check with an open month: operations of other months go into it, marked, and are found there by the next check", async () => {
+// Step 9.7.1: an operation of the ledger is booked in its own month; a closed month takes it after the user's yes and closes again.
+test("the ledger check with an open month: an operation goes into its own closed month, unmarked, and that month is closed again", async () => {
   const c = await client({ close: true });
   const open = await createDeclaration(c.directory, { clientId: "c1", month: "2026-02" });
   await saveDraft(open.directory, open.declaration, [], NOW);
   const file = ledgerFile(sampleBlocks({ "אחזקה": [MISSING_ROW] }));
   const prepared = await prepareReconcile(file, { ...options(c), openMonth: "2026-02" });
-  assert.deepEqual(prepared.missing.map((operation) => [operation.month, operation.problem, operation.creates, operation.otherMonth]), [["2026-01", null, false, true]]);
+  assert.deepEqual(prepared.missing.map((operation) => [operation.month, operation.problem, operation.closed, operation.otherMonth]), [["2026-01", null, true, true]]);
+  assert.deepEqual(monthsToApprove(prepared, new Set([0])), ["2026-01"]);
   const result = await commitReconcile(prepared, { selected: new Set([0]), client: c, now: NOW });
-  assert.deepEqual(result, { added: 1, months: ["2026-02"] });
-  const [added] = (await loadDeclaration(c.directory, "2026-02")).draft.rows;
-  assert.deepEqual([added.values[0], added.statusClass, added.statusText], ["20/01/26", "review", "נדרש עיון"]);
-  assert.match(added.agentOpinion, /נוסף מהכרטסת.*לבדיקה: תאריך השורה אינו בחודש ההצהרה/);
-  assert.equal((await loadDeclaration(c.directory, "2026-01")).draft.rows.length, SAMPLE_ROWS.length, "the closed month is untouched");
+  assert.deepEqual(result, { added: 1, months: ["2026-01"] });
+  const january = await loadDeclaration(c.directory, "2026-01");
+  assert.equal(january.declaration.status, "closed");
+  assert.equal(january.declaration.reopenLog.at(-1).reason, "opened for a file of Rivhit");
+  assert.deepEqual(january.draft.rows.at(-1).statusText, "נוסף מהכרטסת");
+  assert.equal(january.draft.rows.length, SAMPLE_ROWS.length + 1);
+  assert.equal((await loadDeclaration(c.directory, "2026-02")).draft.rows.length, 0, "the open month is untouched");
   const again = await prepareReconcile(file, { ...options(c), openMonth: "2026-02" });
   assert.deepEqual([again.matched, again.missing.length, again.extra.length], [SAMPLE_ROWS.length + 1, 0, 0]);
+});
+
+test("the check finds an operation that was moved to another month of its year", () => {
+  const operation = { key: "2026-01|אחזקה|2026-01-20|100.00|118.00" };
+  const moved = { month: "2026-02", rows: [{ values: ["20/01/26", "203", "", "x", "", "", "", "118", "100", "18"] }] };
+  const { matched, missing, extra } = reconcile([operation], [moved], { 203: { name: "אחזקה" } });
+  assert.deepEqual([matched, missing.length, extra.length], [1, 0, 0]);
 });
 
 test("сверка: только выбранные операции добавляются; закрытая декларация и класс без кода блокируются; нет декларации — создаётся", async () => {

@@ -57,7 +57,9 @@ function element(tag, text, className) {
 }
 
 // getContext() returns { dataRoot, client, reserved, openMonth } or null when no data root or client is selected. openMonth: the month
-// shown in the page (step 9.7): every row goes into it, and the month of the wizard cannot be changed.
+// shown in the page (step 9.7.1): a journal goes into the month its header names, else into openMonth, and the month of the wizard
+// cannot be changed; another month that is closed or missing is written after confirmMonth({ month, state }) says yes, and is closed
+// again at once.
 // What the user is told about the chosen month; the import is blocked for a closed declaration.
 const TARGET_TEXTS = {
   missing: (month) => `ההצהרה ל-${month} לא קיימת ותיווצר.`,
@@ -69,7 +71,7 @@ const TARGET_TEXTS = {
 // onBeforeCommit(month) lets the host stop editing the target declaration before the rows are written.
 // Besides the button (none since 4.7.6: the menu is gone), the wizard can be opened with a file that is already at hand (openWith, used by the card of the assistant, step
 // 4.7.2): the steps are the same, only the choosing of the file is skipped.
-export function setupExcelImport({ button, dialog, getContext, onImported, onError, loadLibrary, onBeforeCommit, onOpenCodes }) {
+export function setupExcelImport({ button, dialog, getContext, onImported, onError, loadLibrary, onBeforeCommit, onOpenCodes, confirmMonth = async () => true }) {
   const part = (id) => dialog.querySelector(`#${id}`);
   const [file, details, summary, problems, month, unknownBox, unknownList, closeNow, errorLine, run] = [
     "excel-import-file", "excel-import-details", "excel-import-summary", "excel-import-problems", "excel-import-month",
@@ -101,8 +103,11 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
     });
   };
 
+  // With an open month a closed target can be written after the question, and its rows are then replaced as those of an open one.
+  const askable = () => Boolean(context?.openMonth) && target?.state === "closed";
+  const hasRows = () => target?.state === "rows" || (askable() && target.count > 0);
   const updateRunState = () => {
-    const blocked = !target || target.state === "closed" || (target.state === "rows" && !replaceBox.checked);
+    const blocked = !target || (target.state === "closed" && !askable()) || (hasRows() && !replaceBox.checked);
     run.disabled = Boolean(!prepared || prepared.errors.length || !prepared.rows.length || blocked);
   };
   const refreshTarget = async () => {
@@ -118,15 +123,17 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
       const found = await inspectImportTarget(context.client.directory, iso);
       if (check !== targetCheck) return;
       target = found;
-      targetLine.textContent = TARGET_TEXTS[found.state](formatMonth(iso), found.count);
+      targetLine.textContent = askable()
+        ? `ההצהרה ל-${formatMonth(iso)} סגורה. לפני הייבוא תוצג שאלה אם לפתוח אותה.`
+        : TARGET_TEXTS[found.state](formatMonth(iso), found.count);
       targetLine.className = found.state === "rows" || found.state === "closed" ? "target-warning" : "";
-      const others = context.openMonth && prepared ? prepared.rows.filter((row) => row.date?.slice(0, 7) !== iso).length : 0;
+      const others = context.openMonth && prepared && !prepared.suggestedMonth ? prepared.rows.filter((row) => row.date?.slice(0, 7) !== iso).length : 0;
       if (others) {
         targetLine.textContent += ` ${others} שורות מחודשים אחרים ייכנסו לחודש הזה ויסומנו לבדיקה.`;
         targetLine.className = "target-warning";
       }
       replaceText.textContent = `להחליף את ${found.count} השורות הקיימות בשורות מהקובץ (עותק של הטבלה הישנה יישמר בתיקיית ההצהרה)`;
-      replaceLabel.hidden = found.state !== "rows";
+      replaceLabel.hidden = !hasRows();
       updateRunState();
     } catch (error) {
       if (check === targetCheck) errorLine.textContent = error.message;
@@ -222,7 +229,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
   const render = () => {
     const { rows, totals, unknown, chart, codes, types } = prepared;
     summary.textContent = `${rows.length} שורות · נטו ${money(totals.net)} · מע״מ נטו ${money(totals.vat)} · ברוטו ${money(totals.gross)}`;
-    month.value = formatMonth(context.openMonth || prepared.suggestedMonth);
+    month.value = formatMonth(prepared.suggestedMonth || context.openMonth || "");
     unknownBox.hidden = !rows.length;
     unknownText.textContent = unknown.length
       ? "קודי המיון בקובץ. לשמות החדשים יש להגדיר קוד וסוג; את הסוג של שם קיים אפשר לשנות ללקוח זה בלבד:"
@@ -323,14 +330,20 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
     }
     run.disabled = true;
     errorLine.textContent = "";
+    const elsewhere = Boolean(context.openMonth) && iso !== context.openMonth;
     try {
+      if (elsewhere && ["missing", "closed"].includes(target?.state) && !(await confirmMonth({ month: iso, state: target.state }))) {
+        updateRunState();
+        return;
+      }
       await onBeforeCommit?.(iso);
       const result = await commitImport(prepared, {
         newAccounts: unknownInputs(),
         typeChanges: typeChanges(),
         month: iso,
-        closeNow: closeNow.checked,
-        replace: replaceBox.checked && target?.state === "rows",
+        closeNow: closeNow.checked || elsewhere,
+        replace: replaceBox.checked && hasRows(),
+        allowClosed: askable(),
         dataRoot: context.dataRoot,
         client: context.client,
         reserved: context.reserved,

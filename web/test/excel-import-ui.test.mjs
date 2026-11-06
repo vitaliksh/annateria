@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
 import * as XLSX from "xlsx";
 import { SEED_CHART_OF_ACCOUNTS, matchClassNames, normaliseChart, readChartOfAccounts, saveClientChart } from "../chart-of-accounts.js";
-import { createDeclaration, loadDeclaration } from "../declaration-store.js";
+import { createDeclaration, finalizeDeclaration, loadDeclaration, saveDraft } from "../declaration-store.js";
 import { buildImportedRows } from "../excel-import.js";
 import { importRowsIntoDeclaration } from "../excel-import-store.js";
 import { parseJournalGrid } from "../excel-journal.js";
@@ -23,7 +23,7 @@ function xlsxFile(grid) {
 }
 
 // The UI module uses the browser globals document, window and Option, so bind them to a jsdom page first.
-async function setup({ context = true, confirm = () => true, openMonth } = {}) {
+async function setup({ context = true, confirm = () => true, openMonth, confirmMonth } = {}) {
   const dom = new JSDOM(html, { url: "https://vitaliksh.github.io/ocr/" });
   const { window } = dom;
   Object.assign(globalThis, { document: window.document, window, Option: window.Option });
@@ -45,6 +45,7 @@ async function setup({ context = true, confirm = () => true, openMonth } = {}) {
     onError: (message) => calls.errors.push(message),
     loadLibrary: async () => XLSX,
     onBeforeCommit: async (month) => { calls.before.push(month); },
+    ...(confirmMonth ? { confirmMonth } : {}),
   });
   const pick = async (grid) => {
     const input = dialog.querySelector("#excel-import-file");
@@ -56,21 +57,80 @@ async function setup({ context = true, confirm = () => true, openMonth } = {}) {
   return { window, dialog, dataRoot, client, calls, pick, q, wizard, open: () => button.click() };
 }
 
-// Step 9.7: from a card the wizard works on the month shown in the page.
-test("the journal goes into the open month: the month cannot be changed, rows of other months are counted and marked", async () => {
-  const { calls, pick, q, open, client } = await setup({ openMonth: "2026-08" });
-  open();
-  await pick(buildJournalGrid({ month: 1 }));
-  assert.equal(q("excel-import-month").value, "08/2026", "not the month the file names");
-  assert.equal(q("excel-import-month").readOnly, true);
-  for (let i = 0; i < 50 && !/ייכנסו לחודש הזה/.test(q("excel-import-target").textContent); i += 1) await new Promise((r) => setTimeout(r, 10));
-  assert.match(q("excel-import-target").textContent, new RegExp(`${SAMPLE_ROWS.length} שורות מחודשים אחרים ייכנסו לחודש הזה ויסומנו לבדיקה`));
+// Step 9.7.1: a journal of Rivhit is the books of its own month. From a card it goes there, whatever month is shown.
+const waitFor = async (check) => { for (let i = 0; i < 100 && !check(); i += 1) await new Promise((r) => setTimeout(r, 10)); };
+const importNow = async ({ q, calls }) => {
+  await waitFor(() => !q("excel-import-run").disabled);
   q("excel-import-run").click();
-  for (let i = 0; i < 100 && !calls.imported.length; i += 1) await new Promise((r) => setTimeout(r, 10));
-  assert.equal(calls.imported[0].month, "2026-08");
-  const { rows } = (await loadDeclaration(client.directory, "2026-08")).draft;
-  assert.equal(rows.length, SAMPLE_ROWS.length);
-  assert.ok(rows.every((row) => row.statusClass === "review" && /לבדיקה: תאריך השורה אינו בחודש ההצהרה/.test(row.agentOpinion)));
+  await waitFor(() => calls.imported.length);
+};
+
+test("a journal goes into the month it names, unmarked: the month cannot be changed, and that month is closed again at once", async () => {
+  const asked = [];
+  const ui = await setup({ openMonth: "2026-08", confirmMonth: async (question) => { asked.push(question); return true; } });
+  ui.open();
+  await ui.pick(buildJournalGrid({ month: 1 }));
+  assert.equal(ui.q("excel-import-month").value, "01/2026");
+  assert.equal(ui.q("excel-import-month").readOnly, true);
+  await importNow(ui);
+  assert.deepEqual(asked, [{ month: "2026-01", state: "missing" }]);
+  assert.equal(ui.calls.imported[0].month, "2026-01");
+  const { declaration, draft } = await loadDeclaration(ui.client.directory, "2026-01");
+  assert.equal(declaration.status, "closed", "only the month on screen stays open");
+  assert.equal(draft.rows.length, SAMPLE_ROWS.length);
+  assert.ok(draft.rows.every((row) => row.statusClass === "ready"));
+});
+
+test("a journal of the open month asks nothing and leaves it open", async () => {
+  const asked = [];
+  const ui = await setup({ openMonth: "2026-01", confirmMonth: async (question) => { asked.push(question); return true; } });
+  ui.open();
+  await ui.pick(buildJournalGrid({ month: 1 }));
+  await importNow(ui);
+  assert.deepEqual(asked, []);
+  assert.equal((await loadDeclaration(ui.client.directory, "2026-01")).declaration.status, "open");
+});
+
+test("a closed month of a journal: \"no\" changes nothing; \"yes\" opens it, replaces its rows with a copy, logs it and closes it again", async () => {
+  let answer = false;
+  const ui = await setup({ openMonth: "2026-08", confirmMonth: async () => answer });
+  const created = await createDeclaration(ui.client.directory, { clientId: "c1", month: "2026-01" });
+  const old = [{ active: true, values: ["01/01/26", "", "", "Old"] }];
+  await saveDraft(created.directory, created.declaration, old);
+  await finalizeDeclaration({ clientDirectory: ui.client.directory, declarationDirectory: created.directory, declaration: created.declaration, finalExport: "no-export", rows: old });
+  ui.open();
+  await ui.pick(buildJournalGrid({ month: 1 }));
+  await waitFor(() => /לפני הייבוא תוצג שאלה/.test(ui.q("excel-import-target").textContent));
+  assert.equal(ui.q("excel-import-run").disabled, true, "the rows of the month are replaced only when ticked");
+  ui.q("excel-import-replace").checked = true;
+  ui.q("excel-import-replace").dispatchEvent(new ui.window.Event("change"));
+  assert.equal(ui.q("excel-import-run").disabled, false);
+  ui.q("excel-import-run").click();
+  await waitFor(() => !ui.q("excel-import-run").disabled);
+  assert.equal(ui.calls.imported.length, 0);
+  assert.equal((await loadDeclaration(ui.client.directory, "2026-01")).draft.rows.length, 1, "no: nothing changed");
+  answer = true;
+  await importNow(ui);
+  const { declaration, draft } = await loadDeclaration(ui.client.directory, "2026-01");
+  assert.equal(declaration.status, "closed");
+  assert.equal(draft.rows.length, SAMPLE_ROWS.length);
+  assert.equal(declaration.reopenLog.at(-1).reason, "opened for a file of Rivhit");
+});
+
+test("a journal without a month goes into the open month, its rows of other months counted and marked", async () => {
+  const ui = await setup({ openMonth: "2026-08" });
+  const grid = buildJournalGrid({ month: 1 });
+  const header = grid.findIndex((row) => row.some((cell) => /01\/2026|1\/2026/.test(String(cell))));
+  assert.ok(header >= 0);
+  grid.splice(header, 1);
+  ui.open();
+  await ui.pick(grid);
+  assert.equal(ui.q("excel-import-month").value, "08/2026");
+  await waitFor(() => /ייכנסו לחודש הזה/.test(ui.q("excel-import-target").textContent));
+  assert.match(ui.q("excel-import-target").textContent, new RegExp(`${SAMPLE_ROWS.length} שורות מחודשים אחרים`));
+  await importNow(ui);
+  const { draft } = await loadDeclaration(ui.client.directory, "2026-08");
+  assert.ok(draft.rows.every((row) => row.statusClass === "review" && /לבדיקה: תאריך השורה אינו בחודש ההצהרה/.test(row.agentOpinion)));
 });
 
 test("диалог импорта: без выбранного клиента показывает ошибку и не открывается", async () => {

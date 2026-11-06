@@ -40,7 +40,7 @@ function ledgerFile(extra = []) {
 }
 const MISSING = { month: 1, line: "99", date: "2026-01-20", details: "Water bill", ref1: "4455", gross: -118, net: -100, vat: -18 };
 
-async function setup({ context = true, openMonth } = {}) {
+async function setup({ context = true, openMonth, confirmMonths } = {}) {
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/ocr/" });
   Object.assign(globalThis, { document: window.document, window });
   const dialog = window.document.querySelector("#ledger-check-dialog");
@@ -63,6 +63,7 @@ async function setup({ context = true, openMonth } = {}) {
     onSaved: async (result, detached) => { calls.saved.push({ result, detached }); },
     onError: (message) => calls.errors.push(message),
     loadLibrary: async () => XLSX,
+    ...(confirmMonths ? { confirmMonths } : {}),
   });
   const q = (id) => dialog.querySelector(`#${id}`);
   const pick = async (file) => {
@@ -162,18 +163,27 @@ test("openWith: a file chosen by hand afterwards, or the dialog opened from the 
   assert.deepEqual(committed, []);
 });
 
-test("with an open month only its own operations start ticked; another month's can be ticked and goes into the open month", async () => {
-  const { calls, q, pick, open, client } = await setup({ openMonth: "2026-01" });
+test("with an open month only its own operations start ticked; another month's goes into its own month after the question", async () => {
+  let answer = false;
+  const asked = [];
+  const { calls, q, pick, open, client } = await setup({ openMonth: "2026-01", confirmMonths: async (months) => { asked.push(months); return answer; } });
   open();
   await pick(ledgerFile([MISSING, { ...MISSING, month: 3, line: "98", date: "2026-03-20", details: "March bill" }]));
   const boxes = [...q("ledger-check-list").querySelectorAll("input")];
   assert.deepEqual(boxes.map((box) => box.checked), [true, false]);
-  assert.match(q("ledger-check-list").children[1].textContent, /תיכנס ל-01\/2026 ותסומן לבדיקה/);
+  assert.match(q("ledger-check-list").children[1].textContent, /ההצהרה תיווצר/);
   boxes[1].checked = true;
   boxes[1].dispatchEvent(new (boxes[1].ownerDocument.defaultView.Event)("change"));
   q("ledger-check-add").click();
+  for (let i = 0; i < 50 && !asked.length; i += 1) await settle();
+  await settle();
+  assert.deepEqual([asked, calls.saved.length], [[["2026-03"]], 0], "no: nothing is written");
+  answer = true;
+  q("ledger-check-add").click();
   for (let i = 0; i < 100 && !calls.saved.length; i += 1) await settle();
-  assert.deepEqual(calls.before, [["2026-01"]]);
-  const rows = (await loadDeclaration(client.directory, "2026-01")).draft.rows.slice(-2);
-  assert.deepEqual(rows.map((row) => [row.values[3], row.statusClass]), [["Water bill", "ready"], ["March bill", "review"]]);
+  assert.deepEqual(calls.before, [["2026-01", "2026-03"]]);
+  assert.equal((await loadDeclaration(client.directory, "2026-01")).draft.rows.at(-1).values[3], "Water bill");
+  const march = await loadDeclaration(client.directory, "2026-03");
+  assert.deepEqual([march.declaration.status, march.draft.rows[0].values[3]], ["closed", "March bill"]);
+
 });

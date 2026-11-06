@@ -533,6 +533,14 @@ the owner's "yes" between steps.
   against the real model on 6 November 2026 (17 cases x 2): 144 of 144 checks.
   **Not covered by a test:** the click on a card of a closed month (`openImportWizard` needs the workspace, which needs
   IndexedDB, not in jsdom); the owner's import of a real journal covers it.)
+- [ ] **9.7.1 Files of Rivhit go into their own month** (owner, 6 November 2026; it corrects 9.7 for them). A journal and an
+  operations ledger are the books of their months, unlike a late invoice: a journal goes into the month its header names, unmarked;
+  a ledger operation into its own month, unmarked; a closed or missing month other than the open one is written after a question
+  and closed again at once, the user stays where they are, and the opening is in the month's log. Only the open month's operations
+  start ticked; a journal into a month with rows stays "replace, or no import". A journal without a month goes into the open month,
+  marked. The income report of morning, the documents of the agent and the move of rows are unchanged. *Done when:* tests; the
+  owner imports one real journal of a closed month from another month. (Built 6 November 2026. Web 965 tests. The instruction and
+  the skills did not change, only the description of `prepare_import`, and the eval has no case of an import, so it was not run.)
 - [ ] **9.8 The column "VAT month"** (owner, 1 November 2026: expenses and income; a list of months for every client, also
   for two-month VAT periods: a move inside one period changes nothing in the report; owner, 6 November 2026: the VAT moves to a
   **future** month and the invoice stays in the current one; a closed month is filed and paid and is never a target). A list of months (month and year, no
@@ -540,14 +548,15 @@ the owner's "yes" between steps.
   deduction window it already knows (`intake-facts.js`). When another month is chosen, the row's VAT shows 0 (the original
   amount is kept, choosing the own month again restores it) and the code writes a line "moved VAT" into the chosen month: the
   same VAT, net 0 (so the profit and loss counts the row once), the supplier or customer, document number and date, allocation
-  number and the same original. That line is read only; it changes or goes only through the source row. The chosen month must
-  be open; while it is closed the source row's choice is locked. The agent never sets this column. Two commits:
+  number and the same original. That line is read only; it changes or goes only through the source row. When the chosen future
+  month does not exist or is closed, a dialog asks whether to create or open it for this task (owner, 6 November 2026), and "no"
+  changes nothing. The agent never sets this column. Two commits:
   - [ ] **9.8.1 The column and the moved line.** *Done when:* tests (move, move back, change the target, a closed target
     refused, net counted once); the owner moves the VAT of one expense and one sale on the published page.
   - [ ] **9.8.2 Reports and PCN874.** `vatReport` knows the move: a sale whose VAT moved is not an exempt sale, the moved line
     counts in the target month; the PCN874 line of a moved purchase goes into the target month with the source document's
-    details; the documents report shows the original for the moved line. *Question for Anna before this step:* how a sale
-    whose VAT moved appears in the PCN874 file (sales are often one aggregated `L` line). *Done when:* tests; the owner checks
+    details; the documents report shows the original for the moved line. *Left for later (owner, 6 November 2026, not for this
+    stage):* how a sale whose VAT moved appears in the PCN874 file (sales are often one aggregated `L` line). *Done when:* tests; the owner checks
     the VAT report of both months on the published page.
 - [ ] **9.9 A real day with Anna.** Her notes in `HANDOFF.md`.
 
@@ -692,5 +701,7 @@ model behind the same proxy.
 | 2026-11-01 | **9.3: one sweep, three answers** (owner). A long pause does not close a month; the red line of the checks shows in the month first, the reports in a commit right after; steps 9.3 to 9.6 are committed locally and pushed together, because until 9.6 the agent puts a document of a closed month into the month after the last closed one. |
 | 2026-11-01 | **9.4: the month of an inbox file lives in the index** (owner), not in a folder per month as first planned: fewer moves on disk, and the agent keeps finding files by their client folder until 9.6. The Hebrew texts of the dialog as proposed. |
 | 2026-11-01 | **9.5: a way into the inbox from outside a month asks for the client and the month** (owner), instead of opening an inbox without a month; the month's own inbox button and a visible reopen button in the top bar; "check new documents" works on the month shown and opens a closed one first. |
+| 2026-11-06 | **9.7.1: files of Rivhit go into their own month** (owner): a journal or an operations ledger is the books of its month, so a closed month takes it after a question and closes again. With the VAT move of 9.8 these are the two exceptions to "a closed month takes nothing", both only after the user's yes. |
+| 2026-11-06 | **9.8: moving VAT to a future month that does not exist or is closed asks first** (owner): a dialog asks whether to create or open the month for this task; "no" changes nothing. The question to Anna about a moved sale in the PCN874 file is not for this stage. |
 | 2026-11-06 | **9.7: a closed month takes nothing** (owner): it is filed and paid. A document of a closed month goes into the open month, marked to look at; the move of rows never offers a closed month, and the VAT of 9.8 moves to a future month only. This replaces the 9.6 note that an earlier date alone is no reason to look. The ledger check ticks only the open month's operations at the start; a journal into a month with rows stays "replace, or no import". |
 | 2026-11-02 | **9.6: a document dated after the month is written into it and marked to look at** (owner; `doc_after_month`): its VAT cannot be deducted before its date, and Anna decides where it goes. A run without a month only reads. Files of the client without a month and files of `_unsorted` are not seen by a run: Anna takes them into the month with the button of the inbox (9.4). |

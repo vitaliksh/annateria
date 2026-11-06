@@ -106,21 +106,20 @@ test("prepare_import: the file is of the client of the run; another client, or a
   assert.equal(s.ui.importCards.length, 0);
 });
 
-test("prepare_import: the rows go into the open month (step 9.7): another month in the file and rows of other months are warnings", async () => {
+test("prepare_import: a journal goes into the month it names (step 9.7.1): another month or a closed one is a warning, not a refusal", async () => {
   const s = await session({ grid: buildJournalGrid({ month: 8 }) });
   const other = await prepare(s);
-  assert.equal(other.month, "2026-08", "the summary still says what the file names");
+  assert.equal(other.month, "2026-08");
   assert.equal(s.ui.importCards[0].month, "2026-02", "the card belongs to the open month");
-  const codes = other.problems.map((item) => [item.code, item.severity]);
-  assert.ok(codes.some(([code, severity]) => code === "month_differs" && severity === "warning"));
-  assert.ok(codes.some(([code, severity]) => code === "rows_other_months" && severity === "warning"));
-  assert.deepEqual(other.problems.find((item) => item.code === "month_has_rows"), { code: "month_has_rows", severity: "warning", count: 3 });
+  assert.deepEqual(other.problems.find((item) => item.code === "journal_other_month"), { code: "journal_other_month", severity: "warning", count: 1 });
+  assert.equal(other.problems.some((item) => item.code === "rows_other_months"), false);
   assert.equal((await prepare(await session(), { month: "2026-03" })).error.code, "invalid_argument", "the model gives no month");
-  const same = await session({ grid: buildJournalGrid({ month: 2 }), name: "journal-02.xlsx" });
-  assert.equal((await prepare(same)).problems.some((item) => item.code === "month_differs"), false);
-  const closed = await session();
-  closed.ctx.scope = { ...closed.ctx.scope, month: "2026-01" };
-  assert.deepEqual((await prepare(closed)).problems.find((item) => item.code === "month_locked").severity, "error");
+  const rows = await prepare(await session({ grid: buildJournalGrid({ month: 2 }), name: "journal-02.xlsx" }));
+  assert.equal(rows.problems.some((item) => item.code === "journal_other_month"), false);
+  assert.deepEqual(rows.problems.find((item) => item.code === "month_has_rows"), { code: "month_has_rows", severity: "warning", count: 3 });
+  const closed = await prepare(await session({ grid: buildJournalGrid({ month: 1 }), name: "journal-01.xlsx" }));
+  assert.deepEqual(closed.problems.find((item) => item.code === "month_closed_ask"), { code: "month_closed_ask", severity: "warning", count: 1 });
+  assert.equal(closed.problems.some((item) => item.code === "month_locked"), false);
 });
 
 test("prepare_import: errors and warnings of the file are problems, not a refusal; the wizard decides what to do", async () => {

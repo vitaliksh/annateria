@@ -49,14 +49,15 @@ export function createImportReader({ loadLibrary, loadPdf } = {}) {
 
     const problems = groupProblems(prepared);
     const found = prepared.suggestedMonth || "";
-    // Step 9.7: the rows go into the open month, whatever month the file names.
-    const target = month || found || "";
-    if (month && found && month !== found) problems.push({ code: "month_differs", severity: "warning", count: 1 });
-    const others = month ? prepared.rows.filter((row) => row.date?.slice(0, 7) !== month).length : 0;
+    // Step 9.7.1: the rows go into the month the file names, after the user's yes when it is closed; a file without a month goes into
+    // the open month, its rows of other months marked.
+    const target = found || month || "";
+    if (month && found && month !== found) problems.push({ code: "journal_other_month", severity: "warning", count: 1 });
+    const others = month && !found ? prepared.rows.filter((row) => row.date?.slice(0, 7) !== month).length : 0;
     if (others) problems.push({ code: "rows_other_months", severity: "warning", count: others });
     if (target) {
       const state = await inspectImportTarget(client.directory, target);
-      if (state.state === "closed") problems.push({ code: "month_locked", severity: "error", count: 1 });
+      if (state.state === "closed") problems.push(month ? { code: "month_closed_ask", severity: "warning", count: 1 } : { code: "month_locked", severity: "error", count: 1 });
       else if (state.state === "rows") problems.push({ code: "month_has_rows", severity: "warning", count: state.count });
     }
     const rowErrors = prepared.errors.filter((error) => error.row).length;

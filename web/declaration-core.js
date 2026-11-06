@@ -56,6 +56,8 @@ export function createDraftTable({ declarationId, rows = [], now = new Date().to
 export const NO_EXPORT_MARKER = "no-export";
 // The reason written to reopenLog when the user reopens a month with the button: no reason is asked any more (step 9.2).
 export const CLICK_REOPEN_REASON = "opened by the user";
+// A file of Rivhit written into its own closed month, after the user approved it (step 9.7.1).
+export const RIVHIT_REOPEN_REASON = "opened for a file of Rivhit";
 
 // What the upload, lock and reopen buttons need: a data root, an open (or locked) declaration and a committed workspace.
 export function declarationActions({ dataRoot, declaration, workspaceCommitted }) {

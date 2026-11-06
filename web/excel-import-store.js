@@ -1,6 +1,7 @@
 // Writes imported draft rows into a declaration. A declaration that already has rows is only replaced on request.
 import { IMPORT_FINAL_EXPORT } from "./excel-import.js";
-import { createDeclaration, finalizeDeclaration, loadDeclaration, saveDraft } from "./declaration-store.js";
+import { RIVHIT_REOPEN_REASON } from "./declaration-core.js";
+import { createDeclaration, finalizeDeclaration, loadDeclaration, reopenLockedDeclaration, saveDraft } from "./declaration-store.js";
 
 // What the import would find for a month: no declaration, an empty open one, one with rows, or a closed one.
 export async function inspectImportTarget(clientDirectory, month) {
@@ -25,7 +26,8 @@ async function backupDraft(directory, draft, now) {
   }
 }
 
-async function openTarget(clientDirectory, clientId, month, { replace, now }) {
+// allowClosed: the user approved writing into this closed month (step 9.7.1): it is opened, and the reason goes into its log.
+async function openTarget(clientDirectory, clientId, month, { replace, now, allowClosed }) {
   let loaded;
   try {
     loaded = await loadDeclaration(clientDirectory, month);
@@ -33,7 +35,12 @@ async function openTarget(clientDirectory, clientId, month, { replace, now }) {
     if (error.name !== "NotFoundError") throw error;
     return createDeclaration(clientDirectory, { clientId, month });
   }
-  if (loaded.declaration.status !== "open") throw new Error("ההצהרה לחודש זה נעולה. לא ניתן לייבא אליה.");
+  if (loaded.declaration.status !== "open" && !allowClosed) throw new Error("ההצהרה לחודש זה נעולה. לא ניתן לייבא אליה.");
+  if (loaded.draft.rows.length && !replace) throw new Error("ההצהרה לחודש זה כבר מכילה שורות. לא ניתן לייבא אליה.");
+  if (loaded.declaration.status !== "open") {
+    const reopened = await reopenLockedDeclaration({ clientDirectory, declarationDirectory: loaded.directory, declaration: loaded.declaration, reason: RIVHIT_REOPEN_REASON, now });
+    loaded.declaration = reopened;
+  }
   if (loaded.draft.rows.length) {
     if (!replace) throw new Error("ההצהרה לחודש זה כבר מכילה שורות. לא ניתן לייבא אליה.");
     await backupDraft(loaded.directory, loaded.draft, now);
@@ -42,9 +49,9 @@ async function openTarget(clientDirectory, clientId, month, { replace, now }) {
 }
 
 // `rows` come from buildImportedRows. With closeNow the declaration is closed without an export folder.
-export async function importRowsIntoDeclaration({ clientDirectory, clientId, month, rows, closeNow = false, replace = false, now }) {
+export async function importRowsIntoDeclaration({ clientDirectory, clientId, month, rows, closeNow = false, replace = false, now, allowClosed = false }) {
   if (!rows.length) throw new Error("אין שורות לייבוא.");
-  const { directory, declaration } = await openTarget(clientDirectory, clientId, month, { replace, now });
+  const { directory, declaration } = await openTarget(clientDirectory, clientId, month, { replace, now, allowClosed });
   await saveDraft(directory, declaration, rows, now);
   if (!closeNow) return declaration;
   return finalizeDeclaration({

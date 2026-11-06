@@ -534,6 +534,9 @@ const journalToolbar = setupJournalToolbar({
       ),
   },
 });
+const RIVHIT_MONTH_QUESTION = (closed, month) => (closed
+  ? `ההצהרה ל-${month} סגורה וייתכן שכבר דווחה. לפתוח אותה לצורך הייבוא? בסיום היא תיסגר שוב.`
+  : `ההצהרה ל-${month} לא קיימת. ליצור אותה לצורך הייבוא?`);
 const excelImport = setupExcelImport({
   dialog: document.querySelector("#excel-import-dialog"),
   getContext: () =>
@@ -546,11 +549,14 @@ const excelImport = setupExcelImport({
     await saveCurrentDraft();
     clearActiveDeclaration(currentDeclaration.declarationId);
   },
+  // Step 9.7.1: a journal of another month that is closed or missing is written after this question, and the user stays where they are.
+  confirmMonth: ({ month, state }) => confirmDialog(RIVHIT_MONTH_QUESTION(state === "closed", formatMonth(month)), { title: "ייבוא מ-Rivhit", confirmLabel: "כן" }),
   onImported: async ({ chart }, month) => {
     chartAccounts = chart;
     rivhitMapping = currentMapping();
     refreshClassificationSelectors();
     await workspaceControls.refreshFromUserAction();
+    if (currentDeclaration && currentDeclaration.month !== month) return;
     const selected = await loadDeclaration(committedWorkspace.directory, month);
     await activateDeclaration({ workspace: committedWorkspace, ...selected });
   },
@@ -589,6 +595,7 @@ const ledgerCheck = setupLedgerCheck({
     dataRoot && committedWorkspace
       ? { dataRoot, client: committedWorkspace, reserved: { ...builtInMapping, ...customMapping }, openMonth: currentDeclaration?.month ?? null }
       : null,
+  confirmMonths: (months) => confirmDialog(`יתווספו שורות להצהרות ${months.map(formatMonth).join(", ")}. הצהרה סגורה תיפתח לצורך ההוספה ותיסגר שוב, וייתכן שכבר דווחה. להמשיך?`, { title: "בדיקה מול כרטסת", confirmLabel: "כן" }),
   // Same as for the ledger codes: the open table is detached while its file is rewritten and opened again afterwards.
   onBeforeWrite: async (months) => {
     if (!currentDeclaration || !months.includes(currentDeclaration.month)) return null;

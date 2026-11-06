@@ -1,7 +1,7 @@
 // Dialog that checks the client's declarations against its classification ledger and adds the operations that are missing.
 // Logic lives in ledger-reconcile-flow.js; this file only renders.
 import { formatMonth } from "./month-format.js";
-import { commitReconcile, prepareReconcile } from "./ledger-reconcile-flow.js";
+import { commitReconcile, monthsToApprove, prepareReconcile } from "./ledger-reconcile-flow.js";
 
 const PROBLEM_TEXTS = {
   "unknown-class": "לסיווג אין קוד אצל הלקוח (יש לטעון קודם את כרטסת קודי המיון)",
@@ -17,10 +17,10 @@ function element(tag, text, className) {
   return node;
 }
 
-// getContext() returns { dataRoot, client, reserved, openMonth } or null (openMonth: everything chosen goes into it, step 9.7; only
-// its own operations start ticked); onBeforeWrite(months) lets the host detach the open table
+// getContext() returns { dataRoot, client, reserved, openMonth } or null (openMonth, step 9.7.1: only its own operations start ticked;
+// each goes into its own month, and confirmMonths(months) is asked about those closed or not there yet); onBeforeWrite(months) lets the host detach the open table
 // and returns what onSaved(result, detached) needs to put it back.
-export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, onError, onBeforeWrite, loadLibrary, loadPdf }) {
+export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, onError, onBeforeWrite, loadLibrary, loadPdf, confirmMonths = async () => true }) {
   const part = (id) => dialog.querySelector(`#${id}`);
   const [clientLine, file, details, summary, list, extraBox, extraList, errorLine, add] = [
     "ledger-check-client", "ledger-check-file", "ledger-check-details", "ledger-check-summary", "ledger-check-list",
@@ -67,7 +67,7 @@ export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, o
         formatMonth(operation.month), displayDate(operation.date), operation.name, operation.details,
         `${money(operation.net)} (מע״מ ${money(operation.vat)})`,
         operation.problem ? PROBLEM_TEXTS[operation.problem] : operation.creates ? "ההצהרה תיווצר"
-          : operation.otherMonth ? `תיכנס ל-${formatMonth(prepared.openMonth)} ותסומן לבדיקה` : "",
+          : operation.closed ? "ההצהרה סגורה: לפני ההוספה תוצג שאלה" : "",
       ].filter(Boolean).join(" · ");
       row.append(box, element("span", text, operation.problem ? "problem-error" : undefined));
       return row;
@@ -113,7 +113,12 @@ export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, o
     add.disabled = true;
     errorLine.textContent = "";
     try {
-      const months = prepared.openMonth ? [prepared.openMonth] : [...new Set(prepared.missing.filter((operation, index) => selected.has(index)).map((operation) => operation.month))];
+      const approve = monthsToApprove(prepared, selected);
+      if (approve.length && !(await confirmMonths(approve))) {
+        updateAdd();
+        return;
+      }
+      const months = [...new Set(prepared.missing.filter((operation, index) => selected.has(index)).map((operation) => operation.month))];
       const detached = await onBeforeWrite?.(months);
       const result = await commitReconcile(prepared, { selected, client: context.client });
       const filed = await afterCommit();
