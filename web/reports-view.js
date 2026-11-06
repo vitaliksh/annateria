@@ -138,6 +138,7 @@ export function pcnProblemText(problem) {
     no_reference: () => `${rowPlace(problem)}: חסר מספר מסמך.`,
     too_long: () => "סכום ארוך מהשדה שלו בקובץ.",
     bad_check_digit: () => `${rowPlace(problem)}: ספרת הביקורת של מספר העוסק אינה תקינה (הקובץ ייכתב בכל זאת).`,
+    moved_sale: () => `${rowPlace(problem)}: מכירה שהמע״מ שלה הועבר בין חודשים. יש לבדוק את השורה בקובץ לפני ההעלאה.`,
   };
   return (texts[problem.code] ?? (() => problem.code))();
 }

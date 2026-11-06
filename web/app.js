@@ -1857,7 +1857,14 @@ function rowSnapshot(row) {
     ...(row.dataset.booked ? { booked: true } : {}),
     ...(row.dataset.sourceHash ? { sourceHash: row.dataset.sourceHash } : {}),
     ...(row.dataset.vatMoveId ? { vatMove: { id: row.dataset.vatMoveId, month: row.dataset.vatMoveMonth } } : {}),
-    ...(row.dataset.vatMovedId ? { vatMovedFrom: { id: row.dataset.vatMovedId, month: row.dataset.vatMovedFrom } } : {}),
+    ...(row.dataset.vatMovedId ? {
+      vatMovedFrom: {
+        id: row.dataset.vatMovedId,
+        month: row.dataset.vatMovedFrom,
+        net: row.dataset.vatMovedNet,
+        ...(row.dataset.vatMovedPage ? { page: Number(row.dataset.vatMovedPage) } : {}),
+      },
+    } : {}),
     agentOpinion: row.cells[14].textContent.trim(),
     confidence: row.cells[15].textContent.trim(),
     statusText: row.cells[16].childNodes[0]?.textContent?.trim() || row.cells[16].textContent.trim(),
@@ -1894,6 +1901,8 @@ function restoreRow(saved, blob) {
   if (saved.vatMovedFrom) {
     row.dataset.vatMovedId = saved.vatMovedFrom.id;
     row.dataset.vatMovedFrom = saved.vatMovedFrom.month;
+    row.dataset.vatMovedNet = saved.vatMovedFrom.net ?? "0";
+    if (saved.vatMovedFrom.page) row.dataset.vatMovedPage = saved.vatMovedFrom.page;
   }
   row.replaceChild(editableCell(values[1]), row.cells[1]);
   row.replaceChild(editableCell(displayDate(values[0])), row.cells[2]);

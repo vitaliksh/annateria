@@ -51,6 +51,8 @@ export function reportEntries(declarations, accounts = {}, names = {}) {
         gross: round2(Number(values[7]) || 0),
         net: round2(Number(values[8]) || 0),
         vat: round2(Number(values[9]) || 0),
+        // Step 9.8: the VAT of this row counts in another month; the row is still a taxable document.
+        ...(row.vatMove ? { vatMoved: true } : {}),
       });
     }
   }
@@ -65,13 +67,14 @@ export function inPeriod(entries, from, to) {
 const ofType = (entries, ...types) => entries.filter((entry) => types.includes(entry.type));
 
 // Lines are whole shekels and the payable amount is their difference, as on the VAT form. turnover is all sales; the
-// slip splits it into taxable sales and exempt or zero-rate sales (a sales row without VAT).
+// slip splits it into taxable sales and exempt or zero-rate sales (a sales row without VAT, unless its VAT moved to a later month).
 export function vatReport(entries, { vatRate = 18 } = {}) {
   const income = ofType(entries, "income");
-  const exempt = income.filter((entry) => !entry.vat);
+  const taxable = (entry) => entry.vat || entry.vatMoved;
+  const exempt = income.filter((entry) => !taxable(entry));
   const turnover = whole(sum(income, "net"));
   const exemptSales = whole(sum(exempt, "net"));
-  const taxableSales = whole(sum(income.filter((entry) => entry.vat), "net"));
+  const taxableSales = whole(sum(income.filter(taxable), "net"));
   const outputVat = whole(sum(income, "vat"));
   // Classes outside the input base (property tax, insurance, clothing) are expenses, but their VAT is not deducted.
   const inputVat = whole(sum(ofType(entries, "expense"), "vat"));

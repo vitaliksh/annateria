@@ -42,6 +42,8 @@ export function reconcile(operations, declarations, chart) {
   const pool = new Map();
   for (const { month, rows } of declarations) {
     for (const row of rows) {
+      // A line of moved VAT (step 9.8) is no operation: its document is the source row in its own month.
+      if (row.vatMovedFrom) continue;
       const values = row.values ?? [];
       const name = chart[String(values[1])]?.name ?? String(values[1]);
       const key = keyOf(month, name, isoDate(values[0]), Number(values[8]) || 0, Number(values[7]) || 0);

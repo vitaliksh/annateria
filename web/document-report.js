@@ -60,7 +60,8 @@ function cellNumber(text) {
 // Whether a line of a spreadsheet is the one a row was imported from: it holds the net of the row (the file and the app may
 // differ in the sign) and, when the row has a document number, that number too. A row with no net marks nothing.
 export function isRowLine(cells, row) {
-  const net = Math.abs(Number(row.values?.[8]));
+  // A line of moved VAT has net 0 itself; its line in the file is the one of its document.
+  const net = Math.abs(Number(row.vatMovedFrom?.net ?? row.values?.[8]));
   if (!net) return false;
   const reference = String(row.values?.[5] ?? "").replace(/\D/g, "");
   const hasNet = cells.some((cell) => {
@@ -227,7 +228,7 @@ export async function renderDocumentReport({ clientName, items, readOriginal, ac
       }
     } else if (blob) {
       try {
-        const image = await drawOriginal(blob, `${month}/${row.imageFile}`, row.agent?.page);
+        const image = await drawOriginal(blob, `${month}/${row.imageFile}`, row.vatMovedFrom?.page ?? row.agent?.page);
         const box = drawContained(context, image, frame.x, frame.y, frame.width, frame.height);
         image.close?.();
         drawHighlights(context, row.highlights, box);

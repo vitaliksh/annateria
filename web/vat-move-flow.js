@@ -22,6 +22,12 @@ export function vatMonths(month) {
 // the source row, so that every total counts the document once.
 export function movedLine(source, { id, fromMonth, vat, now = new Date().toISOString() }) {
   const values = source.values ?? [];
+  // What the reports need of the document itself: its net at 100 % with the sign of the row (the PCN874 line of a moved purchase
+  // reports it) and the page of its PDF.
+  const shownNet = Number(values[8]) || 0;
+  const documentNet = Number(source.rawNet) || shownNet;
+  const net = String(shownNet < 0 && documentNet > 0 ? -documentNet : documentNet);
+  const page = source.agent?.page;
   return {
     documentId: `vatmove-${id}`,
     imageIndex: Number(source.imageIndex) || 0,
@@ -43,7 +49,7 @@ export function movedLine(source, { id, fromMonth, vat, now = new Date().toISOSt
     confidence: "",
     statusText: "מע״מ מועבר",
     statusClass: "ready",
-    vatMovedFrom: { id, month: fromMonth },
+    vatMovedFrom: { id, month: fromMonth, net, ...(page ? { page } : {}) },
   };
 }
 

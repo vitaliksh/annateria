@@ -25,7 +25,7 @@ All rounding is half-up to whole shekels unless noted.
 | --- | --- | --- |
 | VAT | turnover | Σ net of income (all sales; the status bar and the advances use it) |
 | VAT | taxable sales | Σ net of income entries with VAT (the slip's "sales liable to VAT"; 24 October 2026) |
-| VAT | exempt sales | Σ net of income entries without VAT (the slip's "exempt or zero-rate sales"; 24 October 2026) |
+| VAT | exempt sales | Σ net of income entries without VAT (the slip's "exempt or zero-rate sales"; 24 October 2026); a sale whose VAT moved to a later month (step 9.8) is taxable, not exempt, and the line of moved VAT counts in the chosen month |
 | VAT | output VAT | Σ VAT of income |
 | VAT | input VAT | Σ VAT of `expense` classes (credit notes subtract); `outsideVatBase` and equipment excluded, as in the Rivhit inputs line |
 | VAT | equipment VAT | Σ VAT of equipment (separate line; equal to Rivhit's "input VAT on equipment and fixed assets" on a sample with equipment, 24 October 2026) |

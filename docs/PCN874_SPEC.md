@@ -68,6 +68,10 @@ lie outside the period). The kind of a row comes from the chart of accounts, as 
   taxable ones and one for those without VAT: a single row keeps its date and number; several rows get the last day of the
   period and the number of the last document (by date, then by place in the table) (Anna, 24 October 2026). The VAT and the
   net of an `L` line are the rounded sums of its rows.
+- **Moved VAT (step 9.8).** The VAT of a moved purchase is a `T` line of the chosen month, with the details and the source net of
+  its document; the source row has no VAT, so it is not in the file. A moved sale is written as it is (net in its month, in the taxable
+  `L` group when it has no customer number; VAT with net 0 in the chosen month) with the warning `moved_sale`: the owner left its
+  treatment for later (6 November 2026).
 - **Totals** of the opening record are the figures of `vatReport` (the same function as the VAT slip): taxable sales, VAT on
   sales, exempt sales, input VAT, equipment VAT, the amount to pay. Each line is rounded on its own, so the lines may add up to a
   shekel more or less than the totals; Rivhit does the same (one shekel apart in Anna's second sample).

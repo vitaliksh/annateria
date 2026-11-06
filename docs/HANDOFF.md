@@ -7,7 +7,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
 `2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-30a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip, 942 all months; follow-up F1–F5: 946; documents report with HEIC and Excel originals: 948; report period lists: 949; reopen without a reason: 950; months closed by default: 958; the red line of the reports: 960; the inbox of a month: 964; the order of work: 970; the agent on one month: 955; imports into the month: 961; files of Rivhit into their own month: 965; the VAT month column: 978), Worker 69 (`2026.10.23.2`,
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip, 942 all months; follow-up F1–F5: 946; documents report with HEIC and Excel originals: 948; report period lists: 949; reopen without a reason: 950; months closed by default: 958; the red line of the reports: 960; the inbox of a month: 964; the order of work: 970; the agent on one month: 955; imports into the month: 961; files of Rivhit into their own month: 965; the VAT month column: 978; its reports: 987), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
@@ -101,8 +101,15 @@ first). The owner and Anna are now checking them on real data; nothing is half d
   `intake.context` (a line is no document), `prepareMove`/`commitMove` (`fixed`), `applyProposal` (`vat_moved`), `copyImages` now
   exported. Known gap: a journal of Rivhit that replaces a month's table takes its lines and flags with it; the old table is kept
   next to it. Hebrew texts written in the step, for the owner's look: the header, the two questions, the status lines, the opinion
-  and status of the line, the refusal. **Not verified:** the owner's move on the published page. **Do not push without 9.8.2:** the
-  VAT report counts a sale whose VAT moved as exempt until then.
+  and status of the line, the refusal. **Not verified:** the owner's move on the published page. **9.8.1 and 9.8.2 go out together.**
+  **9.8.2, the reports:** `reportEntries` marks a row with `vatMove` as `vatMoved`, and `vatReport` takes it as a taxable sale. `pcn874.js`:
+  a moved purchase is a `T` line of the chosen month with the net of its document; a moved sale goes into the taxable `L` group and gets
+  the warning `moved_sale` in both months (the owner left its treatment for later: its `S` or `L` lines show net without VAT in one
+  month and VAT without net in the other). `vatMovedFrom` of a line now has `net` and `page`, used by the `T` line and by the documents
+  report (`isRowLine`, the page of a PDF). `reconcile` skips a line. Changed existing code: `reportEntries`, `vatReport`, `fileRows` and
+  the groups of `buildPcn874`, `isRowLine`, `renderDocumentReport`, `reconcile`, `pcnProblemText`, `rowSnapshot`, `restoreRow`, `movedLine`.
+  Hebrew text for the owner's look: the warning `moved_sale`. **Not verified:** the owner's look at the VAT report of both months on the
+  published page; the page of the reports was not clicked through in my check (the figures were computed in the browser from saved tables).
 - **UI redesign "nothing waits unseen"** (30 October, owner approved all of `docs/UI_REDESIGN_PROPOSAL.md`; branch
   `claude/wizardly-snyder-83391f`, not on `main` yet: the owner tries it first). One commit per change:
   - **C1, the import card says how its wizard ended.** New `import-card-flow.js` (`watchWizard`): the page listens for the

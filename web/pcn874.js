@@ -57,9 +57,13 @@ function fileRows(declarations, accounts, names) {
     .map(({ row, index }) => {
       const [entry] = reportEntries([{ ...declaration, rows: [row] }], accounts, names);
       const values = row.values ?? [];
-      const net = Number(row.rawNet) || entry.net;
+      // A line of moved VAT (step 9.8) reports a purchase with the net of its document. A sale keeps net 0: the net of a sale counts
+      // in the header and the L lines, and it is on the source row.
+      const movedPurchase = row.vatMovedFrom && entry.type !== "income";
+      const net = movedPurchase ? Number(row.vatMovedFrom.net) || 0 : Number(row.rawNet) || entry.net;
       return {
         month: declaration.month, position: index, type: entry.type, vat: entry.vat,
+        vatMoved: Boolean(row.vatMove), movedLine: Boolean(row.vatMovedFrom),
         net: entry.net < 0 && net > 0 ? -net : net,
         party: values[PARTY], date: values[DATE], reference: row.reference || values[REFERENCE],
         allocation: values[ALLOCATION],
@@ -109,11 +113,14 @@ export function buildPcn874({
     return { ...row, date };
   };
   const sales = rows.filter((row) => row.type === "income");
+  // How the file reports a sale whose VAT moved is not decided yet (owner, 6 November 2026): it is written as it is and shown.
+  for (const row of sales) if (row.vatMoved || row.movedLine) warnings.push({ code: "moved_sale", ...where(row) });
   const identified = sales.filter((row) => digits(row.party)).map((row) => documentLine("S", checked(row, "S"), field));
   const inputs = rows.filter((row) => ["expense", "equipment"].includes(row.type) && row.vat)
     .map((row) => documentLine("T", checked(row, "T"), field));
   const unidentified = sales.filter((row) => !digits(row.party));
-  const groups = [unidentified.filter((row) => row.vat), unidentified.filter((row) => !row.vat)]
+  const taxable = (row) => row.vat || row.vatMoved;
+  const groups = [unidentified.filter(taxable), unidentified.filter((row) => !taxable(row))]
     .filter((group) => group.length);
   for (const row of unidentified) checked(row, "L");
   const aggregated = groups.map((group) => documentLine("L", aggregate(group, to), field))

@@ -3,8 +3,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createDeclaration, finalizeDeclaration, listDeclarations, loadDeclaration, saveDraft, saveSourceImage } from "../declaration-store.js";
+import { documentReportItems, isRowLine } from "../document-report.js";
+import { reconcile } from "../ledger-reconcile.js";
+import { buildPcn874 } from "../pcn874.js";
 import { REFUSALS, applyProposal } from "../proposal-apply.js";
-import { reportEntries } from "../reports.js";
+import { reportEntries, vatReport } from "../reports.js";
+import { pcnProblemText } from "../reports-view.js";
 import { commitMove, prepareMove } from "../rows-move-flow.js";
 import { movedLine, vatMonths } from "../vat-move-flow.js";
 import { loadApp } from "./app-harness.mjs";
@@ -64,7 +68,7 @@ test("a move to a month that does not exist asks, writes the line, closes that m
   assert.equal(november.declaration.status, "closed", "only the month on screen stays open");
   const [line] = november.draft.rows;
   assert.deepEqual(line.values, ["05/10/26", "202", "paper", "Paper Shop", "512345679", "2002", "", "0.00", "0.00", "18.00", "100", "100"]);
-  assert.deepEqual(line.vatMovedFrom, { id: snapshot.vatMove.id, month: "2026-10" });
+  assert.deepEqual(line.vatMovedFrom, { id: snapshot.vatMove.id, month: "2026-10", net: "100" });
   assert.equal(new TextDecoder().decode(await readFileBytes(client, `declarations/2026-11/images/${line.imageFile}`)).length, 2, "the same original");
   assert.equal((await saved("2026-10")).draft.rows[0].vatMove.month, "2026-11", "the source is saved at once");
 });
@@ -153,7 +157,93 @@ test("a row whose VAT moved takes no edit but its list; the line takes none at a
 test("the line of moved VAT is what the code says: nothing of the source's amounts but the VAT", () => {
   const line = movedLine(invoice(), { id: "x", fromMonth: "2026-10", vat: "18.00", now: "2026-10-02T08:00:00.000Z" });
   assert.deepEqual([line.documentId, line.rawNet, line.rawVat, line.booked, line.active], ["vatmove-x", "0", "18.00", true, true]);
-  assert.deepEqual(line.vatMovedFrom, { id: "x", month: "2026-10" });
+  assert.deepEqual(line.vatMovedFrom, { id: "x", month: "2026-10", net: "100" });
+});
+
+test("the line keeps the net of a credit with its sign, and the page of its PDF", () => {
+  const credit = invoice({ rawNet: "100", agent: { page: 3 }, values: ["05/10/26", "202", "", "", "", "", "", "-118.00", "-100.00", "-18.00", "100", "100"] });
+  const { vatMovedFrom } = movedLine(credit, { id: "x", fromMonth: "2026-10", vat: "-18.00" });
+  assert.deepEqual(vatMovedFrom, { id: "x", month: "2026-10", net: "-100", page: 3 });
+});
+
+// Step 9.8.2. The two months after a move, as the reports read them.
+async function movedMonths(code, party = "512345679") {
+  const values = ["05/10/26", code, "paper", "Paper Shop", party, "2002", "", "118.00", "100.00", "18.00", "100", "100"];
+  const { app, rows, choose, saved } = await setup({ rows: [invoice({ values, reference: "2002" })] });
+  await choose("2026-11");
+  const source = JSON.parse(JSON.stringify(app.rowSnapshot(rows()[0])));
+  return [
+    { month: "2026-10", status: "closed", rows: [source] },
+    { month: "2026-11", status: "closed", rows: (await saved("2026-11")).draft.rows },
+  ];
+}
+const chart = { 160: { name: "הכנסות", type: "income" }, 202: { name: "x", type: "expense" } };
+const slip = (declarations, month) => vatReport(reportEntries(declarations.filter((item) => item.month === month), chart));
+const pcnFile = (declarations, month) => buildPcn874({ vatId: "123456782", from: month, to: month, declarations, accounts: chart });
+
+test("the VAT report: a sale whose VAT moved is taxable in its month, and the VAT is due in the chosen month", async () => {
+  const months = await movedMonths("160");
+  const october = slip(months, "2026-10");
+  assert.deepEqual([october.turnover, october.taxableSales, october.exemptSales, october.outputVat, october.payable], [100, 100, 0, 0, 0]);
+  const november = slip(months, "2026-11");
+  assert.deepEqual([november.turnover, november.taxableSales, november.exemptSales, november.outputVat, november.payable], [0, 0, 0, 18, 18]);
+});
+
+test("the VAT report: the VAT of an expense is deducted in the chosen month only", async () => {
+  const months = await movedMonths("202");
+  assert.equal(slip(months, "2026-10").inputVat, 0);
+  assert.deepEqual([slip(months, "2026-11").inputVat, slip(months, "2026-11").payable], [18, -18]);
+});
+
+test("PCN874: a moved purchase is a line of the chosen month with the details and the net of its document", async () => {
+  const months = await movedMonths("202");
+  assert.deepEqual(pcnFile(months, "2026-10").lines, []);
+  const november = pcnFile(months, "2026-11");
+  assert.deepEqual(november.lines, ["T512345679202610050000000002002000000018+0000000100000000000"]);
+  assert.deepEqual(november.warnings, []);
+  assert.deepEqual(november.problems, []);
+});
+
+test("PCN874: a sale whose VAT moved is written as it is, with a warning in both months", async () => {
+  const months = await movedMonths("160");
+  const october = pcnFile(months, "2026-10");
+  const november = pcnFile(months, "2026-11");
+  assert.deepEqual(october.warnings, [{ code: "moved_sale", month: "2026-10", position: 1 }]);
+  assert.deepEqual(november.warnings, [{ code: "moved_sale", month: "2026-11", position: 1 }]);
+  assert.match(pcnProblemText(october.warnings[0]), /הועבר בין חודשים/);
+  assert.deepEqual([october.report.exemptSales, october.report.taxableSales], [0, 100]);
+});
+
+test("PCN874: a sale to nobody by name whose VAT moved stays out of the exempt line", async () => {
+  const months = await movedMonths("160", "");
+  const { lines, report } = pcnFile(months, "2026-10");
+  assert.deepEqual(lines, ["L000000000202610050000000002002000000000+0000000100000000000"]);
+  assert.equal(report.exemptSales, 0);
+});
+
+test("the documents report: the line shows the original kept in its month and the line of its document in a sheet", async () => {
+  const months = await movedMonths("202");
+  const [line] = months[1].rows;
+  assert.ok(line.imageFile);
+  const [item] = documentReportItems(months, "2026-11", "2026-11");
+  assert.equal(item.row.vatMovedFrom.net, "100");
+  assert.equal(isRowLine(["2002", "100.00"], line), true);
+  assert.equal(isRowLine(["2002", "55.00"], line), false);
+});
+
+test("the line keeps what the reports need when its table is saved again", async () => {
+  const { app, rows } = await setup({ rows: [] });
+  const line = movedLine(invoice({ agent: { page: 2 } }), { id: "x", fromMonth: "2026-09", vat: "18.00" });
+  app.restoreRow(line, null);
+  const snapshot = JSON.parse(JSON.stringify(app.rowSnapshot(rows()[0])));
+  assert.deepEqual(snapshot.vatMovedFrom, { id: "x", month: "2026-09", net: "100", page: 2 });
+});
+
+test("the ledger check takes the source row for the operation and does not report the line as extra", async () => {
+  const months = await movedMonths("202");
+  const operation = { key: "2026-10|x|2026-10-05|100.00|118.00", month: "2026-10", name: "x", net: 100, vat: 18, gross: 118 };
+  const { matched, missing, extra } = reconcile([operation], months, chart);
+  assert.deepEqual([matched, missing.length, extra.length], [1, 0, 0]);
 });
 
 test("a move into a month with rows keeps a copy of its old table", async () => {
