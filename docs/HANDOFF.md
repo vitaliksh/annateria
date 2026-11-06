@@ -567,7 +567,7 @@ condition; 10 runs under heavier load passed. Lesson: after a push, check the ru
 
 | What | Where | Version / how to check |
 | --- | --- | --- |
-| Web app | <https://vitaliksh.github.io/annateria/> (GitHub Pages, workflow `deploy-web.yml`, every push to `main` touching `web/`) | Build marker at the bottom of the sidebar: `YYYY.MM.DD · <short commit>`. After a deploy press Ctrl+F5 and compare it with `git rev-parse --short HEAD` |
+| Web app | <https://vitaliksh.github.io/annateria/> (GitHub Pages, workflow `deploy-web.yml`, every push to `main` touching `web/`) | Build marker at the bottom of the sidebar: `YYYY.MM.DD · <short commit>`. After a deploy press Ctrl+F5 and compare it with `git rev-parse --short HEAD`. A green test job does not mean it is live: on 6 November 2026 GitHub's deploy step grew from 15 s to 6 min and then hit its 10-minute timeout, so the workflow now tries twice; check the run's result after a push |
 | Worker | `https://annateria.vitaliksh.workers.dev`, version `2026.10.23.2` (Cloudflare `dd57e455`), record in `worker/DEPLOYMENT.md` | `GET /health` answers `BACKEND_VERSION` |
 | Predecessor | ocr: `https://vitaliksh.github.io/ocr/` and the Worker `rivhit-telegram-transfer` | Not touched from this repository |
 

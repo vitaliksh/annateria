@@ -39,7 +39,7 @@ jobs:
       cancel-in-progress: true
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.retry.outputs.page_url || steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,5 +52,10 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
         with:
           path: web
+      # GitHub sometimes does not finish a deployment within the 10 minutes of the action (6 November 2026): one more try.
       - id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - id: retry
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
