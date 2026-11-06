@@ -173,7 +173,7 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
         const live = liveFor(clientId);
         const context = await loadIntakeContext(client.directory, { skipMonths: live ? [live.month] : [] });
         const entries = [...context.entries];
-        live?.rows.forEach((row, position) => { if (row.active !== false) entries.push(entryFromRow(row, { month: live.month, position })); });
+        live?.rows.forEach((row, position) => { if (row.active !== false && !row.vatMovedFrom) entries.push(entryFromRow(row, { month: live.month, position })); });
         return { entries, lockedThrough: context.lockedThrough, declarations: context.declarations };
       },
     }),

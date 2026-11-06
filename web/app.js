@@ -12,12 +12,15 @@ import {
 } from "./declaration-store.js";
 import { chartForClient, readChartOfAccounts, readClientChart } from "./chart-of-accounts.js";
 import { setupLedgerCheck } from "./ledger-check-ui.js";
-import { setupRowsMove } from "./rows-move-ui.js";
+import { DEDUCTION_TEXTS, setupRowsMove } from "./rows-move-ui.js";
 import { buildIncomeRows, hasIncomeRow, readIncomeReportFile } from "./income-report.js";
 import { setupLedgerCodes } from "./ledger-codes-ui.js";
 import { confirmDialog } from "./confirm-dialog.js";
 import { CLICK_REOPEN_REASON, NO_EXPORT_MARKER, declarationActions } from "./declaration-core.js";
 import { formatMonth } from "./month-format.js";
+import { deductionStatus, monthOfDate } from "./month-distribution.js";
+import { addMovedLine, movedLine, removeMovedLine, vatMonths } from "./vat-move-flow.js";
+import { inspectImportTarget } from "./excel-import-store.js";
 import { createClientsHome } from "./clients-home.js";
 import { setupJournalColumns } from "./journal-columns.js";
 import { setupJournalToolbar } from "./journal-toolbar.js";
@@ -995,6 +998,7 @@ async function openImportWizard({ card, report }) {
 }
 // The edits of a proposal go through the functions of the table, as if the user typed them.
 const proposalOps = {
+  vatMoved: (row) => Boolean(row.dataset.vatMoveId || row.dataset.vatMovedId),
   locked: () => tableLocked,
   month: () => currentDeclaration?.month ?? null,
   rows: () => [...records.querySelectorAll("tr[data-document-id]")],
@@ -1181,6 +1185,7 @@ function setTableLocked(locked) {
   records.classList.toggle("table-locked", tableLocked);
   for (const cell of records.querySelectorAll(".editable")) cell.contentEditable = tableLocked ? "false" : "true";
   for (const control of records.querySelectorAll("select,input,.delete,.field-swap")) control.disabled = tableLocked;
+  for (const row of records.querySelectorAll("tr[data-document-id]")) lockVatMovedRow(row);
   pcnJournal?.refresh();
 }
 function refreshRows() {
@@ -1294,10 +1299,19 @@ async function saveClassificationOverride(row, rivhitCode) {
     showError("לא ניתן לשמור את מיפוי טופס 6111: " + error.message);
   }
 }
+// The VAT of the row at its recognition, whether it has moved or not.
+function recognisedVat(row) {
+  const expensePercent = row.cells[12].querySelector("select")?.value || 100,
+    vatRecognisedPercent = row.cells[11].querySelector("select")?.value || 100;
+  return recognisedAmounts(row.dataset.rawNet, row.dataset.rawVat, expensePercent, vatRecognisedPercent).vat;
+}
 function recalculateRow(row) {
   const expensePercent = row.cells[12].querySelector("select")?.value || 100,
     vatRecognisedPercent = row.cells[11].querySelector("select")?.value || 100,
     amounts = recognisedAmounts(row.dataset.rawNet, row.dataset.rawVat, expensePercent, vatRecognisedPercent);
+  // Step 9.8: a row whose VAT moved shows VAT 0 and keeps its amounts; a line of moved VAT has the VAT alone.
+  if (row.dataset.vatMoveId) amounts.vat = "0.00";
+  if (row.dataset.vatMovedId) amounts.gross = "0.00";
   const gross = row.cells[8].querySelector("input");
   if (gross) gross.value = amounts.gross;
   else row.cells[8].textContent = amounts.gross;
@@ -1313,6 +1327,94 @@ function recalculateRow(row) {
   if (partial) row.cells[10].dataset.recognised = `הוכר ${Number(expensePercent) !== 100 ? expensePercent : vatRecognisedPercent}%`;
   else delete row.cells[10].dataset.recognised;
   row.cells[10].title = partial ? `מוכר: מע״מ ${vatRecognisedPercent}% · הוצאה ${expensePercent}%` : "";
+}
+// Step 9.8: the column "VAT month". A row whose VAT moved takes no edit until the VAT is back, so that it and its line cannot differ; a
+// line of moved VAT takes none at all. Only the list of the source row stays usable.
+function lockVatMovedRow(row) {
+  if (!row.dataset.vatMoveId && !row.dataset.vatMovedId) return;
+  row.classList.add("vat-moved");
+  for (const cell of row.querySelectorAll(".editable")) cell.contentEditable = "false";
+  for (const control of row.querySelectorAll("select,input,.delete,.field-swap")) {
+    if (!control.matches(".vat-month") || row.dataset.vatMovedId) control.disabled = true;
+  }
+}
+function unlockVatMovedRow(row) {
+  row.classList.remove("vat-moved");
+  for (const cell of row.querySelectorAll(".editable")) cell.contentEditable = tableLocked ? "false" : "true";
+  for (const control of row.querySelectorAll("select,input,.delete,.field-swap")) control.disabled = tableLocked;
+}
+// What a month needs from the user before VAT is written into it or taken out of it. Resolves with false on "no".
+async function approveVatMonth(month, { removing = false } = {}) {
+  const { state } = await inspectImportTarget(committedWorkspace.directory, month);
+  const name = formatMonth(month);
+  if (state === "closed") {
+    const task = removing ? "כדי להסיר ממנה את שורת המע״מ" : "לצורך העברת המע״מ";
+    return confirmDialog(`ההצהרה ל-${name} סגורה וייתכן שכבר דווחה. לפתוח אותה ${task}? בסיום היא תיסגר שוב.`, { title: "חודש מע״מ", confirmLabel: "כן" });
+  }
+  if (state === "missing" && !removing) return confirmDialog(`ההצהרה ל-${name} לא קיימת. ליצור אותה לצורך העברת המע״מ?`, { title: "חודש מע״מ", confirmLabel: "כן" });
+  return true;
+}
+async function changeVatMonth(row, select) {
+  const own = currentDeclaration?.month;
+  const before = row.dataset.vatMoveMonth || own;
+  const wanted = select.value;
+  const refuse = (message) => {
+    select.value = before;
+    if (message) status.textContent = message;
+  };
+  if (!own || tableLocked || wanted === before) return refuse();
+  if (!row.dataset.vatMoveId && !Number(recognisedVat(row))) return refuse("בשורה הזו אין מע״מ להעביר.");
+  if (!row.cells[17].querySelector("input")?.checked) return refuse("אפשר להעביר מע״מ רק של שורה פעילה.");
+  select.disabled = true;
+  try {
+    if (wanted !== own && !(await approveVatMonth(wanted))) return refuse();
+    if (before !== own && !(await approveVatMonth(before, { removing: true }))) return refuse();
+    const client = committedWorkspace;
+    const id = crypto.randomUUID();
+    if (wanted !== own) {
+      const line = movedLine(rowSnapshot(row), { id, fromMonth: own, vat: recognisedVat(row) });
+      await addMovedLine({ client, sourceDirectory: currentDeclarationDirectory, toMonth: wanted, line });
+    }
+    if (before !== own) await removeMovedLine({ client, month: before, id: row.dataset.vatMoveId });
+    if (wanted === own) {
+      delete row.dataset.vatMoveMonth;
+      delete row.dataset.vatMoveId;
+      unlockVatMovedRow(row);
+    } else {
+      row.dataset.vatMoveMonth = wanted;
+      row.dataset.vatMoveId = id;
+    }
+    recalculateRow(row);
+    lockVatMovedRow(row);
+    await saveCurrentDraft();
+    await workspaceControls?.refreshFromUserAction();
+    const late = wanted !== own && !isIncomeCode(cellValue(row.cells[1])) ? deductionStatus(monthOfDate(cellValue(row.cells[2])), wanted) : "ok";
+    const moved = wanted === own ? "המע״מ הוחזר לחודש זה." : `המע״מ הועבר ל-${formatMonth(wanted)}.`;
+    status.textContent = late === "ok" ? moved : `${moved} ${DEDUCTION_TEXTS[late]}`;
+  } catch (error) {
+    refuse();
+    showError(`לא ניתן להעביר את המע״מ: ${error.message}`);
+  } finally {
+    select.disabled = tableLocked;
+  }
+}
+// The cell of the column: a list for a row of the month, the source month for a line of moved VAT.
+function fillVatMonthCell(row) {
+  const cell = row.cells[19];
+  if (row.dataset.vatMovedId) {
+    cell.textContent = `מ-${formatMonth(row.dataset.vatMovedFrom)}`;
+    return;
+  }
+  if (!currentDeclaration) return;
+  const select = document.createElement("select");
+  select.className = "vat-month";
+  select.setAttribute("aria-label", "חודש מע״מ");
+  const months = vatMonths(currentDeclaration.month);
+  const moved = row.dataset.vatMoveMonth;
+  for (const month of moved && !months.includes(moved) ? [...months, moved] : months) select.append(new Option(formatMonth(month), month));
+  select.value = moved || currentDeclaration.month;
+  select.addEventListener("change", () => changeVatMonth(row, select));
+  cell.replaceChildren(select);
 }
 function vatRate(row) {
   const stored = Number(row.dataset.vatPercent);
@@ -1379,10 +1481,12 @@ function setExportIncluded(row, included) {
 }
 function updateDuplicateState(row) {
   const reference = normalReference(cellValue(row.cells[6]));
-  if (!reference) return;
+  // A line of moved VAT repeats the number of its document and is no document itself (step 9.8).
+  if (!reference || row.dataset.vatMovedId) return;
   const duplicate = [...records.querySelectorAll("tr[data-document-id]")].some(
     (candidate) =>
       candidate !== row &&
+      !candidate.dataset.vatMovedId &&
       candidate.dataset.documentId !== row.dataset.documentId &&
       normalReference(cellValue(candidate.cells[6])) === reference,
   );
@@ -1643,6 +1747,7 @@ function addPendingRecord(imageUrl, receivedAt, documentId, imageIndex, insertAf
   });
   deleteCell.append(remove);
   row.append(deleteCell);
+  row.append(emptyCell());
   if (insertAfter?.parentNode === records) records.insertBefore(row, insertAfter.nextSibling);
   else records.append(row);
   refreshRows();
@@ -1751,6 +1856,8 @@ function rowSnapshot(row) {
     active: Boolean(row.cells[17].querySelector("input")?.checked),
     ...(row.dataset.booked ? { booked: true } : {}),
     ...(row.dataset.sourceHash ? { sourceHash: row.dataset.sourceHash } : {}),
+    ...(row.dataset.vatMoveId ? { vatMove: { id: row.dataset.vatMoveId, month: row.dataset.vatMoveMonth } } : {}),
+    ...(row.dataset.vatMovedId ? { vatMovedFrom: { id: row.dataset.vatMovedId, month: row.dataset.vatMovedFrom } } : {}),
     agentOpinion: row.cells[14].textContent.trim(),
     confidence: row.cells[15].textContent.trim(),
     statusText: row.cells[16].childNodes[0]?.textContent?.trim() || row.cells[16].textContent.trim(),
@@ -1780,6 +1887,14 @@ function restoreRow(saved, blob) {
   row.highlights = Array.isArray(saved.highlights) ? saved.highlights : [];
   if (saved.agent) row.dataset.agent = JSON.stringify(saved.agent);
   if (saved.booked) row.dataset.booked = "true";
+  if (saved.vatMove) {
+    row.dataset.vatMoveId = saved.vatMove.id;
+    row.dataset.vatMoveMonth = saved.vatMove.month;
+  }
+  if (saved.vatMovedFrom) {
+    row.dataset.vatMovedId = saved.vatMovedFrom.id;
+    row.dataset.vatMovedFrom = saved.vatMovedFrom.month;
+  }
   row.replaceChild(editableCell(values[1]), row.cells[1]);
   row.replaceChild(editableCell(displayDate(values[0])), row.cells[2]);
   values.slice(2, 12).forEach((value, index) => row.replaceChild(editableCell(value), row.cells[index + 3]));
@@ -1799,13 +1914,15 @@ function restoreRow(saved, blob) {
   include.disabled = false;
   setExportIncluded(row, saved.active);
   // A row of the agent has no marked regions by design: its own status stands.
-  const needsMarks = saved.active && !row.highlights.length && !saved.agent;
+  const needsMarks = saved.active && !row.highlights.length && !saved.agent && !saved.vatMovedFrom;
   setStatus(
     row,
     needsMarks ? "מוכן, חסרים סימונים" : saved.statusText || (saved.active ? "מוכן לייצוא" : "לא מיועד לייצוא"),
     needsMarks ? "review" : saved.statusClass || (saved.active ? "ready" : "review"),
   );
   updateDuplicateState(row);
+  fillVatMonthCell(row);
+  lockVatMovedRow(row);
 }
 records.addEventListener("input", (event) => {
   const cell = event.target.closest?.("td"),

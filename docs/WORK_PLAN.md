@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status (27 October 2026; 25 to 27 October: fixes after Anna's first real day, see the decision log and `HANDOFF.md`): **phases 0, 1, 5 and 7 done; phase 2 done but for 2.5 (phone camera → inbox, Anna's show-stopper, planned 24 October, next); phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** **1 November 2026: phase 9 planned (after Anna's test session: one month at a time, the VAT month); 9.2 to 9.6 pushed on 6 November 2026; 9.7 built; the owner's run of a real month and of a real journal are open.** This file is the single source of truth for what is
+Status (27 October 2026; 25 to 27 October: fixes after Anna's first real day, see the decision log and `HANDOFF.md`): **phases 0, 1, 5 and 7 done; phase 2 done but for 2.5 (phone camera → inbox, Anna's show-stopper, planned 24 October, next); phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** **1 November 2026: phase 9 planned (after Anna's test session: one month at a time, the VAT month); 9.2 to 9.7.1 pushed on 6 November 2026; 9.8.1 is a local commit, pushed together with 9.8.2; the owner's run of a real month and of a real journal are open.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -553,6 +553,12 @@ the owner's "yes" between steps.
   changes nothing. The agent never sets this column. Two commits:
   - [ ] **9.8.1 The column and the moved line.** *Done when:* tests (move, move back, change the target, a closed target
     refused, net counted once); the owner moves the VAT of one expense and one sale on the published page.
+    (Built 6 November 2026. The list holds the month of the table and the next 12. The source row keeps its gross and net and shows
+    VAT 0; the line has gross 0, net 0 and the VAT, so every total counts the document once. A row whose VAT moved takes no edit
+    until the VAT is back, so that it and its line cannot differ; a proposal of the agent and the move of rows are refused for it.
+    The column is the last of the table, because the code addresses the cells by position; putting it next to the VAT is a separate
+    change. Web 978 tests. Checked in the browser on synthetic data. **Not to be pushed without 9.8.2:** until then the VAT report
+    counts a sale whose VAT moved as an exempt sale.)
   - [ ] **9.8.2 Reports and PCN874.** `vatReport` knows the move: a sale whose VAT moved is not an exempt sale, the moved line
     counts in the target month; the PCN874 line of a moved purchase goes into the target month with the source document's
     details; the documents report shows the original for the moved line. *Left for later (owner, 6 November 2026, not for this
@@ -701,6 +707,7 @@ model behind the same proxy.
 | 2026-11-01 | **9.3: one sweep, three answers** (owner). A long pause does not close a month; the red line of the checks shows in the month first, the reports in a commit right after; steps 9.3 to 9.6 are committed locally and pushed together, because until 9.6 the agent puts a document of a closed month into the month after the last closed one. |
 | 2026-11-01 | **9.4: the month of an inbox file lives in the index** (owner), not in a folder per month as first planned: fewer moves on disk, and the agent keeps finding files by their client folder until 9.6. The Hebrew texts of the dialog as proposed. |
 | 2026-11-01 | **9.5: a way into the inbox from outside a month asks for the client and the month** (owner), instead of opening an inbox without a month; the month's own inbox button and a visible reopen button in the top bar; "check new documents" works on the month shown and opens a closed one first. |
+| 2026-11-06 | **9.8.1: a row whose VAT moved is locked until the VAT is back**; the source keeps gross and net, the line has only the VAT. 9.8.1 and 9.8.2 are pushed together, because 9.8.1 alone reports a sale with moved VAT as exempt. |
 | 2026-11-06 | **9.7.1: files of Rivhit go into their own month** (owner): a journal or an operations ledger is the books of its month, so a closed month takes it after a question and closes again. With the VAT move of 9.8 these are the two exceptions to "a closed month takes nothing", both only after the user's yes. |
 | 2026-11-06 | **9.8: moving VAT to a future month that does not exist or is closed asks first** (owner): a dialog asks whether to create or open the month for this task; "no" changes nothing. The question to Anna about a moved sale in the PCN874 file is not for this stage. |
 | 2026-11-06 | **9.7: a closed month takes nothing** (owner): it is filed and paid. A document of a closed month goes into the open month, marked to look at; the move of rows never offers a closed month, and the VAT of 9.8 moves to a future month only. This replaces the 9.6 note that an earlier date alone is no reason to look. The ledger check ticks only the open month's operations at the start; a journal into a month with rows stays "replace, or no import". |

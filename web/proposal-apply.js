@@ -15,11 +15,12 @@ export const REFUSALS = {
   other_month: (month) => `חודש ${formatMonth(month)} אינו פתוח בטבלה: יש לפתוח אותו כדי להחיל`,
   changed: "הטבלה השתנתה מאז ההצעה: השורה אינה השורה שהוצעה",
   month_move: "העברה לחודש אחר נעשית דרך «פיזור שורות לחודשים»",
+  vat_moved: "לשורה הזו הועבר מע״מ: יש להחזיר אותו לפני השינוי",
 };
 
 // proposal: { changes: [{ row, documentId, month, position, field, value, reason }] } (the changes the user kept).
 // ops: { locked(), month(), rows(), setText(row, cell, text), setReference(row, full), setAmount(row, column, number), setAccount(row, code),
-//        setPercent(row, role, number), setInclude(row, flag), edited(row) }.
+//        setPercent(row, role, number), setInclude(row, flag), edited(row), vatMoved(row) }.
 // Resolves with { applied: [change], refused: [{ change, reason }] }.
 export function applyProposal(proposal, ops) {
   const applied = [];
@@ -32,6 +33,7 @@ export function applyProposal(proposal, ops) {
     if (change.month !== ops.month()) { refuse(REFUSALS.other_month(change.month)); continue; }
     const row = ops.rows()[change.position - 1];
     if (!row || row.dataset.documentId !== change.documentId) { refuse(REFUSALS.changed); continue; }
+    if (ops.vatMoved?.(row)) { refuse(REFUSALS.vat_moved); continue; }
     const { field, value } = change;
     if (field in CELL) ops.setText(row, CELL[field], field === "date" ? displayDate(value) : value);
     else if (field === "document_number") {

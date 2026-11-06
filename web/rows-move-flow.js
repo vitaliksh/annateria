@@ -42,6 +42,8 @@ export async function prepareMove({ client, month, today = new Date() }) {
       gross: Number(values[7]) || 0,
       vat: Number(values[9]) || 0,
       hasImage: Boolean(row.imageFile),
+      // Step 9.8: a row whose VAT moved, and the line of moved VAT, stay where they are.
+      fixed: Boolean(row.vatMove || row.vatMovedFrom),
       signature: signature(row),
       current: month,
       proposed: null,
@@ -83,7 +85,7 @@ async function imageExists(directory, name) {
 }
 
 // Gives each distinct source image of the moved rows the next free number in the target declaration.
-async function copyImages(target, sourceImages, rows) {
+export async function copyImages(target, sourceImages, rows) {
   const names = new Map();
   let index = Math.max(0, ...target.draft.rows.map((row) => Number(row.imageIndex) || 0));
   const moved = [];
@@ -116,6 +118,7 @@ export async function commitMove(prepared, { assignments, client, now = new Date
   const moves = new Map();
   for (const [index, target] of assignments) {
     if (target === prepared.month) continue;
+    if (prepared.lines[index]?.fixed) throw new Error("לשורה הזו הועבר מע״מ. יש להחזיר אותו לפני העברת השורה.");
     if (!prepared.months.some((option) => option.month === target)) throw new Error(`לא ניתן להעביר לחודש ${target}: הוא נעול או שקדם לחודש הנעול האחרון.`);
     if (!moves.has(target)) moves.set(target, []);
     moves.get(target).push(index);

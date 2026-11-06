@@ -424,3 +424,12 @@ td .photo-button {
 .filter-line[hidden] {
   display: none;
 }
+
+/* Step 9.8: a row whose VAT moved and a line of moved VAT take no edit, and show it. */
+#journal-table tr.vat-moved td {
+  background: var(--surface-muted);
+}
+
+#journal-table td select.vat-month {
+  min-width: 7.5em;
+}

@@ -17,9 +17,9 @@ test("the header cells carry the column keys in the model order", () => {
   assert.deepEqual(keys, COLUMNS.map((column) => column.key));
 });
 
-test("the model has 19 columns, locked core columns and a minimum preset that hides only unlocked ones", () => {
-  assert.equal(COLUMNS.length, 19);
-  assert.equal(new Set(COLUMNS.map((column) => column.key)).size, 19);
+test("the model has 20 columns, locked core columns and a minimum preset that hides only unlocked ones", () => {
+  assert.equal(COLUMNS.length, 20);
+  assert.equal(new Set(COLUMNS.map((column) => column.key)).size, 20);
   for (const key of PRESET_HIDDEN.minimum) assert.equal(COLUMNS[columnIndex(key)].locked, undefined);
   for (const key of ["code", "date", "gross", "net", "vat"]) assert.equal(COLUMNS[columnIndex(key)].locked, true);
 });
@@ -99,7 +99,7 @@ function journal() {
 test("the journal starts with the minimum preset: hidden columns are collapsed and the colgroup adds up", () => {
   const { table } = journal();
   const cols = [...table.querySelectorAll("colgroup col")];
-  assert.equal(cols.length, 19);
+  assert.equal(cols.length, 20);
   assert.ok(Math.abs(cols.reduce((sum, col) => sum + parseFloat(col.style.width), 0) - 100) < 0.01);
   assert.equal(cols[columnIndex("agent")].style.visibility, "collapse");
   assert.equal(cols[columnIndex("details")].style.visibility, "");
@@ -124,7 +124,7 @@ test("the hide button hides a column, the chooser restores it and every change i
 test("the chooser lists every column, disables locked ones and applies presets", () => {
   const { document, columns, changes } = journal();
   const options = [...document.querySelectorAll("#columns-menu .columns-option input")];
-  assert.equal(options.length, 19);
+  assert.equal(options.length, 20);
   assert.equal(options.filter((box) => box.disabled).length, COLUMNS.filter((column) => column.locked).length);
   const box = [...document.querySelectorAll("#columns-menu .columns-option")].find((label) => label.textContent === "החלטת הסוכן").querySelector("input");
   assert.equal(box.checked, false);

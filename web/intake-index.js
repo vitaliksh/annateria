@@ -13,7 +13,8 @@ export async function loadIntakeContext(clientDirectory, { skipMonths = [] } = {
     if (skipMonths.includes(month)) continue;
     const { draft } = await loadDeclaration(clientDirectory, month);
     draft.rows.forEach((row, position) => {
-      if (row.active !== false) entries.push(entryFromRow(row, { month, status, position }));
+      // A line of moved VAT is no document: its source row is the one a duplicate is found by (step 9.8).
+      if (row.active !== false && !row.vatMovedFrom) entries.push(entryFromRow(row, { month, status, position }));
     });
   }
   return { entries, declarations, lockedThrough: lockedThrough(declarations) };

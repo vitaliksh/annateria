@@ -1,4 +1,4 @@
-// Journal columns: the fixed order of the 19 cells (app.js addresses cells by index, so cells are never removed or
+// Journal columns: the fixed order of the 20 cells (app.js addresses cells by index, so cells are never removed or
 // reordered), which columns the user can hide, the presets and the width arithmetic. Pure; no DOM.
 
 export const COLUMNS = [
@@ -21,6 +21,7 @@ export const COLUMNS = [
   { key: "status", group: "service", weight: 11 },
   { key: "export", group: "service", weight: 5 },
   { key: "delete", group: "service", weight: 8 },
+  { key: "vatMonth", group: "tax", weight: 12 },
 ];
 
 export const GROUP_LABELS = { core: "עיקריות", tax: "מס", ai: "AI", service: "שירות" };

@@ -4,7 +4,7 @@
 import { formatMonth } from "./month-format.js";
 import { commitMove, prepareMove } from "./rows-move-flow.js";
 
-const DEDUCTION_TEXTS = {
+export const DEDUCTION_TEXTS = {
   check: "לניכוי המע״מ: חלפו 6 חודשים מתאריך המסמך — לבדוק",
   late: "לניכוי המע״מ: חלפו יותר מ‑6 חודשים מתאריך המסמך — לבדוק מול רואה החשבון",
 };
@@ -61,6 +61,7 @@ export function setupRowsMove({ button = null, dialog, getContext, beforeOpen, o
       select.append(new Option(label, option.month));
     }
     select.value = prepared.suggested(line);
+    select.disabled = line.fixed;
     const noteNode = element("span", note(line, select.value), "move-note");
     select.addEventListener("change", () => {
       noteNode.textContent = note(line, select.value);
