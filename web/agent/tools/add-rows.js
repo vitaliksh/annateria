@@ -1,66 +1,24 @@
 // add_rows (docs/AGENT_TOOLS.md, 5.3): puts extracted documents into the monthly table as ordinary draft rows. The model gives a fact
-// handle and a decision; every value of the row is copied by the code from the fact, the month, the exclusion, the recognition
-// percentages and whether the row is "ready" are computed by the code. A row is rejected, not written, when its routing cannot be
-// verified or its month is locked. Nothing is ever overwritten or deleted. Every document of a file that is filed ends in the table
-// (addMissingRows, Anna, 25 October 2026): what the agent left out becomes an inactive row to look at.
-import { clickedOption } from "../answers.js";
-import { digits, computeFacts } from "../facts.js";
+// handle and a decision; every value of the row is copied by the code from the fact, the exclusion, the recognition percentages and
+// whether the row is "ready" are computed by the code. Every row goes into the one client and month of the run (step 9.6): what the
+// facts doubt (another buyer, a date of another month or year, a duplicate) marks the row to look at and never moves it. A row is
+// rejected, not written, when the run has no open month. Nothing is ever overwritten or deleted. Every document of a file that is
+// filed ends in the table (addMissingRows, Anna, 25 October 2026): what the agent left out becomes an inactive row to look at.
+import { computeFacts } from "../facts.js";
 import { ToolError } from "../errors.js";
-import { holdersOf } from "../aliases.js";
-import { buyerOf } from "../../client-alias.js";
 import { entryFromRow } from "../../intake-facts.js";
 import { buildRowSnapshot } from "../../row-builder.js";
 import { AGENT_VERSION } from "../prompts.js";
 
-const UNSORTED = "_unsorted";
-
-// The proof that the document is for this client: the folder it was put in, the VAT number of the buyer (or of the supplier, for a
-// document the client issued itself: its own receipts, 26 October 2026), a buyer the user once confirmed
-// as this client and no other (alias, step 4.6.2), a button of the user, or another document of the same file that already has a row
-// of this client in this run (same_file). aliases(): the confirmed aliases of all clients, read once per call.
-async function verifyRouting(ctx, row, clientValue, factValue, aliases) {
-  const { entry, record, file } = factValue;
-  if (row.routed_by === "same_file") {
-    const sibling = [...ctx.run.addedFacts.values()].some((item) => item.fileHash === entry.hash && item.clientId === clientValue.clientId);
-    if (!sibling) throw new ToolError("not_allowed", "No other document of this file has a row of this client yet.");
-  } else if (row.routed_by === "folder") {
-    if (entry.folder === UNSORTED || entry.folder !== clientValue.folder) throw new ToolError("not_allowed", `The file is not in the inbox folder of this client (it is in ${entry.folder}).`);
-  } else if (row.routed_by === "vat_id") {
-    const own = digits(clientValue.vatId);
-    if (!own || ![record.buyer_vat_id, record.supplier_vat_id].some((value) => digits(value) === own)) {
-      throw new ToolError("not_allowed", "Neither the buyer's nor the supplier's VAT number on the document is the VAT number of this client.");
-    }
-  } else if (row.routed_by === "alias") {
-    const buyer = buyerOf(record);
-    if (!buyer) throw new ToolError("not_allowed", "The document prints no buyer, so no alias can prove its client.");
-    const holders = holdersOf(await aliases(), buyer);
-    if (holders.length > 1) throw new ToolError("not_allowed", "The buyer of the document is confirmed for more than one client: ask the user with choose_client.");
-    if (holders[0] !== clientValue.clientId) throw new ToolError("not_allowed", "The buyer of the document is not a confirmed alias of this client.");
-  } else {
-    if (!row.routing_ask) throw new ToolError("invalid_argument", "routed_by user needs routing_ask.");
-    if (clickedOption(ctx, row.routing_ask, file).clientId !== clientValue.clientId) throw new ToolError("not_allowed", "The user did not choose this client for this file.");
-  }
-}
-
-// options.month: the month the code chose for a document left out (addMissingRows), instead of a button of the user.
-async function addOne(ctx, clientHandle, clientValue, chart, row, aliases, options = {}) {
+// The row always goes into the month of the run; requireRunMonth refuses a run without one, another client and a locked month.
+async function addOne(ctx, clientHandle, clientValue, chart, row) {
   const done = ctx.run.addedFacts.get(row.fact);
   if (done) return { fact: row.fact, ...done, state: "already_added" };
   const factValue = ctx.handles.getFact(row.fact);
   const { entry, record } = factValue;
-  await verifyRouting(ctx, row, clientValue, factValue, aliases);
-  let forcedMonth = options.month;
-  if (row.month_override) {
-    const choice = clickedOption(ctx, row.month_override.ask, factValue.file);
-    if (choice.month !== row.month_override.month) throw new ToolError("not_allowed", "The user did not choose this month for this file.");
-    forcedMonth = row.month_override.month;
-  }
-
-  const computed = await computeFacts(ctx, { fact: row.fact, client: clientHandle, ...(forcedMonth ? { month: forcedMonth } : {}) });
-  const month = computed.facts.targetMonth;
-  if (computed.output.month_state === "locked") throw new ToolError("locked", `The month ${month} is locked.`);
-  if (computed.output.month_state === "missing") await ctx.services.declarations.create(clientValue.clientId, month);
-  await ctx.requireOpen(clientValue.clientId, month);
+  const month = ctx.scope?.month ?? null;
+  await ctx.requireRunMonth(clientValue.clientId, month);
+  const computed = await computeFacts(ctx, { fact: row.fact, client: clientHandle, month });
   await ctx.ensureCopy(clientValue.clientId, month);
 
   const expense = row.decision === "expense";
@@ -82,8 +40,7 @@ async function addOne(ctx, clientHandle, clientValue, chart, row, aliases, optio
     ...(accountRejected ? { account_rejected: true, message: `The account ${row.account} is not in the chart of the client; the row has no account.` } : {}),
   };
   ctx.run.addedFacts.set(row.fact, result);
-  const moved = Boolean(computed.facts.docMonth && computed.facts.docMonth !== month);
-  return { fact: row.fact, ...result, state: moved ? "moved_month" : "created" };
+  return { fact: row.fact, ...result, state: "created" };
 }
 
 // What the model sees: the internal keys of the stored result (file, fileHash, clientId, client) are left out.
@@ -92,31 +49,19 @@ const visible = ({ file, fileHash, clientId, client, ...rest }) => rest;
 const LEFT_OUT_REASON = "המסמך לא נקלט על ידי הסוכן ונוסף כדי שלא יאבד: יש לבדוק ולהחליט אם להפעיל אותו.";
 
 // Before a file is filed for a client: every document of the file that has no row yet in this run gets one in that client's table,
-// decision unclear (no account, so inactive) and marked to look at. Its month is the code's; when that month is locked, the first
-// month that already holds a row of the file. Resolves with [{ fact, row, month }]; throws when a row cannot be written.
+// decision unclear (no account, so inactive) and marked to look at, in the month of the run. Resolves with [{ fact, row, month }];
+// throws when a row cannot be written.
 export async function addMissingRows(ctx, fileHandle, clientHandle) {
   const facts = ctx.run.extractions.get(fileHandle)?.facts ?? [];
   const missing = facts.filter((fact) => !ctx.run.addedFacts.has(fact));
   if (!missing.length) return [];
   const clientValue = ctx.handles.get("C", clientHandle);
   const { accounts: chart } = await ctx.services.clients.chart(clientValue.clientId);
-  const entry = ctx.handles.get("F", fileHandle);
-  const months = [...ctx.run.addedFacts.values()]
-    .filter((item) => item.fileHash === entry.hash && item.clientId === clientValue.clientId)
-    .map((item) => item.month)
-    .sort();
-  const noAliases = async () => ({});
   const added = [];
   for (const fact of missing) {
     // left_out marks the row for the table, which counts it under "לבדיקה" although it is off.
-    const row = { fact, routed_by: "same_file", decision: "unclear", needs_review: true, reason: LEFT_OUT_REASON, left_out: true };
-    let result;
-    try {
-      result = await addOne(ctx, clientHandle, clientValue, chart, row, noAliases);
-    } catch (error) {
-      if (error?.code !== "locked" || !months.length) throw error;
-      result = await addOne(ctx, clientHandle, clientValue, chart, row, noAliases, { month: months[0] });
-    }
+    const row = { fact, decision: "unclear", needs_review: true, reason: LEFT_OUT_REASON, left_out: true };
+    const result = await addOne(ctx, clientHandle, clientValue, chart, row);
     added.push({ fact, row: result.row, month: result.month });
     ctx.run.leftOut.push(fact);
   }
@@ -126,7 +71,7 @@ export async function addMissingRows(ctx, fileHandle, clientHandle) {
 export default {
   name: "add_rows",
   exclusive: true, // see move_file_to_declaration
-  description: "Put documents into the monthly table as draft rows, one per fact. You give the fact handle, the proof of the client (routed_by: folder when the file is in the inbox folder of this client, vat_id when the VAT number of the buyer on the document is the client's, or the supplier's on a document the client issued, alias when find_client gave match alias for the buyer of the document, user when the user clicked a button of an ask_user question about this file that carries this client, same_file when another document of the same file already has a row of this client), your decision (expense, not_expense, unclear), an account code of the client's chart for an expense, whether it needs a look, and a one-sentence Hebrew reason. The code copies every value from the fact, decides the month, excludes duplicates and documents of a previous year, applies the recognition percentages and sets the status; a row is ready only when nothing in the facts warns. Give month_override only when the user chose the month with a button (an ask_user option with that month).",
+  description: "Put documents into the table of the open month as draft rows, one per fact. client is the handle of the open client (the first line of the run names it); every row goes into the open month, whatever the document says. You give the fact handle, your decision (expense, not_expense, unclear), an account code of the client's chart for an expense, whether it needs a look, and a one-sentence Hebrew reason. The code copies every value from the fact, excludes duplicates and documents of a previous year, applies the recognition percentages and sets the status; a row is ready only when nothing in the facts warns (another buyer, a date after the month, a deduction window at risk or a possible duplicate mark it to look at).",
   schema: {
     type: "object",
     required: ["client", "rows"],
@@ -135,19 +80,13 @@ export default {
       rows: {
         type: "array", minItems: 1, maxItems: 40,
         items: {
-          type: "object", required: ["fact", "routed_by", "decision", "needs_review", "reason"],
+          type: "object", required: ["fact", "decision", "needs_review", "reason"],
           properties: {
             fact: { type: "string", maxLength: 12, description: "Fact handle, for example F1.1." },
-            routed_by: { type: "string", enum: ["folder", "vat_id", "alias", "user", "same_file"] },
-            routing_ask: { type: "string", maxLength: 12, description: "Question handle, for routed_by user." },
             decision: { type: "string", enum: ["expense", "not_expense", "unclear"] },
             account: { type: "string", maxLength: 3, description: "Account code of the client chart; only for an expense." },
             needs_review: { type: "boolean" },
             reason: { type: "string", minLength: 1, maxLength: 300, description: "One Hebrew sentence." },
-            month_override: {
-              type: "object", required: ["month", "ask"],
-              properties: { month: { type: "string", maxLength: 7 }, ask: { type: "string", maxLength: 12 } },
-            },
           },
         },
       },
@@ -157,12 +96,10 @@ export default {
     const clientValue = ctx.handles.get("C", args.client);
     const { accounts: chart } = await ctx.services.clients.chart(clientValue.clientId);
     const results = [];
-    let aliases = null;
-    const readAliases = async () => (aliases ??= await ctx.services.clients.aliases());
     // One after the other: a row made now is seen by the duplicate search of the next one.
     for (const row of args.rows) {
       try {
-        results.push(visible(await addOne(ctx, args.client, clientValue, chart, row, readAliases)));
+        results.push(visible(await addOne(ctx, args.client, clientValue, chart, row)));
       } catch (error) {
         if (error?.name === "AbortError") throw new ToolError("cancelled", "The run was cancelled.");
         const failure = error instanceof ToolError ? error : new ToolError("internal", "The row could not be added.");

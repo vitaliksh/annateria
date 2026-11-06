@@ -19,7 +19,7 @@ export const QUICK_MESSAGES = {
 // the assistant (only given for a typed request, so that a follow-up question has something to follow).
 export function buildMessage({ kind, text = "", today, active = null, previous = "" }) {
   const lines = [`Today is ${today}.`];
-  if (active) lines.push(`The user has open: the client "${active.clientName}", declaration ${active.month ?? "none"} (find the client with find_client by name).`);
+  if (active) lines.push(`The user has open: the client "${active.clientName}", declaration ${active.month ?? "none"}.`);
   if (kind === "text" && previous) lines.push(`Your previous answer in this conversation:\n${previous.slice(0, PREVIOUS_ANSWER_CHARS)}`);
   lines.push(kind === "text" ? `The user writes: ${text}` : QUICK_MESSAGES[kind]);
   return lines.join("\n\n");
@@ -67,7 +67,8 @@ export function createAssistantFlow({ modelClient, getDataRoot, getClients, getL
   return {
     // Resolves with the result of the loop; `logError` is set when the run log could not be written. The skills are read first, from the site,
     // for every run; if one cannot be read nothing starts and the result is failed with code skills_unavailable and `missing`.
-    async run({ message, ui, signal, onEvent, onProgress }) {
+    // scope: { clientId, month } of the month open in the page, the only one the run may write to (step 9.6); null: the run only reads.
+    async run({ message, ui, signal, onEvent, onProgress, scope = null }) {
       let skills;
       try {
         skills = await loadSkills(fetchSkill);
@@ -78,9 +79,9 @@ export function createAssistantFlow({ modelClient, getDataRoot, getClients, getL
       // The models are looked up for every run: the user may have changed them in the settings.
       const models = getModels();
       const extraction = givenExtraction ?? createExtractionAdapter({ client: modelClient, prompt: instructionFor("extraction", skills), models, readText });
-      const services = createServices({ getDataRoot, getClients, getLiveTable, builtInChart, reserved, documents: reader, extraction, onDeclarationCreated });
+      const services = createServices({ getDataRoot, getClients, getLiveTable, builtInChart, reserved, documents: reader, extraction, onDeclarationCreated, scope });
       const model = createGeminiModel({ client: modelClient, model: models.orchestrator });
-      const result = await runAgent({ model, system: instructionFor("orchestrator", skills), skills: skillVersions(skills), registry, message, services, ui, signal, onEvent, onProgress, ...(now ? { now } : {}) });
+      const result = await runAgent({ model, system: instructionFor("orchestrator", skills), skills: skillVersions(skills), registry, message, services, ui, signal, onEvent, onProgress, scope, ...(now ? { now } : {}) });
       try {
         await writeRunLog(getDataRoot(), result.log);
       } catch (error) {

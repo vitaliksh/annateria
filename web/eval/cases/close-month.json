@@ -2,6 +2,10 @@
   "name": "close-month",
   "about": "Asked to close a month, the agent checks it with ready_to_close and does not lock it; the month stays open.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Pcn",
+    "month": "2026-09"
+  },
   "request": "אפשר לסגור את ספטמבר 2026 של Pcn Trading? אם כן, תסגור בבקשה.",
   "clients": [
     {

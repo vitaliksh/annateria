@@ -22,16 +22,19 @@ function workbook(grid, sheet = "גיליון2") {
   return XLSX.write(book, { type: "array", bookType: "xlsx" });
 }
 
+// The run works on 02/2026 of `owner` (step 9.6), whose inbox holds the file.
+const monthOf = (owner) => ({ clientId: `id-${owner}`, month: "2026-02", folder: owner });
+
 // The inbox folder of `owner` (default Levi, who has a chart of his own) holds a journal, next to the fixture files. Cohen has no chart
 // of his own, so the standard names of Rivhit are known and the footer of the file adds up.
-async function session({ answers, grid = buildJournalGrid({ month: 8 }), name = "journal-08.xlsx", owner = "Levi", folder = owner } = {}) {
-  const tools = await toolContext({ answers, imports: createImportReader({ loadLibrary }) });
-  const added = await addToInbox(tools.w.root, [file(name, workbook(grid))], { folder, now: "2026-10-16T08:05:00.000Z" });
+async function session({ answers, grid = buildJournalGrid({ month: 8 }), name = "journal-08.xlsx", owner = "Levi" } = {}) {
+  const tools = await toolContext({ answers, imports: createImportReader({ loadLibrary }), scope: monthOf(owner) });
+  const added = await addToInbox(tools.w.root, [file(name, workbook(grid))], { folder: owner, month: "2026-02", now: "2026-10-16T08:05:00.000Z" });
   assert.equal(added.added.length, 1);
   const handles = await tools.files();
   return { ...tools, handles, handle: handles[name], levi: await tools.client(owner) };
 }
-const prepare = (s, extra = {}) => s.dispatch("prepare_import", { file: s.handle, kind: "journal", client: s.levi, routed_by: "folder", reason: "יומן קליטה של ריבהיט", ...extra });
+const prepare = (s, extra = {}) => s.dispatch("prepare_import", { file: s.handle, kind: "journal", client: s.levi, reason: "יומן קליטה של ריבהיט", ...extra });
 const snapshot = async (root) => {
   const paths = (await listPaths(root)).sort();
   return Object.fromEntries(await Promise.all(paths.map(async (path) => [path, Buffer.from(await readFileBytes(root, path)).toString("base64")])));
@@ -94,29 +97,13 @@ test("prepare_import: a kind that does not fit the type of the file, and kinds t
   assert.equal(s.ui.importCards.length, 0);
 });
 
-test("prepare_import: the client must be proven, a name is not enough (folder or a click of the user)", async () => {
-  const s = await session({ folder: "_unsorted" });
-  const cohen = await s.client("Cohen");
-  assert.equal((await prepare(s)).error.code, "not_allowed", "a file in _unsorted is not in the folder of Levi");
-  const elsewhere = await session();
-  assert.equal((await prepare(elsewhere, { client: await elsewhere.client("Cohen") })).error.code, "not_allowed", "the file lies in the folder of another client");
-  assert.equal((await prepare(s, { routed_by: "user" })).error.code, "invalid_argument", "routing_ask is required");
+test("prepare_import: the file is of the client of the run; another client, or a run without a month, prepares nothing", async () => {
+  const s = await session();
+  assert.equal((await prepare(s, { client: await s.client("Cohen") })).error.code, "not_allowed");
+  assert.equal((await prepare(s, { routed_by: "folder" })).error.code, "invalid_argument", "no proof of the client is given any more");
+  s.ctx.scope = null;
+  assert.equal((await prepare(s)).error.code, "not_allowed");
   assert.equal(s.ui.importCards.length, 0);
-});
-
-test("prepare_import: a click of the user is the proof for a file in _unsorted, but only for the client and the file it was about", async () => {
-  const s = await session({ folder: "_unsorted", answers: [{ type: "option", id: "levi" }, { type: "option", id: "levi" }, { type: "dismissed" }] });
-  const cohen = await s.client("Cohen");
-  const options = [{ id: "levi", label: "Levi", client: s.levi }, { id: "cohen", label: "Cohen", client: cohen }];
-  const ask = async (files, question) => (await s.dispatch("ask_user", { question, options, allow_other: false, about: { files } })).ask;
-  const forLevi = await ask([s.handle], "Whose is this journal?");
-  const aboutPhoto = await ask([s.handles["photo.jpg"]], "And the photo?");
-  const dismissed = await ask([s.handle, s.handles["policy.pdf"]], "Both?");
-  assert.equal((await prepare(s, { routed_by: "user", routing_ask: aboutPhoto })).error.code, "not_allowed", "a question about another file");
-  assert.equal((await prepare(s, { routed_by: "user", routing_ask: dismissed })).error.code, "not_allowed", "dismissed is no answer");
-  assert.equal((await prepare(s, { routed_by: "user", routing_ask: forLevi, client: cohen })).error.code, "not_allowed", "the user chose Levi, not Cohen");
-  const ok = await prepare(s, { routed_by: "user", routing_ask: forLevi });
-  assert.deepEqual([ok.ok, ok.state], [true, "prepared"]);
 });
 
 test("prepare_import: the month of the file decides; another month is a warning, a locked month an error, a month with rows a warning", async () => {
@@ -151,8 +138,8 @@ test("prepare_import needs a panel and a run that can show the card", async () =
 });
 
 test("a run: the model reads the file, finds the client, prepares the import and says that a card waits; nothing is imported", async () => {
-  const w = await world({ documents: createDocumentReader({ loadXlsx: loadLibrary }), imports: createImportReader({ loadLibrary }) });
-  await addToInbox(w.root, [file("journal-08.xlsx", workbook(buildJournalGrid({ month: 8 })))], { folder: "Cohen", now: "2026-10-16T08:05:00.000Z" });
+  const w = await world({ documents: createDocumentReader({ loadXlsx: loadLibrary }), imports: createImportReader({ loadLibrary }), scope: monthOf("Cohen") });
+  await addToInbox(w.root, [file("journal-08.xlsx", workbook(buildJournalGrid({ month: 8 })))], { folder: "Cohen", month: "2026-02", now: "2026-10-16T08:05:00.000Z" });
   const ui = recordingUi();
   const responses = (request) => request.contents.flatMap((content) => content.parts.filter((part) => part.functionResponse).map((part) => part.functionResponse));
   const last = (request, name) => responses(request).filter((item) => item.name === name).at(-1).response;
@@ -162,11 +149,11 @@ test("a run: the model reads the file, finds the client, prepares the import and
     reply(call("list_inbox")),
     (request) => reply(call("read_document", { file: fileOf(request) }), call("find_client", { name: "Cohen" })),
     (request) => reply(call("prepare_import", {
-      file: fileOf(request), kind: "journal", client: last(request, "find_client").matches[0].client, routed_by: "folder", reason: "יומן קליטה לחודש 8",
+      file: fileOf(request), kind: "journal", client: last(request, "find_client").matches[0].client, reason: "יומן קליטה לחודש 8",
     })),
     (request) => reply(say(`A card waits for ${last(request, "prepare_import").summary.rows} rows.`)),
   ]);
-  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, ui });
+  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, scope: w.scope, ui });
   assert.equal(result.status, "completed");
   assert.equal(result.text, `A card waits for ${SAMPLE_ROWS.length} rows.`);
   assert.equal(ui.importCards.length, 1);
@@ -182,22 +169,12 @@ test("a run: the model reads the file, finds the client, prepares the import and
   assert.equal(files["inbox/Cohen/journal-08.xlsx"] !== undefined, true, "the original is still in the inbox");
 });
 
-test("prepare_import: the client the user picked from the list of a choose_client question is the proof", async () => {
-  const s = await session({ folder: "_unsorted", answers: [{ type: "option", id: "list2" }] });
-  const asked = await s.dispatch("ask_user", { question: "לאיזה לקוח שייך היומן?", choose_client: true, allow_other: false, about: { files: [s.handle] } });
-  assert.equal(asked.ok, true);
-  const levi = asked.client;
-  assert.equal(s.ctx.handles.get("C", levi).clientId, "id-Levi", "the list is sorted by name: Cohen, Levi, Pcn");
-  const ok = await prepare(s, { client: levi, routed_by: "user", routing_ask: asked.ask });
-  assert.deepEqual([ok.ok, ok.state], [true, "prepared"]);
-});
-
 // --- kind ledger_codes (step 4.7.3) ---
 
 async function ledgerSession({ name = "codes.xlsx", owner = "Cohen", pdf = false } = {}) {
-  const tools = await toolContext({ imports: createImportReader({ loadLibrary, loadPdf: fakePdfJs(ledgerPdfPages()) }) });
+  const tools = await toolContext({ imports: createImportReader({ loadLibrary, loadPdf: fakePdfJs(ledgerPdfPages()) }), scope: monthOf(owner) });
   const content = pdf ? new TextEncoder().encode("%PDF-1.4 synthetic") : workbook(ledgerGrid());
-  await addToInbox(tools.w.root, [file(name, content, pdf ? "application/pdf" : "")], { folder: owner, now: "2026-10-16T08:06:00.000Z" });
+  await addToInbox(tools.w.root, [file(name, content, pdf ? "application/pdf" : "")], { folder: owner, month: "2026-02", now: "2026-10-16T08:06:00.000Z" });
   const handles = await tools.files();
   return { ...tools, handles, handle: handles[name], levi: await tools.client(owner) };
 }
@@ -238,7 +215,7 @@ async function checkSession({ pdf = false } = {}) {
   const tools = await toolContext({ imports: createImportReader({ loadLibrary, loadPdf: fakePdfJs(ledgerRowsPdfPages()) }) });
   const name = pdf ? "ledger.pdf" : "ledger.xlsx";
   const content = pdf ? new TextEncoder().encode("%PDF-1.4 synthetic") : workbook(ledgerRowsGrid());
-  await addToInbox(tools.w.root, [file(name, content, pdf ? "application/pdf" : "")], { folder: "Levi", now: "2026-10-16T08:07:00.000Z" });
+  await addToInbox(tools.w.root, [file(name, content, pdf ? "application/pdf" : "")], { folder: "Levi", month: "2026-02", now: "2026-10-16T08:07:00.000Z" });
   const handles = await tools.files();
   return { ...tools, handles, handle: handles[name], levi: await tools.client("Levi") };
 }
@@ -276,7 +253,7 @@ test("prepare_import ledger_check: a ledger of which almost nothing is in the ta
     gross: -(118 + index), net: -(100 + index), vat: -18,
   })) }];
   const tools = await toolContext({ imports: createImportReader({ loadLibrary }) });
-  await addToInbox(tools.w.root, [file("other.xlsx", workbook(ledgerRowsGrid(blocks)))], { folder: "Levi", now: "2026-10-16T08:08:00.000Z" });
+  await addToInbox(tools.w.root, [file("other.xlsx", workbook(ledgerRowsGrid(blocks)))], { folder: "Levi", month: "2026-02", now: "2026-10-16T08:08:00.000Z" });
   const handles = await tools.files();
   const s = { ...tools, handles, handle: handles["other.xlsx"], levi: await tools.client("Levi") };
   const result = await check(s);
@@ -284,8 +261,8 @@ test("prepare_import ledger_check: a ledger of which almost nothing is in the ta
   assert.equal(result.summary.matched, 0);
   assert.deepEqual(result.problems[0], { code: "maybe_other_client", severity: "error", count: 1 });
   // A client whose tables have nothing in the ledger's months is not flagged: there is nothing to compare with.
-  const cohen = await toolContext({ imports: createImportReader({ loadLibrary }) });
-  await addToInbox(cohen.w.root, [file("other.xlsx", workbook(ledgerRowsGrid(blocks)))], { folder: "Cohen", now: "2026-10-16T08:08:00.000Z" });
+  const cohen = await toolContext({ imports: createImportReader({ loadLibrary }), scope: monthOf("Cohen") });
+  await addToInbox(cohen.w.root, [file("other.xlsx", workbook(ledgerRowsGrid(blocks)))], { folder: "Cohen", month: "2026-02", now: "2026-10-16T08:08:00.000Z" });
   const cohenFiles = await cohen.files();
   const empty = await check({ ...cohen, handle: cohenFiles["other.xlsx"], levi: await cohen.client("Cohen") });
   assert.equal(empty.ok, true);
@@ -293,8 +270,8 @@ test("prepare_import ledger_check: a ledger of which almost nothing is in the ta
 });
 
 test("prepare_import ledger_codes: an operations ledger (dated movements) is refused as wrong_format and pointed to ledger_check", async () => {
-  const tools = await toolContext({ imports: createImportReader({ loadLibrary, loadPdf: fakePdfJs(ledgerRowsPdfPages()) }) });
-  await addToInbox(tools.w.root, [file("ops.xlsx", workbook(ledgerRowsGrid())), file("ops.pdf", new TextEncoder().encode("%PDF-1.4 ops"), "application/pdf")], { folder: "Cohen", now: "2026-10-16T08:09:00.000Z" });
+  const tools = await toolContext({ imports: createImportReader({ loadLibrary, loadPdf: fakePdfJs(ledgerRowsPdfPages()) }), scope: monthOf("Cohen") });
+  await addToInbox(tools.w.root, [file("ops.xlsx", workbook(ledgerRowsGrid())), file("ops.pdf", new TextEncoder().encode("%PDF-1.4 ops"), "application/pdf")], { folder: "Cohen", month: "2026-02", now: "2026-10-16T08:09:00.000Z" });
   const handles = await tools.files();
   const cohen = await tools.client("Cohen");
   for (const name of ["ops.xlsx", "ops.pdf"]) {
@@ -308,8 +285,8 @@ test("prepare_import ledger_codes: an operations ledger (dated movements) is ref
 
 // --- kind income_report (step 4.7.5) ---
 async function incomeSession(pages, { owner = "Levi" } = {}) {
-  const tools = await toolContext({ imports: createImportReader({ loadLibrary, loadPdf: fakePdfJs(pages) }) });
-  await addToInbox(tools.w.root, [file("report.pdf", new TextEncoder().encode("%PDF-1.4 report"), "application/pdf")], { folder: owner, now: "2026-10-16T08:10:00.000Z" });
+  const tools = await toolContext({ imports: createImportReader({ loadLibrary, loadPdf: fakePdfJs(pages) }), scope: monthOf(owner) });
+  await addToInbox(tools.w.root, [file("report.pdf", new TextEncoder().encode("%PDF-1.4 report"), "application/pdf")], { folder: owner, month: "2026-02", now: "2026-10-16T08:10:00.000Z" });
   const handles = await tools.files();
   return { ...tools, handles, handle: handles["report.pdf"], levi: await tools.client(owner) };
 }

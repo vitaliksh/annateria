@@ -18,11 +18,18 @@ code accepts it as routing proof (`add_rows` `routed_by: "alias"`, `find_client`
 **Amendment of 17 October 2026 (step 5.1):** the rules of the work moved out of `web/agent/prompts.js` into `web/skills/<name>/SKILL.md`; see
 section 2, "Skills". The tools, their count (14) and their contracts did not change.
 
-**Planned amendment, approved 1 November 2026, not built (`WORK_PLAN.md` phase 9, step 9.6):** a run works on one client and
-one month, given by the page (the month the user opened). `list_inbox` sees only that month's inbox folder; `add_rows` writes
-every row into that month, and the lowest layer refuses any other client or month. The routing proofs (`routed_by`), the code's
-choice of the month, `month_override`, the question `choose_client` and the questions of the month go away; what pointed to
-another client or month becomes a reason on the row to look at. Until step 9.6 the sections below describe the code as it is.
+**Amendment of 2 November 2026 (step 9.6, approved 1 November 2026):** a run works on one client and one month, given by the page
+(the month shown in the journal; `runAgent({ scope })`). The first line of the run names that client's handle and the month, or
+says that no month is open and the run only reads. `list_inbox` sees only the files of that month (`folder` and `month` of the
+inbox entry); `add_rows` writes every row into that month; `move_file_to_declaration` copies the original into it;
+`prepare_import` takes only that client. The lowest layer refuses any other client or month: `services` (`rows.append`,
+`rows.attachImage`, `files.copyToDeclaration`, `declarations.create`) throws outside `scope`, and `ctx.requireRunMonth` refuses
+before a tool writes. Gone: `routed_by` and `routing_ask` (`add_rows`, `prepare_import`), `month_override`, the code's choice of
+the month, `months` and `client` of `move_file_to_declaration`, `choose_client` and the `client` and `month` of an option of
+`ask_user` (with the box that remembered a buyer). What pointed elsewhere is a reason on the row to look at: `buyer_mismatch`,
+`doc_after_month` (new: the document is dated after the month, owner 2 November 2026), `previous_year`, the deduction window,
+a possible duplicate. `facts_for` judges the open month by default (`month_reason: "open_month"`). Where the sections below
+still speak of routing proofs, `choose_client`, `month_override` or months chosen by the code, this amendment replaces them.
 
 What this document fixes: the run, the conventions every tool follows, the facts that extraction returns, and for each
 tool its inputs, outputs, validation, effects and what it may never do. What it leaves to later steps: the Hebrew
@@ -44,7 +51,7 @@ the test that proves it (the tests are written in 4.2 and later and are part of 
 | The table is copied before the agent writes | The first write of a run to a declaration first writes `draft-table.before-agent-<time>.json`; if the copy fails, the write is refused | Copy exists before the first row; copy failure blocks the write |
 | An error of the agent leaves the rows editable | Rows are ordinary rows the moment they are written; a failed or cancelled run ends with a summary, no row stays "waiting" | Scripted model fails in the middle: rows written so far are editable and saved |
 | `rules.md` gets only what the user confirmed | No tool writes it. The page appends the exact rule text of the card when the user ticks "זכור ללקוח" and clicks the answer the rule belongs to (`ask_user` `remember.option`); the user edits the file from the client card. Nothing in `web/agent/` imports a writer of the file (services only `readRules`) | Without the tick, or with another answer: nothing written; text in the file equals text on the card; static check of the imports |
-| A document is not routed to a client on a guess | `add_rows` needs `routed_by`; the code verifies it (folder, VAT number match, a buyer the user once confirmed as this client and no other (alias, 4.6.2), or an answer of the user). Aliases are written only by the page after the user ticked the box of `choose_client`; nothing in `web/agent/` imports a writer of `aliases.json` | `_unsorted` file with a name-only match: refused until the user answers or confirms the buyer; an alias of two clients is no proof; static check of the imports |
+| A document is never routed to a client or a month on a guess (step 9.6: it is not routed at all) | Every row and original goes into the client and month the page gives the run; `services` and `ctx.requireRunMonth` refuse any other; a doubt is a reason on the row (`buyer_mismatch`, `doc_after_month`). Nothing in `web/agent/` imports a writer of `aliases.json` | another client, another month, a run without a month: refused at the tool and at the service; a buyer of another business: a row to look at; static check of the imports |
 | Import has no AI | The agent starts only after files are in `inbox/`; nothing here changes `inbox-store.js` add | Existing tests |
 | Imports of journals, ledgers and income reports go through the inbox, and the agent never writes them (4.7) | `prepare_import` only parses (`prepareImport`, `prepareLedger`, `prepareReconcile`, `readIncomeReportFile`) and returns counts and check results; `services` has no operation that commits an import; the wizard opens only by the user's click on the card and keeps its own steps and its own copies before writing; the original leaves the inbox for `clients/<client>/imports/` only after the wizard wrote and the copy was read back | Tool files import no commit function (`commitImport`, `commitLedger`, `commitReconcile`); a scripted model that calls `prepare_import` leaves the file tree byte-equal; the card carries counts, no parsed rows reach the model |
 
@@ -171,7 +178,8 @@ the registry so that this file and the code cannot drift apart.
 #### `list_inbox`
 
 - **Purpose.** What is waiting.
-- **Input.** `{ folder?, kind?, status?, limit?, next? }`. `folder` is a client folder name or `_unsorted`; `kind` is
+- **Input.** `{ folder?, kind?, status?, limit?, next? }`. In a run on a month (step 9.6) only the files of that client and month
+  are listed; a run without a month lists all and only reads. `folder` is a client folder name or `_unsorted`; `kind` is
   `image`, `pdf`, `spreadsheet`; `status` is `waiting`, `extracted`, `filed` (state in this run).
 - **Output.** `{ counts: { total, waiting, byFolder }, files: [{ file, name, folder, kind, size_kb, source_date,
   added_at, status, note? }], next? }`. A spreadsheet has a neutral `note` ("spreadsheet: not extracted; read it with
@@ -264,7 +272,9 @@ the registry so that this file and the code cannot drift apart.
 #### `add_rows`
 
 - **Purpose.** Put documents into the monthly table as ordinary draft rows.
-- **Input.** `{ client, rows: [{ fact, routed_by, routing_ask?, decision, account?, needs_review, reason,
+- **Input (step 9.6).** `{ client, rows: [{ fact, decision, account?, needs_review, reason }] }`, at most 40 rows per call;
+  `client` is the handle of the open client, every row goes into the open month. The routing described next is gone:
+- **Input (before step 9.6).** `{ client, rows: [{ fact, routed_by, routing_ask?, decision, account?, needs_review, reason,
   month_override?: { month, ask } }] }`, at most 40 rows per call.
   - `routed_by`: `same_file` (25 October 2026: another document of the same file already has a row of this client in this
     run), `folder` (the file sits in this client's inbox folder), `vat_id` (the fact's `buyer_vat_id`, or its `supplier_vat_id` for a document the client issued itself (26 October 2026), equals
@@ -300,7 +310,7 @@ the registry so that this file and the code cannot drift apart.
 #### `move_file_to_declaration`
 
 - **Purpose.** After rows exist, give them their original.
-- **Input.** `{ file, client, months: [..] }` (usually one month).
+- **Input.** `{ file }` (step 9.6; before it `{ file, client, months: [..] }`): the client and month are those of the run.
 - **Output.** `{ file, image_file, rows, inbox_removed }`.
 - **Validation.** The declaration is open; at least one row from this file exists in each month (so no file is moved
   without a row); not already filed (`already_filed`).
@@ -402,7 +412,8 @@ The shared function is `lockProblems(rows, { pcnRequired })` in `web/lock-check.
   ledger, an operations ledger, a periodic income report): parse it read-only, check it, and leave the user a card with a button that opens the
   existing wizard with that file. This is the replacement of the menu "ייבוא ובדיקות": every function of the menu is reached
   from the inbox through this tool. One tool with `kind`, not four (question 11).
-- **Input.** `{ file, kind, client, routed_by, routing_ask?, month?, reason }`.
+- **Input.** `{ file, kind, client, month?, reason }` (step 9.6: `client` must be the client of the run; `routed_by` and
+  `routing_ask`, described next, are gone).
   - `kind`: `journal` (the Rivhit journal "יומן קליטה", `.xlsx`), `ledger_codes` (the classification-codes ledger
     "כרטסת קודי מיון", PDF or `.xlsx`), `ledger_check` (the operations ledger "כרטסת", for the check against the
     declarations), `income_report` (the periodic income report PDF "דיווח הכנסות תקופתי").
@@ -558,3 +569,10 @@ of `list_inbox` and the instruction of the orchestrator; 4.7.2 built the tool fo
 
 **17 October 2026 (step 4.6.2):** confirmed aliases (question 13): `find_client` `match: alias`, `get_client_context` `aliases`,
 `add_rows` `routed_by: alias`, the box of `choose_client` and `alias_saved`; principle row, sections 5, 6, 8 and 9 changed.
+
+**2 November 2026 (step 9.6):** one client and one month per run (see the amendment at the top): `add_rows` without
+`routed_by`, `routing_ask` and `month_override`; `move_file_to_declaration` takes the file only; `prepare_import` without
+`routed_by`; `ask_user` without `choose_client` and without a client or month on an option (`options` required); `list_inbox`
+limited to the month; the reason `doc_after_month`; `agent/answers.js` removed. `find_client` stays for questions about other
+clients; aliases stay readable but prove and route nothing. The page's drawing of the client chooser and of the alias box
+(`assistant-ui.js`) and `agent/aliases.js` are no longer reached: dead code, to be removed in a separate cleanup.

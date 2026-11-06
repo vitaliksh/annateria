@@ -19,13 +19,13 @@ test("list_inbox: counts, kinds, the note on spreadsheets, stable handles", asyn
   const { dispatch } = await setup();
   const first = await dispatch("list_inbox");
   assert.equal(first.ok, true);
-  assert.deepEqual(first.counts, { total: 3, waiting: 3, byFolder: { Levi: 2, _unsorted: 1 } });
+  assert.deepEqual(first.counts, { total: 3, waiting: 3, byFolder: { Levi: 3 } });
   const byName = Object.fromEntries(first.files.map((file) => [file.name, file]));
   assert.deepEqual([byName["photo.jpg"].kind, byName["policy.pdf"].kind, byName["journal.xlsx"].kind], ["image", "pdf", "spreadsheet"]);
   assert.equal(byName["journal.xlsx"].note, "spreadsheet: not extracted; read it with read_document to see what it is");
   assert.doesNotMatch(byName["journal.xlsx"].note, /Excel import/, "the note no longer sends the user to a menu");
   assert.equal(byName["policy.pdf"].note, undefined);
-  assert.equal(byName["photo.jpg"].folder, "_unsorted");
+  assert.equal(byName["photo.jpg"].folder, "Levi");
   assert.deepEqual(Object.keys(byName["photo.jpg"]).sort(), ["added_at", "file", "folder", "kind", "name", "size_kb", "source_date", "status"]);
   assert.match(byName["photo.jpg"].file, /^F[1-9]$/);
   const second = await dispatch("list_inbox");
@@ -35,7 +35,7 @@ test("list_inbox: counts, kinds, the note on spreadsheets, stable handles", asyn
 
 test("list_inbox: filters, status and pages", async () => {
   const { dispatch } = await setup();
-  assert.deepEqual((await dispatch("list_inbox", { folder: "Levi" })).files.map((file) => file.name).sort(), ["journal.xlsx", "policy.pdf"]);
+  assert.deepEqual((await dispatch("list_inbox", { folder: "Levi" })).files.map((file) => file.name).sort(), ["journal.xlsx", "photo.jpg", "policy.pdf"]);
   assert.deepEqual((await dispatch("list_inbox", { kind: "pdf" })).files.map((file) => file.name), ["policy.pdf"]);
   assert.deepEqual((await dispatch("list_inbox", { status: "extracted" })).files, []);
   const page1 = await dispatch("list_inbox", { limit: 2 });
@@ -45,6 +45,22 @@ test("list_inbox: filters, status and pages", async () => {
   assert.equal(page2.files.length, 1);
   assert.equal(page2.next, undefined);
   assert.equal((await dispatch("list_inbox", { limit: 500 })).error.code, "invalid_argument");
+});
+
+test("list_inbox: a run on a month sees only the files of that month, not of other months, other clients or without a month", async () => {
+  const { w } = await setup();
+  const { addToInbox } = await import("../inbox-store.js");
+  const { file } = await import("./agent-fixtures.mjs");
+  await addToInbox(w.root, [file("march.jpg", "march", "image/jpeg")], { folder: "Levi", month: "2026-03", now: "2026-10-16T08:02:00.000Z" });
+  await addToInbox(w.root, [file("old.jpg", "old", "image/jpeg")], { folder: "Levi", now: "2026-10-16T08:03:00.000Z" });
+  await addToInbox(w.root, [file("pcn.jpg", "pcn", "image/jpeg")], { folder: "Pcn", month: "2026-02", now: "2026-10-16T08:04:00.000Z" });
+  await addToInbox(w.root, [file("loose.jpg", "loose", "image/jpeg")], { now: "2026-10-16T08:05:00.000Z" });
+  const ctx = createContext({ services: w.services, scope: w.scope });
+  const listed = await createDefaultRegistry().dispatch({ name: "list_inbox", args: {} }, ctx);
+  assert.deepEqual(listed.files.map((item) => item.name).sort(), ["journal.xlsx", "photo.jpg", "policy.pdf"]);
+  assert.deepEqual(listed.counts, { total: 3, waiting: 3, byFolder: { Levi: 3 } });
+  const reading = createContext({ services: w.services });
+  assert.equal((await createDefaultRegistry().dispatch({ name: "list_inbox", args: {} }, reading)).counts.total, 7, "a run without a month only reads, and sees all");
 });
 
 test("list_inbox: an empty inbox, and a state of the run is shown", async () => {
@@ -150,7 +166,7 @@ test("ask_user: remember is true only when the card offered it, the user ticked 
   assert.deepEqual([failed.remember, failed.saved], [true, false]);
 });
 
-test("ask_user: remember needs an option of the question and a rule, and is not offered with choose_client", async () => {
+test("ask_user: remember needs an option of the question and a rule", async () => {
   const { dispatch, ui } = await setup({ answers: () => ({ type: "option", id: "levi" }) });
   await dispatch("list_inbox");
   const client = (await dispatch("find_client", { vat_id: "514123456" })).matches[0].client;
@@ -158,8 +174,6 @@ test("ask_user: remember needs an option of the question and a rule, and is not 
   assert.equal(await code({ question: "No option?", remember: { client, rule: "x" } }), "invalid_argument");
   assert.equal(await code({ question: "Unknown option?", remember: { client, rule: "x", option: "nobody" } }), "invalid_argument");
   assert.equal(await code({ question: "Blank rule?", remember: { client, rule: " \n ", option: "levi" } }), "invalid_argument");
-  const chooser = await dispatch("ask_user", { question: "לאיזה לקוח?", choose_client: true, about: { files: ["F1"] }, allow_other: false, remember: { client, rule: "x", option: "client1" } });
-  assert.deepEqual([chooser.ok, chooser.error.code], [false, "invalid_argument"]);
   assert.equal(ui.cards.length, 0);
 });
 
@@ -240,109 +254,28 @@ test("propose_change and ask_user need a panel", async () => {
   assert.equal(new TextDecoder().decode(await readFileBytes(w.root, "inbox/index.json")).includes("photo.jpg"), true);
 });
 
-test("ask_user: a question that offers a client must say which files it is about", async () => {
-  const { dispatch, ctx, ui } = await setup({ answers: () => ({ type: "option", id: "levi" }) });
-  const client = ctx.handles.create("C", "id-Levi", { clientId: "id-Levi", name: "Levi", vatId: "", folder: "Levi" });
-  const asked = { question: "Whose are these?", allow_other: false, options: [{ id: "levi", label: "Levi", client }, { id: "x", label: "X" }] };
-  const refused = await dispatch("ask_user", asked);
-  assert.deepEqual([refused.error.code, ui.cards.length], ["invalid_argument", 0]);
-  assert.match(refused.error.message, /about\.files/);
-});
-
 test("the tools that write files and drafts wait for each other, like the question that waits for the user", () => {
   const registry = createDefaultRegistry();
   for (const name of ["add_rows", "move_file_to_declaration", "ask_user"]) assert.equal(registry.isExclusive(name), true, name);
   for (const name of ["extract_document", "facts_for", "list_inbox", "query_rows"]) assert.equal(registry.isExclusive(name), false, name);
 });
 
-test("ask_user: the button of a client shows the name of the client, never the handle the model used; a label that is a handle is refused", async () => {
-  const { dispatch, ui } = await setup({ answers: [{ type: "option", id: "a" }] });
+// Step 9.6: every file of a run is of the open client and month, so no button decides a client or a month.
+test("ask_user: no button carries a client or a month and there is no choose_client; labels must be words for the user", async () => {
+  const { dispatch, ui } = await setup({ answers: [{ type: "option", id: "yes" }] });
   const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
-  const levi = await dispatch("find_client", { name: "Levi" }).then((found) => found.matches[0].client);
-  const cohen = await dispatch("find_client", { name: "Cohen" }).then((found) => found.matches[0].client);
   const about = { files: [handles["photo.jpg"]] };
-  const bad = await dispatch("ask_user", { question: "Whose?", about, allow_other: false, options: [{ id: "a", label: "x", client: levi }, { id: "b", label: "C2" }] });
-  assert.equal(bad.error.code, "invalid_argument");
-  const asked = await dispatch("ask_user", { question: "Whose is this?", about, allow_other: false, options: [{ id: "a", label: cohen, client: levi }, { id: "b", label: "C2", client: cohen }] });
-  assert.equal(asked.ok, true);
-  assert.deepEqual(ui.cards[0].options, [{ id: "a", label: "Levi Plumbing Ltd" }, { id: "b", label: "Cohen Studio" }]);
-});
-
-test("ask_user choose_client: the code builds the question about the client: candidates as buttons, every client in the list", async () => {
-  const { dispatch, ui, ctx } = await setup({ answers: [{ type: "option", id: "list1" }] });
-  const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
   const levi = (await dispatch("find_client", { name: "Levi" })).matches[0].client;
-  const about = { files: [handles["photo.jpg"], handles["policy.pdf"]] };
-  const asked = await dispatch("ask_user", { question: "לאיזה לקוח שייכים המסמכים?", choose_client: true, clients: [levi], allow_other: false, about });
-  assert.equal(asked.ok, true);
-  const [card] = ui.cards;
-  assert.deepEqual(card.options, [{ id: "client1", label: "Levi Plumbing Ltd", hint: "name_partial" }, { id: "mixed", label: "לקוחות שונים" }], "the button says how the client was found");
-  assert.deepEqual(card.more.map((item) => [item.id, item.label]), [["list1", "Cohen Studio"], ["client1", "Levi Plumbing Ltd"], ["list2", "Pcn Trading"]], "the candidate is in the list too");
-  // The user picked Cohen from the list: the model gets Cohen's handle, and the files are routed to Cohen.
-  assert.equal(asked.answer.id, "list1");
-  assert.equal(ctx.handles.get("C", asked.client).clientId, "id-Cohen");
-  assert.equal(ctx.run.routes.get(handles["photo.jpg"]).ask, asked.ask);
-});
-
-test("ask_user choose_client: one file has no 'different clients' button; 'different clients' gives no client and routes nothing", async () => {
-  const { dispatch, ui, ctx } = await setup({ answers: [{ type: "option", id: "client1" }, { type: "option", id: "mixed" }] });
-  const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
-  const cohen = (await dispatch("find_client", { name: "Cohen" })).matches[0].client;
-  const one = await dispatch("ask_user", { question: "Whose is the photo?", choose_client: true, clients: [cohen, cohen], allow_other: false, about: { files: [handles["photo.jpg"]] } });
-  assert.deepEqual(ui.cards[0].options, [{ id: "client1", label: "Cohen Studio", hint: "name_partial" }], "a candidate given twice is one button");
-  assert.equal(ctx.handles.get("C", one.client).clientId, "id-Cohen");
-  const mixed = await dispatch("ask_user", { question: "Whose are these?", choose_client: true, allow_other: false, about: { files: [handles["policy.pdf"], handles["journal.xlsx"]] } });
-  assert.deepEqual(ui.cards[1].options, [{ id: "mixed", label: "לקוחות שונים" }], "no candidates: only the list and 'different clients'");
-  assert.equal(ui.cards[1].more.length, 3);
-  assert.deepEqual([mixed.answer.id, "client" in mixed, ctx.run.routes.has(handles["policy.pdf"])], ["mixed", false, false]);
-});
-
-test("ask_user choose_client: files are required, options are not allowed, a candidate must be known; a normal question still needs options", async () => {
-  const { dispatch } = await setup();
-  const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
-  const about = { files: [handles["photo.jpg"]] };
-  assert.equal((await dispatch("ask_user", { question: "q1", choose_client: true, allow_other: false })).error.code, "invalid_argument");
-  assert.equal((await dispatch("ask_user", { question: "q2", choose_client: true, allow_other: false, about, options })).error.code, "invalid_argument");
-  assert.equal((await dispatch("ask_user", { question: "q3", choose_client: true, allow_other: false, about, clients: ["C9"] })).error.code, "not_found");
-  assert.equal((await dispatch("ask_user", { question: "q4", allow_other: false })).error.code, "invalid_argument");
-});
-
-test("ask_user: a question about the client of files with buttons of the model's own is refused; so are buttons that only number", async () => {
-  const { dispatch, ui } = await setup();
-  const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
-  const about = { files: [handles["journal.xlsx"]] };
-  // What the owner saw on 17 October: "לאיזה לקוח שייך קובץ היומן?" with "לקוח א" and "לקוח ב".
-  const seen = await dispatch("ask_user", { question: "לאיזה לקוח שייך קובץ היומן?", about, allow_other: false, options: [{ id: "a", label: "לקוח א" }, { id: "b", label: "לקוח ב" }] });
-  assert.equal(seen.error.code, "invalid_argument");
-  assert.match(seen.error.message, /choose_client/);
-  const quiet = await dispatch("ask_user", { question: "של מי הקובץ?", about, allow_other: false, options: [{ id: "a", label: "בחירה א'" }, { id: "b", label: "בחירה ב'" }] });
-  assert.match(quiet.error.message, /not "option A"/);
-  const english = await dispatch("ask_user", { question: "Which client is this for?", about, allow_other: false, options: [{ id: "a", label: "Yes" }, { id: "b", label: "No" }] });
-  assert.equal(english.error.code, "invalid_argument");
+  const code = async (args) => (await dispatch("ask_user", { allow_other: false, about, ...args })).error?.code;
+  assert.equal(await code({ question: "q1", options: [{ id: "a", label: "Levi", client: levi }, { id: "b", label: "X" }] }), "invalid_argument");
+  assert.equal(await code({ question: "q2", options: [{ id: "a", label: "03/2026", month: "2026-03" }, { id: "b", label: "X" }] }), "invalid_argument");
+  assert.equal(await code({ question: "q3", choose_client: true }), "invalid_argument");
+  assert.equal(await code({ question: "q4" }), "invalid_argument", "options are required");
+  // What the owner saw on 17 October: "לקוח א" and "לקוח ב"; and a handle as a label.
+  assert.equal(await code({ question: "q5", options: [{ id: "a", label: "לקוח א" }, { id: "b", label: "לקוח ב" }] }), "invalid_argument");
+  assert.equal(await code({ question: "q6", options: [{ id: "a", label: "x" }, { id: "b", label: "C2" }] }), "invalid_argument");
   assert.equal(ui.cards.length, 0, "the user saw none of these");
-  // A question about the document itself, with meaningful buttons, is still fine.
-  const fine = await setup({ answers: [{ type: "option", id: "yes" }] });
-  const files = Object.fromEntries((await fine.dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
-  const ok = await fine.dispatch("ask_user", { question: "האם זו הוצאה של העסק?", about: { files: [files["photo.jpg"]] }, allow_other: false, options: [{ id: "yes", label: "כן, הוצאה" }, { id: "no", label: "לא" }] });
-  assert.equal(ok.ok, true);
-});
-
-test("ask_user choose_client: the client open in the page is the first button, marked as open; others say how find_client matched", async () => {
-  const w = await (await import("./agent-fixtures.mjs")).world({ liveTable: () => ({ clientId: "id-Pcn", month: "2026-02", rows: [] }) });
-  const { createContext } = await import("../agent/run.js");
-  const { createDefaultRegistry } = await import("../agent/index.js");
-  const { recordingUi } = await import("./agent-fixtures.mjs");
-  const ui = recordingUi({ answers: [{ type: "option", id: "client2" }] });
-  const ctx = createContext({ services: w.services, ui });
-  const registry = createDefaultRegistry();
-  const dispatch = (name, args = {}) => registry.dispatch({ name, args }, ctx);
-  const handles = Object.fromEntries((await dispatch("list_inbox")).files.map((item) => [item.name, item.file]));
-  const levi = (await dispatch("find_client", { vat_id: "514123456" })).matches[0].client;
-  await dispatch("find_client", { name: "Levi" });
-  const asked = await dispatch("ask_user", { question: "לאיזה לקוח שייך הקובץ?", choose_client: true, clients: [levi], allow_other: false, about: { files: [handles["photo.jpg"]] } });
-  assert.deepEqual(ui.cards[0].options, [
-    { id: "client1", label: "Pcn Trading", hint: "open" },
-    { id: "client2", label: "Levi Plumbing Ltd", hint: "vat_id" },
-  ], "the open client comes first; Levi keeps its best match (the VAT number), not the later name match");
-  assert.equal(ctx.handles.get("C", asked.client).clientId, "id-Levi");
+  const ok = await dispatch("ask_user", { question: "האם זו הוצאה של העסק?", about, allow_other: false, options: [{ id: "yes", label: "כן, הוצאה" }, { id: "no", label: "לא" }] });
+  assert.deepEqual([ok.ok, ok.answer.id, "client" in ok], [true, "yes", false]);
+  assert.deepEqual(ui.cards[0].options, [{ id: "yes", label: "כן, הוצאה" }, { id: "no", label: "לא" }]);
 });

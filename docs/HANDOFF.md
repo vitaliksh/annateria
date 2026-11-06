@@ -7,7 +7,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
 `2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-30a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip, 942 all months; follow-up F1–F5: 946; documents report with HEIC and Excel originals: 948; report period lists: 949; reopen without a reason: 950; months closed by default: 958; the red line of the reports: 960; the inbox of a month: 964; the order of work: 970), Worker 69 (`2026.10.23.2`,
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip, 942 all months; follow-up F1–F5: 946; documents report with HEIC and Excel originals: 948; report period lists: 949; reopen without a reason: 950; months closed by default: 958; the red line of the reports: 960; the inbox of a month: 964; the order of work: 970; the agent on one month: 955), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
@@ -53,6 +53,23 @@ first). The owner and Anna are now checking them on real data; nothing is half d
   Changed existing code: the reopen handler, `onCommand`, `goToWaiting` (`app.js`); the entry button of `inbox-ui.js`;
   `index.html`; `shell.css` (top bar buttons keep one line). **Not verified:** the published page; the dialog's Hebrew texts (title, sentence, labels, the "no months" line)
   were written in the step and wait for the owner's look.
+  **9.6, the agent on one month:** `runAgent({ scope })` (`agent/run.js`) gets `{ clientId, month }` from `runAssistant`
+  (`app.js`: the month shown in the journal, else null) through `assistantFlow.run`, which also gives it to `createServices`.
+  The first line of the run is `scopeLine` (the client's handle C1 and the month, or "only reads"). `services` throws on
+  `rows.append`, `rows.attachImage`, `files.copyToDeclaration` and `declarations.create` outside the scope (null refuses all);
+  `ctx.requireRunMonth` refuses before `add_rows` and `move_file_to_declaration` write; `ctx.requireOpen` is unchanged (still
+  used by `propose_change`). `list_inbox` filters by the entry's `folder` and `month`; `facts_for` judges the scope month
+  (`month_reason: "open_month"`) and adds `doc_after_month` (Hebrew text in `REASON_TEXT` of `row-builder.js`, written in the
+  step, waits for the owner's look). Removed: `routed_by`, `routing_ask`, `month_override`, the creation of a month by
+  `add_rows`, `months` and `client` of the move, `choose_client` and the client and month of an option of `ask_user`, the
+  alias box, `run.routes`, `run.clientMatches`, `agent/answers.js`. Changed existing code: `createContext`, `runAgent`,
+  `fileTheRest` (`run.js`), `createServices`, every tool named, `computeFacts`, `buildMessage` (no "find the client"),
+  `runAssistant`, `BASE_PROMPT`, two skills, the eval runner and its cases. Dead since this step, for a separate cleanup: the
+  client chooser, its hints and the alias box of `assistant-ui.js`, `agent/aliases.js`, `lockProblem()` of `pcn-review-ui.js`
+  (nothing calls it since 9.3). Eval against the real model, 6 November 2026 (gemini-3.8-flash, 16 cases x 2): 134 of 134 checks;
+  no question, no `find_client`, no rejected row, every row in the open month. In 4 of the 32 runs the agent called
+  `read_document` on a PDF of a case and got `unavailable`, because the bytes of a case are not a real PDF; it went on with
+  `extract_document`. **Not verified:** a real run on the published page; the Hebrew text of `doc_after_month`.
 - **UI redesign "nothing waits unseen"** (30 October, owner approved all of `docs/UI_REDESIGN_PROPOSAL.md`; branch
   `claude/wizardly-snyder-83391f`, not on `main` yet: the owner tries it first). One commit per change:
   - **C1, the import card says how its wizard ended.** New `import-card-flow.js` (`watchWizard`): the page listens for the

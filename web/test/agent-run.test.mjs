@@ -23,7 +23,7 @@ test("happy path: the model calls a tool, gets its result, then answers", async 
   const { result } = await run({ model });
   assert.deepEqual([result.status, result.text, result.turns, result.toolCalls], ["completed", "There are 3 files.", 2, 1]);
   const [first, second] = model.requests;
-  assert.deepEqual(first.contents, [{ role: "user", parts: [{ text: "process" }] }]);
+  assert.deepEqual(first.contents, [{ role: "user", parts: [{ text: "No month is open in the page: this run only reads and answers; it adds no rows and files no file.\n\nprocess" }] }]);
   assert.deepEqual(first.tools.map((tool) => tool.name).sort(), ["add_rows", "ask_user", "extract_document", "facts_for", "find_client", "get_client_context", "list_inbox", "move_file_to_declaration", "prepare_import", "propose_change", "query_rows", "read_document", "ready_to_close"]);
   assert.equal(second.system, "system");
   assert.equal(second.contents.length, 3);

@@ -2,6 +2,10 @@
   "name": "parking-fine",
   "about": "A parking fine is not an expense: a row without an account, not active (the bookkeeper, 21 October 2026).",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",
@@ -80,7 +84,6 @@
   "inbox": [
     {
       "name": "fine.jpg",
-      "folder": "Levi",
       "records": [
         {
           "kind": "payment_confirmation",

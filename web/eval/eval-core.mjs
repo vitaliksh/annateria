@@ -11,7 +11,6 @@ import { createDeclaration, finalizeDeclaration, listDeclarations, loadDeclarati
 import { addToInbox, readInboxIndex } from "../inbox-store.js";
 import { binaryDirectory } from "../test/memory-binary-directory.mjs";
 
-const UNSORTED = "_unsorted";
 // A handle the user must never read (docs/AGENT_TOOLS.md, section 3).
 const HANDLE = /\b[CFRQPI][1-9]\d*(?:\.[1-9]\d*)?\b/;
 const TYPES = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", pdf: "application/pdf" };
@@ -47,7 +46,8 @@ function tableRow(row, index) {
 }
 
 // clients: [{ folder, name, vatId, kind, pcn, chart, months: { "YYYY-MM": [rows] }, locked: [months] }];
-// inbox: [{ name, folder, records }]. Resolves with { root, clients } in the shape the page gives to the services.
+// open: { client: folder, month } of the run (step 9.6); inbox: [{ name, records }], every file of the open month.
+// Resolves with { root, clients } in the shape the page gives to the services.
 export async function buildWorld(spec) {
   const root = binaryDirectory("data");
   const parent = await root.getDirectoryHandle("clients", { create: true });
@@ -77,7 +77,7 @@ export async function buildWorld(spec) {
     const type = TYPES[file.name.split(".").pop().toLowerCase()] ?? "";
     // The bytes only have to differ per file: the stand-in of the vision call never reads them.
     const bytes = new TextEncoder().encode(`${spec.name}/${file.name}`);
-    const folder = file.folder && file.folder !== UNSORTED ? { folder: file.folder } : {};
+    const folder = spec.open ? { folder: spec.open.client, month: spec.open.month } : {};
     const added = new File([bytes], file.name, { type, lastModified: Date.UTC(2026, 0, 1) });
     await addToInbox(root, [added], { now: `${spec.today}T08:00:00.000Z`, ...folder });
   }
@@ -99,13 +99,8 @@ export function extractionFor(spec) {
   };
 }
 
-// The user of the case: answers: { client: name for "which client?", labels: [text of a button to click] }. Anything else is dismissed.
+// The user of the case: answers: { labels: [text of a button to click] }. Anything else is dismissed.
 export function answerCard(card, answers = {}) {
-  const buttons = [...card.options, ...(card.more ?? [])];
-  if (card.more && answers.client) {
-    const chosen = buttons.find((option) => option.label === answers.client);
-    if (chosen) return { type: "option", id: chosen.id };
-  }
   for (const label of answers.labels ?? []) {
     const chosen = card.options.find((option) => option.label.includes(label));
     if (chosen) return { type: "option", id: chosen.id };
@@ -150,9 +145,12 @@ export async function runCase(spec, { modelClient, fetchSkill, getModels, signal
     modelClient, getDataRoot: () => root, getClients: () => clients, fetchSkill, now: () => `${spec.today}T09:00:00.000Z`, extraction,
     ...(getModels ? { getModels } : {}),
   });
-  // A case is "process the inbox" unless it gives the words of the user (request).
-  const message = spec.request ? buildMessage({ kind: "text", text: spec.request, today: spec.today }) : buildMessage({ kind: "process", today: spec.today });
-  const result = await flow.run({ message, ui, signal, onProgress });
+  // A case is "process the inbox" unless it gives the words of the user (request); it runs on the open client and month.
+  const open = spec.open ? clients.find((client) => client.entryName === spec.open.client) : null;
+  const active = open ? { clientName: open.clientName, month: spec.open.month } : null;
+  const scope = open ? { clientId: open.id, month: spec.open.month } : null;
+  const message = buildMessage({ kind: spec.request ? "text" : "process", text: spec.request ?? "", today: spec.today, active });
+  const result = await flow.run({ message, ui, signal, onProgress, scope });
   const left = (await readInboxIndex(root)).files.map((entry) => entry.name);
   const called = (result.log?.entries ?? []).filter((entry) => entry.kind === "tool").map((entry) => entry.name);
   const states = {};
@@ -166,7 +164,7 @@ const check = (name, ok, detail = "") => ({ name, ok: Boolean(ok), detail: ok ? 
 const FIELDS = ["client", "month", "account", "status", "active", "expensePercent"];
 
 // expect: { rows: [{ reference, client?, month?, account?, status?, active?, expensePercent? }], inactive: [reference],
-// notReady: [reference], questions: { max?, min?, chooseClient? }, filed: [file name], kept: [file name], called: [tool name],
+// notReady: [reference], questions: { max?, min? }, filed: [file name], kept: [file name], called: [tool name],
 // stillOpen: ["<client folder> YYYY-MM"] }. Every case also checks that
 // the run completed and that the answer holds no handle.
 export function checkCase(spec, outcome) {
@@ -202,9 +200,6 @@ export function checkCase(spec, outcome) {
   }
   if (questions.min !== undefined) {
     checks.push(check(`at least ${questions.min} questions`, cards.length >= questions.min, `${cards.length}`));
-  }
-  if (questions.chooseClient) {
-    checks.push(check("asked which client", cards.some((card) => card.more), asked ? `asked: ${asked}` : "no question"));
   }
   for (const name of expect.filed ?? []) checks.push(check(`filed ${name}`, !left.includes(name), "still in the inbox"));
   for (const name of expect.kept ?? []) checks.push(check(`kept ${name}`, left.includes(name), "left the inbox"));

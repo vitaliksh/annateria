@@ -2,6 +2,10 @@
   "name": "foreign-currency",
   "about": "An invoice in a foreign currency is not ready.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",
@@ -72,7 +76,6 @@
   "inbox": [
     {
       "name": "saas-sep.pdf",
-      "folder": "Levi",
       "records": [
         {
           "supplier_name": "Overseas Soft Inc",

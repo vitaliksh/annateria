@@ -55,9 +55,12 @@ async function clientEntry(root, entryName, { clientName = entryName, vatId = ""
 }
 
 // Levi: 01/2026 locked, 02/2026 open with three rows, own chart. Cohen: a home client, no declarations. Pcn: a PCN client with one
-// invoice above the ceiling. The inbox holds a photo (unsorted) and a PDF and a workbook (Levi).
-// options: documents (readers for the inside of files), extraction (the vision adapter), imports (the import preparers), liveTable.
-export async function world({ documents, extraction, imports, liveTable = () => null } = {}) {
+// invoice above the ceiling. The inbox holds a photo, a PDF and a workbook of Levi's 02/2026, the month of the run (step 9.6).
+// options: documents (readers for the inside of files), extraction (the vision adapter), imports (the import preparers), liveTable,
+// scope: the client and month of the run ({ clientId, month, folder }), Levi's 02/2026 unless given; null for a run that only reads.
+export const LEVI_MONTH = Object.freeze({ clientId: "id-Levi", month: "2026-02", folder: "Levi" });
+
+export async function world({ documents, extraction, imports, liveTable = () => null, scope = LEVI_MONTH } = {}) {
   const root = binaryDirectory("data");
   const levi = await clientEntry(root, "Levi", {
     clientName: "Levi Plumbing Ltd", vatId: "514123456", months: ["2026-01", "2026-02"], locked: ["2026-01"],
@@ -77,10 +80,10 @@ export async function world({ documents, extraction, imports, liveTable = () => 
     rows: { "2026-02": [tableRow("p-1", ["10/02/2026", "202", "machine", "Big Supplier", "512222222", "9", "", "14160", "12000", "2160"], { reference: "BIG-9" })] },
   });
   const clients = [levi, cohen, pcn];
-  await addToInbox(root, [file("photo.jpg", "jpeg-bytes", "image/jpeg")], { now: "2026-10-16T08:00:00.000Z" });
-  await addToInbox(root, [file("policy.pdf", "pdf-bytes", "application/pdf"), file("journal.xlsx", "xlsx-bytes")], { folder: "Levi", now: "2026-10-16T08:01:00.000Z" });
-  const services = createServices({ getDataRoot: () => root, getClients: () => clients, getLiveTable: liveTable, documents: documents ?? createDocumentReader(), extraction, imports });
-  return { root, levi, cohen, pcn, clients, services, putFile: (path, content) => putFile(root, path, content) };
+  await addToInbox(root, [file("photo.jpg", "jpeg-bytes", "image/jpeg")], { folder: "Levi", month: "2026-02", now: "2026-10-16T08:00:00.000Z" });
+  await addToInbox(root, [file("policy.pdf", "pdf-bytes", "application/pdf"), file("journal.xlsx", "xlsx-bytes")], { folder: "Levi", month: "2026-02", now: "2026-10-16T08:01:00.000Z" });
+  const services = createServices({ getDataRoot: () => root, getClients: () => clients, getLiveTable: liveTable, documents: documents ?? createDocumentReader(), extraction, imports, scope });
+  return { root, levi, cohen, pcn, clients, services, scope, putFile: (path, content) => putFile(root, path, content) };
 }
 
 // A panel that records what it was shown. `answers` is a list of answers, or a function (card) => answer | Promise.
@@ -127,7 +130,7 @@ export async function toolContext({ answers, limits, skills, ...worldOptions } =
   const w = await world(worldOptions);
   const ui = recordingUi({ answers });
   const base = createContext({ services: w.services });
-  const ctx = createContext({ services: w.services, ui, limits: { ...base.limits, ...limits }, now: () => "2026-10-16T09:00:00.000Z", ...(skills ? { skills } : {}) });
+  const ctx = createContext({ services: w.services, ui, limits: { ...base.limits, ...limits }, now: () => "2026-10-16T09:00:00.000Z", scope: w.scope, ...(skills ? { skills } : {}) });
   const registry = createDefaultRegistry();
   const dispatch = (name, args = {}) => registry.dispatch({ name, args }, ctx);
   const client = async (name) => (await dispatch("find_client", { name })).matches[0].client;

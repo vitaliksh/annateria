@@ -167,7 +167,7 @@ test("read_document: a workbook gives sheet names, row counts and the first rows
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["empty"]]), "Notes");
   const bytes = new Uint8Array(XLSX.write(workbook, { type: "array", bookType: "xlsx" }));
   const { w, dispatch, files } = await documentTools({ loadXlsx: async () => XLSX });
-  await addToInbox(w.root, [file("real.xlsx", bytes), file("rows.csv", "a,b\n1,2\n3,4\n")], { folder: "Levi" });
+  await addToInbox(w.root, [file("real.xlsx", bytes), file("rows.csv", "a,b\n1,2\n3,4\n")], { folder: "Levi", month: "2026-02" });
   const handles = await files();
   const sheet = await dispatch("read_document", { file: handles["real.xlsx"] });
   assert.deepEqual(sheet.sheets.map((item) => [item.name, item.rows]), [["Journal", 3], ["Notes", 1]]);
@@ -180,7 +180,7 @@ test("read_document: a workbook gives sheet names, row counts and the first rows
 
 test("read_document: a page of something that is not a PDF, an unreadable PDF and an unknown handle are errors; other files only get a kind", async () => {
   const { w, dispatch, files } = await documentTools({ loadPdf: pdfLibrary([], { fail: true }) });
-  await addToInbox(w.root, [file("notes.txt", "hello")], { folder: "Levi" });
+  await addToInbox(w.root, [file("notes.txt", "hello")], { folder: "Levi", month: "2026-02" });
   const handles = await files();
   assert.equal((await dispatch("read_document", { file: handles["photo.jpg"], page: 1 })).error.code, "invalid_argument");
   assert.equal((await dispatch("read_document", { file: handles["policy.pdf"] })).error.code, "unavailable");
@@ -239,7 +239,7 @@ test("the instruction has the agent read import files and name the wizard of the
   const { AGENT_VERSION } = await import("../agent/prompts.js");
   const ORCHESTRATOR_PROMPT = await orchestratorInstruction();
   const { default: listInbox } = await import("../agent/tools/list-inbox.js");
-  assert.equal(AGENT_VERSION, "base-2026-10-30a");
+  assert.equal(AGENT_VERSION, "base-2026-11-02a");
   assert.ok(ORCHESTRATOR_PROMPT.includes("read every spreadsheet, and every PDF that does not look like an invoice"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("with read_document, and never extract a spreadsheet with the vision model"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("say plainly when you cannot tell what a file is"));
@@ -262,14 +262,11 @@ test("the instruction tells the model what the user can and cannot do: no handle
   assert.match(ORCHESTRATOR_PROMPT, /Do not assume the gender/);
   assert.ok(ORCHESTRATOR_PROMPT.includes("Always ask through ask_user (buttons): never end your answer with a question in plain text"));
   assert.ok(ORCHESTRATOR_PROMPT.includes("the user decides with the button \"החל\""), "the card can be applied now");
-  assert.ok(ORCHESTRATOR_PROMPT.includes("A name match alone is no proof. Never add a row for a document whose client is not proven;"));
-  assert.ok(ORCHESTRATOR_PROMPT.includes("call move_file_to_declaration for every file that has rows, with every month in which it has rows"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("call move_file_to_declaration for every file that has rows;"));
   // Anna, 25 October 2026: nothing that came in may be lost.
   assert.ok(ORCHESTRATOR_PROMPT.includes("EVERY DOCUMENT THAT CAME IN MUST END IN THE TABLE"));
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /if a row was rejected, do not move the file/);
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /not available yet|cannot be applied/);
-  assert.ok(ORCHESTRATOR_PROMPT.includes("ONE question for all the files whose client is not proven yet"));
-  assert.ok(ORCHESTRATOR_PROMPT.includes("A file the user has already answered about is never asked about again."));
   assert.ok(ORCHESTRATOR_PROMPT.includes("Never say that all the documents were processed unless every file you listed"));
   assert.doesNotMatch(ORCHESTRATOR_PROMPT, /\b(she|her)\b/);
   assert.match(proposeChange.description, /applies the ones that stay ticked/);
@@ -290,14 +287,20 @@ test("the instruction sends a journal to prepare_import and never lets the model
   assert.deepEqual(prepareImport.schema.properties.kind.enum, ["journal", "ledger_codes", "ledger_check", "income_report"], "every kind of the contract");
 });
 
-test("the instruction asks which client with choose_client and gives no buttons of its own", async () => {
+// Step 9.6: a run works on the one client and month open in the page; the instruction never routes a file to a client or a month.
+test("the instruction keeps the run in the open client and month: no proof of a client, no question about the client or the month", async () => {
   const ORCHESTRATOR_PROMPT = await orchestratorInstruction();
   const { default: askUser } = await import("../agent/tools/ask-user.js");
-  assert.ok(ORCHESTRATOR_PROMPT.includes("with choose_client true, about.files listing all of them"));
-  assert.ok(ORCHESTRATOR_PROMPT.includes("give no options (a question about the client with buttons of your own is refused): the code shows the names of the clients as buttons"));
-  assert.ok(ORCHESTRATOR_PROMPT.includes("The answer gives the handle of the chosen client in client"));
-  assert.doesNotMatch(ORCHESTRATOR_PROMPT, /a last button without a client for "different clients"/);
-  assert.match(askUser.description, /set choose_client true/);
+  const { default: addRows } = await import("../agent/tools/add-rows.js");
+  assert.ok(ORCHESTRATOR_PROMPT.includes("a run works on the one client and month the user has open in the page"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("never ask which client or which month a file belongs to, and never look for its client"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("When the first line says that no month is open, process nothing"));
+  assert.ok(ORCHESTRATOR_PROMPT.includes("a date after the month (doc_after_month)"));
+  assert.doesNotMatch(ORCHESTRATOR_PROMPT, /choose_client|routed_by|month_override|same_file/);
+  assert.doesNotMatch(askUser.description, /choose_client/);
+  assert.match(askUser.description, /Never ask which client or which month a file belongs to/);
+  assert.equal("routed_by" in addRows.schema.properties.rows.items.properties, false);
+  assert.equal("month_override" in addRows.schema.properties.rows.items.properties, false);
 });
 
 test("the instruction sends a classification-codes ledger to prepare_import (4.7.3)", async () => {

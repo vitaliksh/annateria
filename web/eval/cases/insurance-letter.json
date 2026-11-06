@@ -2,6 +2,10 @@
   "name": "insurance-letter",
   "about": "An insurer letter confirming the yearly payment of the business policy is an expense on the business-insurance account.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",
@@ -80,7 +84,6 @@
   "inbox": [
     {
       "name": "policy-letter.pdf",
-      "folder": "Levi",
       "records": [
         {
           "kind": "payment_confirmation",

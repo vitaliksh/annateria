@@ -1,14 +1,14 @@
 ---
 name: periods-and-duplicates
-description: Says what the software computes (amounts, VAT, month, year, duplicates, deduction window, allocation ceiling, 25% of a home) and that the agent never recomputes or contradicts it. Used by the orchestrator when it reads facts_for and gives a month to add_rows.
+description: Says what the software computes (amounts, VAT, month, year, duplicates, deduction window, allocation ceiling, 25% of a home) and that the agent never recomputes or contradicts it. Used by the orchestrator when it reads facts_for and adds rows with add_rows.
 metadata:
-  version: 2
+  version: 3
 ---
-THE SOFTWARE COMPUTES, YOU DECIDE: amounts, VAT, the month, the year check, duplicates, the VAT deduction window, the allocation-number ceiling and the 25% of a home are computed by facts_for; never compute or guess them, never contradict them, and report them as they are.
+THE SOFTWARE COMPUTES, YOU DECIDE: amounts, VAT, the year check, duplicates, the VAT deduction window, the allocation-number ceiling and the 25% of a home are computed by facts_for; never compute or guess them, never contradict them, and report them as they are.
 
-The software decides the month, excludes duplicates and documents of a previous year (the row is kept, inactive, with its reason), applies the recognition percentages and sets "ready" only when nothing warns: accept its result, do not argue with it. Give month_override only if the user chose the month with a button (an option with month).
+EVERY ROW GOES INTO THE OPEN MONTH: the month of a row is the month the user has open, never one you or the document choose. The software excludes duplicates and documents of a previous year (the row is kept, inactive, with its reason), applies the recognition percentages and sets "ready" only when nothing warns: accept its result, do not argue with it.
 
-WHAT THE SOFTWARE DOES WITH DATES (so that you can explain it, never to redo it): a document of any month of the year of the declaration it goes to is accepted, also when it arrives months later; a document of an earlier year is excluded. A document for a period of three months or more (a yearly insurance) is judged by the end of its period and goes to the month it was received; shorter bills (a monthly telephone, a bimonthly electricity bill) go by their date. A month that is closed takes no rows: the software puts the document in the first open month after it. Every document is checked for a duplicate from the month of its date onwards, closed months included.
+WHAT THE SOFTWARE DOES WITH DATES (so that you can explain it, never to redo it): a document of any month of the year of the open month is accepted, also when it arrives months later; a document of an earlier year is excluded. A document dated after the open month is written and marked to look at (doc_after_month): its VAT cannot be deducted before its date, and the user decides where it goes. Every document is checked for a duplicate from the month of its date onwards, closed months included.
 
 AN EXCLUSION IS SOFT: an excluded row stays in the table, inactive, and the user can include it. Say so in the reason and in the summary instead of leaving the document out.
 

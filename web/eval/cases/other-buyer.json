@@ -1,7 +1,11 @@
 {
-  "name": "unknown-buyer",
-  "about": "An unsorted invoice whose buyer is only a name that is no client asks which client; the answer routes it.",
+  "name": "other-buyer",
+  "about": "An invoice of the open month addressed to another business is a row of the open month, marked to look at, without a question.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",
@@ -71,7 +75,7 @@
   ],
   "inbox": [
     {
-      "name": "scan-77.jpg",
+      "name": "inv-paper.jpg",
       "records": [
         {
           "supplier_name": "Paper Shop",
@@ -81,27 +85,29 @@
           "total": 236,
           "purpose": "נייר ודיו למדפסת",
           "date": "2026-09-14",
-          "document_number": "3177",
-          "buyer_name": "Studio C."
+          "document_number": "3101",
+          "buyer_name": "Other Business Ltd",
+          "buyer_vat_id": "515300077"
         }
       ]
     }
   ],
-  "answers": {
-    "client": "Cohen Studio"
-  },
   "expect": {
     "rows": [
       {
-        "reference": "3177",
-        "client": "Cohen"
+        "reference": "3101",
+        "client": "Levi",
+        "month": "2026-09",
+        "account": "202",
+        "status": "review",
+        "active": true
       }
     ],
     "questions": {
-      "chooseClient": true
+      "max": 0
     },
     "filed": [
-      "scan-77.jpg"
+      "inv-paper.jpg"
     ]
   }
 }

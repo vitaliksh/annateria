@@ -2,7 +2,8 @@
 // index, what is inside a file, the client's profile, chart, rules and rows, the intake context of the duplicate search, and
 // the vision call of extraction and the read-only preparer of import files; asking whether a declaration is open and
 // copying a table before the agent writes; and the few things the agent may write: a new open declaration, rows into an open one,
-// the image of those rows, and the move of an inbox original into the images of a declaration. It has no operation that closes, reopens, deletes or archives anything; a test lists its keys and
+// the image of those rows, and the move of an inbox original into the images of a declaration. Every write is refused unless it is
+// into the one client and month of the run (`scope`, step 9.6): the lowest layer holds the rule, whatever a tool asks. It has no operation that closes, reopens, deletes or archives anything; a test lists its keys and
 // fails when such a word appears.
 // Tools do not import file stores: they only see what is here.
 import { backupTable } from "../table-backup.js";
@@ -23,8 +24,9 @@ import { createImportReader } from "./adapters/imports.js";
 // onDeclarationCreated(clientId, month) is told when a declaration was made (the sidebar must show it).
 // builtInChart(): { code: { name, type } } used when neither the client nor the root has a chart. reserved(): codes a chart may
 // not reuse. documents: reads inside files (adapters/documents.js). extraction: the vision call (adapters/extraction.js), or null.
-// imports: the read-only preparers of the import wizards (adapters/imports.js).
-export function createServices({ getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), documents = createDocumentReader(), extraction = null, imports = createImportReader(), onDeclarationCreated = () => {} }) {
+// imports: the read-only preparers of the import wizards (adapters/imports.js). scope: { clientId, month } of the month open in the
+// page, the only declaration a write may reach; null refuses every write.
+export function createServices({ getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), documents = createDocumentReader(), extraction = null, imports = createImportReader(), onDeclarationCreated = () => {}, scope = null }) {
   const homeClients = () => (getClients() ?? []).filter((client) => client.parent && client.entryName);
   const find = (clientId) => {
     const client = homeClients().find((item) => item.id === clientId);
@@ -41,6 +43,9 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
     return live && live.clientId === clientId ? live : null;
   };
   const stateOf = (declaration) => (declaration.status === "open" ? "open" : "locked");
+  const inScope = (clientId, month) => {
+    if (!scope || scope.clientId !== clientId || scope.month !== month) throw new Error("Only the open month of the open client can be written.");
+  };
 
   return Object.freeze({
     inbox: Object.freeze({
@@ -104,6 +109,7 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
       },
       // Makes an open declaration for a month that has none. Refuses a month that exists.
       create: async (clientId, month) => {
+        inScope(clientId, month);
         const client = find(clientId);
         await createDeclaration(client.directory, { clientId: client.config.clientId ?? clientId, month });
         client.declarations = await listDeclarations(client.directory);
@@ -126,6 +132,7 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
       // Adds rows (snapshots) at the end of an open table; resolves with their numbers in the table (1-based). The table open in the
       // page takes them through the page, any other goes straight into its draft file.
       append: async (clientId, month, snapshots) => {
+        inScope(clientId, month);
         const live = liveFor(clientId);
         if (live?.month === month) return live.append(snapshots);
         const client = find(clientId);
@@ -135,6 +142,7 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
       },
       // Gives the rows made from one file their image; resolves with the number of rows that got it.
       attachImage: async (clientId, month, fileHash, image) => {
+        inScope(clientId, month);
         const live = liveFor(clientId);
         if (live?.month === month) return live.attachImage({ fileHash, ...image });
         const client = find(clientId);
@@ -151,7 +159,10 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
     }),
     files: Object.freeze({
       // Copies an inbox original into the images of a declaration and reads the copy back: { imageFile, imageIndex }.
-      copyToDeclaration: async (entry, clientId, month) => copyToDeclarationImages(dataRoot(), entry, await getDeclarationDirectory(find(clientId).directory, month)),
+      copyToDeclaration: async (entry, clientId, month) => {
+        inScope(clientId, month);
+        return copyToDeclarationImages(dataRoot(), entry, await getDeclarationDirectory(find(clientId).directory, month));
+      },
       // After the copy: the entry leaves the inbox index and the original leaves the inbox folder.
       moveOutOfInbox: (entry) => moveOutOfInbox(dataRoot(), entry),
     }),

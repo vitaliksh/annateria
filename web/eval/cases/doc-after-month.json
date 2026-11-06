@@ -1,7 +1,11 @@
 {
-  "name": "vat-route",
-  "about": "An unsorted invoice whose buyer VAT number is the client goes to that client, coded, ready and filed, without a question.",
+  "name": "doc-after-month",
+  "about": "An invoice dated after the open month is a row of the open month, marked to look at, without a question about the month.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",
@@ -71,7 +75,7 @@
   ],
   "inbox": [
     {
-      "name": "inv-paper.jpg",
+      "name": "scan-77.jpg",
       "records": [
         {
           "supplier_name": "Paper Shop",
@@ -80,8 +84,8 @@
           "vat": 36,
           "total": 236,
           "purpose": "נייר ודיו למדפסת",
-          "date": "2026-09-14",
-          "document_number": "3101",
+          "date": "2026-10-02",
+          "document_number": "3177",
           "buyer_name": "Levi Plumbing Ltd",
           "buyer_vat_id": "515300010"
         }
@@ -91,19 +95,18 @@
   "expect": {
     "rows": [
       {
-        "reference": "3101",
+        "reference": "3177",
         "client": "Levi",
         "month": "2026-09",
         "account": "202",
-        "status": "ready",
-        "active": true
+        "status": "review"
       }
     ],
     "questions": {
       "max": 0
     },
     "filed": [
-      "inv-paper.jpg"
+      "scan-77.jpg"
     ]
   }
 }

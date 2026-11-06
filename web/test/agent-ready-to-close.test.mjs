@@ -1,4 +1,4 @@
-// ready_to_close (docs/AGENT_TOOLS.md, 5.5, step 6.2): read only; its blockers are the refusals of the lock button, and nothing the
+// ready_to_close (docs/AGENT_TOOLS.md, 5.5, step 6.2): read only; its blockers are what the lock shows in red, and nothing the
 // agent can call locks a month, even when the user asks it to.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -14,12 +14,17 @@ async function snapshotTree(root) {
 
 test("an open month: blockers of the lock button, warnings for rows to review and files in the inbox, counts from the code", async () => {
   const { dispatch, client, w } = await toolContext();
+  const { addToInbox } = await import("../inbox-store.js");
+  const { file } = await import("./agent-fixtures.mjs");
+  // Step 9.6: only the files of this month wait for it; a file of another month does not, a file without a client is counted apart.
+  await addToInbox(w.root, [file("march.jpg", "march", "image/jpeg")], { folder: "Levi", month: "2026-03", now: "2026-10-16T08:02:00.000Z" });
+  await addToInbox(w.root, [file("loose.jpg", "loose", "image/jpeg")], { now: "2026-10-16T08:03:00.000Z" });
   const before = await snapshotTree(w.root);
   const levi = await dispatch("ready_to_close", { client: await client("Levi Plumbing Ltd"), month: "2026-02" });
   assert.equal(levi.ok, true);
   assert.deepEqual([levi.state, levi.ready, levi.blockers], ["open", true, []]);
-  assert.deepEqual(levi.summary, { rows: 3, active: 2, excluded: 1, review: 1, pcn_pending: 0, pcn_missing_allocation: 0, inbox_waiting: 2, inbox_unsorted: 1 });
-  assert.deepEqual(levi.warnings.map((item) => [item.code, item.count]), [["rows_to_review", 1], ["inbox_waiting", 2], ["inbox_unsorted", 1]]);
+  assert.deepEqual(levi.summary, { rows: 3, active: 2, excluded: 1, review: 1, pcn_pending: 0, pcn_missing_allocation: 0, inbox_waiting: 3, inbox_unsorted: 1 });
+  assert.deepEqual(levi.warnings.map((item) => [item.code, item.count]), [["rows_to_review", 1], ["inbox_waiting", 3], ["inbox_unsorted", 1]]);
   assert.deepEqual(levi.warnings[0].positions, [2], "the active row marked for review; the excluded duplicate is not a warning");
 
   const pcn = await dispatch("ready_to_close", { client: await client("Pcn Trading"), month: "2026-02" });

@@ -2,6 +2,10 @@
   "name": "tax-payment",
   "about": "A payment of income-tax advances is not an expense: a row without an account, not ready.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",
@@ -80,7 +84,6 @@
   "inbox": [
     {
       "name": "tax-advance.pdf",
-      "folder": "Levi",
       "records": [
         {
           "kind": "payment_confirmation",

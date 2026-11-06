@@ -1,7 +1,11 @@
 {
   "name": "folder-route",
-  "about": "A file in the inbox folder of a client, with the buyer by name only, goes to that client without a question.",
+  "about": "A document of the open month whose buyer is printed by name only becomes a row of the open client, without a question.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",
@@ -72,7 +76,6 @@
   "inbox": [
     {
       "name": "ink.jpg",
-      "folder": "Levi",
       "records": [
         {
           "supplier_name": "Paper Shop",

@@ -888,6 +888,8 @@ async function runAssistant(kind, text) {
         kind, text, today: new Date().toISOString().slice(0, 10), previous: assistantLastAnswer,
         active: committedWorkspace ? { clientName: committedWorkspace.config.clientName, month: currentDeclaration?.month ?? null } : null,
       }),
+      // Step 9.6: the run writes only into the month shown in the journal; without one it only reads.
+      scope: view === "journal" && committedWorkspace && currentDeclaration ? { clientId: committedWorkspace.config.clientId, month: currentDeclaration.month } : null,
       ui: assistant.ui,
       signal: controller.signal,
       onProgress: (event) => {

@@ -29,66 +29,57 @@ function scriptedClient(steps) {
   };
 }
 
-// What the owner would decide for each case: the client, how it is proven, the decision and the account.
+// What the owner would decide for each case: the decision and the account. The client is the open one (step 9.6): the first line of
+// the run names its handle, C1.
 const PLANS = {
-  "vat-route": { client: "Levi Plumbing Ltd", routedBy: "vat_id", decision: "expense", account: "202" },
-  "folder-route": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "202" },
-  "unknown-buyer": { client: "Cohen Studio", routedBy: "user", decision: "expense", account: "202" },
-  duplicate: { client: "Levi Plumbing Ltd", routedBy: "vat_id", decision: "expense", account: "202" },
-  "previous-year": { client: "Levi Plumbing Ltd", routedBy: "vat_id", decision: "expense", account: "202" },
-  "home-utility": { client: "Cohen Studio", routedBy: "vat_id", decision: "expense", account: "230" },
-  "pcn-no-allocation": { client: "Pcn Trading", routedBy: "vat_id", decision: "expense", account: "240" },
-  "foreign-currency": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "215", needsReview: true },
-  "private-purchase": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "not_expense" },
-  "insurance-letter": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "206" },
-  "vehicle-insurance": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "214" },
-  "tax-payment": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "not_expense", needsReview: true },
-  "internet-maintenance": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "220" },
-  "licence-fee": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "expense", account: "214" },
-  "parking-fine": { client: "Levi Plumbing Ltd", routedBy: "folder", decision: "not_expense" },
-  "close-month": { client: "Pcn Trading", closing: "2026-09" },
+  "other-buyer": { decision: "expense", account: "202" },
+  "folder-route": { decision: "expense", account: "202" },
+  "doc-after-month": { decision: "expense", account: "202" },
+  duplicate: { decision: "expense", account: "202" },
+  "previous-year": { decision: "expense", account: "202" },
+  "home-utility": { decision: "expense", account: "230" },
+  "pcn-no-allocation": { decision: "expense", account: "240" },
+  "foreign-currency": { decision: "expense", account: "215", needsReview: true },
+  "private-purchase": { decision: "not_expense" },
+  "insurance-letter": { decision: "expense", account: "206" },
+  "vehicle-insurance": { decision: "expense", account: "214" },
+  "tax-payment": { decision: "not_expense", needsReview: true },
+  "internet-maintenance": { decision: "expense", account: "220" },
+  "licence-fee": { decision: "expense", account: "214" },
+  "parking-fine": { decision: "not_expense" },
+  "close-month": { closing: "2026-09" },
 };
+const OPEN_CLIENT = "C1";
 
-// Asked to close a month: find the client, check the month, answer. There is no tool that locks.
+// Asked to close a month: check the month, answer. There is no tool that locks.
 const closingSteps = (plan) => [
-  () => [call("find_client", { name: plan.client })],
-  (request) => [call("ready_to_close", { client: lastResponses(request, "find_client")[0].matches[0].client, month: plan.closing })],
+  () => [call("ready_to_close", { client: OPEN_CLIENT, month: plan.closing })],
   () => [{ text: "אי אפשר לסגור עדיין: יש שורה שממתינה לאישור." }],
 ];
 
 function idealSteps(plan) {
   if (plan.closing) return closingSteps(plan);
   let files = [];
-  let client = null;
-  let ask = null;
-  let added = [];
   return [
-    () => [call("list_inbox", {})],
+    (request) => {
+      assert.match(request.contents[0].parts[0].text, /This run works on one client and one month only: .*\(handle C1\), declaration 2026-09\./);
+      return [call("list_inbox", {})];
+    },
     (request) => {
       files = lastResponses(request, "list_inbox")[0].files.map((item) => item.file);
       return files.map((file) => call("extract_document", { file }));
     },
-    () => [call("find_client", { name: plan.client })],
     (request) => {
-      client = lastResponses(request, "find_client")[0].matches[0].client;
-      return plan.routedBy === "user"
-        ? [call("ask_user", { question: "לאיזה לקוח שייך המסמך?",
-          choose_client: true, allow_other: false, clients: [client], about: { files } })]
-        : [call("list_inbox", { status: "extracted" })];
-    },
-    (request) => {
-      ask = lastResponses(request, "ask_user")[0]?.ask ?? null;
       const facts = responsesIn(request.contents, "extract_document").flatMap((response) => response.documents.map((document) => document.fact));
       const rows = facts.map((fact) => ({
-        fact, routed_by: plan.routedBy, ...(ask ? { routing_ask: ask } : {}), decision: plan.decision,
-        ...(plan.account ? { account: plan.account } : {}), needs_review: Boolean(plan.needsReview), reason: "לפי הכללים.",
+        fact, decision: plan.decision, ...(plan.account ? { account: plan.account } : {}), needs_review: Boolean(plan.needsReview), reason: "לפי הכללים.",
       }));
-      return [call("add_rows", { client, rows })];
+      return [call("add_rows", { client: OPEN_CLIENT, rows })];
     },
     (request) => {
-      added = lastResponses(request, "add_rows")[0].rows.filter((row) => row.month);
+      const added = lastResponses(request, "add_rows")[0].rows.filter((row) => row.month);
       assert.ok(added.length, JSON.stringify(lastResponses(request, "add_rows")[0]));
-      return files.map((file) => call("move_file_to_declaration", { file, client, months: [...new Set(added.map((row) => row.month))] }));
+      return files.map((file) => call("move_file_to_declaration", { file }));
     },
     () => [{ text: "סיימתי." }],
   ];
@@ -112,14 +103,16 @@ test("every case is well formed: unique names, facts for every file, expected ro
   }
 });
 
-test("the user of a case picks the named client, a button by its text, or dismisses", () => {
-  const levi = { id: "client1", label: "Levi Plumbing Ltd" };
-  const chooseClient = { options: [levi], more: [levi, { id: "list1", label: "Cohen Studio" }] };
-  assert.deepEqual(answerCard(chooseClient, { client: "Cohen Studio" }), { type: "option", id: "list1" });
-  assert.deepEqual(answerCard(chooseClient, {}), { type: "dismissed" });
-  const month = { options: [{ id: "a", label: "ספטמבר 2026" }, { id: "b", label: "אוקטובר 2026" }] };
-  assert.deepEqual(answerCard(month, { labels: ["אוקטובר"] }), { type: "option", id: "b" });
-  assert.deepEqual(answerCard(month, { client: "Cohen Studio" }), { type: "dismissed" }, "a client answer is only for the question which client");
+test("the user of a case picks a button by its text, or dismisses", () => {
+  const card = { options: [{ id: "a", label: "כן, הוצאה" }, { id: "b", label: "לא" }] };
+  assert.deepEqual(answerCard(card, { labels: ["לא"] }), { type: "option", id: "b" });
+  assert.deepEqual(answerCard(card, {}), { type: "dismissed" });
+});
+
+test("every case runs on an open client and month of its world", () => {
+  for (const spec of cases) {
+    assert.ok(spec.clients.some((client) => client.folder === spec.open?.client && spec.open.month in (client.months ?? {})), spec.name);
+  }
 });
 
 for (const spec of cases) {
@@ -132,14 +125,14 @@ for (const spec of cases) {
 }
 
 test("the checks fail a run that did nothing and a handle in the answer", async () => {
-  const spec = cases.find((item) => item.name === "vat-route");
+  const spec = cases.find((item) => item.name === "other-buyer");
   const outcome = await runCase(spec, { modelClient: scriptedClient([() => [{ text: "הכול טופל (Q1)." }]]), fetchSkill });
   const failed = checkCase(spec, outcome).filter((item) => !item.ok).map((item) => item.name);
   assert.deepEqual(failed, ["no handles in the answer", "row 3101", "filed inv-paper.jpg"]);
 });
 
 test("a run that fails is reported with its status", async () => {
-  const spec = cases.find((item) => item.name === "vat-route");
+  const spec = cases.find((item) => item.name === "other-buyer");
   const busy = Object.assign(new Error("busy"), { name: "ModelError", code: "busy" });
   const outcome = await runCase(spec, { modelClient: { generate: async () => { throw busy; } }, fetchSkill });
   const [completed] = checkCase(spec, outcome);

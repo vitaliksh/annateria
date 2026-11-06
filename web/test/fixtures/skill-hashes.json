@@ -8,15 +8,15 @@
     "sha256": "07565f5bdd12de5e0f09eee30fa15fd1788fa53a07467e841e961c46d7f57498"
   },
   "month-closing-checklist": {
-    "version": 1,
-    "sha256": "cbcfaf9b7572ce1c5b10459f731cedb946e3348026b0b6c661a547606f7ae5b1"
+    "version": 2,
+    "sha256": "90cc750ab47cc807ef53800d4323ca7674a77b337b236d8fc45254efe15a77fb"
   },
   "pcn-allocation": {
     "version": 1,
     "sha256": "bccf3f14bed1e8f15acd072a98d12a7b324130d8bd0c48bb0b5cc31b9f65c0bd"
   },
   "periods-and-duplicates": {
-    "version": 2,
-    "sha256": "518cb8cd098ba0568f21e62b1dc5c9aca68dcdee1fc7bea4c63cf1880648ded7"
+    "version": 3,
+    "sha256": "1c567c144c7c2a9d01dff29ac74d9827fb0fc74540add48c221ca6fe94741afc"
   }
 }

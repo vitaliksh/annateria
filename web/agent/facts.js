@@ -18,18 +18,19 @@ function candidateRow(record, entry, handle) {
   };
 }
 
-// args: { fact, client, month? } with handles. Returns { output, facts, record, entry, profile, clientValue }: `output` is what facts_for
+// args: { fact, client, month? } with handles; month defaults to the month of the run (step 9.6), which is where add_rows writes. Returns { output, facts, record, entry, profile, clientValue }: `output` is what facts_for
 // answers, `facts` the raw result of intakeFacts (what the row builder reads).
 export async function computeFacts(ctx, args) {
   const { entry, record } = ctx.handles.getFact(args.fact);
   const clientValue = ctx.handles.get("C", args.client);
   if (args.month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(args.month)) throw new ToolError("invalid_argument", "month must look like 2026-03.");
+  const month = args.month ?? ctx.scope?.month ?? null;
   const [profile, intake] = await Promise.all([ctx.services.clients.profile(clientValue.clientId), ctx.services.intake.context(clientValue.clientId)]);
   const today = ctx.today();
   const row = candidateRow(record, entry, args.fact);
-  const candidate = { row, month: args.month ?? today.toISOString().slice(0, 7), position: Number.MAX_SAFE_INTEGER, periodFrom: record.period_from ?? "", periodTo: record.period_to ?? "" };
+  const candidate = { row, month: month ?? today.toISOString().slice(0, 7), position: Number.MAX_SAFE_INTEGER, periodFrom: record.period_from ?? "", periodTo: record.period_to ?? "" };
   const facts = intakeFacts(candidate, {
-    entries: [...intake.entries, ...ctx.run.addedEntries], lockedThrough: intake.lockedThrough, today, ...(args.month ? { targetMonth: args.month } : {}),
+    entries: [...intake.entries, ...ctx.run.addedEntries], lockedThrough: intake.lockedThrough, today, ...(month ? { targetMonth: month } : {}),
   });
 
   const declaration = intake.declarations.find((item) => item.month === facts.targetMonth);
@@ -55,6 +56,8 @@ export async function computeFacts(ctx, args) {
   if (facts.year.status === "no-date") reasons.add("no_date");
   if (facts.deduction === "check") reasons.add("deduction_check");
   if (facts.deduction === "late") reasons.add("deduction_late");
+  // A document dated after the month it goes into: its VAT cannot be deducted before its date (owner, 2 November 2026).
+  if (facts.docMonth && facts.docMonth > facts.targetMonth) reasons.add("doc_after_month");
   if (buyerMismatch) reasons.add("buyer_mismatch");
   if (pcn.over) reasons.add("pcn_over");
   if (pcn.allocation_missing) reasons.add("pcn_allocation_missing");
@@ -63,7 +66,7 @@ export async function computeFacts(ctx, args) {
   if (record.kind !== "expense_invoice") reasons.add(`kind_${record.kind}`);
 
   const output = {
-    fact: args.fact, target_month: facts.targetMonth, doc_month: facts.docMonth, month_reason: facts.monthReason, month_state: monthState,
+    fact: args.fact, target_month: facts.targetMonth, doc_month: facts.docMonth, month_reason: !args.month && ctx.scope ? "open_month" : facts.monthReason, month_state: monthState,
     year: { status: facts.year.status, basis: facts.year.basis, year: facts.year.year, allowed_year: facts.year.allowedYear },
     duplicates: { level: facts.duplicates.level, matches }, deduction: facts.deduction, exclude: facts.exclude, pcn,
     home_utility: homeUtility, buyer_mismatch: buyerMismatch, amounts: { reconcile: !record.issues.includes("amounts_mismatch") },

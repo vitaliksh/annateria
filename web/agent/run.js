@@ -15,22 +15,21 @@ const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isAbort = (error) => error?.name === "AbortError";
 
 // What a tool receives: the handle table, the services, the user interface of the panel, the abort signal, the counters of the
-// run and the two guards every write goes through.
-export function createContext({ services, ui = {}, signal = new AbortController().signal, limits = LIMITS, now = () => new Date().toISOString(), log = null, runId = crypto.randomUUID(), skills = {} }) {
+// run and the guards every write goes through. scope: { clientId, month, folder } of the month open in the page, the only place
+// a run may write to (step 9.6), or null: the run then only reads.
+export function createContext({ services, ui = {}, signal = new AbortController().signal, limits = LIMITS, now = () => new Date().toISOString(), log = null, runId = crypto.randomUUID(), skills = {}, scope = null }) {
   // listed: file handle -> { name, folder, kind } of every file that list_inbox showed.
-  // routes: file handle -> the answered question that sent the file to a client (ask_user), so that it is never asked twice.
   // fileStatus: file handle -> waiting | extracted | filed. extractions: file handle -> { tries, records } (the fact store).
-  // clientMatches: clientId -> the best match find_client gave for it (vat_id, name_exact, name_partial): why a candidate is offered.
   // prepared: "file|kind|client" -> what prepare_import answered, so that the same file is not prepared twice (and no second card is shown).
   // addedEntries, factsUsed and addedFacts (fact handle -> what add_rows made of it) are filled by add_rows: rows made in this run are seen by the duplicate search, and facts
   // that already became a row cannot be extracted again. leftOut: the facts the agent left out that the code added as rows to look at.
   const run = {
-    id: runId, asked: new Map(), routes: new Map(), listed: new Map(), questions: 0, copies: new Set(), fileStatus: new Map(), toolCalls: 0,
-    extractions: new Map(), extractCount: 0, extractSlots: createSemaphore(limits.parallelExtractions ?? LIMITS.parallelExtractions), addedEntries: [], factsUsed: new Set(), addedFacts: new Map(), prepared: new Map(), clientMatches: new Map(),
+    id: runId, asked: new Map(), listed: new Map(), questions: 0, copies: new Set(), fileStatus: new Map(), toolCalls: 0,
+    extractions: new Map(), extractCount: 0, extractSlots: createSemaphore(limits.parallelExtractions ?? LIMITS.parallelExtractions), addedEntries: [], factsUsed: new Set(), addedFacts: new Map(), prepared: new Map(),
     leftOut: [],
   };
-  return {
-    handles: createHandles(), services, ui, signal, run, limits, log, skills,
+  const context = {
+    handles: createHandles(), services, ui, signal, run, limits, log, skills, scope,
     today: () => new Date(now()),
     // The table is copied once per run and declaration before the agent first writes to it; no copy, no write.
     async ensureCopy(clientId, month) {
@@ -43,6 +42,13 @@ export function createContext({ services, ui = {}, signal = new AbortController(
       }
       run.copies.add(key);
     },
+    // A row or an original goes only into the client and month of the run (step 9.6), and only while it is open.
+    async requireRunMonth(clientId, month) {
+      const { scope } = context;
+      if (!scope) throw new ToolError("not_allowed", "No month is open in the page, so nothing can be written: the user opens the month first.");
+      if (clientId !== scope.clientId || month !== scope.month) throw new ToolError("not_allowed", `This run writes only into the open month ${scope.month} of the open client.`);
+      await context.requireOpen(clientId, month);
+    },
     // A write to a declaration that is not open is refused here, whatever the tool says.
     async requireOpen(clientId, month) {
       const state = await services.declarations.state(clientId, month);
@@ -50,29 +56,40 @@ export function createContext({ services, ui = {}, signal = new AbortController(
       throw new ToolError(state === "locked" ? "locked" : "not_found", state === "locked" ? `The declaration ${month} is locked.` : `There is no declaration ${month}.`);
     },
   };
+  return context;
+}
+
+// The first line of every run: the one client and month it works on, with the client's handle, or that it only reads.
+function scopeLine(ctx, client) {
+  if (!ctx.scope) return "No month is open in the page: this run only reads and answers; it adds no rows and files no file.";
+  const handle = ctx.handles.create("C", client.clientId, { clientId: client.clientId, name: client.clientName, vatId: client.vatId ?? "", folder: client.folder ?? "" });
+  return `This run works on one client and one month only: the client "${client.clientName}" (handle ${handle}), declaration ${ctx.scope.month}. Every inbox file you see is of this month, and every row goes into it.`;
 }
 
 // model: { step({ system, contents, tools, signal }) -> { parts, finishReason?, blockReason?, usage?, model? } }
 // skills: { name: version } of the skills in `system`, written into every row and into the run log. registry: createRegistry(...). services: the only way for a tool to reach data (services.js). ui: { ask(card, { signal }),
 // propose(proposal) } supplied by the panel. onEvent receives every log entry when it is written; onProgress({ type: "turn" | "call" | "done", ... })
-// is told when a model turn or a tool call starts and when a call has ended (the progress line of the panel).
+// is told when a model turn or a tool call starts and when a call has ended (the progress line of the panel). scope: { clientId, month }
+// of the month open in the page (see createContext); the message then starts with that client's handle and the month.
 // Resolves with { status, text?, error?, reason?, turns, toolCalls, questions, runId, log };
 // status: completed | cancelled | limit_reached | failed | blocked.
 export async function runAgent({
   model, system, registry, message, services, ui = {}, signal = new AbortController().signal, limits = LIMITS,
   now = () => new Date().toISOString(), clock = () => Date.now(), sleep = defaultSleep, runId = crypto.randomUUID(), onEvent, onProgress, skills = {},
+  scope = null,
 }) {
-  const log = createRunLog({ runId, now, onEvent, header: { agent: { version: AGENT_VERSION, skills } } });
-  const ctx = createContext({ services, ui, signal, limits, now, log, runId, skills });
+  const log = createRunLog({ runId, now, onEvent, header: { agent: { version: AGENT_VERSION, skills }, ...(scope ? { scope } : {}) } });
+  const open = scope ? (await services.clients.list()).find((client) => client.clientId === scope.clientId) ?? null : null;
+  const ctx = createContext({ services, ui, signal, limits, now, log, runId, skills, scope: open ? { ...scope, folder: open.folder } : null });
   const { run } = ctx;
   const deadline = clock() + limits.minutes * 60_000;
 
-  const contents = [{ role: "user", parts: [{ text: message }] }];
+  const contents = [{ role: "user", parts: [{ text: `${scopeLine(ctx, open)}\n\n${message}` }] }];
   let turns = 0;
   let refusals = 0;
   let malformed = 0;
   const progress = (event) => { try { onProgress?.(event); } catch { /* a faulty listener must not stop the run */ } };
-  // Where the rows of this run went: [{ clientId, month, count }], oldest month first.
+  // Where the rows of this run went: [{ clientId, month, count }] (only the month of the run).
   // review: how many of them are to look at (for the panel's "for you" card), set only when there are some.
   const placed = () => {
     const counts = new Map();
@@ -97,14 +114,12 @@ export async function runAgent({
     const pending = new Map();
     for (const item of run.addedFacts.values()) {
       if (!item.row || run.fileStatus.get(item.file) === "filed") continue;
-      const key = `${item.file}|${item.client}`;
-      if (!pending.has(key)) pending.set(key, { file: item.file, client: item.client, months: new Set() });
-      pending.get(key).months.add(item.month);
+      pending.set(item.file, { file: item.file });
     }
     const filed = [];
-    for (const { file, client, months } of pending.values()) {
+    for (const { file } of pending.values()) {
       if (run.fileStatus.get(file) === "filed") continue;
-      const call = { name: "move_file_to_declaration", args: { file, client, months: [...months].sort() } };
+      const call = { name: "move_file_to_declaration", args: { file } };
       const started = clock();
       const envelope = await registry.dispatch(call, ctx);
       log.add({ kind: "tool", name: call.name, byApp: true, args: shorten(call.args), ok: envelope.ok, error: envelope.error?.code, result: shorten(envelope), ms: clock() - started });

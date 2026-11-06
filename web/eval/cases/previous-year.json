@@ -2,6 +2,10 @@
   "name": "previous-year",
   "about": "An invoice of the previous year, for a client whose months are closed up to August 2026, makes no active row.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",

@@ -2,6 +2,10 @@
   "name": "pcn-no-allocation",
   "about": "An invoice above the allocation ceiling without an allocation number, for a PCN client, is not ready.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Pcn",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",

@@ -2,6 +2,10 @@
   "name": "home-utility",
   "about": "An electricity bill of a client who works from home is recognised at 25% by the code.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Cohen",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",

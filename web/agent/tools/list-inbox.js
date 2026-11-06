@@ -1,11 +1,12 @@
-// list_inbox (docs/AGENT_TOOLS.md, 5.1): what is waiting in inbox/. Registers a handle F<n> for every file it shows.
+// list_inbox (docs/AGENT_TOOLS.md, 5.1): what is waiting in inbox/. Registers a handle F<n> for every file it shows. A run on a month
+// sees only the files of that month (step 9.6): the files of other months, of other clients and without a month are not there for it.
 import { kindOf } from "../kinds.js";
 
 const PAGE_BYTES = 15000;
 
 export default {
   name: "list_inbox",
-  description: "List the files waiting in the inbox: handle, name, folder (a client folder or _unsorted), kind, size, source date, and the state in this run. Spreadsheets are listed; they are never read with the vision model (use read_document).",
+  description: "List the files waiting in the inbox: handle, name, folder (a client folder or _unsorted), kind, size, source date, and the state in this run. In a run on a month only the files of that month are listed, and all of them are of the open client and month. Spreadsheets are listed; they are never read with the vision model (use read_document).",
   schema: {
     type: "object",
     properties: {
@@ -18,7 +19,9 @@ export default {
   },
   async run(args, ctx) {
     const index = await ctx.services.inbox.readIndex();
-    const all = index.files.map((entry) => {
+    const { scope } = ctx;
+    const mine = scope ? index.files.filter((entry) => entry.folder === scope.folder && entry.month === scope.month) : index.files;
+    const all = mine.map((entry) => {
       const handle = ctx.handles.create("F", entry.hash, entry);
       ctx.run.listed.set(handle, { name: entry.name, folder: entry.folder, kind: kindOf(entry) });
       return { entry, handle, status: ctx.run.fileStatus.get(handle) ?? "waiting" };

@@ -1,13 +1,14 @@
-// ready_to_close (docs/AGENT_TOOLS.md, 5.5): can this month be locked, and what is in the way. Read only. The blockers are those of
-// the lock button itself (lock-check.js, one function for both), so the agent's answer never disagrees with the button; the
-// warnings are what the bookkeeper may want to look at first. Locking stays the button of the journal and its confirmation.
+// ready_to_close (docs/AGENT_TOOLS.md, 5.5): can this month be locked, and what is in the way. Read only. The blockers are what the
+// lock shows in red (lock-check.js, one function for both; since step 9.3 they no longer stop it), so the agent's answer never
+// disagrees with the page; the warnings are what the bookkeeper may want to look at first. Locking stays the button of the journal
+// and its confirmation.
 import { ToolError } from "../errors.js";
 import { lockProblems } from "../../lock-check.js";
 import { pcnReview } from "../../pcn-review.js";
 
 export default {
   name: "ready_to_close",
-  description: "Check whether the declaration of one month of a client can be locked, and what is in the way: the blockers are exactly the refusals of the lock button (no active row; rows above the allocation ceiling of a PCN client that are not approved or have no allocation number), the warnings are rows still marked for review and files of this client still in the inbox. Read only: you cannot lock a month; the user locks it with the button \"נעילת הצהרה\" in the menu ⋯ of the journal.",
+  description: "Check whether the declaration of one month of a client can be locked, and what is in the way: the blockers are exactly what the lock shows in red (no active row; rows above the allocation ceiling of a PCN client that are not approved or have no allocation number), the warnings are rows still marked for review and files of this month still in the inbox. Read only: you cannot lock a month; the user locks it with the button \"נעילת הצהרה\" in the menu ⋯ of the journal, and the application closes it by itself when the user leaves it.",
   schema: {
     type: "object",
     required: ["client", "month"],
@@ -33,7 +34,7 @@ export default {
 
     const review = positions((row) => row.active !== false && row.statusClass === "review");
     const inbox = (await ctx.services.inbox.readIndex()).files;
-    const waiting = inbox.filter((entry) => entry.folder === client.folder).length;
+    const waiting = inbox.filter((entry) => entry.folder === client.folder && entry.month === args.month).length;
     const unsorted = inbox.filter((entry) => entry.folder === "_unsorted").length;
     const warnings = [
       ...(review.length ? [{ code: "rows_to_review", count: review.length, positions: review.slice(0, 50) }] : []),

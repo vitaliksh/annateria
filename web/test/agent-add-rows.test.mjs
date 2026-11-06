@@ -21,7 +21,7 @@ async function session(script, options = {}) {
   return { ...tools, handles, factsOf, levi: await tools.client("Levi") };
 }
 // What the model sends: a key that is undefined is not sent at all.
-const decision = (fact, extra = {}) => Object.fromEntries(Object.entries({ fact, routed_by: "vat_id", decision: "expense", account: "202", needs_review: false, reason: "חשבונית משרדית", ...extra }).filter(([, value]) => value !== undefined));
+const decision = (fact, extra = {}) => Object.fromEntries(Object.entries({ fact, decision: "expense", account: "202", needs_review: false, reason: "חשבונית משרדית", ...extra }).filter(([, value]) => value !== undefined));
 const tableOf = async (w, month = "2026-02") => (await loadDeclaration(w.levi.directory, month)).draft.rows;
 
 test("add_rows: an invoice for the client becomes a ready row at the end of the table, with everything copied from the fact", async () => {
@@ -38,7 +38,7 @@ test("add_rows: an invoice for the client becomes a ready row at the end of the 
   const row = rows[3];
   assert.deepEqual(row.values, ["20/02/26", "202", "paper", "Paper Shop", "512345679", "2002", "", "236.00", "200.00", "36.00", "100", "100"]);
   assert.deepEqual([row.active, row.statusText, row.statusClass, row.reference, row.documentKind, row.agentOpinion, row.confidence], [true, "מוכן לייצוא", "ready", "INV-2002", "expense_invoice", "חשבונית משרדית", "92%"]);
-  assert.deepEqual([row.agent.run, row.agent.version, row.agent.fact, row.agent.page, row.agent.reasons], [ctx.run.id, "base-2026-10-30a", fact, null, []]);
+  assert.deepEqual([row.agent.run, row.agent.version, row.agent.fact, row.agent.page, row.agent.reasons], [ctx.run.id, "base-2026-11-02a", fact, null, []]);
   assert.equal(row.agent.file.length, 64);
   assert.deepEqual(row.agent.skills, { classification: 3, "periods-and-duplicates": 2 }, "the version of every skill of the run is in the row (5.1)");
   assert.equal(ctx.handles.get("R", added.row).position, 4);
@@ -78,82 +78,47 @@ test("add_rows: the decision decides the status; an account outside the chart is
   ]);
 });
 
-test("add_rows: the proof of the client: the folder of the file, or the VAT number of the buyer; nothing else counts", async () => {
-  const { dispatch, factsOf, levi } = await session([[rawRecord()], [rawRecord({ buyer_vat_id: "999999990", document_number: "B-1" })]]);
-  const [photo] = await factsOf("photo.jpg"); // in _unsorted, the buyer is Levi
-  const [policy] = await factsOf("policy.pdf"); // in the folder of Levi, the buyer is someone else
-  const add = async (fact, routed_by) => (await dispatch("add_rows", { client: levi, rows: [decision(fact, { routed_by })] })).rows[0];
-  assert.equal((await add(policy, "folder")).state, "created", "the folder of the client");
-  const unsorted = await add(photo, "folder");
-  assert.deepEqual([unsorted.state, unsorted.error.code], ["rejected", "not_allowed"]);
-  assert.match(unsorted.error.message, /not in the inbox folder/, "_unsorted is no proof");
-  assert.equal((await add(photo, "vat_id")).state, "created", "the VAT number of the buyer");
+// Step 9.6: every document of the month becomes a row of the month; what the facts doubt marks the row, never moves or refuses it.
+test("add_rows: a buyer that is another business is written into the month and marked to look at; no buyer is no doubt", async () => {
+  const { w, dispatch, factsOf, levi } = await session([[rawRecord({ buyer_vat_id: "999999990", document_number: "B-1" }), rawRecord({ buyer_vat_id: null, document_number: "B-2" })]]);
+  const [other, none] = await factsOf("photo.jpg");
+  const rows = (await dispatch("add_rows", { client: levi, rows: [decision(other), decision(none)] })).rows;
+  assert.deepEqual(rows.map((row) => [row.state, row.month, row.status]), [["created", "2026-02", "review"], ["created", "2026-02", "ready"]]);
+  assert.deepEqual(rows[0].reasons, ["buyer_mismatch"]);
+  assert.match((await tableOf(w)).at(-2).agentOpinion, /המסמך מיועד לקונה אחר/);
 });
 
-test("add_rows: a buyer that is another business, or no buyer on the document, is no proof by VAT number", async () => {
-  const other = await session([[rawRecord({ buyer_vat_id: "999999990" })]]);
-  const [fact] = await other.factsOf("photo.jpg");
-  const wrong = (await other.dispatch("add_rows", { client: other.levi, rows: [decision(fact)] })).rows[0];
-  assert.deepEqual([wrong.state, wrong.error.code], ["rejected", "not_allowed"]);
-  assert.match(wrong.error.message, /the buyer's nor the supplier's VAT number/);
-  const noBuyer = await session([[rawRecord({ buyer_vat_id: null })]]);
-  const [lonely] = await noBuyer.factsOf("photo.jpg");
-  assert.equal((await noBuyer.dispatch("add_rows", { client: noBuyer.levi, rows: [decision(lonely)] })).rows[0].error.code, "not_allowed");
-});
-
-test("add_rows: routed by the user needs a question about this file, answered by a button that carries this client", async () => {
-  const click = (id) => ({ type: "option", id });
-  const { dispatch, factsOf, levi, client, files } = await session([[rawRecord({ buyer_vat_id: null })], [rawRecord({ buyer_vat_id: null, document_number: "X-2" })]], { answers: [click("levi"), { type: "dismissed" }, click("cohen")] });
-  const handles = await files();
-  const [photo] = await factsOf("photo.jpg");
+test("add_rows: writes only into the month of the run; a run without one, another client and a locked month are refused", async () => {
+  const { dispatch, factsOf, levi, client, ctx, w } = await session([[rawRecord({ document_number: "S-1" }), rawRecord({ document_number: "S-2" })]]);
+  const [one, two] = await factsOf("photo.jpg");
   const cohen = await client("Cohen");
-  const ask = async (file, question) => (await dispatch("ask_user", {
-    question, allow_other: false, about: { files: [file] },
-    options: [{ id: "levi", label: "Levi", client: levi }, { id: "cohen", label: "Cohen", client: cohen }],
-  })).ask;
-  const forLevi = await ask(handles["photo.jpg"], "Whose is this?");
-  const row = (extra = {}) => ({ client: levi, rows: [decision(photo, { routed_by: "user", ...extra })] });
-  assert.equal((await dispatch("add_rows", row({ routing_ask: forLevi }))).rows[0].state, "created", "the user clicked Levi");
-
-  const [second] = await factsOf("policy.pdf");
-  const dismissed = await ask(handles["policy.pdf"], "Fourth?");
-  const forCohen = await ask(handles["policy.pdf"], "And this one?");
-  const refused = (await dispatch("add_rows", { client: levi, rows: [decision(second, { routed_by: "user", routing_ask: forCohen })] })).rows[0];
-  assert.deepEqual([refused.state, refused.error.code, refused.error.message], ["rejected", "not_allowed", "The user did not choose this client for this file."]);
-  assert.match((await dispatch("add_rows", { client: levi, rows: [decision(second, { routed_by: "user", routing_ask: forLevi })] })).rows[0].error.message, /not about the file/);
-  assert.match((await dispatch("add_rows", { client: levi, rows: [decision(second, { routed_by: "user", routing_ask: dismissed })] })).rows[0].error.message, /not answered with a button/);
-  assert.equal((await dispatch("add_rows", { client: levi, rows: [decision(second, { routed_by: "user" })] })).rows[0].error.code, "invalid_argument", "routing_ask is required");
-  assert.equal((await dispatch("add_rows", { client: levi, rows: [decision(second, { routed_by: "user", routing_ask: "Q99" })] })).rows[0].error.code, "not_found");
+  const foreign = (await dispatch("add_rows", { client: cohen, rows: [decision(one)] })).rows[0];
+  assert.deepEqual([foreign.state, foreign.error.code], ["rejected", "not_allowed"]);
+  assert.match(foreign.error.message, /only into the open month 2026-02/);
+  ctx.scope = null;
+  const unscoped = (await dispatch("add_rows", { client: levi, rows: [decision(one)] })).rows[0];
+  assert.deepEqual([unscoped.state, unscoped.error.code], ["rejected", "not_allowed"]);
+  assert.match(unscoped.error.message, /No month is open/);
+  ctx.scope = { ...w.scope, month: "2026-01" };
+  const locked = (await dispatch("add_rows", { client: levi, rows: [decision(two)] })).rows[0];
+  assert.deepEqual([locked.state, locked.error.code], ["rejected", "locked"]);
+  assert.equal((await tableOf(w, "2026-01")).length, 1, "the locked month is untouched");
+  assert.equal((await tableOf(w)).length, 3);
 });
 
-test("ask_user: one question for several files routes all of them; the same files are never asked about twice", async () => {
-  const { dispatch, factsOf, levi, handles, client, ui } = await session([[rawRecord({ buyer_vat_id: null })], [rawRecord({ buyer_vat_id: null, document_number: "X-2" })]], { answers: [{ type: "option", id: "levi" }] });
-  const [photo] = await factsOf("photo.jpg");
-  const [policy] = await factsOf("policy.pdf");
-  const cohen = await client("Cohen");
-  const both = [handles["photo.jpg"], handles["policy.pdf"]];
-  const options = [{ id: "levi", label: "Levi", client: levi }, { id: "cohen", label: "Cohen", client: cohen }];
-  const first = await dispatch("ask_user", { question: "Whose are these?", options, allow_other: false, about: { files: both } });
-  assert.equal(ui.cards.length, 1);
-  assert.deepEqual(ui.cards[0].about.files.map((file) => file.file), both);
-  for (const fact of [photo, policy]) {
-    assert.equal((await dispatch("add_rows", { client: levi, rows: [decision(fact, { routed_by: "user", routing_ask: first.ask })] })).rows[0].state, "created");
-  }
-  // Another wording, one of the files, or both again: the user is not asked, the earlier answer comes back.
-  const again = await dispatch("ask_user", { question: "And the second one?", options, allow_other: false, about: { files: [handles["policy.pdf"]] } });
-  const twice = await dispatch("ask_user", { question: "Please confirm", options, allow_other: false, about: { files: both } });
-  assert.equal(ui.cards.length, 1, "no second card");
-  assert.deepEqual([again.ask, again.already_answered, twice.ask, twice.already_answered], [first.ask, true, first.ask, true]);
-});
-
-test("ask_user: a file that was dismissed or answered with a typed text is asked about again", async () => {
-  const { dispatch, handles, levi, ui } = await session([[rawRecord()]], { answers: [{ type: "dismissed" }, { type: "option", id: "levi" }] });
-  const options = [{ id: "levi", label: "Levi", client: levi }, { id: "x", label: "X" }];
-  const about = { files: [handles["photo.jpg"]] };
-  await dispatch("ask_user", { question: "First?", options, allow_other: false, about });
-  const second = await dispatch("ask_user", { question: "Second?", options, allow_other: false, about });
-  assert.equal(ui.cards.length, 2);
-  assert.equal(second.already_answered, undefined);
+test("the services refuse a write outside the month of the run, whatever the tool asks (step 9.6)", async () => {
+  const w = await world();
+  const row = { documentId: "x", values: [] };
+  await assert.rejects(() => w.services.rows.append("id-Levi", "2026-03", [row]), /Only the open month/);
+  await assert.rejects(() => w.services.rows.append("id-Pcn", "2026-02", [row]), /Only the open month/);
+  await assert.rejects(() => w.services.rows.attachImage("id-Pcn", "2026-02", "hash", { imageFile: "001.jpg", imageIndex: 1 }), /Only the open month/);
+  await assert.rejects(() => w.services.declarations.create("id-Levi", "2026-03"), /Only the open month/);
+  const entry = (await readInboxIndex(w.root)).files[0];
+  await assert.rejects(() => w.services.files.copyToDeclaration(entry, "id-Pcn", "2026-02"), /Only the open month/);
+  const unscoped = await world({ scope: null });
+  await assert.rejects(() => unscoped.services.rows.append("id-Levi", "2026-02", [row]), /Only the open month/);
+  assert.equal((await tableOf({ levi: w.levi })).length, 3);
+  assert.deepEqual(await w.services.rows.append("id-Levi", "2026-02", [row]), [4], "the month of the run takes it");
 });
 
 test("add_rows: the same document as a row of the table is added as an inactive duplicate with its reason", async () => {
@@ -166,58 +131,27 @@ test("add_rows: the same document as a row of the table is added as an inactive 
   assert.match(row.agentOpinion, /לבדיקה: .*כפילות/);
 });
 
-test("add_rows: a document of the previous year is an inactive row; one of a filed month goes to the first open month", async () => {
+test("add_rows: a document of the previous year is an inactive row; one of a filed month stays in the month of the run", async () => {
   const { w, dispatch, factsOf, levi } = await session([[rawRecord({ date: "2025-12-20", document_number: "OLD-1" })], [rawRecord({ date: "2026-01-10", document_number: "JAN-1" })]]);
   const [old] = await factsOf("photo.jpg");
   const [jan] = await factsOf("policy.pdf");
   const first = (await dispatch("add_rows", { client: levi, rows: [decision(old)] })).rows[0];
   assert.deepEqual([first.excluded, first.status], ["previous-year", "review"]);
-  const second = (await dispatch("add_rows", { client: levi, rows: [decision(jan, { routed_by: "vat_id" })] })).rows[0];
-  assert.deepEqual([second.state, second.month, second.excluded], ["moved_month", "2026-02", null]);
+  const second = (await dispatch("add_rows", { client: levi, rows: [decision(jan)] })).rows[0];
+  assert.deepEqual([second.state, second.month, second.excluded, second.status], ["created", "2026-02", null, "ready"]);
   assert.equal((await tableOf(w, "2026-01")).length, 1, "the filed month is untouched");
   assert.equal((await tableOf(w)).length, 5);
 });
 
-test("add_rows: a month after the last filed one that has no declaration yet gets one, open, and the sidebar is told", async () => {
-  const created = [];
-  const w = await world({ extraction: scriptedExtraction([answers(rawRecord({ date: "2026-03-05", document_number: "MAR-1" }))]) });
-  const services = createServices({
-    getDataRoot: () => w.root, getClients: () => w.clients, extraction: scriptedExtraction([answers(rawRecord({ date: "2026-03-05", document_number: "MAR-1" }))]),
-    onDeclarationCreated: (clientId, month) => created.push([clientId, month]),
-  });
-  const ctx = createContext({ services, ui: recordingUi() });
-  const registry = createDefaultRegistry();
-  const run = (name, args) => registry.dispatch({ name, args }, ctx);
-  const photo = (await run("list_inbox", { kind: "image" })).files[0].file;
-  const fact = (await run("extract_document", { file: photo })).documents[0].fact;
-  const levi = (await run("find_client", { name: "Levi" })).matches[0].client;
-  const [added] = (await run("add_rows", { client: levi, rows: [decision(fact)] })).rows;
-  assert.deepEqual([added.state, added.month, added.position], ["created", "2026-03", 1], "the month of the document itself, so it was not moved");
-  assert.deepEqual(created, [["id-Levi", "2026-03"]]);
-  const list = await listDeclarations(w.levi.directory);
-  assert.deepEqual(list.map((item) => [item.declaration.month, item.declaration.status]).sort(), [["2026-01", "closed"], ["2026-02", "open"], ["2026-03", "open"]]);
-  assert.equal((await loadDeclaration(w.levi.directory, "2026-03")).draft.rows.length, 1);
-  assert.equal((await listPaths(w.root)).filter((path) => path.includes("declarations/2026-03/draft-table.before-agent-")).length, 1, "the new table is copied too");
-});
-
-test("add_rows: the month the user chose with a button, and nothing else", async () => {
-  const click = (id) => ({ type: "option", id });
-  const { w, dispatch, factsOf, levi, files } = await session([[rawRecord({ date: "2026-02-20" })]], { answers: [click("march"), click("jan")] });
-  const handles = await files();
+test("add_rows: a document dated after the month is written into the month and marked to look at; no month is made", async () => {
+  const { w, dispatch, factsOf, levi } = await session([[rawRecord({ date: "2026-03-05", document_number: "MAR-1" })]]);
   const [fact] = await factsOf("photo.jpg");
-  const options = [{ id: "march", label: "03/2026", month: "2026-03" }, { id: "jan", label: "01/2026", month: "2026-01" }];
-  const march = (await dispatch("ask_user", { question: "Which month?", options, allow_other: false, about: { files: [handles["photo.jpg"]] } })).ask;
-  const wrongMonth = (await dispatch("add_rows", { client: levi, rows: [decision(fact, { month_override: { month: "2026-04", ask: march } })] })).rows[0];
-  assert.deepEqual([wrongMonth.state, wrongMonth.error.message], ["rejected", "The user did not choose this month for this file."]);
-  const done = (await dispatch("add_rows", { client: levi, rows: [decision(fact, { month_override: { month: "2026-03", ask: march } })] })).rows[0];
-  assert.deepEqual([done.state, done.month], ["moved_month", "2026-03"]);
-  assert.equal((await tableOf(w, "2026-03")).length, 1);
-
-  const { dispatch: again, factsOf: more, levi: client, files: filesOf } = await session([[rawRecord({ document_number: "J-1" })]], { answers: [click("jan")] });
-  const [jan] = await more("photo.jpg");
-  const ask = (await again("ask_user", { question: "Which month?", options, allow_other: false, about: { files: [(await filesOf())["photo.jpg"]] } })).ask;
-  const locked = (await again("add_rows", { client, rows: [decision(jan, { month_override: { month: "2026-01", ask } })] })).rows[0];
-  assert.deepEqual([locked.state, locked.error.code], ["rejected", "locked"]);
+  const [added] = (await dispatch("add_rows", { client: levi, rows: [decision(fact)] })).rows;
+  assert.deepEqual([added.state, added.month, added.position, added.status], ["created", "2026-02", 4, "review"]);
+  assert.deepEqual(added.reasons, ["doc_after_month"]);
+  assert.match((await tableOf(w)).at(-1).agentOpinion, /תאריך המסמך אחרי חודש ההצהרה/);
+  assert.deepEqual((await listDeclarations(w.levi.directory)).map((item) => item.declaration.month).sort(), ["2026-01", "2026-02"]);
+  assert.equal((await dispatch("add_rows", { client: levi, rows: [{ ...decision(fact), month_override: { month: "2026-03", ask: "Q1" } }] })).error.code, "invalid_argument", "no month can be asked for");
 });
 
 test("add_rows: a second call for the same fact changes nothing; a second copy of a document in the same run is a duplicate", async () => {
@@ -228,7 +162,7 @@ test("add_rows: a second call for the same fact changes nothing; a second copy o
   const again = (await dispatch("add_rows", { client: levi, rows: [decision(one)] })).rows[0];
   assert.deepEqual([again.state, again.row, again.month, again.position], ["already_added", first.row, first.month, first.position]);
   assert.equal((await tableOf(w)).length, 4);
-  const copy = (await dispatch("add_rows", { client: levi, rows: [decision(two, { routed_by: "folder" })] })).rows[0];
+  const copy = (await dispatch("add_rows", { client: levi, rows: [decision(two)] })).rows[0];
   assert.deepEqual([copy.excluded, copy.status], ["duplicate", "review"]);
   assert.equal((await tableOf(w)).length, 5, "the copy is kept as an inactive row");
 });
@@ -244,11 +178,11 @@ test("add_rows: the groups of one invoice share one documentId and are not dupli
 });
 
 test("add_rows: a bad row does not stop the others; unknown handles are refused in place", async () => {
-  const { dispatch, factsOf, levi } = await session([[rawRecord({ document_number: "G-1" }), rawRecord({ buyer_vat_id: "999999990", document_number: "G-2" })]]);
-  const [good, wrong] = await factsOf("photo.jpg");
-  const result = await dispatch("add_rows", { client: levi, rows: [decision(wrong), decision("F9.9"), decision(good)] });
-  assert.deepEqual(result.rows.map((row) => row.state), ["rejected", "rejected", "created"]);
-  assert.equal(result.rows[1].error.code, "not_found");
+  const { dispatch, factsOf, levi } = await session([[rawRecord({ document_number: "G-1" })]]);
+  const [good] = await factsOf("photo.jpg");
+  const result = await dispatch("add_rows", { client: levi, rows: [decision("F9.9"), decision(good)] });
+  assert.deepEqual(result.rows.map((row) => row.state), ["rejected", "created"]);
+  assert.equal(result.rows[0].error.code, "not_found");
   assert.equal((await dispatch("add_rows", { client: "C99", rows: [decision(good)] })).error.code, "not_found");
   assert.equal((await dispatch("add_rows", { client: levi, rows: [] })).error.code, "invalid_argument");
   assert.equal((await dispatch("add_rows", { client: levi, rows: Array.from({ length: 41 }, () => decision(good)) })).error.code, "invalid_argument");
@@ -258,7 +192,7 @@ test("add_rows: a bad row does not stop the others; unknown handles are refused 
 test("add_rows: when the table cannot be copied, nothing is written", async () => {
   const w = await world({ extraction: scriptedExtraction([answers(rawRecord())]) });
   const services = Object.freeze({ ...w.services, tables: Object.freeze({ copyBeforeAgent: async () => { throw new Error("disk full"); } }) });
-  const ctx = createContext({ services, ui: recordingUi() });
+  const ctx = createContext({ services, ui: recordingUi(), scope: w.scope });
   const registry = createDefaultRegistry();
   const run = (name, args) => registry.dispatch({ name, args }, ctx);
   const photo = (await run("list_inbox", { kind: "image" })).files[0].file;
@@ -291,16 +225,16 @@ async function withRow(records, extra = {}, rowOptions = {}) {
 
 test("move_file_to_declaration: the original is copied into the images, the rows get it, and the file leaves the inbox", async () => {
   const { w, dispatch, levi, handles, ctx } = await withRow([[rawRecord()]]);
-  const result = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"], client: levi, months: ["2026-02"] });
+  const result = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"] });
   assert.deepEqual(result, { ok: true, file: handles["photo.jpg"], state: "filed", images: [{ month: "2026-02", image_file: "001.jpg" }], rows: 1, inbox_removed: true });
   assert.equal(new TextDecoder().decode(await readFileBytes(w.root, "clients/Levi/declarations/2026-02/images/001.jpg")), "jpeg-bytes");
   const row = (await tableOf(w)).at(-1);
   assert.deepEqual([row.imageFile, row.imageIndex], ["001.jpg", 1]);
   assert.equal((await readInboxIndex(w.root)).files.some((entry) => entry.name === "photo.jpg"), false);
-  assert.equal((await listPaths(w.root)).includes("inbox/_unsorted/photo.jpg"), false);
+  assert.equal((await listPaths(w.root)).includes("inbox/Levi/photo.jpg"), false);
   assert.equal(ctx.run.fileStatus.get(handles["photo.jpg"]), "filed");
   assert.equal((await dispatch("list_inbox", { status: "filed" })).files.length, 0, "the file is gone from the list");
-  const again = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"], client: levi, months: ["2026-02"] });
+  const again = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"] });
   assert.deepEqual([again.ok, again.state], [true, "already_filed"]);
 });
 
@@ -309,46 +243,42 @@ test("move_file_to_declaration: the number continues after the images of the mon
   await tools.w.putFile("clients/Levi/declarations/2026-02/images/003.jpg", "old");
   await tools.w.putFile("clients/Levi/declarations/2026-02/images/source-2026-10-13T15-17-12.pdf", "legacy");
   const [fact] = await tools.factsOf("policy.pdf");
-  await tools.dispatch("add_rows", { client: tools.levi, rows: [decision(fact, { routed_by: "folder" })] });
-  const result = await tools.dispatch("move_file_to_declaration", { file: tools.handles["policy.pdf"], client: tools.levi, months: ["2026-02"] });
+  await tools.dispatch("add_rows", { client: tools.levi, rows: [decision(fact)] });
+  const result = await tools.dispatch("move_file_to_declaration", { file: tools.handles["policy.pdf"] });
   assert.deepEqual(result.images, [{ month: "2026-02", image_file: "004.pdf" }]);
   assert.deepEqual((await tableOf(tools.w)).at(-1).imageIndex, 4);
 });
 
-test("move_file_to_declaration: a file with no row made in this run is not moved; the months must be exactly those that hold rows", async () => {
-  const { dispatch, levi, handles, w } = await session([[rawRecord()]]);
-  assert.equal((await dispatch("move_file_to_declaration", { file: handles["photo.jpg"], client: levi, months: ["2026-02"] })).error.code, "conflict");
+test("move_file_to_declaration: a file with no row made in this run is not moved; documents of two months share one image of the month", async () => {
+  const { dispatch, handles, w } = await session([[rawRecord()]]);
+  assert.equal((await dispatch("move_file_to_declaration", { file: handles["photo.jpg"] })).error.code, "conflict");
   assert.equal((await readInboxIndex(w.root)).files.length, 3);
 
-  const two = await session([[rawRecord({ date: "2026-02-20", document_number: "A-1" }), rawRecord({ date: "2026-03-05", document_number: "A-2", page: 2 })]]);
+  const two = await session([[rawRecord({ date: "2026-02-20", document_number: "A-1" }), rawRecord({ date: "2026-01-05", document_number: "A-2", page: 2 })]]);
   const facts = await two.factsOf("photo.jpg");
   await two.dispatch("add_rows", { client: two.levi, rows: facts.map((fact) => decision(fact)) });
-  const move = (months) => two.dispatch("move_file_to_declaration", { file: two.handles["photo.jpg"], client: two.levi, months });
-  const missing = await move(["2026-02"]);
-  assert.deepEqual([missing.error.code, missing.error.message], ["invalid_argument", "Rows of this file are also in 2026-03: give all the months."]);
-  assert.equal((await move(["2026-02", "2026-03", "2026-05"])).error.code, "conflict");
-  assert.equal((await move(["2026-2"])).error.code, "invalid_argument");
-  const done = await move(["2026-03", "2026-02"]);
-  assert.deepEqual([done.state, done.images.map((image) => image.month).sort(), done.rows], ["filed", ["2026-02", "2026-03"], 2]);
-  assert.equal(new TextDecoder().decode(await readFileBytes(two.w.root, "clients/Levi/declarations/2026-03/images/001.jpg")), "jpeg-bytes");
+  assert.equal((await two.dispatch("move_file_to_declaration", { file: two.handles["photo.jpg"], months: ["2026-01"] })).error.code, "invalid_argument", "no month can be given");
+  const done = await two.dispatch("move_file_to_declaration", { file: two.handles["photo.jpg"] });
+  assert.deepEqual([done.state, done.images, done.rows], ["filed", [{ month: "2026-02", image_file: "001.jpg" }], 2]);
+  assert.equal((await listPaths(two.w.root)).some((path) => path.startsWith("clients/Levi/declarations/2026-01/images/")), false);
 });
 
 test("move_file_to_declaration: a failure leaves the original in the inbox; a file that changed since it was indexed is refused", async () => {
   const { dispatch, levi, handles, w, ctx } = await withRow([[rawRecord()]]);
   const real = ctx.services;
   ctx.services = { ...real, files: { ...real.files, copyToDeclaration: async () => { throw new Error("disk full"); } } };
-  const failed = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"], client: levi, months: ["2026-02"] });
+  const failed = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"] });
   assert.deepEqual([failed.ok, failed.error.code], [false, "unavailable"]);
-  assert.equal((await listPaths(w.root)).includes("inbox/_unsorted/photo.jpg"), true);
+  assert.equal((await listPaths(w.root)).includes("inbox/Levi/photo.jpg"), true);
   assert.notEqual(ctx.run.fileStatus.get(handles["photo.jpg"]), "filed");
 
   ctx.services = { ...real, rows: { ...real.rows, attachImage: async () => { throw new Error("cannot save"); } } };
-  assert.equal((await dispatch("move_file_to_declaration", { file: handles["photo.jpg"], client: levi, months: ["2026-02"] })).error.code, "unavailable");
-  assert.equal((await listPaths(w.root)).includes("inbox/_unsorted/photo.jpg"), true, "the rows could not get the image, so the original stays");
+  assert.equal((await dispatch("move_file_to_declaration", { file: handles["photo.jpg"] })).error.code, "unavailable");
+  assert.equal((await listPaths(w.root)).includes("inbox/Levi/photo.jpg"), true, "the rows could not get the image, so the original stays");
 
   ctx.services = real;
-  await putFile(w.root, "inbox/_unsorted/photo.jpg", new TextEncoder().encode("changed on disk"));
-  const changed = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"], client: levi, months: ["2026-02"] });
+  await putFile(w.root, "inbox/Levi/photo.jpg", new TextEncoder().encode("changed on disk"));
+  const changed = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"] });
   assert.equal(changed.error.code, "unavailable");
   assert.equal((await readInboxIndex(w.root)).files.some((entry) => entry.name === "photo.jpg"), true);
 });
@@ -357,9 +287,9 @@ test("move_file_to_declaration: a file taken out of the inbox during the run is 
   // 25 Oct 2026: two PDFs were moved to the trash while the run waited for an answer; the rows were made, the move then said
   // "it stays in the inbox", which was not true.
   const { w, dispatch, levi, handles } = await withRow([[rawRecord()]]);
-  const folder = await (await w.root.getDirectoryHandle("inbox")).getDirectoryHandle("_unsorted");
+  const folder = await (await w.root.getDirectoryHandle("inbox")).getDirectoryHandle("Levi");
   await folder.removeEntry("photo.jpg");
-  const result = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"], client: levi, months: ["2026-02"] });
+  const result = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"] });
   assert.deepEqual([result.ok, result.error.code], [false, "not_found"]);
   assert.match(result.error.message, /no longer in the inbox/);
   assert.doesNotMatch(result.error.message, /stays in the inbox/);
@@ -370,7 +300,7 @@ test("move_file_to_declaration: for the open table the page gives the rows their
   const attached = [];
   const live = { clientId: "id-Levi", month: "2026-02", rows: [], append: async (s) => s.map((_, i) => 4 + i), flush: async () => {}, attachImage: async (info) => { attached.push(info); return 1; } };
   const { dispatch, levi, handles } = await withRow([[rawRecord()]], { liveTable: () => live });
-  const result = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"], client: levi, months: ["2026-02"] });
+  const result = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"] });
   assert.deepEqual([result.state, result.rows], ["filed", 1]);
   assert.deepEqual(attached, [{ fileHash: sha("jpeg-bytes"), imageFile: "001.jpg", imageIndex: 1 }]);
 });
@@ -385,10 +315,10 @@ test("a whole run: list, read, find the client, check, add the row, file the ori
     (request) => reply(call("extract_document", { file: last(request, "list_inbox").files[0].file }), call("find_client", { name: "Levi" })),
     (request) => reply(call("facts_for", { fact: last(request, "extract_document").documents[0].fact, client: last(request, "find_client").matches[0].client })),
     (request) => reply(call("add_rows", { client: "C1", rows: [decision("F1.1", { reason: "חשבונית משרדית של הלקוח", needs_review: last(request, "facts_for").suggested_status !== "ready" })] })),
-    () => reply(call("move_file_to_declaration", { file: "F1", client: "C1", months: ["2026-02"] })),
+    () => reply(call("move_file_to_declaration", { file: "F1" })),
     (request) => reply(say(`added ${last(request, "move_file_to_declaration").state}`)),
   ]);
-  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, ui: recordingUi() });
+  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, scope: w.scope, ui: recordingUi() });
   assert.deepEqual([result.status, result.text], ["completed", "added filed"]);
   assert.deepEqual(result.added, [{ clientId: "id-Levi", month: "2026-02", count: 1 }], "the result says where the rows went");
   const rows = (await loadDeclaration(w.levi.directory, "2026-02")).draft.rows;
@@ -406,10 +336,10 @@ test("a whole run says how many of the rows of each month are to look at (the pa
     reply(call("list_inbox", { kind: "image" })),
     (request) => reply(call("extract_document", { file: last(request, "list_inbox").files[0].file }), call("find_client", { name: "Levi" })),
     () => reply(call("add_rows", { client: "C1", rows: [decision("F1.1", { reason: "לא ברור", needs_review: true })] })),
-    () => reply(call("move_file_to_declaration", { file: "F1", client: "C1", months: ["2026-02"] })),
+    () => reply(call("move_file_to_declaration", { file: "F1" })),
     () => reply(say("done")),
   ]);
-  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, ui: recordingUi() });
+  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, scope: w.scope, ui: recordingUi() });
   assert.deepEqual(result.added, [{ clientId: "id-Levi", month: "2026-02", count: 1, review: 1 }]);
 });
 
@@ -422,11 +352,11 @@ test("a whole run: two moves called in one turn are done one after the other; bo
   const model = scriptedModel([
     reply(call("list_inbox", {})),
     (request) => reply(...last(request, "list_inbox")[0].files.filter((file) => file.kind !== "spreadsheet").map((file) => call("extract_document", { file: file.file })), call("find_client", { name: "Levi" })),
-    (request) => reply(call("add_rows", { client: last(request, "find_client")[0].matches[0].client, rows: (read = last(request, "extract_document")).map((item) => decision(item.documents[0].fact, { routed_by: "vat_id" })) })),
-    (request) => reply(...read.map((item) => call("move_file_to_declaration", { file: item.file, client: "C1", months: ["2026-02"] }))),
+    (request) => reply(call("add_rows", { client: last(request, "find_client")[0].matches[0].client, rows: (read = last(request, "extract_document")).map((item) => decision(item.documents[0].fact)) })),
+    (request) => reply(...read.map((item) => call("move_file_to_declaration", { file: item.file }))),
     (request) => reply(say(last(request, "move_file_to_declaration").map((item) => item.state).join(","))),
   ]);
-  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, ui: recordingUi() });
+  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, scope: w.scope, ui: recordingUi() });
   assert.deepEqual([result.status, result.error, result.text], ["completed", undefined, "filed,filed"]);
   const rows = (await loadDeclaration(w.levi.directory, "2026-02")).draft.rows.filter((row) => row.agent?.run === result.runId);
   assert.ok(rows.length === 2 && rows.every((row) => row.imageFile), "every row of the run has its picture");
@@ -445,12 +375,12 @@ test("a run that filed a file says which files it left in the inbox, from the ru
     reply(call("list_inbox", {})),
     (request) => reply(call("extract_document", { file: (photo = last(request, "list_inbox").files.find((file) => file.name === "photo.jpg").file) }), call("find_client", { name: "Levi" })),
     (request) => reply(call("add_rows", { client: last(request, "find_client").matches[0].client, rows: [decision(last(request, "extract_document").documents[0].fact)] })),
-    () => reply(call("move_file_to_declaration", { file: photo, client: "C1", months: ["2026-02"] })),
+    () => reply(call("move_file_to_declaration", { file: photo })),
     () => reply(say("everything is processed")),
   ]);
   const ids = (await (await import("../inbox-store.js")).readInboxIndex(w.root)).files.map((file) => file.name);
   assert.ok(ids.includes("photo.jpg") && ids.includes("policy.pdf") && ids.includes("journal.xlsx"));
-  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, ui: recordingUi() });
+  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, scope: w.scope, ui: recordingUi() });
   assert.deepEqual([result.status, result.text], ["completed", "everything is processed"]);
   assert.deepEqual(result.left.map((file) => file.name), ["policy.pdf"], "the spreadsheet is not counted, the filed photo is gone");
 });
@@ -460,13 +390,13 @@ test("a run that did no work on files reports nothing as left", async () => {
   const { scriptedModel, reply, say } = await import("./agent-fixtures.mjs");
   const w = await world();
   const model = scriptedModel([reply(call("list_inbox", {})), reply(say("three files wait"))]);
-  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "what is left", services: w.services, ui: recordingUi() });
+  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "what is left", services: w.services, scope: w.scope, ui: recordingUi() });
   assert.equal(result.left, undefined);
 });
 
 test("extract_document: a file that is listed but gone from its folder is named as missing, not as unreadable", async () => {
   const { w, dispatch, handles } = await session([[rawRecord()]]);
-  const folder = await (await w.root.getDirectoryHandle("inbox")).getDirectoryHandle("_unsorted");
+  const folder = await (await w.root.getDirectoryHandle("inbox")).getDirectoryHandle("Levi");
   await folder.removeEntry("photo.jpg");
   const result = await dispatch("extract_document", { file: handles["photo.jpg"] });
   assert.deepEqual([result.ok, result.error.code], [false, "not_found"]);
@@ -475,14 +405,14 @@ test("extract_document: a file that is listed but gone from its folder is named 
 
 // Anna, 25 October 2026: every document that came in must be in the table, even with missing or doubtful fields; she decides.
 test("move_file_to_declaration: a document of the file that got no row gets one before the file is filed, inactive and to look at", async () => {
-  // As in the owner's run: two documents of one scan, the second rejected (no buyer VAT number) and never added again.
+  // As in the owner's run: two documents of one scan, the agent added only the first.
   const { w, dispatch, levi, handles, factsOf } = await session([[
     rawRecord({ document_number: "S-1", page: 1 }), rawRecord({ document_number: "S-2", page: 2, buyer_vat_id: null, supplier_name: "Fuel" }),
   ]]);
   const facts = await factsOf("photo.jpg");
-  const added = await dispatch("add_rows", { client: levi, rows: facts.map((fact) => decision(fact)) });
-  assert.deepEqual(added.rows.map((row) => row.state), ["created", "rejected"]);
-  const result = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"], client: levi, months: ["2026-02"] });
+  const added = await dispatch("add_rows", { client: levi, rows: [decision(facts[0])] });
+  assert.deepEqual(added.rows.map((row) => row.state), ["created"]);
+  const result = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"] });
   assert.deepEqual([result.ok, result.state, result.rows], [true, "filed", 2]);
   assert.deepEqual(result.added_for_review.map((item) => [item.fact, item.month]), [[facts[1], "2026-02"]]);
   const rows = (await tableOf(w)).slice(-2);
@@ -495,27 +425,17 @@ test("move_file_to_declaration: a document of the file that got no row gets one 
   assert.equal((await readInboxIndex(w.root)).files.some((entry) => entry.name === "photo.jpg"), false);
 });
 
-test("move_file_to_declaration: a document left out goes to the month of the file's rows when its own month is locked", async () => {
+test("move_file_to_declaration: a document left out goes into the month of the run, also when its date is in a locked month", async () => {
   const { w, dispatch, levi, handles, factsOf } = await session([[
     rawRecord({ document_number: "M-1" }), rawRecord({ document_number: "M-2", date: "2026-01-12", buyer_vat_id: null }),
   ]]);
   const facts = await factsOf("photo.jpg");
   await dispatch("add_rows", { client: levi, rows: [decision(facts[0])] });
-  const result = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"], client: levi, months: ["2026-02"] });
+  const result = await dispatch("move_file_to_declaration", { file: handles["photo.jpg"] });
   assert.equal(result.state, "filed");
   assert.deepEqual(result.added_for_review.map((item) => item.month), ["2026-02"]);
   assert.equal((await tableOf(w)).at(-1).reference, "M-2");
   assert.equal((await loadDeclaration(w.levi.directory, "2026-01")).draft.rows.length, 1, "the locked month is untouched");
-});
-
-test("add_rows: same_file proves the client of a document when another document of the same file already went to that client", async () => {
-  const { dispatch, levi, factsOf } = await session([[rawRecord({ document_number: "A-1" }), rawRecord({ document_number: "A-2", buyer_vat_id: null })]]);
-  const facts = await factsOf("photo.jpg");
-  const early = await dispatch("add_rows", { client: levi, rows: [decision(facts[1], { routed_by: "same_file" })] });
-  assert.equal(early.rows[0].state, "rejected", "no other document of the file has a row yet");
-  await dispatch("add_rows", { client: levi, rows: [decision(facts[0])] });
-  const late = await dispatch("add_rows", { client: levi, rows: [decision(facts[1], { routed_by: "same_file" })] });
-  assert.deepEqual([late.rows[0].state, late.rows[0].status], ["created", "ready"]);
 });
 
 test("a whole run: a file with rows that the model never filed is filed by the app at the end, with its left-out documents", async () => {
@@ -529,7 +449,7 @@ test("a whole run: a file with rows that the model never filed is filed by the a
     (request) => reply(call("add_rows", { client: "C1", rows: [decision(last(request, "extract_document").documents[0].fact)] })),
     () => reply(say("done")),
   ]);
-  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, ui: recordingUi() });
+  const result = await runAgent({ model, system: "s", registry: createDefaultRegistry(), message: "go", services: w.services, scope: w.scope, ui: recordingUi() });
   assert.equal(result.status, "completed");
   assert.deepEqual(result.filedByApp, [{ name: "photo.jpg", rows: 2, addedForReview: 1 }]);
   assert.equal((result.left ?? []).some((file) => file.name === "photo.jpg"), false);
@@ -538,14 +458,13 @@ test("a whole run: a file with rows that the model never filed is filed by the a
   assert.ok(result.log.entries.some((entry) => entry.kind === "tool" && entry.name === "move_file_to_declaration" && entry.byApp));
 });
 
-// 26 October 2026: the client's own receipts (she is the supplier, the buyer is her patient) were asked about and then filed
-// under another client by a wrong click. A document the client issued is the client's: vat_id proves it by the supplier.
-test("add_rows: vat_id proves the client by the supplier's VAT number on a document the client issued", async () => {
-  const own = rawRecord({ document_number: "R-4887", supplier_name: "Levi Plumbing", supplier_vat_id: "514123456", buyer_name: "A patient", buyer_vat_id: null });
-  const other = rawRecord({ document_number: "X-1", supplier_vat_id: "512345679", buyer_vat_id: null });
+// 26 October 2026: the client's own receipts (she is the supplier, the buyer is her patient). A document the client issued names its
+// customer as the buyer, which is no doubt; another buyer on a document of someone else is.
+test("add_rows: a document the client issued is no buyer mismatch; another buyer on another's document is", async () => {
+  const own = rawRecord({ document_number: "R-4887", supplier_name: "Levi Plumbing", supplier_vat_id: "514123456", buyer_name: "A patient", buyer_vat_id: "039123453" });
+  const other = rawRecord({ document_number: "X-1", supplier_vat_id: "512345679", buyer_vat_id: "039123453" });
   const { dispatch, levi, factsOf } = await session([[own, other]]);
   const [mine, foreign] = await factsOf("photo.jpg");
   const result = await dispatch("add_rows", { client: levi, rows: [decision(mine), decision(foreign)] });
-  assert.equal(result.rows[0].state, "created");
-  assert.deepEqual([result.rows[1].state, result.rows[1].error.code], ["rejected", "not_allowed"], "neither the buyer nor the supplier is the client");
+  assert.deepEqual(result.rows.map((row) => [row.state, row.reasons.includes("buyer_mismatch")]), [["created", false], ["created", true]]);
 });

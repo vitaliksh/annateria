@@ -2,6 +2,10 @@
   "name": "private-purchase",
   "about": "A supermarket receipt of household food for an office client is not a ready expense.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",
@@ -72,7 +76,6 @@
   "inbox": [
     {
       "name": "super.jpg",
-      "folder": "Levi",
       "records": [
         {
           "kind": "expense_invoice",

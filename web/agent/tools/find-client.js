@@ -1,5 +1,5 @@
-// find_client (docs/AGENT_TOOLS.md, 5.1): which client a document is for. Only a VAT number, or an alias the user confirmed (step 4.6.2),
-// is evidence for routing; a name match must be confirmed by the user. Registers a handle C<n> for every match.
+// find_client (docs/AGENT_TOOLS.md, 5.1): a client by VAT number, confirmed alias (step 4.6.2) or name, for questions about another
+// client. Since step 9.6 it routes nothing: every file of a run is of the client of the run. Registers a handle C<n> for every match.
 import { ToolError } from "../errors.js";
 import { nameTokens } from "../../intake-facts.js";
 import { aliasProves } from "../../client-alias.js";
@@ -18,7 +18,7 @@ function nameMatch(query, name) {
 
 export default {
   name: "find_client",
-  description: "Find the client a document is for by the buyer's VAT number or by name. A VAT number match (match: vat_id) is evidence, and so is match: alias, a buyer the user once confirmed as that client (give the buyer's VAT number when the document prints one, otherwise the buyer's name; then routed_by is alias). A name match must be confirmed with the user.",
+  description: "Find a client by VAT number or by name, to answer a question about a client other than the open one (match: vat_id, alias for a buyer the user once confirmed as that client, name_exact or name_partial). Files are never routed with it: every file of the run is of the open client.",
   schema: {
     type: "object",
     properties: {
@@ -39,8 +39,6 @@ export default {
       if (!match) continue;
       const handle = ctx.handles.create("C", client.clientId, { clientId: client.clientId, name: client.clientName, vatId: client.vatId ?? "", folder: client.folder ?? "" });
       matches.push({ client: handle, name: client.clientName, vat_id: client.vatId ?? "", match });
-      const best = ctx.run.clientMatches?.get(client.clientId);
-      if (!best || ORDER[match] < ORDER[best]) ctx.run.clientMatches?.set(client.clientId, match);
     }
     matches.sort((a, b) => ORDER[a.match] - ORDER[b.match] || a.name.localeCompare(b.name, "he"));
     return { matches: matches.slice(0, 5) };

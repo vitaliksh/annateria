@@ -79,7 +79,7 @@ test("the table shows the last four digits of the reference and the date as DD/M
 
 test("a row without an explanation from the model says so; every code reason of the facts has a Hebrew text", () => {
   assert.equal(build({ reason: "  " }).agentOpinion, "לא נמסר הסבר מהסוכן.");
-  const codes = ["amounts_mismatch", "bad_vat_id", "no_date", "foreign_currency", "buyer_mismatch", "duplicate", "possible_duplicate", "previous_year", "future_year", "deduction_check", "deduction_late", "pcn_over", "pcn_allocation_missing", "month_locked", "low_confidence", "date_unclear", "amount_unclear", "blurred", "cropped", "handwritten", "other_language", "kind_payment_confirmation", "kind_income_report", "kind_other"];
+  const codes = ["amounts_mismatch", "bad_vat_id", "no_date", "foreign_currency", "buyer_mismatch", "duplicate", "possible_duplicate", "previous_year", "future_year", "deduction_check", "deduction_late", "doc_after_month", "pcn_over", "pcn_allocation_missing", "month_locked", "low_confidence", "date_unclear", "amount_unclear", "blurred", "cropped", "handwritten", "other_language", "kind_payment_confirmation", "kind_income_report", "kind_other"];
   for (const code of codes) assert.ok(REASON_TEXT[code], code);
   assert.deepEqual(Object.keys(REASON_TEXT).sort(), [...codes].sort());
 });

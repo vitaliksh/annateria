@@ -2,6 +2,10 @@
   "name": "vehicle-insurance",
   "about": "A vehicle policy goes to the vehicle account that mentions insurance, not to the business insurance.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",
@@ -80,7 +84,6 @@
   "inbox": [
     {
       "name": "car-policy.pdf",
-      "folder": "Levi",
       "records": [
         {
           "kind": "expense_invoice",

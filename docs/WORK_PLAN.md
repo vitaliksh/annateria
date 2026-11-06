@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status (27 October 2026; 25 to 27 October: fixes after Anna's first real day, see the decision log and `HANDOFF.md`): **phases 0, 1, 5 and 7 done; phase 2 done but for 2.5 (phone camera → inbox, Anna's show-stopper, planned 24 October, next); phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** **1 November 2026: phase 9 planned (after Anna's test session: one month at a time, the VAT month); 9.2 to 9.5 built as local commits, pushed together with 9.6.** This file is the single source of truth for what is
+Status (27 October 2026; 25 to 27 October: fixes after Anna's first real day, see the decision log and `HANDOFF.md`): **phases 0, 1, 5 and 7 done; phase 2 done but for 2.5 (phone camera → inbox, Anna's show-stopper, planned 24 October, next); phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** **1 November 2026: phase 9 planned (after Anna's test session: one month at a time, the VAT month); 9.2 to 9.6 built as local commits, the eval of 9.6 green; the push waits for the owner's yes.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -507,6 +507,15 @@ the owner's "yes" between steps.
   of every file of the month becomes a row of the month. Enforced in code, not only in the prompt: the lowest layer refuses a
   write to another client or month (test). Instruction, skills (`npm run eval` first), `AGENT_TOOLS.md`, `AGENT_VERSION`.
   *Done when:* tests and the eval green; the owner runs one real month on the published page and every row is in it.
+  (Built 2 November 2026 with the owner's answer: a document dated after the month is written into it and marked to look at,
+  `doc_after_month`. The page gives the run the month shown in the journal (`scope`); the first line of the run names the client's
+  handle and the month, or says the run only reads. `list_inbox` lists only the files of that month; `add_rows`,
+  `move_file_to_declaration` and `prepare_import` lost their routing and months; `ask_user` lost `choose_client` and the client
+  and month of a button; the services refuse a write outside the month. Instruction `base-2026-11-02a`, skills
+  periods-and-duplicates 3 and month-closing-checklist 2; the eval cases run on an open month, vat-route became other-buyer and
+  unknown-buyer became doc-after-month. Web 955 tests. `npm run eval` against the real model on 6 November 2026 (gemini-3.8-flash,
+  16 cases x 2): 134 of 134 checks; no question, no `find_client`, no rejected row, every row in the open month. **Not yet:** the
+  owner's real month on the published page, so the box stays open.)
 - [ ] **9.7 Imports write into the selected month** (owner, 1 November 2026: "everything into the selected month"; it replaces
   the decision of 30 October that each document of a photographed ledger goes to its own month). The Excel journal, the
   ledger check and the income report, opened from a card of the month, write all their rows into that month; rows dated in
@@ -671,3 +680,4 @@ model behind the same proxy.
 | 2026-11-01 | **9.3: one sweep, three answers** (owner). A long pause does not close a month; the red line of the checks shows in the month first, the reports in a commit right after; steps 9.3 to 9.6 are committed locally and pushed together, because until 9.6 the agent puts a document of a closed month into the month after the last closed one. |
 | 2026-11-01 | **9.4: the month of an inbox file lives in the index** (owner), not in a folder per month as first planned: fewer moves on disk, and the agent keeps finding files by their client folder until 9.6. The Hebrew texts of the dialog as proposed. |
 | 2026-11-01 | **9.5: a way into the inbox from outside a month asks for the client and the month** (owner), instead of opening an inbox without a month; the month's own inbox button and a visible reopen button in the top bar; "check new documents" works on the month shown and opens a closed one first. |
+| 2026-11-02 | **9.6: a document dated after the month is written into it and marked to look at** (owner; `doc_after_month`): its VAT cannot be deducted before its date, and Anna decides where it goes. A run without a month only reads. Files of the client without a month and files of `_unsorted` are not seen by a run: Anna takes them into the month with the button of the inbox (9.4). |

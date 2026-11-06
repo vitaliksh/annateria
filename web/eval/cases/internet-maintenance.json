@@ -2,6 +2,10 @@
   "name": "internet-maintenance",
   "about": "An internet bill for a client without an internet account goes to the maintenance account (the bookkeeper's practice, 21 October 2026).",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",
@@ -80,7 +84,6 @@
   "inbox": [
     {
       "name": "internet-sep.pdf",
-      "folder": "Levi",
       "records": [
         {
           "supplier_name": "Fast Net",

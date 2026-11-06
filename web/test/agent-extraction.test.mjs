@@ -88,7 +88,7 @@ test("extract_document: a second call returns the stored facts without a new mod
 test("extract_document: a photo never has a page; a file with no document says so; invalid records are skipped and counted", async () => {
   const extraction = scriptedExtraction([answers(rawRecord({ page: 1 })), answers(), answers(rawRecord({ confidence: 500 }), rawRecord({ document_number: "OK-1" })), answers({ kind: "nonsense" })]);
   const { dispatch, files, w } = await toolContext({ extraction });
-  await addToInbox(w.root, [file("b.jpg", "b", "image/jpeg"), file("c.jpg", "c", "image/jpeg"), file("d.jpg", "d", "image/jpeg")]);
+  await addToInbox(w.root, [file("b.jpg", "b", "image/jpeg"), file("c.jpg", "c", "image/jpeg"), file("d.jpg", "d", "image/jpeg")], { folder: "Levi", month: "2026-02" });
   const handles = await files();
   assert.equal((await dispatch("extract_document", { file: handles["photo.jpg"] })).documents[0].page, null);
   const none = await dispatch("extract_document", { file: handles["b.jpg"] });
@@ -166,7 +166,7 @@ test("extract_document: at most three extractions run at once, all of them finis
   let active = 0, peak = 0;
   const slow = async () => { active += 1; peak = Math.max(peak, active); await new Promise((resolve) => setTimeout(resolve, 15)); active -= 1; return answers(rawRecord()); };
   const { dispatch, files, w } = await toolContext({ extraction: scriptedExtraction(Array.from({ length: 6 }, () => slow)) });
-  await addToInbox(w.root, ["a", "b", "c", "d", "e"].map((name) => file(`${name}.jpg`, name, "image/jpeg")));
+  await addToInbox(w.root, ["a", "b", "c", "d", "e"].map((name) => file(`${name}.jpg`, name, "image/jpeg")), { folder: "Levi", month: "2026-02" });
   const handles = Object.entries(await files()).filter(([name]) => name.endsWith(".jpg")).map(([, handle]) => handle);
   assert.equal(handles.length, 6);
   const results = await Promise.all(handles.map((handle) => dispatch("extract_document", { file: handle })));
@@ -200,7 +200,7 @@ test("facts_for: an ordinary invoice of the open month needs nothing", async () 
   const { dispatch, client, factOf } = await factsFixture([rawRecord()]);
   const result = await dispatch("facts_for", { fact: await factOf(), client: await client("Levi") });
   assert.equal(result.ok, true);
-  assert.deepEqual([result.target_month, result.doc_month, result.month_reason, result.month_state], ["2026-02", "2026-02", "date", "open"]);
+  assert.deepEqual([result.target_month, result.doc_month, result.month_reason, result.month_state], ["2026-02", "2026-02", "open_month", "open"]);
   assert.deepEqual(result.year, { status: "ok", basis: "date", year: 2026, allowed_year: 2026 });
   assert.deepEqual([result.duplicates, result.deduction, result.exclude, result.pcn, result.home_utility, result.buyer_mismatch, result.amounts], [{ level: null, matches: [] }, "ok", null, { applies: false }, false, false, { reconcile: true }]);
   assert.deepEqual([result.suggested_status, result.reasons], ["ready", []]);
@@ -216,14 +216,14 @@ test("facts_for: the same document as a row of the table is a strong duplicate a
   assert.deepEqual(ctx.handles.get("R", match.row), { clientId: "id-Levi", month: "2026-02", documentId: "d-1", position: 1 });
 });
 
-test("facts_for: a document of the previous year is refused by the year gate; one of a filed month goes to the first open month", async () => {
+test("facts_for: a document of the previous year is refused by the year gate; one of a filed month is judged for the open month", async () => {
   const old = await factsFixture([rawRecord({ date: "2025-12-20" }), rawRecord({ date: "2026-01-10", document_number: "JAN-1" })]);
   const levi = await old.client("Levi");
   const previous = await old.dispatch("facts_for", { fact: await old.factOf(0), client: levi });
   assert.deepEqual([previous.year.status, previous.exclude, previous.suggested_status], ["previous-year", "previous-year", "review"]);
   assert.ok(previous.reasons.includes("previous_year"));
   const filed = await old.dispatch("facts_for", { fact: await old.factOf(1), client: levi });
-  assert.deepEqual([filed.doc_month, filed.target_month, filed.month_reason, filed.month_state, filed.exclude], ["2026-01", "2026-02", "after-locked", "open", null]);
+  assert.deepEqual([filed.doc_month, filed.target_month, filed.month_reason, filed.month_state, filed.exclude], ["2026-01", "2026-02", "open_month", "open", null]);
 });
 
 test("facts_for: a month the user asked for is judged as asked: a missing month, a filed month, the VAT deduction window", async () => {

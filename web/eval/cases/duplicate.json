@@ -2,6 +2,10 @@
   "name": "duplicate",
   "about": "An invoice already in the table of the month makes no second active row.",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",

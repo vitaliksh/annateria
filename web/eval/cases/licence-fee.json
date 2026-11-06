@@ -2,6 +2,10 @@
   "name": "licence-fee",
   "about": "The yearly licence fee of a vehicle is an expense on the vehicle account (the bookkeeper, 21 October 2026).",
   "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
   "clients": [
     {
       "folder": "Levi",
@@ -80,7 +84,6 @@
   "inbox": [
     {
       "name": "rishui.pdf",
-      "folder": "Levi",
       "records": [
         {
           "kind": "payment_confirmation",

@@ -5,7 +5,7 @@ import { computeFacts } from "../facts.js";
 
 export default {
   name: "facts_for",
-  description: "What the code knows about one extracted fact for one client: the month it belongs to, the year check, duplicates among all declarations and this run, the VAT deduction window, the allocation-number ceiling for PCN clients, the 25% rule for home clients, whether it is addressed to this client, and the reasons a row would need a look. Give month only when the user asked for a month.",
+  description: "What the code knows about one extracted fact for one client: the month it belongs to, the year check, duplicates among all declarations and this run, the VAT deduction window, the allocation-number ceiling for PCN clients, the 25% rule for home clients, whether it is addressed to this client, and the reasons a row would need a look. It is computed for the open month of the run, where add_rows writes; give month only when the user asked about another month.",
   schema: {
     type: "object",
     required: ["fact", "client"],

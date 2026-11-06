@@ -13,7 +13,7 @@ test("a quick request is the fixed text with the date; a typed one carries the w
   const typed = buildMessage({ kind: "text", text: "why is row 3 marked?", today: "2026-10-16", previous: "I found 3 files.", active: { clientName: "Levi Plumbing", month: "2026-02" } });
   assert.equal(typed, [
     "Today is 2026-10-16.",
-    'The user has open: the client "Levi Plumbing", declaration 2026-02 (find the client with find_client by name).',
+    'The user has open: the client "Levi Plumbing", declaration 2026-02.',
     "Your previous answer in this conversation:\nI found 3 files.",
     "The user writes: why is row 3 marked?",
   ].join("\n\n"));
