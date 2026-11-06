@@ -40,7 +40,7 @@ function ledgerFile(extra = []) {
 }
 const MISSING = { month: 1, line: "99", date: "2026-01-20", details: "Water bill", ref1: "4455", gross: -118, net: -100, vat: -18 };
 
-async function setup({ context = true } = {}) {
+async function setup({ context = true, openMonth } = {}) {
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/ocr/" });
   Object.assign(globalThis, { document: window.document, window });
   const dialog = window.document.querySelector("#ledger-check-dialog");
@@ -58,7 +58,7 @@ async function setup({ context = true } = {}) {
   const check = setupLedgerCheck({
     button,
     dialog,
-    getContext: () => (context ? { dataRoot, client, reserved: {} } : null),
+    getContext: () => (context ? { dataRoot, client, reserved: {}, ...(openMonth ? { openMonth } : {}) } : null),
     onBeforeWrite: async (months) => { calls.before.push(months); return months[0] ?? null; },
     onSaved: async (result, detached) => { calls.saved.push({ result, detached }); },
     onError: (message) => calls.errors.push(message),
@@ -160,4 +160,20 @@ test("openWith: a file chosen by hand afterwards, or the dialog opened from the 
   for (let i = 0; i < 50 && !again.calls.saved.length; i += 1) await settle();
   assert.equal(again.calls.saved.length, 1);
   assert.deepEqual(committed, []);
+});
+
+test("with an open month only its own operations start ticked; another month's can be ticked and goes into the open month", async () => {
+  const { calls, q, pick, open, client } = await setup({ openMonth: "2026-01" });
+  open();
+  await pick(ledgerFile([MISSING, { ...MISSING, month: 3, line: "98", date: "2026-03-20", details: "March bill" }]));
+  const boxes = [...q("ledger-check-list").querySelectorAll("input")];
+  assert.deepEqual(boxes.map((box) => box.checked), [true, false]);
+  assert.match(q("ledger-check-list").children[1].textContent, /תיכנס ל-01\/2026 ותסומן לבדיקה/);
+  boxes[1].checked = true;
+  boxes[1].dispatchEvent(new (boxes[1].ownerDocument.defaultView.Event)("change"));
+  q("ledger-check-add").click();
+  for (let i = 0; i < 100 && !calls.saved.length; i += 1) await settle();
+  assert.deepEqual(calls.before, [["2026-01"]]);
+  const rows = (await loadDeclaration(client.directory, "2026-01")).draft.rows.slice(-2);
+  assert.deepEqual(rows.map((row) => [row.values[3], row.statusClass]), [["Water bill", "ready"], ["March bill", "review"]]);
 });

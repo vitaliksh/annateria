@@ -31,6 +31,11 @@ the month, `months` and `client` of `move_file_to_declaration`, `choose_client` 
 a possible duplicate. `facts_for` judges the open month by default (`month_reason: "open_month"`). Where the sections below
 still speak of routing proofs, `choose_client`, `month_override` or months chosen by the code, this amendment replaces them.
 
+**Amendment of 6 November 2026 (step 9.7):** a closed month is filed and paid and takes nothing. New reason `doc_before_month` (a
+document dated before the open month, unless it has a period or is of a previous year). `prepare_import` has no `month`: whatever
+a file writes goes into the open month of the run; the card carries that month. Problems: `month_differs` (the file names another
+month, also for the income report), `rows_other_months`, `operations_other_months`; `summary.report_month` for the income report.
+
 What this document fixes: the run, the conventions every tool follows, the facts that extraction returns, and for each
 tool its inputs, outputs, validation, effects and what it may never do. What it leaves to later steps: the Hebrew
 wording of prompts and skills (phase 5), the panel layout (4.3), the exact model ids (phase 3).
@@ -412,8 +417,8 @@ The shared function is `lockProblems(rows, { pcnRequired })` in `web/lock-check.
   ledger, an operations ledger, a periodic income report): parse it read-only, check it, and leave the user a card with a button that opens the
   existing wizard with that file. This is the replacement of the menu "ייבוא ובדיקות": every function of the menu is reached
   from the inbox through this tool. One tool with `kind`, not four (question 11).
-- **Input.** `{ file, kind, client, month?, reason }` (step 9.6: `client` must be the client of the run; `routed_by` and
-  `routing_ask`, described next, are gone).
+- **Input.** `{ file, kind, client, reason }` (step 9.6: `client` must be the client of the run; `routed_by` and `routing_ask`,
+  described next, are gone; step 9.7: `month`, described next, is gone).
   - `kind`: `journal` (the Rivhit journal "יומן קליטה", `.xlsx`), `ledger_codes` (the classification-codes ledger
     "כרטסת קודי מיון", PDF or `.xlsx`), `ledger_check` (the operations ledger "כרטסת", for the check against the
     declarations), `income_report` (the periodic income report PDF "דיווח הכנסות תקופתי").

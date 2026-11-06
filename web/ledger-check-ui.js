@@ -17,7 +17,8 @@ function element(tag, text, className) {
   return node;
 }
 
-// getContext() returns { dataRoot, client, reserved } or null; onBeforeWrite(months) lets the host detach the open table
+// getContext() returns { dataRoot, client, reserved, openMonth } or null (openMonth: everything chosen goes into it, step 9.7; only
+// its own operations start ticked); onBeforeWrite(months) lets the host detach the open table
 // and returns what onSaved(result, detached) needs to put it back.
 export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, onError, onBeforeWrite, loadLibrary, loadPdf }) {
   const part = (id) => dialog.querySelector(`#${id}`);
@@ -59,13 +60,14 @@ export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, o
       const box = element("input");
       box.type = "checkbox";
       box.dataset.index = String(index);
-      box.checked = !operation.problem;
+      box.checked = !operation.problem && !operation.otherMonth;
       box.disabled = Boolean(operation.problem);
       box.addEventListener("change", updateAdd);
       const text = [
         formatMonth(operation.month), displayDate(operation.date), operation.name, operation.details,
         `${money(operation.net)} (מע״מ ${money(operation.vat)})`,
-        operation.problem ? PROBLEM_TEXTS[operation.problem] : operation.creates ? "ההצהרה תיווצר" : "",
+        operation.problem ? PROBLEM_TEXTS[operation.problem] : operation.creates ? "ההצהרה תיווצר"
+          : operation.otherMonth ? `תיכנס ל-${formatMonth(prepared.openMonth)} ותסומן לבדיקה` : "",
       ].filter(Boolean).join(" · ");
       row.append(box, element("span", text, operation.problem ? "problem-error" : undefined));
       return row;
@@ -111,7 +113,7 @@ export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, o
     add.disabled = true;
     errorLine.textContent = "";
     try {
-      const months = [...new Set(prepared.missing.filter((operation, index) => selected.has(index)).map((operation) => operation.month))];
+      const months = prepared.openMonth ? [prepared.openMonth] : [...new Set(prepared.missing.filter((operation, index) => selected.has(index)).map((operation) => operation.month))];
       const detached = await onBeforeWrite?.(months);
       const result = await commitReconcile(prepared, { selected, client: context.client });
       const filed = await afterCommit();

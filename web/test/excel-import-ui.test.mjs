@@ -23,7 +23,7 @@ function xlsxFile(grid) {
 }
 
 // The UI module uses the browser globals document, window and Option, so bind them to a jsdom page first.
-async function setup({ context = true, confirm = () => true } = {}) {
+async function setup({ context = true, confirm = () => true, openMonth } = {}) {
   const dom = new JSDOM(html, { url: "https://vitaliksh.github.io/ocr/" });
   const { window } = dom;
   Object.assign(globalThis, { document: window.document, window, Option: window.Option });
@@ -40,7 +40,7 @@ async function setup({ context = true, confirm = () => true } = {}) {
   const wizard = setupExcelImport({
     button,
     dialog,
-    getContext: () => (context ? { dataRoot, client, reserved: {} } : null),
+    getContext: () => (context ? { dataRoot, client, reserved: {}, ...(openMonth ? { openMonth } : {}) } : null),
     onImported: async (result, month) => { calls.imported.push({ result, month }); },
     onError: (message) => calls.errors.push(message),
     loadLibrary: async () => XLSX,
@@ -55,6 +55,23 @@ async function setup({ context = true, confirm = () => true } = {}) {
   const q = (id) => dialog.querySelector(`#${id}`);
   return { window, dialog, dataRoot, client, calls, pick, q, wizard, open: () => button.click() };
 }
+
+// Step 9.7: from a card the wizard works on the month shown in the page.
+test("the journal goes into the open month: the month cannot be changed, rows of other months are counted and marked", async () => {
+  const { calls, pick, q, open, client } = await setup({ openMonth: "2026-08" });
+  open();
+  await pick(buildJournalGrid({ month: 1 }));
+  assert.equal(q("excel-import-month").value, "08/2026", "not the month the file names");
+  assert.equal(q("excel-import-month").readOnly, true);
+  for (let i = 0; i < 50 && !/ייכנסו לחודש הזה/.test(q("excel-import-target").textContent); i += 1) await new Promise((r) => setTimeout(r, 10));
+  assert.match(q("excel-import-target").textContent, new RegExp(`${SAMPLE_ROWS.length} שורות מחודשים אחרים ייכנסו לחודש הזה ויסומנו לבדיקה`));
+  q("excel-import-run").click();
+  for (let i = 0; i < 100 && !calls.imported.length; i += 1) await new Promise((r) => setTimeout(r, 10));
+  assert.equal(calls.imported[0].month, "2026-08");
+  const { rows } = (await loadDeclaration(client.directory, "2026-08")).draft;
+  assert.equal(rows.length, SAMPLE_ROWS.length);
+  assert.ok(rows.every((row) => row.statusClass === "review" && /לבדיקה: תאריך השורה אינו בחודש ההצהרה/.test(row.agentOpinion)));
+});
 
 test("диалог импорта: без выбранного клиента показывает ошибку и не открывается", async () => {
   const { dialog, calls, open } = await setup({ context: false });

@@ -1,5 +1,5 @@
-// Dialog "פיזור שורות לחודשים": proposes a declaration month for every row of the open table (by the document date, never
-// into a filed month) and moves the rows that are assigned to another month, with their images. Logic lives in
+// Dialog "פיזור שורות לחודשים": moves the rows of the open table that the user assigns to another month, with their images; a closed
+// month is never offered. Logic lives in
 // rows-move-flow.js and month-distribution.js; this file only renders.
 import { formatMonth } from "./month-format.js";
 import { commitMove, prepareMove } from "./rows-move-flow.js";

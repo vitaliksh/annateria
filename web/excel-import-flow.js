@@ -13,7 +13,7 @@ import {
   setAccountType,
   setClientType,
 } from "./chart-of-accounts.js";
-import { buildImportedRows, importWarnings } from "./excel-import.js";
+import { buildImportedRows, importWarnings, markOtherMonthRows } from "./excel-import.js";
 import { importRowsIntoDeclaration } from "./excel-import-store.js";
 import { footerErrors, parseJournalGrid, suggestClassTypes } from "./excel-journal.js";
 import { readJournalGrid } from "./excel-journal-reader.js";
@@ -92,7 +92,7 @@ export async function commitImport(prepared, { newAccounts = [], typeChanges = [
   }
   const { codes, unknown } = matchClassNames(prepared.rows.map((row) => row.classificationName), chart);
   if (unknown.length) throw new Error(`חסר קוד מיון עבור: ${unknown.join(", ")}`);
-  const rows = buildImportedRows(prepared.rows, codes, { now, sourceHash });
+  const rows = markOtherMonthRows(buildImportedRows(prepared.rows, codes, { now, sourceHash }), month);
   chart = own ? await saveClientChart(client.directory, chart, { reserved, now }) : await saveChartOfAccounts(dataRoot, chart, reserved);
   const declaration = await importRowsIntoDeclaration({
     clientDirectory: client.directory,

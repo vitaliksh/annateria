@@ -50,18 +50,17 @@ async function setup({ rows, october, beforeOpen, onBeforeWrite } = {}) {
   return { window, dialog, client, calls, move, q, selects, byIndex, current };
 }
 
-test("the dialog lists rows with a proposal other than their month first, with the proposed month selected", async () => {
+test("the dialog proposes nothing: every row stays on its month and the button waits for a choice (step 9.7)", async () => {
   const { dialog, move, q, selects } = await setup();
   assert.equal(await move.open(), true);
   assert.equal(dialog.open, true);
   assert.match(q("rows-move-client").textContent, /Client A.*09\/2026/);
-  assert.match(q("rows-move-summary").textContent, /מוצע להעביר 1 מתוך 4 שורות/);
-  assert.match(q("rows-move-summary").textContent, /08\/2026 נעולים/);
-  assert.deepEqual([...q("rows-move-list").querySelectorAll("select")].map((select) => select.dataset.index), ["2"]);
-  assert.deepEqual(selects().map((select) => [select.dataset.index, select.value]).sort(), [["0", "2026-09"], ["1", "2026-09"], ["2", "2026-10"], ["3", "2026-09"]]);
-  assert.equal(q("rows-move-run").textContent, "העברת 1 שורות");
+  assert.match(q("rows-move-summary").textContent, /לכל 4 השורות יש חודש מתאים/);
+  assert.equal(q("rows-move-list").children.length, 0);
+  assert.deepEqual(selects().map((select) => select.value), ["2026-09", "2026-09", "2026-09", "2026-09"]);
+  assert.equal(q("rows-move-run").disabled, true);
   assert.equal(q("rows-move-rest").hidden, false);
-  assert.match(q("rows-move-rest-title").textContent, /\(3\)/);
+  assert.match(q("rows-move-rest-title").textContent, /\(4\)/);
 });
 
 test("option labels mark this declaration and months that will be created; filed months are not offered", async () => {
@@ -74,8 +73,10 @@ test("option labels mark this declaration and months that will be created; filed
 test("running the move writes the months, reports the result and hands the table back to the host", async () => {
   const { client, calls, move, q, byIndex } = await setup();
   await move.open();
-  byIndex(0).value = "2026-10";
-  byIndex(0).dispatchEvent(new window.Event("change"));
+  for (const index of [0, 2]) {
+    byIndex(index).value = "2026-10";
+    byIndex(index).dispatchEvent(new window.Event("change"));
+  }
   assert.equal(q("rows-move-run").textContent, "העברת 2 שורות");
   q("rows-move-run").click();
   for (let i = 0; i < 50 && !calls.saved.length; i += 1) await settle();
@@ -90,7 +91,6 @@ test("a row can be sent to a month by hand, and the VAT deduction warning follow
   const { move, q, byIndex } = await setup();
   await move.open();
   const note = () => byIndex(1).closest(".move-line").querySelector(".move-note").textContent;
-  assert.match(note(), /התאריך בחודש שכבר הוגש/);
   assert.doesNotMatch(note(), /ניכוי/);
   const option = new window.Option("04/2027", "2027-04");
   byIndex(1).append(option);
@@ -110,14 +110,14 @@ test("income rows get no deduction warning", async () => {
   assert.doesNotMatch(select.closest(".move-line").querySelector(".move-note").textContent, /ניכוי/);
 });
 
-test("offer opens only when some row belongs elsewhere; otherwise it stays closed", async () => {
+test("offer never opens by itself: nothing is proposed (step 9.7)", async () => {
   const quiet = await setup({ rows: [row("p1", "23/09/26", 118), row("import-2", "14/05/26", 10)] });
   assert.equal(await quiet.move.offer(), false);
   assert.notEqual(quiet.dialog.open, true);
   assert.deepEqual(quiet.calls.errors, []);
   const busy = await setup();
-  assert.equal(await busy.move.offer(), true);
-  assert.equal(busy.dialog.open, true);
+  assert.equal(await busy.move.offer(), false);
+  assert.notEqual(busy.dialog.open, true);
 });
 
 test("opening by hand with nothing to propose still shows all rows, closed under one heading", async () => {
@@ -140,8 +140,10 @@ test("a refusal from the host keeps the dialog closed and is reported only for a
 });
 
 test("a failed move shows the error, keeps the button usable and still lets the host reload the table", async () => {
-  const { calls, move, q, client } = await setup();
+  const { calls, move, q, client, byIndex } = await setup();
   await move.open();
+  byIndex(2).value = "2026-10";
+  byIndex(2).dispatchEvent(new window.Event("change"));
   const loaded = await loadDeclaration(client.directory, "2026-09");
   await saveDraft(loaded.directory, loaded.declaration, loaded.draft.rows.slice(1), NOW);
   q("rows-move-run").click();
@@ -155,7 +157,8 @@ test("moving a row next to an identical one in the target month shows a duplicat
   const { move, byIndex } = await setup({ rows: [row("p3", "05/10/26", 59), row("p4", "23/09/26", 118)], october: [row("twin", "05/10/26", 59)] });
   await move.open();
   const note = (index) => byIndex(index).closest(".move-line").querySelector(".move-note").textContent;
-  assert.equal(byIndex(0).value, "2026-10");
+  byIndex(0).value = "2026-10";
+  byIndex(0).dispatchEvent(new window.Event("change"));
   assert.match(note(0), /בהצהרה 10\/2026 כבר יש שורה עם אותו תאריך, קוד וסכום/);
   assert.doesNotMatch(note(1), /כבר יש שורה/);
 });

@@ -48,16 +48,24 @@ const sampleRows = () => [
   photoRow("doc-d", "", 50, "", 0),
 ];
 
-test("prepare proposes a month for photo rows by their date, past filed months, and none for Excel rows or missing dates", async () => {
+test("prepare proposes no month: every row stays unless the user moves it (step 9.7)", async () => {
   const { c } = await setup({ rows: sampleRows() });
   const prepared = await prepareMove({ client: c, month: "2026-09", today });
   assert.equal(prepared.lockedThrough, "2026-08");
-  assert.deepEqual(prepared.lines.map((line) => [line.proposed, line.reason]), [
-    ["2026-09", "date"], ["2026-09", "after-locked"], ["2026-09", "after-locked"], ["2026-10", "date"], [null, "none"], [null, "no-date"],
-  ]);
+  assert.ok(prepared.lines.every((line) => line.proposed === null && line.reason === "none"));
   assert.deepEqual(prepared.months.map((option) => [option.month, option.exists]), [["2026-09", true], ["2026-10", false], ["2026-11", false]]);
-  assert.deepEqual(prepared.lines.map((line) => prepared.suggested(line)), ["2026-09", "2026-09", "2026-09", "2026-10", "2026-09", "2026-09"]);
+  assert.ok(prepared.lines.every((line) => prepared.suggested(line) === "2026-09"));
   assert.equal(prepared.deduction(prepared.lines[1], "2027-04"), "late");
+});
+
+// Seen on 6 November 2026: with every month closed unless open, a row of the open August was offered to November, already selected.
+test("an old month open before later closed months: its rows stay, and no closed month is a target", async () => {
+  const { c } = await setup({ closed: ["2026-10"], rows: [photoRow("doc-a", "15/09/26", 118, "", 0)] });
+  const prepared = await prepareMove({ client: c, month: "2026-09", today });
+  assert.equal(prepared.suggested(prepared.lines[0]), "2026-09");
+  assert.equal(prepared.months.some((option) => option.month === "2026-10"), false);
+  await assert.rejects(() => commitMove(prepared, { assignments: new Map([[0, "2026-10"]]), client: c, now: NOW }), /לא ניתן להעביר לחודש 2026-10/);
+  assert.equal((await loadDeclaration(c.directory, "2026-10")).draft.rows.length, 1, "the closed month is untouched");
 });
 
 test("a locked declaration cannot be a source", async () => {
@@ -145,11 +153,11 @@ test("prepare tells which target months already hold a row with the same date, c
   assert.equal(prepared.similar(prepared.lines[1], "2026-10"), false);
 });
 
-test("a document for a period of a year is proposed for the month of receipt and has no VAT deduction window of its own", async () => {
+test("a document for a period of a year has no VAT deduction window of its own", async () => {
   const policy = { ...photoRow("ins", "07/09/25", 941, "", 0), periodFrom: "2025-10-01", periodTo: "2026-09-30", receivedAt: "2026-10-05T10:00:00.000Z" };
   const { c } = await setup({ rows: [policy, photoRow("plain", "07/09/25", 941, "", 0)] });
   const prepared = await prepareMove({ client: c, month: "2026-09", today });
-  assert.deepEqual(prepared.lines.map((line) => [line.proposed, line.reason, line.docMonth]), [["2026-10", "period-received", null], ["2026-09", "after-locked", "2025-09"]]);
+  assert.deepEqual(prepared.lines.map((line) => line.docMonth), [null, "2025-09"]);
   assert.equal(prepared.deduction(prepared.lines[0], "2026-10"), "ok");
   assert.equal(prepared.deduction({ ...prepared.lines[1], vat: 1 }, "2026-10"), "late");
 });

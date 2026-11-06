@@ -14,6 +14,7 @@ function isoDate(display) {
 }
 
 const keyOf = (month, name, date, net, gross) => [month, name, date, cents(net), cents(gross)].join("|");
+const withoutMonth = (key) => key.slice(key.indexOf("|") + 1);
 
 // The ledger shows expenses negative and credits positive; the declarations keep expenses positive (VAT with the sign of
 // the net). Income is the same in both.
@@ -48,12 +49,23 @@ export function reconcile(operations, declarations, chart) {
       pool.get(key).push({ month, date: isoDate(values[0]), name, details: String(values[3] || values[2] || ""), net: Number(values[8]) || 0, vat: Number(values[9]) || 0 });
     }
   }
-  const missing = [];
+  const unmatched = [];
   let matched = 0;
   for (const operation of operations) {
     const candidates = pool.get(operation.key);
     if (candidates?.length) {
       candidates.pop();
+      matched += 1;
+    } else {
+      unmatched.push(operation);
+    }
+  }
+  // An operation added to the open month (step 9.7) or moved keeps its date: it is found in any month of the ledger's year.
+  const missing = [];
+  for (const operation of unmatched) {
+    const found = [...pool].find(([key, candidates]) => candidates.length && withoutMonth(key) === withoutMonth(operation.key));
+    if (found) {
+      found[1].pop();
       matched += 1;
     } else {
       missing.push(operation);

@@ -1,5 +1,6 @@
-// Moving rows of an open declaration to other months, with their source images, without any DOM:
-// prepare (read the saved table, propose a month per row) and commit (write the target months, then the source).
+// Moving rows of an open declaration to other months, with their source images, without any DOM: prepare (read the saved table) and
+// commit (write the target months, then the source). Every row stays unless the user moves it (step 9.7: since every month is closed
+// unless open, the code has no month to propose), and a closed month, already filed and paid, is never a target (owner, 6 November 2026).
 import { createDeclaration, listDeclarations, loadDeclaration, readSourceImage, saveDraft, saveSourceImage } from "./declaration-store.js";
 import { isPeriodDocument, intakeMonth } from "./intake-facts.js";
 import { deductionStatus, lockedThrough, targetMonths } from "./month-distribution.js";
@@ -28,11 +29,9 @@ export async function prepareMove({ client, month, today = new Date() }) {
   const lines = source.draft.rows.map((row, index) => {
     const values = row.values ?? [];
     const intake = isIntakeRow(row);
-    // A document for a period (annual insurance) goes to the month of receipt and has no VAT deduction window of its own.
+    // A document for a period (annual insurance) has no VAT deduction window of its own.
     const period = isPeriodDocument(row.periodFrom, row.periodTo);
-    const proposal = intake
-      ? intakeMonth({ date: values[0], periodFrom: row.periodFrom, periodTo: row.periodTo, receivedAt: row.receivedAt, lockedThrough: locked, today })
-      : { month: null, docMonth: null, reason: "none" };
+    const docMonth = intake ? intakeMonth({ date: values[0], periodFrom: row.periodFrom, periodTo: row.periodTo, receivedAt: row.receivedAt, today }).docMonth : null;
     return {
       index,
       documentId: row.documentId ?? "",
@@ -45,20 +44,20 @@ export async function prepareMove({ client, month, today = new Date() }) {
       hasImage: Boolean(row.imageFile),
       signature: signature(row),
       current: month,
-      proposed: proposal.month,
-      docMonth: period ? null : proposal.docMonth,
-      reason: proposal.reason,
+      proposed: null,
+      docMonth: period ? null : docMonth,
+      reason: "none",
     };
   });
-  const months = targetMonths({ declarations, lockedThrough: locked, current: month, proposals: lines.map((line) => line.proposed), today });
+  const months = targetMonths({ declarations, lockedThrough: locked, current: month, today });
   const existing = new Set(declarations.map((declaration) => declaration.month));
   return {
     month,
     lockedThrough: locked,
     lines,
     months: months.map((value) => ({ month: value, exists: existing.has(value) })),
-    // What the dialog selects at the start: the proposal for intake rows, otherwise the row stays.
-    suggested: (line) => (line.proposed && months.includes(line.proposed) ? line.proposed : line.current),
+    // What the dialog selects at the start: the row stays.
+    suggested: (line) => line.current,
     deduction: (line, target) => (line.vat ? deductionStatus(line.docMonth, target) : "ok"),
     similar: (line, target) => similar.get(line.signature)?.has(target) ?? false,
   };

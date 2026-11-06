@@ -35,6 +35,7 @@ const PLANS = {
   "other-buyer": { decision: "expense", account: "202" },
   "folder-route": { decision: "expense", account: "202" },
   "doc-after-month": { decision: "expense", account: "202" },
+  "doc-before-month": { decision: "expense", account: "202" },
   duplicate: { decision: "expense", account: "202" },
   "previous-year": { decision: "expense", account: "202" },
   "home-utility": { decision: "expense", account: "230" },

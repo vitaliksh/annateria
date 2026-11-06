@@ -24,6 +24,7 @@ import { setupJournalToolbar } from "./journal-toolbar.js";
 import { summarise } from "./journal-summary.js";
 import { readUiSettings, saveUiSettings } from "./ui-settings.js";
 import { setupExcelImport } from "./excel-import-ui.js";
+import { markOtherMonthRows } from "./excel-import.js";
 import { fileImportOriginal, readInboxFile, readInboxIndex } from "./inbox-store.js";
 import { setupReports } from "./reports-ui.js";
 import { setupBackup } from "./backup-ui.js";
@@ -537,7 +538,7 @@ const excelImport = setupExcelImport({
   dialog: document.querySelector("#excel-import-dialog"),
   getContext: () =>
     dataRoot && committedWorkspace
-      ? { dataRoot, client: committedWorkspace, reserved: { ...builtInMapping, ...customMapping } }
+      ? { dataRoot, client: committedWorkspace, reserved: { ...builtInMapping, ...customMapping }, openMonth: currentDeclaration?.month ?? null }
       : null,
   // Saving the open table after the import would overwrite the imported rows, so detach it first.
   onBeforeCommit: async (month) => {
@@ -586,7 +587,7 @@ const ledgerCheck = setupLedgerCheck({
   dialog: document.querySelector("#ledger-check-dialog"),
   getContext: () =>
     dataRoot && committedWorkspace
-      ? { dataRoot, client: committedWorkspace, reserved: { ...builtInMapping, ...customMapping } }
+      ? { dataRoot, client: committedWorkspace, reserved: { ...builtInMapping, ...customMapping }, openMonth: currentDeclaration?.month ?? null }
       : null,
   // Same as for the ledger codes: the open table is detached while its file is rewritten and opened again afterwards.
   onBeforeWrite: async (months) => {
@@ -925,11 +926,12 @@ async function runAssistant(kind, text) {
 // The wizard works on the open client, so that client is opened first. Once the wizard has written the rows, the original goes from
 // the inbox to clients/<client>/imports/ (copied, read back, compared, then taken out); the agent has no part in this.
 // The income report has no dialog: from the menu it adds its rows to the open declaration at once. From a card the page has opened the
-// month of the report first (below), and the user confirms before the rows are added.
+// month of the card first (below), and the user confirms before the rows are added; a report of another month is marked (step 9.7).
 const incomeReportImport = {
-  async openWith(file, { onCommitted } = {}) {
+  async openWith(file, { onCommitted, reportMonth } = {}) {
     const where = `${formatMonth(currentDeclaration.month)} של «${committedWorkspace.config.clientName}»`;
-    if (!(await confirmDialog(`להוסיף את דוח ההכנסות להצהרה ${where}?`, { title: "דוח הכנסות", confirmLabel: "הוספה" }))) return;
+    const other = reportMonth && reportMonth !== currentDeclaration.month ? ` הדוח הוא של ${formatMonth(reportMonth)}, והשורות יסומנו לבדיקה.` : "";
+    if (!(await confirmDialog(`להוסיף את דוח ההכנסות להצהרה ${where}?${other}`, { title: "דוח הכנסות", confirmLabel: "הוספה" }))) return;
     await importIncomeReportFile(file);
     const filed = await onCommitted?.().catch((error) => `הקובץ לא הועבר מתיבת הקלט: ${error.message}`);
     if (filed) status.textContent = `${status.textContent} ${filed}`;
@@ -943,14 +945,14 @@ async function openImportWizard({ card, report }) {
     if (!entry) return report({ text: "הקובץ כבר אינו בתיבת הקלט.", done: true });
     const client = workspaceControls?.getClients().active.find((item) => item.id === card.client.id);
     if (!client) return report({ text: "הלקוח לא נמצא ברשימת הלקוחות." });
-    // The income report goes into the declaration of its own month, which must exist and be open.
-    const month = card.kind === "income_report" ? card.summary.month : null;
+    // Step 9.7: the card belongs to the month of its run; that month is shown again, and a click opens it if it has closed since.
+    const month = card.month ?? null;
     const declared = month ? (client.declarations ?? []).find((item) => item.declaration.month === month)?.declaration : null;
     if (month && (!declared || declared.archived)) return report({ text: `אין הצהרה ל-${formatMonth(month)}. יש ליצור אותה, ואז ללחוץ שוב.` });
-    if (month && declared.status !== "open") return report({ text: `ההצהרה ל-${formatMonth(month)} נעולה.` });
-    if (month && (committedWorkspace?.config.clientId !== client.config.clientId || currentDeclaration?.month !== month)) {
-      await workspaceControls.openDeclaration(client.id, month);
+    if (month) {
+      if (committedWorkspace?.config.clientId !== client.config.clientId || currentDeclaration?.month !== month) await workspaceControls.openDeclaration(client.id, month);
       if (committedWorkspace?.config.clientId !== client.config.clientId || currentDeclaration?.month !== month) return report({ text: "ההצהרה לא נפתחה." });
+      if (card.kind !== "ledger_codes" && currentDeclaration.status !== "open" && !(await reopenMonth())) return report({ text: "ההצהרה לא נפתחה." });
     } else if (committedWorkspace?.config.clientId !== client.config.clientId) {
       const latest = (client.declarations ?? []).map((item) => item.declaration).filter((item) => !item.archived).sort((a, b) => a.month.localeCompare(b.month)).at(-1);
       if (!latest) return report({ text: "ללקוח אין הצהרה. יש ליצור הצהרה ולפתוח אותה, ואז ללחוץ שוב." });
@@ -963,6 +965,7 @@ async function openImportWizard({ card, report }) {
     const watch = watchWizard({ dialog: dialog ? document.querySelector(dialog) : null, report });
     await wizard.openWith(file, {
       month: card.month ?? "",
+      reportMonth: card.summary.report_month,
       sourceHash: entry.hash,
       onCommitted: async () => {
         watch.committed();
@@ -1566,7 +1569,7 @@ async function importIncomeReportFile(file, report = null) {
   if (!currentDeclarationDirectory || currentDeclaration?.status !== "open") throw new Error("יש לבחור הצהרה פתוחה.");
   report ??= await readIncomeReportFile(file);
   if (!report) throw new Error("הקובץ אינו דוח הכנסות תקופתי של חשבונית ירוקה (morning), או שאין בו שכבת טקסט.");
-  const rows = buildIncomeRows(report, await ensureIncomeClassification());
+  const rows = markOtherMonthRows(buildIncomeRows(report, await ensureIncomeClassification()), currentDeclaration.month);
   const existing = [...records.querySelectorAll("tr[data-document-id]")].map(rowSnapshot);
   if (rows.some((row) => hasIncomeRow(existing, row))) throw new Error("דוח ההכנסות לתקופה זו כבר נמצא בהצהרה.");
   await saveSourceImage(currentDeclarationDirectory, pdfSourceFileName(new Date(), crypto.randomUUID()), file);

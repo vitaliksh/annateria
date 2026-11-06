@@ -56,7 +56,8 @@ function element(tag, text, className) {
   return node;
 }
 
-// getContext() returns { dataRoot, client, reserved } or null when no data root or client is selected.
+// getContext() returns { dataRoot, client, reserved, openMonth } or null when no data root or client is selected. openMonth: the month
+// shown in the page (step 9.7): every row goes into it, and the month of the wizard cannot be changed.
 // What the user is told about the chosen month; the import is blocked for a closed declaration.
 const TARGET_TEXTS = {
   missing: (month) => `ההצהרה ל-${month} לא קיימת ותיווצר.`,
@@ -119,6 +120,11 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
       target = found;
       targetLine.textContent = TARGET_TEXTS[found.state](formatMonth(iso), found.count);
       targetLine.className = found.state === "rows" || found.state === "closed" ? "target-warning" : "";
+      const others = context.openMonth && prepared ? prepared.rows.filter((row) => row.date?.slice(0, 7) !== iso).length : 0;
+      if (others) {
+        targetLine.textContent += ` ${others} שורות מחודשים אחרים ייכנסו לחודש הזה ויסומנו לבדיקה.`;
+        targetLine.className = "target-warning";
+      }
       replaceText.textContent = `להחליף את ${found.count} השורות הקיימות בשורות מהקובץ (עותק של הטבלה הישנה יישמר בתיקיית ההצהרה)`;
       replaceLabel.hidden = found.state !== "rows";
       updateRunState();
@@ -139,6 +145,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
     quickLine.hidden = quickWarnings.hidden = true;
     setStep("file");
     closeNow.checked = false;
+    month.readOnly = Boolean(context.openMonth);
     target = null;
     targetCheck += 1;
     clientLine.textContent = `לקוח: ${context.client.config.clientName ?? ""}`;
@@ -215,7 +222,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
   const render = () => {
     const { rows, totals, unknown, chart, codes, types } = prepared;
     summary.textContent = `${rows.length} שורות · נטו ${money(totals.net)} · מע״מ נטו ${money(totals.vat)} · ברוטו ${money(totals.gross)}`;
-    month.value = formatMonth(prepared.suggestedMonth);
+    month.value = formatMonth(context.openMonth || prepared.suggestedMonth);
     unknownBox.hidden = !rows.length;
     unknownText.textContent = unknown.length
       ? "קודי המיון בקובץ. לשמות החדשים יש להגדיר קוד וסוג; את הסוג של שם קיים אפשר לשנות ללקוח זה בלבד:"
@@ -288,7 +295,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
         clientDirectory: context.client.directory,
       });
       render();
-      if (suggestedMonth && !prepared.suggestedMonth) {
+      if (suggestedMonth && !prepared.suggestedMonth && !context.openMonth) {
         month.value = formatMonth(suggestedMonth);
         refreshTarget();
       }

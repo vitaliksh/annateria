@@ -2,7 +2,7 @@
 // use it, so that what the agent was told and what is written into the table are computed in one place: the month, the year gate,
 // duplicates, the VAT deduction window, the ceiling for an allocation number, the 25% of a home. The model supplies nothing numeric.
 import { ToolError } from "./errors.js";
-import { intakeFacts } from "../intake-facts.js";
+import { intakeFacts, isPeriodDocument } from "../intake-facts.js";
 import { isHomeUtility } from "../home-utilities.js";
 import { pcnReview } from "../pcn-review.js";
 
@@ -58,6 +58,10 @@ export async function computeFacts(ctx, args) {
   if (facts.deduction === "late") reasons.add("deduction_late");
   // A document dated after the month it goes into: its VAT cannot be deducted before its date (owner, 2 November 2026).
   if (facts.docMonth && facts.docMonth > facts.targetMonth) reasons.add("doc_after_month");
+  // A document of an earlier month goes into the open month, marked: the earlier month is filed and paid (owner, 6 November 2026).
+  // A document for a period is judged by its period, and a previous year has its own reason.
+  const earlier = facts.docMonth && facts.docMonth < facts.targetMonth && facts.exclude !== "previous-year";
+  if (earlier && !isPeriodDocument(record.period_from, record.period_to)) reasons.add("doc_before_month");
   if (buyerMismatch) reasons.add("buyer_mismatch");
   if (pcn.over) reasons.add("pcn_over");
   if (pcn.allocation_missing) reasons.add("pcn_allocation_missing");

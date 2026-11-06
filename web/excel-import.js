@@ -1,5 +1,7 @@
 // Converts parsed journal rows (excel-journal.js) into draft-table rows in the saved-snapshot format of app.js.
 // Imported amounts are source values recognised at 100 % / 100 %: the business rules must not reduce VAT twice.
+import { monthOfDate } from "./month-distribution.js";
+
 export const IMPORT_FINAL_EXPORT = "excel-import";
 const round2 = (value) => Math.round(value * 100) / 100;
 
@@ -60,6 +62,15 @@ export function buildImportedRows(rows, codes, { now = new Date().toISOString(),
   const missing = [...new Set(rows.map((row) => row.classificationName).filter((name) => !codes[name]))];
   if (missing.length) throw new Error(`חסר קוד מיון עבור: ${missing.join(", ")}`);
   return rows.map((row, index) => importedRow(row, codes[row.classificationName], index, { now, makeId, sourceHash }));
+}
+
+// Step 9.7: imported rows go into the open month; a row dated in another month is written there too, marked to look at.
+export function markOtherMonthRows(rows, month) {
+  return rows.map((row) => {
+    const own = monthOfDate(row.values[0]);
+    if (!own || own === month) return row;
+    return { ...row, statusClass: "review", statusText: "נדרש עיון", agentOpinion: `${row.agentOpinion} · לבדיקה: תאריך השורה אינו בחודש ההצהרה` };
+  });
 }
 
 // Reference 2 has no place in the app model; tell the user instead of dropping it silently.

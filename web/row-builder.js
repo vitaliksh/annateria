@@ -27,6 +27,7 @@ export const REASON_TEXT = {
   deduction_check: "חלפו 6 חודשים מתאריך המסמך — לבדוק את ניכוי המע״מ",
   deduction_late: "חלפו יותר מ‑6 חודשים מתאריך המסמך — לבדוק את ניכוי המע״מ מול רואה החשבון",
   doc_after_month: "תאריך המסמך אחרי חודש ההצהרה",
+  doc_before_month: "תאריך המסמך לפני חודש ההצהרה",
   pcn_over: "חשבונית מעל תקרת מספר הקצאה — נדרש אישור",
   pcn_allocation_missing: "חסר מספר הקצאה",
   month_locked: "החודש שנבחר נעול",

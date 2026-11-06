@@ -49,8 +49,11 @@ export function createImportReader({ loadLibrary, loadPdf } = {}) {
 
     const problems = groupProblems(prepared);
     const found = prepared.suggestedMonth || "";
-    const target = found || month || "";
+    // Step 9.7: the rows go into the open month, whatever month the file names.
+    const target = month || found || "";
     if (month && found && month !== found) problems.push({ code: "month_differs", severity: "warning", count: 1 });
+    const others = month ? prepared.rows.filter((row) => row.date?.slice(0, 7) !== month).length : 0;
+    if (others) problems.push({ code: "rows_other_months", severity: "warning", count: others });
     if (target) {
       const state = await inspectImportTarget(client.directory, target);
       if (state.state === "closed") problems.push({ code: "month_locked", severity: "error", count: 1 });
@@ -114,10 +117,10 @@ export function createImportReader({ loadLibrary, loadPdf } = {}) {
 
   // The operations ledger (a "כרטסת" with dated movements per code) against the declarations of its year: how many operations are in
   // the tables, how many are missing and could be added in the dialog. prepareReconcile only reads and compares.
-  async function ledgerCheck(file, { dataRoot, client, reserved }) {
+  async function ledgerCheck(file, { dataRoot, client, reserved, month }) {
     let prepared;
     try {
-      prepared = await prepareReconcile(file, { dataRoot, client, reserved, loadLibrary, loadPdf });
+      prepared = await prepareReconcile(file, { dataRoot, client, reserved, loadLibrary, loadPdf, openMonth: month ?? null });
     } catch (error) {
       throw new ImportError("wrong_format", error.message);
     }
@@ -133,6 +136,8 @@ export function createImportReader({ loadLibrary, loadPdf } = {}) {
     if (missing.length) problems.push({ code: "operations_missing", severity: "warning", count: missing.length });
     if (count("unknown-class")) problems.push({ code: "missing_unknown_class", severity: "warning", count: count("unknown-class") });
     if (count("locked")) problems.push({ code: "missing_in_locked_month", severity: "warning", count: count("locked") });
+    const others = addable.filter((operation) => operation.otherMonth).length;
+    if (others) problems.push({ code: "operations_other_months", severity: "warning", count: others });
     if (extra.length) problems.push({ code: "rows_not_in_ledger", severity: "warning", count: extra.length });
     return {
       summary: {
@@ -150,7 +155,7 @@ export function createImportReader({ loadLibrary, loadPdf } = {}) {
 
   // The periodic income report of "חשבונית ירוקה" (morning), PDF with a text layer: its sums become one or two rows of the declaration of
   // the report's month. The report is read and its listing checked against its summary; the month is looked at, nothing is written.
-  async function incomeReport(file, { client }) {
+  async function incomeReport(file, { client, month }) {
     let report;
     try {
       report = await readIncomeReportFile(file, { loadPdf });
@@ -160,12 +165,15 @@ export function createImportReader({ loadLibrary, loadPdf } = {}) {
     if (!report) throw new ImportError("wrong_format", "Not a periodic income report of morning (חשבונית ירוקה), or the PDF has no text layer.");
     const problems = report.problems.map((problem) => ({ code: problem.code, severity: "warning", count: 1, ...(problem.field ? { key: problem.field } : {}) }));
     if (!report.parsedDocuments) problems.push({ code: "listing_unread", severity: "warning", count: 1 });
-    const target = await inspectImportTarget(client.directory, report.month);
+    // Step 9.7: the rows go into the open month; a report of another month is said so and its rows are marked.
+    const into = month ?? report.month;
+    if (into !== report.month) problems.push({ code: "month_differs", severity: "warning", count: 1 });
+    const target = await inspectImportTarget(client.directory, into);
     if (target.state === "missing") problems.push({ code: "month_missing", severity: "error", count: 1 });
     if (target.state === "closed") problems.push({ code: "month_locked", severity: "error", count: 1 });
     return {
       summary: {
-        month: report.month, period_from: report.period.from, period_to: report.period.to, documents: report.documents,
+        month: into, report_month: report.month, period_from: report.period.from, period_to: report.period.to, documents: report.documents,
         rows_to_add: report.exempt && (report.taxable || !report.exempt) ? 2 : 1, verified: report.verified,
       },
       checks: [

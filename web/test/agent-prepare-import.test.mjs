@@ -106,16 +106,21 @@ test("prepare_import: the file is of the client of the run; another client, or a
   assert.equal(s.ui.importCards.length, 0);
 });
 
-test("prepare_import: the month of the file decides; another month is a warning, a locked month an error, a month with rows a warning", async () => {
-  const s = await session({ grid: buildJournalGrid({ month: 1 }), name: "journal-01.xlsx" });
-  const locked = await prepare(s, { month: "2026-03" });
-  assert.deepEqual(locked.problems.filter((item) => ["month_differs", "month_locked"].includes(item.code)).map((item) => [item.code, item.severity]), [["month_differs", "warning"], ["month_locked", "error"]]);
-  assert.equal(locked.month, "2026-01", "the month of the file, not the suggestion");
-  const rows = await session({ grid: buildJournalGrid({ month: 2 }), name: "journal-02.xlsx" });
-  const withRows = await prepare(rows);
-  assert.deepEqual(withRows.problems.find((item) => item.code === "month_has_rows"), { code: "month_has_rows", severity: "warning", count: 3 });
-  const plain = await prepare(await session());
-  assert.equal(plain.problems.some((item) => item.code.startsWith("month_")), false);
+test("prepare_import: the rows go into the open month (step 9.7): another month in the file and rows of other months are warnings", async () => {
+  const s = await session({ grid: buildJournalGrid({ month: 8 }) });
+  const other = await prepare(s);
+  assert.equal(other.month, "2026-08", "the summary still says what the file names");
+  assert.equal(s.ui.importCards[0].month, "2026-02", "the card belongs to the open month");
+  const codes = other.problems.map((item) => [item.code, item.severity]);
+  assert.ok(codes.some(([code, severity]) => code === "month_differs" && severity === "warning"));
+  assert.ok(codes.some(([code, severity]) => code === "rows_other_months" && severity === "warning"));
+  assert.deepEqual(other.problems.find((item) => item.code === "month_has_rows"), { code: "month_has_rows", severity: "warning", count: 3 });
+  assert.equal((await prepare(await session(), { month: "2026-03" })).error.code, "invalid_argument", "the model gives no month");
+  const same = await session({ grid: buildJournalGrid({ month: 2 }), name: "journal-02.xlsx" });
+  assert.equal((await prepare(same)).problems.some((item) => item.code === "month_differs"), false);
+  const closed = await session();
+  closed.ctx.scope = { ...closed.ctx.scope, month: "2026-01" };
+  assert.deepEqual((await prepare(closed)).problems.find((item) => item.code === "month_locked").severity, "error");
 });
 
 test("prepare_import: errors and warnings of the file are problems, not a refusal; the wizard decides what to do", async () => {
@@ -299,7 +304,7 @@ test("prepare_import income_report: the report is read and checked; the model ge
   const result = await income(s);
   assert.equal(result.ok, true);
   assert.deepEqual([result.kind, result.wizard, result.month], ["income_report", "income_report", "2026-02"]);
-  assert.deepEqual(result.summary, { month: "2026-02", period_from: "2026-02-01", period_to: "2026-02-28", documents: 5, rows_to_add: 1, verified: true });
+  assert.deepEqual(result.summary, { month: "2026-02", report_month: "2026-02", period_from: "2026-02-01", period_to: "2026-02-28", documents: 5, rows_to_add: 1, verified: true });
   assert.deepEqual(result.checks.map((check) => [check.code, check.ok]), [["report_read", true], ["listing_matches_summary", true]]);
   assert.deepEqual(result.problems, []);
   assert.equal(JSON.stringify(result).includes("295.59"), false, "no sum reaches the model");
@@ -307,11 +312,13 @@ test("prepare_import income_report: the report is read and checked; the model ge
   assert.deepEqual(await snapshot(s.w.root), before);
 });
 
-test("prepare_import income_report: a month without a declaration or a locked month is an error on the card; a listing that differs is a warning", async () => {
+test("prepare_import income_report: the sums go into the open month; a report of another month is a warning, a locked open month an error", async () => {
   const september = await income(await incomeSession(sampleReport().pages));
-  assert.deepEqual(september.problems.map((item) => [item.code, item.severity]), [["month_missing", "error"]]);
-  const locked = [summaryPage({ from: "01/01/2026", to: "31/01/2026", taxable: 250.5, vat: 45.09, gross: 295.59, documents: 5 }), ...sampleReport().pages.slice(1)];
-  assert.deepEqual((await income(await incomeSession(locked))).problems.map((item) => item.code), ["month_locked"]);
+  assert.deepEqual(september.problems.map((item) => [item.code, item.severity]), [["month_differs", "warning"]]);
+  assert.deepEqual([september.summary.month, september.summary.report_month], ["2026-02", sampleReport().month ?? "2026-09"]);
+  const closed = await incomeSession(february());
+  closed.ctx.scope = { ...closed.ctx.scope, month: "2026-01" };
+  assert.ok((await income(closed)).problems.some((item) => item.code === "month_locked" && item.severity === "error"));
   const tampered = [summaryPage({ from: "01/02/2026", to: "28/02/2026", taxable: 999, vat: 45.09, gross: 1044.09, documents: 5 }), ...sampleReport().pages.slice(1)];
   const differs = await income(await incomeSession(tampered));
   assert.equal(differs.summary.verified, false);

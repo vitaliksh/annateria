@@ -1,0 +1,112 @@
+{
+  "name": "doc-before-month",
+  "about": "An invoice dated before the open month, whose month is already filed, is a row of the open month, marked to look at, without a question.",
+  "today": "2026-10-20",
+  "open": {
+    "client": "Levi",
+    "month": "2026-09"
+  },
+  "clients": [
+    {
+      "folder": "Levi",
+      "name": "Levi Plumbing Ltd",
+      "vatId": "515300010",
+      "kind": "office",
+      "activity": "plumbing",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "206": {
+          "name": "ביטוח עסק",
+          "type": "outsideVatBase"
+        },
+        "215": {
+          "name": "תוכנה",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Cohen",
+      "name": "Cohen Studio",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "graphic design",
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "230": {
+          "name": "חשמל",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    },
+    {
+      "folder": "Pcn",
+      "name": "Pcn Trading",
+      "vatId": "515300028",
+      "kind": "office",
+      "activity": "trading",
+      "pcn": true,
+      "chart": {
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "240": {
+          "name": "ציוד",
+          "type": "expense"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    }
+  ],
+  "inbox": [
+    {
+      "name": "scan-78.jpg",
+      "records": [
+        {
+          "supplier_name": "Paper Shop",
+          "supplier_vat_id": "512345679",
+          "net": 200,
+          "vat": 36,
+          "total": 236,
+          "purpose": "נייר ודיו למדפסת",
+          "date": "2026-08-20",
+          "document_number": "3178",
+          "buyer_name": "Levi Plumbing Ltd",
+          "buyer_vat_id": "515300010"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "rows": [
+      {
+        "reference": "3178",
+        "client": "Levi",
+        "month": "2026-09",
+        "account": "202",
+        "status": "review"
+      }
+    ],
+    "questions": {
+      "max": 0
+    },
+    "filed": [
+      "scan-78.jpg"
+    ]
+  }
+}

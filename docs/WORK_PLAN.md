@@ -1,6 +1,6 @@
 # ANNATERIA — work plan
 
-Status (27 October 2026; 25 to 27 October: fixes after Anna's first real day, see the decision log and `HANDOFF.md`): **phases 0, 1, 5 and 7 done; phase 2 done but for 2.5 (phone camera → inbox, Anna's show-stopper, planned 24 October, next); phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** **1 November 2026: phase 9 planned (after Anna's test session: one month at a time, the VAT month); 9.2 to 9.6 built as local commits, the eval of 9.6 green; the push waits for the owner's yes.** This file is the single source of truth for what is
+Status (27 October 2026; 25 to 27 October: fixes after Anna's first real day, see the decision log and `HANDOFF.md`): **phases 0, 1, 5 and 7 done; phase 2 done but for 2.5 (phone camera → inbox, Anna's show-stopper, planned 24 October, next); phase 4 done but for the owner's runs of 4.6.1 and 4.7.4 and the phase check of 4.6; phase 6 done but for 6.1 (backlog) and 6.4 (the PCN874 file, planned; 6.3, the VAT report as Rivhit's, done); phase 3 in the backlog; phase 8 started: first set-up on Anna's PC on 23 October (all clients arrived), 8.1 open until the flash copy, the phone and her own access code are done with her.** **1 November 2026: phase 9 planned (after Anna's test session: one month at a time, the VAT month); 9.2 to 9.6 pushed on 6 November 2026; 9.7 built; the owner's run of a real month and of a real journal are open.** This file is the single source of truth for what is
 done and what is next. Update the checkboxes and the decision log in the same commit as the work.
 
 ## How to use this plan (every session)
@@ -522,8 +522,20 @@ the owner's "yes" between steps.
   another month are counted on the wizard's summary ("N rows from other months") and marked to look at; Anna moves them with
   the existing move of rows. The classification-codes ledger is not monthly and does not change. *Done when:* tests per kind;
   the owner imports one real journal into one month.
+  (Built 6 November 2026 with the owner's answers: a closed month is filed and paid, so it takes no rows: a document of a closed
+  month goes into the open month marked to look at (`doc_before_month` for the agent, the mark of imported rows here), and the
+  move of rows never offers a closed month. The ledger check starts with the operations of the open month ticked; those of other
+  months are ticked by hand and go into the open month, marked. A journal into a month with rows stays "replace, or no import".
+  Fixed: the move dialog, since 9.3, proposed rows of an old month for a month after the latest closed one, already selected; it
+  now proposes nothing and every row stays unless moved. The check finds an operation in any month of its year, so a row added
+  to the open month is not missing next time. A card of the assistant keeps its month; a click shows it and opens it if it
+  closed since. Instruction `base-2026-11-06a`, periods-and-duplicates 4; a new eval case doc-before-month. Web 961 tests. Eval
+  against the real model on 6 November 2026 (17 cases x 2): 144 of 144 checks.
+  **Not covered by a test:** the click on a card of a closed month (`openImportWizard` needs the workspace, which needs
+  IndexedDB, not in jsdom); the owner's import of a real journal covers it.)
 - [ ] **9.8 The column "VAT month"** (owner, 1 November 2026: expenses and income; a list of months for every client, also
-  for two-month VAT periods: a move inside one period changes nothing in the report). A list of months (month and year, no
+  for two-month VAT periods: a move inside one period changes nothing in the report; owner, 6 November 2026: the VAT moves to a
+  **future** month and the invoice stays in the current one; a closed month is filed and paid and is never a target). A list of months (month and year, no
   confusion at the turn of the year); by default the month of the table; the code warns when the chosen month lies outside the
   deduction window it already knows (`intake-facts.js`). When another month is chosen, the row's VAT shows 0 (the original
   amount is kept, choosing the own month again restores it) and the code writes a line "moved VAT" into the chosen month: the
@@ -680,4 +692,5 @@ model behind the same proxy.
 | 2026-11-01 | **9.3: one sweep, three answers** (owner). A long pause does not close a month; the red line of the checks shows in the month first, the reports in a commit right after; steps 9.3 to 9.6 are committed locally and pushed together, because until 9.6 the agent puts a document of a closed month into the month after the last closed one. |
 | 2026-11-01 | **9.4: the month of an inbox file lives in the index** (owner), not in a folder per month as first planned: fewer moves on disk, and the agent keeps finding files by their client folder until 9.6. The Hebrew texts of the dialog as proposed. |
 | 2026-11-01 | **9.5: a way into the inbox from outside a month asks for the client and the month** (owner), instead of opening an inbox without a month; the month's own inbox button and a visible reopen button in the top bar; "check new documents" works on the month shown and opens a closed one first. |
+| 2026-11-06 | **9.7: a closed month takes nothing** (owner): it is filed and paid. A document of a closed month goes into the open month, marked to look at; the move of rows never offers a closed month, and the VAT of 9.8 moves to a future month only. This replaces the 9.6 note that an earlier date alone is no reason to look. The ledger check ticks only the open month's operations at the start; a journal into a month with rows stays "replace, or no import". |
 | 2026-11-02 | **9.6: a document dated after the month is written into it and marked to look at** (owner; `doc_after_month`): its VAT cannot be deducted before its date, and Anna decides where it goes. A run without a month only reads. Files of the client without a month and files of `_unsorted` are not seen by a run: Anna takes them into the month with the button of the inbox (9.4). |

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as XLSX from "xlsx";
 import { SEED_CHART_OF_ACCOUNTS, matchClassNames, normaliseChart, saveClientChart } from "../chart-of-accounts.js";
-import { loadDeclaration } from "../declaration-store.js";
+import { createDeclaration, loadDeclaration, saveDraft } from "../declaration-store.js";
 import { buildImportedRows } from "../excel-import.js";
 import { importRowsIntoDeclaration } from "../excel-import-store.js";
 import { parseJournalGrid } from "../excel-journal.js";
@@ -89,6 +89,24 @@ test("сверка: пропущенные операции предлагают
   const folder = (await (await c.directory.getDirectoryHandle("declarations")).getDirectoryHandle("2026-01")).children;
   assert.equal([...folder.keys()].filter((name) => name.startsWith("draft-table.before-ledger-")).length, 1);
   const again = await prepareReconcile(file, options(c));
+  assert.deepEqual([again.matched, again.missing.length, again.extra.length], [SAMPLE_ROWS.length + 1, 0, 0]);
+});
+
+// Step 9.7: everything chosen goes into the open month, whatever its date; a closed month does not stop it.
+test("the ledger check with an open month: operations of other months go into it, marked, and are found there by the next check", async () => {
+  const c = await client({ close: true });
+  const open = await createDeclaration(c.directory, { clientId: "c1", month: "2026-02" });
+  await saveDraft(open.directory, open.declaration, [], NOW);
+  const file = ledgerFile(sampleBlocks({ "אחזקה": [MISSING_ROW] }));
+  const prepared = await prepareReconcile(file, { ...options(c), openMonth: "2026-02" });
+  assert.deepEqual(prepared.missing.map((operation) => [operation.month, operation.problem, operation.creates, operation.otherMonth]), [["2026-01", null, false, true]]);
+  const result = await commitReconcile(prepared, { selected: new Set([0]), client: c, now: NOW });
+  assert.deepEqual(result, { added: 1, months: ["2026-02"] });
+  const [added] = (await loadDeclaration(c.directory, "2026-02")).draft.rows;
+  assert.deepEqual([added.values[0], added.statusClass, added.statusText], ["20/01/26", "review", "נדרש עיון"]);
+  assert.match(added.agentOpinion, /נוסף מהכרטסת.*לבדיקה: תאריך השורה אינו בחודש ההצהרה/);
+  assert.equal((await loadDeclaration(c.directory, "2026-01")).draft.rows.length, SAMPLE_ROWS.length, "the closed month is untouched");
+  const again = await prepareReconcile(file, { ...options(c), openMonth: "2026-02" });
   assert.deepEqual([again.matched, again.missing.length, again.extra.length], [SAMPLE_ROWS.length + 1, 0, 0]);
 });
 

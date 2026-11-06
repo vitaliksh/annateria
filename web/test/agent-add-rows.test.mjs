@@ -38,7 +38,7 @@ test("add_rows: an invoice for the client becomes a ready row at the end of the 
   const row = rows[3];
   assert.deepEqual(row.values, ["20/02/26", "202", "paper", "Paper Shop", "512345679", "2002", "", "236.00", "200.00", "36.00", "100", "100"]);
   assert.deepEqual([row.active, row.statusText, row.statusClass, row.reference, row.documentKind, row.agentOpinion, row.confidence], [true, "מוכן לייצוא", "ready", "INV-2002", "expense_invoice", "חשבונית משרדית", "92%"]);
-  assert.deepEqual([row.agent.run, row.agent.version, row.agent.fact, row.agent.page, row.agent.reasons], [ctx.run.id, "base-2026-11-02a", fact, null, []]);
+  assert.deepEqual([row.agent.run, row.agent.version, row.agent.fact, row.agent.page, row.agent.reasons], [ctx.run.id, "base-2026-11-06a", fact, null, []]);
   assert.equal(row.agent.file.length, 64);
   assert.deepEqual(row.agent.skills, { classification: 3, "periods-and-duplicates": 2 }, "the version of every skill of the run is in the row (5.1)");
   assert.equal(ctx.handles.get("R", added.row).position, 4);
@@ -138,9 +138,16 @@ test("add_rows: a document of the previous year is an inactive row; one of a fil
   const first = (await dispatch("add_rows", { client: levi, rows: [decision(old)] })).rows[0];
   assert.deepEqual([first.excluded, first.status], ["previous-year", "review"]);
   const second = (await dispatch("add_rows", { client: levi, rows: [decision(jan)] })).rows[0];
-  assert.deepEqual([second.state, second.month, second.excluded, second.status], ["created", "2026-02", null, "ready"]);
+  assert.deepEqual([second.state, second.month, second.excluded, second.status, second.reasons], ["created", "2026-02", null, "review", ["doc_before_month"]], "the earlier month is filed and paid");
   assert.equal((await tableOf(w, "2026-01")).length, 1, "the filed month is untouched");
   assert.equal((await tableOf(w)).length, 5);
+});
+
+test("add_rows: a document for a period dated before the month is judged by its period, not marked for its date", async () => {
+  const { dispatch, factsOf, levi } = await session([[rawRecord({ date: "2026-01-10", period_from: "2026-01-01", period_to: "2026-12-31", document_number: "YEAR-1" })]]);
+  const [fact] = await factsOf("photo.jpg");
+  const [added] = (await dispatch("add_rows", { client: levi, rows: [decision(fact)] })).rows;
+  assert.equal(added.reasons.includes("doc_before_month"), false);
 });
 
 test("add_rows: a document dated after the month is written into the month and marked to look at; no month is made", async () => {

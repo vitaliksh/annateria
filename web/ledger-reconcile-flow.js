@@ -1,15 +1,16 @@
 // Steps of checking declarations against the ledger without any DOM: prepare (read + compare) and commit (add rows).
 import { readEffectiveChart } from "./chart-of-accounts.js";
 import { createDeclaration, listDeclarations, loadDeclaration, saveDraft } from "./declaration-store.js";
-import { buildImportedRows } from "./excel-import.js";
+import { buildImportedRows, markOtherMonthRows } from "./excel-import.js";
 import { readLedgerFile } from "./ledger-rows.js";
 import { ledgerOperations, reconcile } from "./ledger-reconcile.js";
 
 const NOTE = "נוסף מהכרטסת";
 
 // `client` is { directory, config: { clientId } }. A missing operation can be added when its class has a code in the client's
-// chart and its declaration is open (or does not exist yet and is created).
-export async function prepareReconcile(file, { dataRoot, client, reserved = {}, loadLibrary, loadPdf } = {}) {
+// chart and its declaration is open (or does not exist yet and is created). openMonth: the month shown in the page (step 9.7): everything
+// chosen is added to it, whatever its date, and only a class without a code stops an operation.
+export async function prepareReconcile(file, { dataRoot, client, reserved = {}, loadLibrary, loadPdf, openMonth = null } = {}) {
   const chart = await readEffectiveChart(dataRoot, client.directory, client.config.clientId, reserved);
   const ledger = await readLedgerFile(file, { loadLibrary, loadPdf });
   const declarations = [];
@@ -24,10 +25,11 @@ export async function prepareReconcile(file, { dataRoot, client, reserved = {}, 
   const byMonth = new Map(declarations.map((item) => [item.month, item]));
   const missing = result.missing.map((operation) => {
     const target = byMonth.get(operation.month);
-    const problem = !known.has(operation.name) ? "unknown-class" : target && target.status !== "open" ? "locked" : null;
-    return { ...operation, problem, creates: !target };
+    const unknown = !known.has(operation.name);
+    if (openMonth) return { ...operation, problem: unknown ? "unknown-class" : null, creates: false, otherMonth: operation.month !== openMonth };
+    return { ...operation, problem: unknown ? "unknown-class" : target && target.status !== "open" ? "locked" : null, creates: !target };
   });
-  return { chart, year: ledger.year, operations: operations.length, matched: result.matched, missing, extra: result.extra };
+  return { chart, year: ledger.year, operations: operations.length, matched: result.matched, missing, extra: result.extra, openMonth };
 }
 
 async function backupDraft(directory, draft, now) {
@@ -54,7 +56,8 @@ const parsedRow = (operation) => ({
 export async function commitReconcile(prepared, { selected, client, now = new Date().toISOString() }) {
   const chosen = prepared.missing.filter((operation, index) => selected.has(index) && !operation.problem);
   const codes = Object.fromEntries(Object.entries(prepared.chart).map(([code, account]) => [account.name, code]));
-  const months = [...new Set(chosen.map((operation) => operation.month))].sort();
+  const monthOf = (operation) => prepared.openMonth ?? operation.month;
+  const months = [...new Set(chosen.map(monthOf))].sort();
   for (const month of months) {
     let target;
     try {
@@ -64,8 +67,9 @@ export async function commitReconcile(prepared, { selected, client, now = new Da
       target = { ...(await createDeclaration(client.directory, { clientId: client.config.clientId, month })), draft: { rows: [] } };
     }
     if (target.declaration.status !== "open") throw new Error(`ההצהרה ${month} נעולה. לא ניתן להוסיף אליה שורות.`);
-    const added = buildImportedRows(chosen.filter((operation) => operation.month === month).map(parsedRow), codes, { now })
+    const built = buildImportedRows(chosen.filter((operation) => monthOf(operation) === month).map(parsedRow), codes, { now })
       .map((row) => ({ ...row, agentOpinion: NOTE, statusText: NOTE }));
+    const added = markOtherMonthRows(built, month);
     if (target.draft.rows.length) await backupDraft(target.directory, target.draft, now);
     await saveDraft(target.directory, target.declaration, [...target.draft.rows, ...added], now);
   }
