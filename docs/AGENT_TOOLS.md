@@ -272,7 +272,9 @@ the registry so that this file and the code cannot drift apart.
 - **Validation.** The file is in the inbox. A file is extracted once per run; a second call returns the stored result.
   `strong` is allowed once per file and replaces the stored facts only if no row was made from them. Over the
   extraction limit: `limit_reached`.
-- **Effect.** One model call per call (a PDF that would exceed the request limit is split by pages and merged). The
+- **Effect.** One model call per call. A PDF above the limit of one request (14 MiB) is drawn again as JPEG pages, at falling quality,
+  only for the request (`agent/adapters/pdf-shrink.js`); if it is still too large its pages go into several calls and the records are
+  merged with the page numbers of the file. The
   system instruction is the `invoice-extraction` skill; temperature 0; JSON response schema with no free fields beyond
   those of section 4. Stores the records in the fact store.
 - **Never.** Send any other file; classify; decide anything about the books; write to disk (except the run log).

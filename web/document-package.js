@@ -53,12 +53,15 @@ function bytes(...parts) {
 
 // A deliberately small PDF writer: every page is a JPEG canvas, which lets the
 // browser render Hebrew and other Unicode text with its installed fonts.
-export function jpegPagesToPdf(jpegPages, width, height, pageWidth = width, pageHeight = height) {
+// sizes: [{ width, height, pageWidth, pageHeight }] when the pages differ in size (one per page).
+export function jpegPagesToPdf(jpegPages, width, height, pageWidth = width, pageHeight = height, sizes = null) {
+  const sizeOf = (index) => sizes?.[index] ?? { width, height, pageWidth, pageHeight };
   const objects = [];
   const add = (body) => { objects.push(body); return objects.length; };
   const pageIds = [], imageIds = [], contentIds = [];
   const catalogId = add(null), pagesId = add(null);
-  for (const jpeg of jpegPages) {
+  for (const [index, jpeg] of jpegPages.entries()) {
+    const { width, height, pageWidth, pageHeight } = sizeOf(index);
     imageIds.push(add(bytes(textEncoder.encode(`<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`), jpeg, textEncoder.encode("\nendstream"))));
     const content = textEncoder.encode(`q\n${pageWidth} 0 0 ${pageHeight} 0 0 cm\n/Im0 Do\nQ\n`);
     contentIds.push(add(bytes(textEncoder.encode(`<< /Length ${content.length} >>\nstream\n`), content, textEncoder.encode("endstream"))));
@@ -66,7 +69,7 @@ export function jpegPagesToPdf(jpegPages, width, height, pageWidth = width, page
   }
   objects[catalogId - 1] = textEncoder.encode(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
   objects[pagesId - 1] = textEncoder.encode(`<< /Type /Pages /Count ${pageIds.length} /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")} ] >>`);
-  pageIds.forEach((id, index) => { objects[id - 1] = textEncoder.encode(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im0 ${imageIds[index]} 0 R >> >> /Contents ${contentIds[index]} 0 R >>`); });
+  pageIds.forEach((id, index) => { const { pageWidth, pageHeight } = sizeOf(index); objects[id - 1] = textEncoder.encode(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im0 ${imageIds[index]} 0 R >> >> /Contents ${contentIds[index]} 0 R >>`); });
   const header = textEncoder.encode("%PDF-1.4\n%\xFF\xFF\xFF\xFF\n"), chunks = [header], offsets = [0]; let offset = header.length;
   objects.forEach((body, index) => { const prefix = textEncoder.encode(`${index + 1} 0 obj\n`), suffix = textEncoder.encode("\nendobj\n"); offsets.push(offset); chunks.push(prefix, body, suffix); offset += prefix.length + body.length + suffix.length; });
   const startXref = offset, xref = [`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`, ...offsets.slice(1).map((item) => `${String(item).padStart(10, "0")} 00000 n \n`), `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${startXref}\n%%EOF`].join("");

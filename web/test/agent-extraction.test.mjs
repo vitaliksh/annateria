@@ -2,6 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { INLINE_TYPES, MAX_INLINE_BYTES, RESPONSE_SCHEMA, createExtractionAdapter, ExtractionError, toBase64 } from "../agent/adapters/extraction.js";
+import { shrinkPdf } from "../agent/adapters/pdf-shrink.js";
+import { jpegPagesToPdf } from "../document-package.js";
 import { normalizeRecord, RECORD_SCHEMA } from "../agent/fact-record.js";
 import { MODELS } from "../agent/models.js";
 import { extractionInstruction } from "./skills-fixture.mjs";
@@ -370,7 +372,10 @@ test("the adapter adds the text layer of a PDF, cut to 12000 characters, and sur
 test("the adapter refuses what the model cannot read, shrinks a large photo, and says when the answer is not JSON", async () => {
   const client = stubClient({ documents: [] });
   const shrunk = [];
-  const adapter = createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client, shrinkImage: async (source, limit) => { shrunk.push(limit); return new Uint8Array([1, 2, 3]); } });
+  const adapter = createExtractionAdapter({
+    prompt: EXTRACTION_PROMPT, client, shrinkPdf: async () => null,
+    shrinkImage: async (source, limit) => { shrunk.push(limit); return new Uint8Array([1, 2, 3]); },
+  });
   await assert.rejects(() => adapter.run(entry("a.txt", "application/octet-stream"), fileOf("a.txt", "x"), {}), (error) => error instanceof ExtractionError && error.code === "unsupported_type");
   assert.deepEqual(INLINE_TYPES.includes("image/heic"), true);
   const big = new Uint8Array(MAX_INLINE_BYTES + 1);
@@ -383,6 +388,67 @@ test("the adapter refuses what the model cannot read, shrinks a large photo, and
     await assert.rejects(() => createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client: stubClient(body) }).run(entry("a.jpg", "image/jpeg"), fileOf("a.jpg", "x"), {}), (error) => error.code === "bad_answer");
   }
   assert.deepEqual((await createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client: stubClient({ other: 1 }) }).run(entry("a.jpg", "image/jpeg"), fileOf("a.jpg", "x"), {})).records, []);
+});
+
+test("a PDF above the limit goes out small, in one request; the original is not what is sent", async () => {
+  const client = stubClient({ documents: [rawRecord({ page: 2 })] });
+  const limits = [];
+  const shrinkPdf = async (source, limit) => { limits.push(limit); return [{ firstPage: 1, bytes: new Uint8Array([1, 2, 3]) }]; };
+  const adapter = createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client, shrinkPdf, readText: async () => "layer" });
+  const { records } = await adapter.run(entry("a.pdf", "application/pdf"), fileOf("a.pdf", new Uint8Array(MAX_INLINE_BYTES + 1)), {});
+  assert.deepEqual(limits, [MAX_INLINE_BYTES]);
+  assert.equal(client.sent.length, 1);
+  assert.deepEqual(client.sent[0].request.contents[0].parts[1], { inlineData: { mimeType: "application/pdf", data: "AQID" } });
+  assert.match(client.sent[0].request.contents[0].parts[0].text, /Text layer/);
+  assert.equal(records[0].page, 2);
+});
+
+test("a PDF sent in parts: one request per part, the records together, with the page numbers of the file", async () => {
+  const client = stubClient({ documents: [rawRecord({ page: 2 }), rawRecord({ page: null })] });
+  const shrinkPdf = async () => [{ firstPage: 1, bytes: new Uint8Array([1]) }, { firstPage: 11, bytes: new Uint8Array([2]) }];
+  const adapter = createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client, shrinkPdf, readText: async () => "layer" });
+  const { records } = await adapter.run(entry("a.pdf", "application/pdf"), fileOf("a.pdf", new Uint8Array(MAX_INLINE_BYTES + 1)), {});
+  assert.equal(client.sent.length, 2);
+  assert.deepEqual(records.map((record) => record.page), [2, null, 12, null]);
+  assert.doesNotMatch(client.sent[0].request.contents[0].parts[0].text, /Text layer/, "the layer of the whole file would mislead");
+});
+
+test("a PDF at the limit goes out as it is", async () => {
+  const client = stubClient({ documents: [] });
+  const adapter = createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client, shrinkPdf: async () => { throw new Error("never"); } });
+  await adapter.run(entry("a.pdf", "application/pdf"), fileOf("a.pdf", new Uint8Array(MAX_INLINE_BYTES)), {});
+  assert.equal(client.sent.length, 1);
+});
+
+// What shrinkPdf builds, with the drawing of the pages replaced: pages of the given sizes, at any quality the sizes of `sizesAt`.
+const pagesOf = (sizes) => sizes.map((size, index) => ({ jpeg: new Uint8Array(size).fill(index), width: 100, height: 200, pageWidth: 50, pageHeight: 100 }));
+
+test("shrinkPdf: the first quality that fits gives one part", async () => {
+  const asked = [];
+  const renderPages = async (source, quality) => { asked.push(quality); return pagesOf(quality > 0.8 ? [9000, 9000] : [2000, 2000]); };
+  const parts = await shrinkPdf({}, 10000, { renderPages });
+  assert.deepEqual(asked, [0.85, 0.7]);
+  assert.deepEqual(parts.map((part) => part.firstPage), [1]);
+  assert.match(new TextDecoder("latin1").decode(parts[0].bytes), /\/Count 2 /);
+});
+
+test("shrinkPdf: pages that do not fit at the lowest quality go into parts, in their order, each within the limit", async () => {
+  const parts = await shrinkPdf({}, 10000, { renderPages: async () => pagesOf([6000, 6000, 1000, 6000]) });
+  assert.deepEqual(parts.map((part) => part.firstPage), [1, 2, 4]);
+  for (const part of parts) assert.ok(part.bytes.length <= 10000 + 1024 * 3, "a part is about the size of its pages");
+});
+
+test("shrinkPdf: a single page above the limit is refused", async () => {
+  assert.equal(await shrinkPdf({}, 10000, { renderPages: async () => pagesOf([20000]) }), null);
+});
+
+test("jpegPagesToPdf: pages of different sizes keep their own sizes", () => {
+  const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  const sizes = [{ width: 10, height: 20, pageWidth: 5, pageHeight: 7 }, { width: 30, height: 40, pageWidth: 8, pageHeight: 9 }];
+  const text = new TextDecoder("latin1").decode(jpegPagesToPdf([jpeg, jpeg], 0, 0, 0, 0, sizes));
+  assert.match(text, /\/MediaBox \[0 0 5 7\]/);
+  assert.match(text, /\/MediaBox \[0 0 8 9\]/);
+  assert.match(text, /\/Width 30 \/Height 40/);
 });
 
 test("the adapter ignores thought parts of the answer and reads the JSON text", async () => {

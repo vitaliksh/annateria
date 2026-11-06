@@ -78,6 +78,7 @@ const ALLOWED_OUTSIDE = {
   "agent/fact-record.js": ["intake-facts.js", "workspace-core.js"],
   "agent/facts.js": ["intake-facts.js", "home-utilities.js", "pcn-review.js"],
   "agent/adapters/documents.js": ["pdf-import.js"],
+  "agent/adapters/pdf-shrink.js": ["document-package.js", "pdf-import.js"],
   "agent/adapters/imports.js": ["excel-import-flow.js", "excel-import-store.js", "ledger-codes-flow.js", "ledger-reconcile-flow.js", "ledger-rows.js", "income-report.js"],
 };
 
