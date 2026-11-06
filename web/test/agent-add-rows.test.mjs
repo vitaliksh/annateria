@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { loadDeclaration, listDeclarations } from "../declaration-store.js";
+import { finalizeDeclaration, loadDeclaration, listDeclarations } from "../declaration-store.js";
 import { readInboxIndex } from "../inbox-store.js";
 import { createContext } from "../agent/run.js";
 import { createDefaultRegistry } from "../agent/index.js";
@@ -44,6 +44,32 @@ test("add_rows: an invoice for the client becomes a ready row at the end of the 
   assert.equal(ctx.handles.get("R", added.row).position, 4);
   assert.equal(ctx.run.factsUsed.has(fact), true);
   assert.equal(ctx.run.addedEntries.length, 1);
+});
+
+// A bug report of 6 November 2026: the user opens a month and starts a run; the list of clients was read before the click, so every row
+// was refused as locked. The state on disk is the truth.
+test("add_rows: a month the user opened after the list of clients was read takes rows, and the agent is told it is open", async () => {
+  const { w, dispatch, factsOf, levi } = await session([[rawRecord()]]);
+  w.levi.declarations.find((item) => item.declaration.month === "2026-02").declaration.status = "closed"; // as the list read before the click
+  assert.equal(await w.services.declarations.state("id-Levi", "2026-02"), "open");
+  const profile = await w.services.clients.profile("id-Levi");
+  assert.equal(profile.declarations.find((item) => item.month === "2026-02").status, "open");
+  assert.equal((await w.services.rows.list("id-Levi", "2026-02"))[0].status, "open");
+  const [fact] = await factsOf("photo.jpg");
+  const result = await dispatch("add_rows", { client: levi, rows: [decision(fact)] });
+  assert.equal(result.rows[0].state, "created");
+  assert.equal((await tableOf(w)).length, 4);
+});
+
+test("add_rows: a month closed after the list of clients was read takes nothing", async () => {
+  const { w, dispatch, factsOf, levi } = await session([[rawRecord()]]);
+  const clientDirectory = w.levi.directory;
+  const open = await loadDeclaration(clientDirectory, "2026-02");
+  await finalizeDeclaration({ clientDirectory, declarationDirectory: open.directory, declaration: open.declaration, finalExport: "no-export", rows: open.draft.rows });
+  const [fact] = await factsOf("photo.jpg");
+  const { rows } = await dispatch("add_rows", { client: levi, rows: [decision(fact)] });
+  assert.deepEqual([rows[0].state, rows[0].error.code], ["rejected", "locked"]);
+  assert.equal((await tableOf(w)).length, 3);
 });
 
 test("add_rows: the table is copied once before the first write of the run, and not again for a second row", async () => {

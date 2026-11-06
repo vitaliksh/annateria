@@ -7,7 +7,7 @@ the fact. The plan and its decision log are in `WORK_PLAN.md`; rules that must n
 
 **State (27 October).** `main` carries everything; the last code commit f991558 is published (the page shows
 `2026.10.26 · f991558`), `AGENT_VERSION` `base-2026-10-30a`. Web 902 tests (884 on 24 October; then 887 inbox lock, 892 documents
-report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip, 942 all months; follow-up F1–F5: 946; documents report with HEIC and Excel originals: 948; report period lists: 949; reopen without a reason: 950; months closed by default: 958; the red line of the reports: 960; the inbox of a month: 964; the order of work: 970; the agent on one month: 955; imports into the month: 961; files of Rivhit into their own month: 965; the VAT month column: 978; its reports: 987; the run's scope: 988; a big PDF: 995), Worker 69 (`2026.10.23.2`,
+report, 897 "nothing is lost", 898 own documents, 899 freed originals, 902 tax calculator button, 903 ledger lines, 906 HEIC view, 911 booked amounts, 912 HEIC loading note, 917 Excel source, 918 income credit VAT; on the redesign branch: 923 card states, 924 one-click import, 925 one name, 927 left-out rows, 931 "for you", 936 strip, 942 all months; follow-up F1–F5: 946; documents report with HEIC and Excel originals: 948; report period lists: 949; reopen without a reason: 950; months closed by default: 958; the red line of the reports: 960; the inbox of a month: 964; the order of work: 970; the agent on one month: 955; imports into the month: 961; files of Rivhit into their own month: 965; the VAT month column: 978; its reports: 987; the run's scope: 988; a big PDF: 995; the saved state of a month: 997), Worker 69 (`2026.10.23.2`,
 Cloudflare `dd57e455`, untouched since), `npm run check` green in both. On 27 October the sidebar got the button
 "מחשבון מס" that opens the owner's tax calculator in its own window (decision log of that day).
 Accepted by the owner: phases 0, 1, 2; 4.1 to 4.5; 4.6.2; 4.7.1 to 4.7.3, 4.7.5, 4.7.6; phase 5 (5.1 to 5.4); 6.2; **6.3**; **phase 7**
@@ -102,6 +102,10 @@ first). The owner and Anna are now checking them on real data; nothing is half d
   exported. Known gap: a journal of Rivhit that replaces a month's table takes its lines and flags with it; the old table is kept
   next to it. Hebrew texts written in the step, for the owner's look: the header, the two questions, the status lines, the opinion
   and status of the line, the refusal. **Not verified:** the owner's move on the published page. **9.8.1 and 9.8.2 go out together.**
+  **A month opened by the click was "locked" for the agent, found by the owner on 6 November 2026:** `declarations.state`, `clients.profile`
+  and `rows.list` in `agent/services.js` read the status from the list of clients, which is from the last scan of the folder, and a click on
+  the month does not scan. Since 9.3 every month is closed until that click, so every run refused every row. They now read the saved
+  declaration. A closed month on disk is refused as `locked`, whatever the list says. The sidebar's list stays as it was.
   **A big PDF, found by the owner on 6 November 2026:** a scan of 21 pages, 20 MiB, was refused as too large: `AGENT_TOOLS.md` promised a
   split by pages and the code never had one (a photo was shrunk, a PDF was not). Now `agent/adapters/pdf-shrink.js` and a loop over parts in
   `extraction.js`; `jpegPagesToPdf` got an optional `sizes`. A document that crosses two parts may give two records, so two rows for

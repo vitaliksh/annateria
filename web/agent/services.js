@@ -82,8 +82,10 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
         const declarations = [];
         for (const { declaration } of client.declarations ?? []) {
           if (declaration.archived) continue;
-          const rows = await loadDeclaration(client.directory, declaration.month).then(({ draft }) => draft.rows.filter((row) => row.active !== false).length, () => 0);
-          declarations.push({ month: declaration.month, status: stateOf(declaration), rows });
+          // The saved state: the list of clients is from the last scan of the folder, and the user may have opened a month since.
+          const saved = await loadDeclaration(client.directory, declaration.month).catch(() => null);
+          const rows = saved ? saved.draft.rows.filter((row) => row.active !== false).length : 0;
+          declarations.push({ month: declaration.month, status: stateOf(saved?.declaration ?? declaration), rows });
         }
         declarations.sort((a, b) => a.month.localeCompare(b.month));
         return {
@@ -104,8 +106,11 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
     declarations: Object.freeze({
       // "open", "locked" or "missing"
       state: async (clientId, month) => {
-        const item = find(clientId).declarations?.find((entry) => entry.declaration.month === month);
-        return item ? stateOf(item.declaration) : "missing";
+        const client = find(clientId);
+        const item = client.declarations?.find((entry) => entry.declaration.month === month);
+        if (!item) return "missing";
+        // The saved state decides, not the list of clients: see profile.
+        return stateOf((await loadDeclaration(client.directory, month)).declaration);
       },
       // Makes an open declaration for a month that has none. Refuses a month that exists.
       create: async (clientId, month) => {
@@ -124,8 +129,9 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
         const found = (client.declarations ?? []).map((entry) => entry.declaration).filter((declaration) => !declaration.archived && (!month || declaration.month === month));
         const result = [];
         for (const declaration of found.sort((a, b) => a.month.localeCompare(b.month))) {
-          const rows = live?.month === declaration.month ? live.rows : (await loadDeclaration(client.directory, declaration.month)).draft.rows;
-          result.push({ month: declaration.month, status: stateOf(declaration), rows });
+          const saved = await loadDeclaration(client.directory, declaration.month);
+          const rows = live?.month === declaration.month ? live.rows : saved.draft.rows;
+          result.push({ month: declaration.month, status: stateOf(saved.declaration), rows });
         }
         return result;
       },
