@@ -85,7 +85,7 @@ test("сверка: пропущенные операции предлагают
   assert.equal(after.length, before.length + 1);
   const added = after.at(-1);
   assert.deepEqual([added.values[0], added.values[1], added.values[3], added.values[7], added.values[8], added.values[9]], ["20/01/26", "203", "Water bill", "118.00", "100.00", "18.00"]);
-  assert.equal(added.statusText, "נוסף מהכרטסת");
+  assert.deepEqual([added.statusText, added.statusClass], ["נוסף מהכרטסת: חסר ביומן — פער לבדיקה", "review"], "a discrepancy for Anna, never ready");
   const folder = (await (await c.directory.getDirectoryHandle("declarations")).getDirectoryHandle("2026-01")).children;
   assert.equal([...folder.keys()].filter((name) => name.startsWith("draft-table.before-ledger-")).length, 1);
   const again = await prepareReconcile(file, options(c));
@@ -106,7 +106,7 @@ test("the ledger check with an open month: an operation goes into its own closed
   const january = await loadDeclaration(c.directory, "2026-01");
   assert.equal(january.declaration.status, "closed");
   assert.equal(january.declaration.reopenLog.at(-1).reason, "opened for a file of Rivhit");
-  assert.deepEqual(january.draft.rows.at(-1).statusText, "נוסף מהכרטסת");
+  assert.deepEqual(january.draft.rows.at(-1).statusText, "נוסף מהכרטסת: חסר ביומן — פער לבדיקה");
   assert.equal(january.draft.rows.length, SAMPLE_ROWS.length + 1);
   assert.equal((await loadDeclaration(c.directory, "2026-02")).draft.rows.length, 0, "the open month is untouched");
   const again = await prepareReconcile(file, { ...options(c), openMonth: "2026-02" });

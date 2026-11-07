@@ -6,7 +6,9 @@ import { buildImportedRows } from "./excel-import.js";
 import { readLedgerFile } from "./ledger-rows.js";
 import { ledgerOperations, reconcile, suspectOtherClient } from "./ledger-reconcile.js";
 
-const NOTE = "נוסף מהכרטסת";
+// Anna, 7 November 2026: an operation of the ledger that its journal lacks should not exist; when it does, it is a discrepancy or a
+// mistake. So the row is added for her to look at, never as ready.
+const NOTE = "נוסף מהכרטסת: חסר ביומן — פער לבדיקה";
 
 // `client` is { directory, config: { clientId } }. A missing operation can be added when its class has a code in the client's
 // chart and its declaration is open (or does not exist yet and is created). openMonth: the month shown in the page (step 9.7.1): an
@@ -78,7 +80,7 @@ export async function commitReconcile(prepared, { selected, client, now = new Da
     }
     if (target.declaration.status !== "open" && !prepared.openMonth) throw new Error(`ההצהרה ${month} נעולה. לא ניתן להוסיף אליה שורות.`);
     const added = buildImportedRows(chosen.filter((operation) => operation.month === month).map(parsedRow), codes, { now })
-      .map((row) => ({ ...row, agentOpinion: NOTE, statusText: NOTE }));
+      .map((row) => ({ ...row, agentOpinion: NOTE, statusText: NOTE, statusClass: "review" }));
     if (target.draft.rows.length) await backupDraft(target.directory, target.draft, now);
     if (target.declaration.status !== "open") {
       target.declaration = await reopenLockedDeclaration({ clientDirectory: client.directory, declarationDirectory: target.directory, declaration: target.declaration, reason: RIVHIT_REOPEN_REASON, now });

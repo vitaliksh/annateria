@@ -9,7 +9,7 @@ The present state only, at most 80 lines. Rules: `../AGENTS.md`. Plan: `WORK_PLA
 - **M1 done in its first form.** The law read for every OPEN and WEB rule (`trade-rules.md`, sources in the lab's `law` folder); worked examples added; a fresh agent with only the skill answered 20 situations in line with the key (`D:\ANNATERIA-LAB\runs\m1-situations`). Continues with every exam.
 - **M2 done.** A and B from nothing by the buttons, twice: by me, then by an independent agent with only the skill. VAT, advances, every P&L line and every ledger total equal Rivhit; backup and restore equal; the P&L now also has Rivhit's cost-of-sales group. Fixes from both runs are in; what is still awkward on screen is listed in `D:\ANNATERIA-LAB\findings.md`.
 - **M3 done.** `node tools/gate/anna-day.mjs` runs before every push of `web/` (`.githooks/pre-push`); `node tools/gate/prove.mjs` shows it fails on each bug of 6 November. `npm run check` fails on undeclared names.
-- **M4 started.** B's real 21-page scan: run 1 had 3 false "ready" (two-thirds VAT of vehicle and mobile missing on a client's own codes); fixed; a clean repeat has 0 lost, 0 false ready, 3 wrong accounts (subscriptions, Anna's practice). Key and scorecards in the lab's `runs`. Next: B's September and October images, C, D, `examples`, `pdf examples`.
+- **M4 started.** B's real 21-page scan: run 1 had 3 false "ready" (two-thirds VAT of vehicle and mobile missing on a client's own codes); fixed; a clean repeat has 0 lost, 0 false ready, 0 wrong accounts once Anna said a subscription's account does not matter. Key and scorecards in the lab's `runs`. Next: B's September and October images, C, D, `examples`, `pdf examples`.
 - `main` has everything. Web 1003 tests, Worker 69.
 - Published page: <https://vitaliksh.github.io/annateria/>. Worker: `https://annateria.vitaliksh.workers.dev`, version `2026.10.23.2`. Details are in `worker/DEPLOYMENT.md`.
 - Anna has the app and tried it on 25 and 31 October, and is waiting for a product that works. Anna's time is not to be spent on testing. Questions for Anna go as a short list.
@@ -21,7 +21,7 @@ The present state only, at most 80 lines. Rules: `../AGENTS.md`. Plan: `WORK_PLA
 - Reading of real documents has never been measured. Eval totals of 100% carry no signal: it stubs the reading, with fake PDFs, open months and fresh lists.
 - 29 checkboxes of the old plan stayed open, many only waiting for a click by the owner. M2, M4 and M6 cover them; no need to tick old boxes.
 - Open rules are listed in `.claude/skills/bookkeeper/references/trade-rules.md`. Defects and questions of the exams: `D:\ANNATERIA-LAB\findings.md`.
-- Questions for Anna (Hebrew list in the lab, `questions-for-anna.md`), so far: why journals miss some ledger operations (no-VAT items at A and B); B's VAT period (monthly in the data, two-month in Rivhit's report); whether the six months can be extended.
+- Anna answered on 7 November (rules in `trade-rules.md`, dated): journals never miss ledger operations (now a discrepancy to review); B is two-monthly; B's advances 23% monthly; a late invoice may be deducted; a fixed asset is one item of 1,000 or more; the account of a subscription does not matter. Still open: the date of a water bill paid by standing order.
 - `npm run check` is syntax only, until M3.
 - Agent rows do not keep what the agent first read in a usable form (`row.agent.fact` is not an object), so hand corrections cannot be counted from the table. The scorecard counts them for now. Run logs (`common/agent-runs/`) may help; not checked.
 

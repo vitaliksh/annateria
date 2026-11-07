@@ -16,7 +16,8 @@ Sources: VAT Law, 1975, and VAT Regulations, 1976, full wikitext on he.wikisourc
 
 - **The deduction itself (s. 38(a)), LAW.** A dealer deducts input VAT shown in a tax invoice issued to them lawfully, or an import declaration or other approved document,
   and the deduction must be made within six months of the day the invoice, declaration or document was issued. From issue, not from receipt.
-  This is the six-month window of `month-distribution.js`; Anna confirmed it (21 Oct 2026). The text read has no general power to extend it; whether one exists is **OPEN** for Anna.
+  This is the six-month window of `month-distribution.js`; Anna confirmed it (21 Oct 2026). **A late invoice, ANNA (7 Nov 2026):** it may still be entered and deducted.
+  The app marks it and never blocks it; Anna decides. Where the law allows it after six months was not found in the text read.
 - **Allocation number (s. 38(a1)), LAW.** No deduction of the VAT of a tax invoice whose amount **without VAT** is above 5,000, without an allocation number. From January to May 2026 the figure was
   10,000. 2025: 20,000 (WEB). The ceiling follows the invoice's date, ANNA. A document with no VAT needs none, ANNA. Asking for the number after the invoice does not move the six months (s. 47(a2)(4)), LAW.
 - **Mixed use (reg. 18), LAW.** VAT is deductible by the share of business use. Where the share is unspecified and the Director has set none: two thirds if the main use is business,
@@ -51,7 +52,9 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 - **Mobile phone, code rule.** VAT at 66.67% when VAT is present, for built-in codes 806, 807, 812. Internet code 888 at 100%.
 - **Vehicle and mobile at 66.67%, LAW and ANNA.** Reg. 18 and Anna agree. The app decides by the built-in codes and, since 7 November 2026, by the
   name of the client's own account (vehicle, fuel, mobile). Check it in every exam of a client with a vehicle: it was the cause of 3 false "ready" in M4.
-- **Subscriptions of foreign services, SAMPLE (B).** Google, Apple and Zoom subscriptions, no VAT, are booked to the advertising account in Anna's B journals. Not yet a rule: ask Anna whether it holds for every client.
+- **Subscriptions of foreign services, ANNA (7 Nov 2026).** Google, Apple, Zoom: advertising or upkeep, "it does not matter". Not counted as a wrong account.
+- **Fixed asset or consumable, ANNA (7 Nov 2026).** A fixed asset is usually a single item of 1,000 shekels or more. Sports weights and mats bought together are
+  consumables, not fixed assets.
 - **The amounts of a share, ANNA (21 Oct 2026).** Two cases. VAT only at a share (car, mobile): gross stays the total with VAT, VAT is the invoice's VAT times the percent, net is gross minus VAT. Expense and VAT both at a share (home, 25%): all three amounts take the percent. This is `recognisedAmounts`.
 - **Example, code rule.** Net 100 and VAT 18, expense at 100%, VAT at 66.67%: gross 118, net 106, VAT 12. The VAT that cannot be deducted
   stays in the expense.
@@ -87,8 +90,8 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 ## Rivhit and reports
 
 - **Codes belong to the client, SAMPLE.** The same class has different codes at different clients. The client's own chart first, always.
-- **A journal can miss what the ledger has, SAMPLE.** 7 and 4 operations at two clients; cause unknown (standing orders are a guess). The ledger is complete, so
-  it is checked against the months and the missing rows are added.
+- **A journal never misses what the ledger has, ANNA (7 Nov 2026).** "There is no such thing; if there is, it is a discrepancy or a mistake." The ledger check
+  still adds them so that the reports equal Rivhit, but each such row is a discrepancy to show Anna, never ready (seen: 4 operations at A, 7 at B).
 - **The inputs line, SAMPLE.** Rivhit's month total is the plain sum of the VAT column, while the inputs line leaves out classes outside the input base (clothing,
   property tax). Do not expect the two to match.
 - **Equipment VAT** has its own line and is outside the profit and loss.
@@ -108,8 +111,6 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 
 ## Questions for Anna, when nothing else settles them
 
-- Why do journals miss operations the ledger has?
-- Can the six months of s. 38(a) ever be extended, and how does the office handle a late invoice?
 - A water bill reads "tax invoice only after payment" and is paid by a standing order. Is the date on it still the date for the six months?
 - How should a moved sale appear in PCN874 (owner left it for later on 6 November 2026)?
 - Should the allocation check count sales rows? The code does, as `ocr` did; Rivhit's sale line carries no allocation number.
