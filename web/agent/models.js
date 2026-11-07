@@ -2,8 +2,8 @@
 // another model per role in the settings (kept in common/ui-settings.json as overrides, so a default that changes here reaches
 // everyone who never chose). The ids must be in ALLOWED_MODELS of worker/src/model.js (a test compares the two lists).
 export const MODELS = Object.freeze({
-  orchestrator: "gemini-3.8-flash",
-  extraction: "gemini-3.8-flash",
+  orchestrator: "gemini-3.6-flash",
+  extraction: "gemini-3.6-flash",
   strong: "gemini-4-argon",
 });
 

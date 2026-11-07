@@ -9,7 +9,7 @@ lines. The app itself is kept: sync, reports equal to Rivhit samples and the PCN
 
 **No new features until M2 passes.** The rest of phase 9 is checked through the exams.
 
-## M0. The lab
+## M0. The lab (done 7 November 2026)
 
 Make `D:\ANNATERIA-LAB` as in the skill's `references/lab.md`, and one committed command that starts the page and the local Worker. Replace the dead entries of `.claude/launch.json`.
 Set the default model of the agent in `web/agent/models.js` to `gemini-3.6-flash`, for the orchestrator and extraction. Find out how the Windows dialogs can be driven.
@@ -76,6 +76,7 @@ One line each, newest first.
 
 | Date | Decision |
 | --- | --- |
+| 2026-11-07 | The lab runs in a separate real Chrome, not in the desktop app's embedded browser, which aborts the folder picker. Windows dialogs and Chrome's prompts are answered by real controls (`tools/windows-dialog.ps1`), so folder permission bugs stay visible. |
 | 2026-11-07 | Owner: the agent works as a real bookkeeper in the real app; all materials may be used for development and testing. Autonomy between milestones. |
 | 2026-11-07 | Owner: the app's agent runs on `gemini-3.6-flash`. Checked that day: no shutdown date on the Gemini API; Google Cloud lists retirement on 19 November 2026 for its own platform; same price as 3.8 Flash until 31 December 2026. Re-check before M7. |
 | 2026-11-07 | Owner may let the agent use the real access code; declined by the agent, its safety rules forbid typing a real code. A test code on a local Worker does the same job. |

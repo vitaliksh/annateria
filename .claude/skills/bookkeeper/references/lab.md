@@ -10,6 +10,10 @@ D:\ANNATERIA-LAB\
   drive\             stands for the shared Google Drive folder
   usb\               stands for the flash drive
   runs\              scorecards, kept here
+  shots\             pictures of the screen and of originals
+  secrets\           the test code of the local Worker
+  browser-profile\   the lab window's Chrome profile
+  venv\              Python for reading originals
   findings.md        defects and why no check caught them
 ```
 
@@ -22,17 +26,25 @@ D:\ANNATERIA-LAB\
 
 ## Running it
 
-To be built in milestone M0 as one committed command. The parts already known:
+Built in M0 and proved on 7 November 2026. Everything below is real: the Windows dialogs open and are answered, Chrome's own prompt is pressed.
 
-- **Page:** serve `web/` on `http://127.0.0.1:8000` with `Cache-Control: no-store` (the embedded browser caches modules otherwise). Serve a replaced `config.js` that
-  points `window.ANNATERIA_API` at the local Worker, so the repository's file stays untouched. Port 8000 is in `ALLOWED_ORIGINS`.
-- **Worker:** `npx wrangler dev` in `worker/`. Secrets come from `worker/.dev.vars`.
-- **The key:** the owner puts `GEMINI_API_KEY` in `.dev.vars`. Never read or print that file. Check for it only by asking whether the line exists, with no value shown.
-- **Test login:** `node scripts/access-codes.mjs D:\ANNATERIA-LAB\secrets lab` makes a code and a signing key. Append `ACCESS_CODES` and `TOKEN_SIGNING_KEY` to `.dev.vars`
-  without reading the file. The test code may be typed in the lab, on the local address only. The owner's real code is never used.
-- **Browser:** the built-in browser is real Chromium with the folder picker (checked 7 November 2026). Whether the Windows folder and file dialogs can be driven from it is a hypothesis: test it first.
-- **Fallbacks, in order:** the owner picks the lab folder once at the PC, if the permission then holds across reloads; drive Chromium with Playwright and answer
-  the folder picker with a handle over the real disk. Everything but that one dialog stays real. Record which was used, because folder permission bugs then stay unseen.
+```bash
+node tools/lab.mjs restore
+node tools/lab.mjs serve
+node tools/browser.mjs start
+```
+
+Run `serve` and `browser.mjs start` in the background; `preview_start` with the name `lab` also starts `serve`. Install once: `npm install` in `tools/`, and the reading tools named at the head of `tools/doc.py`.
+
+- **Page:** `http://127.0.0.1:8000`, no-store, a replaced `config.js` that points at the local Worker, a build marker `lab <commit>`. The repository's files stay untouched.
+- **Worker:** `wrangler dev` on port 8787, with its own baton and lock-out. Secrets come from `worker/.dev.vars`. Never read or print that file.
+- **Test login:** the code is in `D:\ANNATERIA-LAB\secrets\lab-code.txt`. Made by `worker/scripts/access-codes.mjs` and appended to `.dev.vars`. It may be typed in the lab, on the local address only. The owner's real code is never used.
+- **Browser:** a separate Chrome with its own profile in the lab, driven by `tools/browser.mjs`: `shot`, `text`, `buttons`, `click`, `type`, `press`, `until`, `look`. Pictures go to `D:\ANNATERIA-LAB\shots`; read them with the Read tool.
+- **Windows dialogs:** `powershell -File tools/windows-dialog.ps1 choose <path>` answers the folder, open and save dialogs, for lab paths only. `prompt` lists Chrome's own buttons and `prompt Allow` presses one.
+- **A folder step:** click the button, `choose D:\ANNATERIA-LAB\work`, then `prompt Allow`.
+- **Reading originals yourself:** `tools/doc.py` renders PDF and HEIC to pictures and prints Excel, with the lab's Python.
+
+The built-in browser of the desktop app is not used. It answers the folder picker with `AbortError` at once (tried with the pane hidden, 7 November 2026), and a second Worker device there takes the baton.
 
 ## Known traps
 
