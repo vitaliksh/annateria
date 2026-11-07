@@ -63,6 +63,8 @@ export function resultNote(result) {
 export function createAssistantFlow({ modelClient, getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), getModels = () => MODELS, fetchSkill = fetchSkillFromSite, now, reader = createDocumentReader(), onDeclarationCreated, extraction: givenExtraction = null }) {
   const readText = async (file) => (await reader.inspect(file, { type: "application/pdf", storedName: file.name || "file.pdf" }, { maxChars: TEXT_LAYER_CHARS })).text ?? "";
   const registry = createDefaultRegistry();
+  // What the vision model read in this page, for a second try after an outage (agent/adapters/extraction.js).
+  const readings = new Map();
 
   return {
     // Resolves with the result of the loop; `logError` is set when the run log could not be written. The skills are read first, from the site,
@@ -78,7 +80,7 @@ export function createAssistantFlow({ modelClient, getDataRoot, getClients, getL
       }
       // The models are looked up for every run: the user may have changed them in the settings.
       const models = getModels();
-      const extraction = givenExtraction ?? createExtractionAdapter({ client: modelClient, prompt: instructionFor("extraction", skills), models, readText });
+      const extraction = givenExtraction ?? createExtractionAdapter({ client: modelClient, prompt: instructionFor("extraction", skills), models, readText, remembered: readings });
       const services = createServices({ getDataRoot, getClients, getLiveTable, builtInChart, reserved, documents: reader, extraction, onDeclarationCreated, scope });
       const model = createGeminiModel({ client: modelClient, model: models.orchestrator });
       const result = await runAgent({ model, system: instructionFor("orchestrator", skills), skills: skillVersions(skills), registry, message, services, ui, signal, onEvent, onProgress, scope, ...(now ? { now } : {}) });

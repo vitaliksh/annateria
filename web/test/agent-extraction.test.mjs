@@ -482,3 +482,21 @@ test("a run walks from the inbox to the facts of a document using only the handl
   const facts = model.requests[4].contents.at(-1).parts[0].functionResponse.response;
   assert.deepEqual([facts.duplicates.level, facts.exclude, facts.target_month], ["strong", "duplicate", "2026-02"]);
 });
+
+test("a file read once in this page is not sent again on a second run, unless the model or the hint differ", async () => {
+  const client = stubClient({ documents: [rawRecord()] });
+  const remembered = new Map();
+  const photo = { ...entry("a.jpg", "image/jpeg"), hash: "h1" };
+  const file = fileOf("a.jpg", new Uint8Array([1, 2, 3]), "image/jpeg");
+  const first = createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client, remembered });
+  await first.run(photo, file);
+  const second = createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client, remembered });
+  const again = await second.run(photo, file);
+  assert.equal(client.sent.length, 1, "the second run used what was read");
+  assert.deepEqual([again.records.length, again.remembered], [1, true]);
+  await second.run(photo, file, { hint: "look at the date" });
+  await second.run(photo, file, { strong: true });
+  assert.equal(client.sent.length, 3);
+  await createExtractionAdapter({ prompt: EXTRACTION_PROMPT, client }).run(photo, file);
+  assert.equal(client.sent.length, 4, "without a memory every run reads");
+});

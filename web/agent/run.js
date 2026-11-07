@@ -148,7 +148,8 @@ export async function runAgent({
       } catch (error) {
         if (isAbort(error) || signal.aborted || !RETRY_CODES.has(error?.code) || attempt >= limits.modelRetries) throw error;
         log.add({ kind: "retry", attempt: attempt + 1, code: error.code });
-        await sleep(1000 * (attempt + 1));
+        // An outage of the model lasts longer than a second or two (M4 exam, 7 November 2026: three 502 in a row ended a run).
+        await sleep(error.code === "unavailable" || error.code === "busy" ? [5000, 15000, 30000][attempt] ?? 30000 : 1000 * (attempt + 1));
       }
     }
   }

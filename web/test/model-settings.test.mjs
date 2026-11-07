@@ -123,10 +123,10 @@ test("the flow asks for the models of every run: a change in the settings reache
   const flow = createAssistantFlow({ modelClient, getDataRoot: () => w.root, getClients: () => w.clients, getModels: () => models, fetchSkill: diskFetch });
   const run = () => flow.run({ message: "x", ui: recordingUi(), signal: new AbortController().signal });
   assert.equal((await run()).status, "completed");
-  models = { orchestrator: "gemini-3.5-flash-lite", extraction: "gemini-3.6-flash", strong: MODELS.strong };
+  models = { orchestrator: "gemini-3.5-flash-lite", extraction: "gemini-3.8-flash", strong: MODELS.strong };
   assert.equal((await run()).status, "completed");
   assert.deepEqual(used, [
     ["assistant", MODELS.orchestrator], ["assistant", MODELS.orchestrator], ["extraction", MODELS.extraction], ["assistant", MODELS.orchestrator],
-    ["assistant", "gemini-3.5-flash-lite"], ["assistant", "gemini-3.5-flash-lite"], ["extraction", "gemini-3.6-flash"], ["assistant", "gemini-3.5-flash-lite"],
+    ["assistant", "gemini-3.5-flash-lite"], ["assistant", "gemini-3.5-flash-lite"], ["extraction", "gemini-3.8-flash"], ["assistant", "gemini-3.5-flash-lite"],
   ]);
 });

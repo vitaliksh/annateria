@@ -126,10 +126,10 @@ test("a busy model is retried with a growing pause, then the run goes on; login 
   const model = scriptedModel([modelError("busy"), modelError("unavailable"), reply(say("fine"))]);
   const { result } = await run({ model, sleep });
   assert.equal(result.status, "completed");
-  assert.deepEqual(pauses, [1000, 2000]);
+  assert.deepEqual(pauses, [5000, 15000], "an outage waits seconds, not one");
   assert.deepEqual(result.log.entries.filter((entry) => entry.kind === "retry").map((entry) => entry.code), ["busy", "unavailable"]);
 
-  const failing = await run({ model: scriptedModel([modelError("busy"), modelError("busy"), modelError("busy")]), sleep });
+  const failing = await run({ model: scriptedModel([modelError("busy"), modelError("busy"), modelError("busy"), modelError("busy")]), sleep });
   assert.deepEqual([failing.result.status, failing.result.code], ["failed", "busy"]);
   const login = scriptedModel([modelError("login"), reply(say("never"))]);
   assert.equal((await run({ model: login })).result.status, "failed");

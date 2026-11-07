@@ -51,11 +51,26 @@ async function browserShrink(file, maxBytes) {
 
 // client: createModelClient(...). prompt: the text of the skill invoice-extraction (agent/skills.js). readText(file): the text layer of a PDF
 // (optional, best effort).
-export function createExtractionAdapter({ client, prompt, models = MODELS, readText = null, shrinkImage = browserShrink, shrinkPdf = browserShrinkPdf, today = () => new Date() }) {
+// remembered: a Map kept by the page across runs. A file read once (by its hash, the model, the prompt and the hint) is not sent again: a
+// run that failed late on an outage of the model (M4 exam, 7 November 2026: 15 photos read, then the next step 502) loses nothing on a
+// second try. Only the records are kept, in the page's memory.
+export function createExtractionAdapter({ client, prompt, models = MODELS, readText = null, shrinkImage = browserShrink, shrinkPdf = browserShrinkPdf, today = () => new Date(), remembered = null }) {
   if (typeof prompt !== "string" || !prompt.trim()) throw new Error("The extraction adapter needs the text of the skill invoice-extraction.");
   return {
     // entry: the index entry (type, name); file: its File. Resolves with { records, model, usage }.
-    async run(entry, file, { hint = "", strong = false, signal } = {}) {
+    async run(entry, file, options = {}) {
+      const key = entry.hash ? [entry.hash, options.strong ? models.strong : models.extraction, prompt.length, options.hint ?? ""].join("|") : null;
+      if (key && remembered?.has(key)) return { ...structuredClone(remembered.get(key)), usage: undefined, remembered: true };
+      const result = await read(entry, file, options);
+      if (key && remembered) {
+        if (remembered.size >= 300) remembered.delete(remembered.keys().next().value);
+        remembered.set(key, structuredClone({ records: result.records, model: result.model }));
+      }
+      return result;
+    },
+  };
+
+  async function read(entry, file, { hint = "", strong = false, signal } = {}) {
       let type = entry.type;
       if (!INLINE_TYPES.includes(type)) throw new ExtractionError("unsupported_type", `Files of type ${type} cannot be read.`);
       // Usually one part. A PDF above the limit may become several, each with the number of its first page in the file.
@@ -104,6 +119,5 @@ export function createExtractionAdapter({ client, prompt, models = MODELS, readT
         }
       }
       return { records, model, usage };
-    },
-  };
+  }
 }

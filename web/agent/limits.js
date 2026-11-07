@@ -7,6 +7,6 @@ export const LIMITS = Object.freeze({
   parallelExtractions: 3,
   questions: 15,
   minutes: 30,
-  modelRetries: 2,
+  modelRetries: 3,
   resultBytes: 20000,
 });
