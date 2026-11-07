@@ -501,3 +501,11 @@ test("add_rows: a document the client issued is no buyer mismatch; another buyer
   const result = await dispatch("add_rows", { client: levi, rows: [decision(mine), decision(foreign)] });
   assert.deepEqual(result.rows.map((row) => [row.state, row.reasons.includes("buyer_mismatch")]), [["created", false], ["created", true]]);
 });
+
+test("a document of the first month of a two-month VAT period is in its own period in the second month", async () => {
+  const { sameVatPeriod } = await import("../agent/facts.js");
+  assert.equal(sameVatPeriod("bimonthly", "2026-07", "2026-08"), true, "July in August: one report");
+  assert.equal(sameVatPeriod("bimonthly", "2026-06", "2026-08"), false, "June was filed with May");
+  assert.equal(sameVatPeriod("bimonthly", "2026-08", "2026-09"), false);
+  assert.equal(sameVatPeriod("monthly", "2026-07", "2026-08"), false, "a monthly client filed July alone");
+});

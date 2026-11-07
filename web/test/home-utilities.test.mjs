@@ -29,3 +29,11 @@ test("two thirds of the VAT: built-in codes, and a client's own vehicle, fuel an
     assert.equal(isLimitedVat({ account: "203", accountName }), false, accountName);
   }
 });
+
+test("goods named after electricity are not a home utility; an electricity bill still is; parking takes two thirds of the VAT", () => {
+  assert.equal(isHomeUtility({ accountName: "אחזקה", texts: ["מוצרי חשמל", "חשבונית מס"] }), false);
+  assert.equal(isHomeUtility({ accountName: "אחזקה", texts: ["כלי חשמל לבית"] }), false);
+  assert.equal(isHomeUtility({ accountName: "אחזקה", texts: ["חשבון חשמל תקופתי"] }), true);
+  assert.equal(isHomeUtility({ accountName: "חשמל", texts: ["מוצרי חשמל"] }), true, "the account of the chart still decides");
+  assert.equal(isLimitedVat({ account: "234", accountName: "חניה פנגו" }), true);
+});

@@ -6,6 +6,13 @@ import { intakeFacts, isPeriodDocument } from "../intake-facts.js";
 import { isHomeUtility } from "../home-utilities.js";
 import { pcnReview } from "../pcn-review.js";
 
+// The two-month VAT period of a month: 2026-07 and 2026-08 are both "2026-07".
+const pairOf = (month) => {
+  const [year, number] = String(month).split("-").map(Number);
+  return `${year}-${String(number % 2 ? number : number - 1).padStart(2, "0")}`;
+};
+export const sameVatPeriod = (vatPeriod, docMonth, targetMonth) => vatPeriod === "bimonthly" && Boolean(docMonth) && pairOf(docMonth) === pairOf(targetMonth);
+
 export const LOW_CONFIDENCE = 80;
 export const digits = (value) => String(value ?? "").replace(/\D/g, "").replace(/^0+/, "");
 
@@ -60,7 +67,10 @@ export async function computeFacts(ctx, args) {
   if (facts.docMonth && facts.docMonth > facts.targetMonth) reasons.add("doc_after_month");
   // A document of an earlier month goes into the open month, marked: the earlier month is filed and paid (owner, 6 November 2026).
   // A document for a period is judged by its period, and a previous year has its own reason.
-  const earlier = facts.docMonth && facts.docMonth < facts.targetMonth && facts.exclude !== "previous-year";
+  // A client who reports VAT for two months files both months together: a document of the first month in the second one is in
+  // its own period, as in Anna's journals (July's rows in the journal of August). Not marked (7 November 2026).
+  const samePeriod = sameVatPeriod(profile.vatPeriod, facts.docMonth, facts.targetMonth);
+  const earlier = facts.docMonth && facts.docMonth < facts.targetMonth && facts.exclude !== "previous-year" && !samePeriod;
   if (earlier && !isPeriodDocument(record.period_from, record.period_to)) reasons.add("doc_before_month");
   if (buyerMismatch) reasons.add("buyer_mismatch");
   if (pcn.over) reasons.add("pcn_over");
