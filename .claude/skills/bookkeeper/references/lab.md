@@ -46,6 +46,12 @@ Run `serve` and `browser.mjs start` in the background; `preview_start` with the 
 
 The built-in browser of the desktop app is not used. It answers the folder picker with `AbortError` at once (tried with the pane hidden, 7 November 2026), and a second Worker device there takes the baton.
 
+## The gate
+
+`node tools/gate/anna-day.mjs` is the short day of M3: synthetic, scripted model, headless, about 10 seconds. It runs before every push that changes `web/`. It proves the
+page still opens, a month opened by a click takes the agent's rows, and a scan above the request limit is read. It never replaces an exam.
+`node tools/gate/prove.mjs` puts the three bugs of 6 November back into a copy and expects the gate to fail on each.
+
 ## Known traps
 
 - While the pane is hidden Chrome holds back a dialog's `close` event until the page draws again, and timers run as in a background page. Prefer the pane shown, or a real window.

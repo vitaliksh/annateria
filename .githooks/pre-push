@@ -1,0 +1,13 @@
+#!/bin/sh
+# Before a push that changes web/, "Anna's day" runs in a real browser (tools/gate/anna-day.mjs, milestone M3).
+# Turn on once per clone: git config core.hooksPath .githooks
+zero=0000000000000000000000000000000000000000
+while read local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then range="$local_sha"; else range="$remote_sha..$local_sha"; fi
+  if git diff --name-only "$range" -- web/ | grep -q .; then
+    echo "pre-push: web/ changed, running Anna's day..."
+    node tools/gate/anna-day.mjs || { echo "pre-push: Anna's day failed, the push is stopped."; exit 1; }
+  fi
+done
+exit 0

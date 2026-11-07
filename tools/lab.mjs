@@ -15,7 +15,8 @@ import { fileURLToPath } from "node:url";
 
 const LAB = process.env.ANNATERIA_LAB || "D:\\ANNATERIA-LAB";
 const REPOSITORY = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const WEB = join(REPOSITORY, "web");
+// LAB_WEB serves another copy of the page (the gate puts the bugs of 6 November back into a copy to see that it fails).
+const WEB = process.env.LAB_WEB ? resolve(process.env.LAB_WEB) : join(REPOSITORY, "web");
 const WORKER = join(REPOSITORY, "worker");
 const PAGE_PORT = Number(process.env.LAB_PAGE_PORT || 8000);
 const WORKER_PORT = Number(process.env.LAB_WORKER_PORT || 8787);

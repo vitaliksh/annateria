@@ -5,5 +5,9 @@
   "description": "The lab of the bookkeeper skill: a real browser window driven from the command line.",
   "devDependencies": {
     "playwright-core": "^1.65.0"
+  },
+  "scripts": {
+    "gate": "node gate/anna-day.mjs",
+    "gate:prove": "node gate/prove.mjs"
   }
 }

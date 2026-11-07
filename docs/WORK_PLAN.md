@@ -32,7 +32,7 @@ The deterministic half. For clients A and B: restore the lab, create the client 
 
 *Done when:* A and B give all report figures equal to Rivhit from a clean start, with every difference explained, and a person who does not know the code could follow each step on screen.
 
-## M3. The gate
+## M3. The gate (done 7 November 2026)
 
 Turn what you did in M2 into a repeatable run of "Anna's day" in a real browser, on synthetic data committed to the repository, with a scripted model behind a fake Worker. It runs before every push with changes in `web/`. Add a check for undeclared names to `npm run check` (`tsc --checkJs` found the whole class once).
 
@@ -76,6 +76,7 @@ One line each, newest first.
 
 | Date | Decision |
 | --- | --- |
+| 2026-11-07 | The gate: `tools/gate/anna-day.mjs` (headless Chrome, fake Worker, scripted model, a 21 MiB scan, the folder picker replaced by a folder of the browser's private file system). `tools/gate/prove.mjs` shows it fails on each bug of 6 November. `npm run check` now fails on undeclared names. |
 | 2026-11-07 | Journal wizard: a missing month is created without a second question; leaving a month asks nothing (it is saved and closed anyway). Found as friction in the M2 exam. |
 | 2026-11-07 | The lab runs in a separate real Chrome, not in the desktop app's embedded browser, which aborts the folder picker. Windows dialogs and Chrome's prompts are answered by real controls (`tools/windows-dialog.ps1`), so folder permission bugs stay visible. |
 | 2026-11-07 | Owner: the agent works as a real bookkeeper in the real app; all materials may be used for development and testing. Autonomy between milestones. |
