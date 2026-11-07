@@ -48,6 +48,12 @@ test("כרטסת: תרשים — סוגים מהקטגוריה, סוג «מחו�
   assert.deepEqual(Object.keys(accounts), ["110", "200", "202", "205", "212", "900"]);
   assert.deepEqual(Object.values(accounts).map((a) => a.type), ["income", "expense", "expense", "outsideVatBase", "outsideVatBase", "equipment"]);
   assert.deepEqual(skipped.map((s) => s.reason).sort(), ["conflict", "incomplete", "invalid", "invalid", "invalid"]);
+  // A client with no known types: clothing and property tax still start outside the VAT base, as in Anna's Rivhit; a known type wins.
+  const fresh = chartFromLedgerEntries(EXPECTED).accounts;
+  assert.deepEqual([fresh[205].type, fresh[212].type, fresh[202].type], ["outsideVatBase", "outsideVatBase", "expense"]);
+  assert.equal(chartFromLedgerEntries(EXPECTED, { typeByName: { "ביגוד": "expense" } }).accounts[212].type, "expense");
+  // The "עלות המכר" section is kept on its codes, for the group of the profit and loss.
+  assert.deepEqual(Object.entries(accounts).filter(([, a]) => a.costOfSales).map(([code]) => code), ["200"]);
 });
 
 test("כרטסת: קריאת קובץ — xlsx ו-pdf נקראים, סיומת זרה וקובץ בלי קודים נדחים", async () => {

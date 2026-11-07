@@ -174,6 +174,12 @@ function layoutProfitLoss(report, { from, to }) {
   group("הכנסות");
   for (const item of report.income) row(item.name, item.amount, item.percent);
   total("סה״כ הכנסות:", report.incomeTotal, report.incomeTotal ? 100 : 0);
+  if (report.cost?.length) {
+    group("עלות המכר");
+    for (const item of report.cost) row(item.name, -item.amount, item.percent);
+    total("סה״כ עלות המכר:", -report.costTotal, report.costPercent);
+    total("רווח גולמי לתקופה:", report.grossProfit, report.grossPercent);
+  }
   group("הוצאות הנהלה וכלליות");
   for (const item of report.expenses) row(item.name, -item.amount, item.percent);
   total("סה״כ הוצאות הנהלה וכלליות:", -report.expenseTotal, report.expensePercent);

@@ -112,3 +112,21 @@ test("отчёт НДС: НДС статей вне базы (ביגוד) не �
   assert.equal(vatReport(list).inputVat, 18);
   assert.equal(profitLoss(list).expenseTotal, 202);
 });
+
+test("profit and loss: Rivhit's cost of sales is its own group with a gross profit, and the ledger shows that section", () => {
+  const chart = {
+    110: { name: "הכנסה חייבת", type: "income" },
+    200: { name: "ציוד ספורט מתכלה", type: "expense", costOfSales: true },
+    203: { name: "אחזקה", type: "expense" },
+  };
+  const row = (code, net, vat) => ({ active: true, values: ["", code, "", "", "", "", "", String(net + vat), String(net), String(vat)] });
+  const list = reportEntries([declaration("2026-01", "open", [row("110", 1000, 180), row("200", 100, 18), row("203", 50, 9)])], chart);
+  const report = profitLoss(list);
+  assert.deepEqual(report.cost.map((line) => [line.name, line.amount]), [["ציוד ספורט מתכלה", 100]]);
+  assert.deepEqual([report.costTotal, report.grossProfit, report.expenseTotal, report.profit], [100, 900, 50, 850]);
+  assert.deepEqual(report.expenses.map((line) => line.name), ["אחזקה"]);
+  assert.deepEqual(classificationLedger(list).sections.map((section) => section.title), ["הכנסות", "עלות המכר", "הוצאות הנהלה וכלליות"]);
+  // Without such codes nothing changes: no group, the profit is income less expenses.
+  const plain = profitLoss(reportEntries([declaration("2026-01", "open", [row("110", 1000, 180), row("203", 50, 9)])], chart));
+  assert.deepEqual([plain.cost.length, plain.grossProfit, plain.profit], [0, 1000, 950]);
+});

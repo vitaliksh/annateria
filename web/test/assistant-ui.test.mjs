@@ -270,6 +270,7 @@ test("the card לטיפולך lists what is left after a run, each with its butt
   assert.deepEqual([commands.at(-1).type, commands.at(-1).card.id], ["import", "I1"], "the same wizard as the card's own button");
   commands.at(-1).report({ text: "הייבוא בוצע.", done: true });
   assert.deepEqual([lines[0].dataset.state, lines[0].querySelector("button").disabled], ["done", true]);
+  assert.equal(lines[0].querySelector("p").textContent, "ייבוא journal-08.xlsx ל«Levi» הושלם");
   lines[1].querySelector("button").click();
   lines[2].querySelector("button").click();
   assert.deepEqual(commands.slice(-2), [{ type: "open", clientId: "c1", month: "2026-08" }, { type: "inbox" }]);
@@ -579,4 +580,21 @@ test("which client: the box keeps the printed buyer for the chosen client, throu
   unticked.root.querySelector(".card-options button").click();
   assert.deepEqual(await third, { type: "option", id: "levi", alias: false });
   assert.equal(kept.length, 1);
+});
+
+test("a file imported from one run's card is done on the cards of every run, and on their lines", () => {
+  const { assistant, root, commands } = setup();
+  for (let run = 0; run < 2; run += 1) {
+    assistant.setBusy(true);
+    assistant.ui.importCard(importCard());
+    assistant.setBusy(false);
+    assistant.showTodo({});
+  }
+  const wizards = [...root.querySelectorAll(".assistant-card[data-kind='import'] button")].filter((item) => item.textContent === "בדיקה וייבוא");
+  assert.equal(wizards.length, 2);
+  wizards[1].click();
+  commands.at(-1).report({ text: "הייבוא בוצע.", done: true });
+  assert.deepEqual(wizards.map((item) => item.disabled), [true, true]);
+  const lines = [...root.querySelectorAll("[data-kind='todo'] li")];
+  assert.deepEqual(lines.map((line) => line.querySelector("p").textContent), ["ייבוא journal-08.xlsx ל«Levi» הושלם", "ייבוא journal-08.xlsx ל«Levi» הושלם"]);
 });

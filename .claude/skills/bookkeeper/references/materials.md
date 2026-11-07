@@ -6,8 +6,8 @@ Inventory of 7 November 2026, by file names and row counts. Contents not opened 
 | Client | Referee (Rivhit and Anna) | Source documents | Use it for |
 | --- | --- | --- | --- |
 | A | 6 journals (months 1, 2, 4, 5, 6, 8), ledger PDF, VAT 8.26, advances 08.26, profit and loss | Journals only, no invoices seen | Books exam: rebuild the year from journals, reports equal to Rivhit |
-| B | 8 journals (1 to 8), ledger Excel, VAT 7-8.26, profit and loss | September (40 images, closed), October (12 images), an income report, a water bill, **a real scan still waiting in the inbox** | Books exam, then the first documents exam |
-| C | Journal 8, profit and loss 1-8.26 marked "for checking only" | 5 HEIC photos of a ledger from another program | Photographed ledger read line by line, HEIC |
+| B | 8 journals (1 to 8), ledger Excel, VAT 7-8.26, profit and loss | September (40 images, closed), October (12 images), an income report, a water bill, **a real scan still waiting in the inbox** (21 pages: 18 documents of Aug to Nov, 3 repeats; my key is in the lab's runs) | Books exam, then the first documents exam |
+| C | Journal 8, profit and loss 1-8.26 marked "for checking only" | 5 HEIC photos (read 7 Nov): screens of the previous program's settings (VAT and advances two-monthly, no PCN, advances 11% for January to June and 14% from July) and a printed ledger of sections for 1-4/2026, partly in shadow | A client taken over from another office: settings from photos, a photographed ledger read line by line, HEIC |
 | D | None | 22 agent rows of October, 4 of September, with images, closed | Documents exam, you are the reader |
 | E | None | Empty apart from settings | New client from nothing |
 

@@ -7,8 +7,9 @@ The present state only, at most 80 lines. Rules: `../AGENTS.md`. Plan: `WORK_PLA
 
 - **M0 done.** One document of client B through the real app and the real Gemini; row equal to my reading.
 - **M1 done in its first form.** The law read for every OPEN and WEB rule (`trade-rules.md`, sources in the lab's `law` folder); worked examples added; a fresh agent with only the skill answered 20 situations in line with the key (`D:\ANNATERIA-LAB\runs\m1-situations`). Continues with every exam.
-- **M2 first run passed, repeat pending.** A and B from nothing by the buttons: VAT, advances, every P&L line equal to Rivhit; backup to the lab's flash and shared folders, restore into an empty folder equal. One difference explained: Rivhit's "cost of sales" group in B's P&L (finding D9). Fixed after the run: a false "another client's ledger" alarm, a dead end without codes in the ledger check, two extra questions, clipped VAT figures. Next: the same exam from clean by an independent agent.
-- `main` has everything. Web 1000 tests, Worker 69.
+- **M2 done.** A and B from nothing by the buttons, twice: by me, then by an independent agent with only the skill. VAT, advances, every P&L line and every ledger total equal Rivhit; backup and restore equal; the P&L now also has Rivhit's cost-of-sales group. Fixes from both runs are in; what is still awkward on screen is listed in `D:\ANNATERIA-LAB\findings.md`.
+- **M3 done.** `node tools/gate/anna-day.mjs` runs before every push of `web/` (`.githooks/pre-push`); `node tools/gate/prove.mjs` shows it fails on each bug of 6 November. `npm run check` fails on undeclared names.
+- `main` has everything. Web 1002 tests, Worker 69.
 - Published page: <https://vitaliksh.github.io/annateria/>. Worker: `https://annateria.vitaliksh.workers.dev`, version `2026.10.23.2`. Details are in `worker/DEPLOYMENT.md`.
 - Anna has the app and tried it on 25 and 31 October, and is waiting for a product that works. Anna's time is not to be spent on testing. Questions for Anna go as a short list.
 - `D:\ANNATERIA` has real clients (5, one empty). It is the owner's debug master and is read only for agents.

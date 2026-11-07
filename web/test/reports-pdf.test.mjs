@@ -97,6 +97,9 @@ test("דוח מקדמות ודוח רווח והפסד: שדות עיקריים"
   assert.ok(pl.includes("ללא מס ערך מוסף"));
   assert.ok(pl.includes("(9,000)"));
   assert.ok(pl.includes("רווח לתקופה:"));
+  assert.equal(pl.includes("רווח גולמי לתקופה:"), false, "no cost of sales, no gross profit line");
+  const withCost = texts(layoutReport("profitLoss", profitLoss(entries.map((entry, index) => (index === 1 ? { ...entry, costOfSales: true } : entry))), info, now));
+  assert.ok(withCost.includes("עלות המכר") && withCost.includes("רווח גולמי לתקופה:"));
 });
 
 test("כרטסת: מתפרסת על כמה עמודים עם כותרות חוזרות ומספור עמודים", () => {

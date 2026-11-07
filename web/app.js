@@ -1119,7 +1119,15 @@ function sweepMonths() {
       }
       if (failed.length) showError(`לא ניתן לנעול: ${failed.map((item) => `${item.client} ${formatMonth(item.month)}`).join(", ")}`);
     })
-    .catch((error) => showError(`לא ניתן לנעול את החודשים הפתוחים: ${error.message}`));
+    .catch((error) => {
+      // After a reload the browser gives the folder back only after the user's first click; the sweep waits for its next turn
+      // instead of showing the browser's English text (M2 exam, 7 November 2026).
+      if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
+        sweepDue = true;
+        return;
+      }
+      showError(`לא ניתן לנעול את החודשים הפתוחים: ${error.message}`);
+    });
   return sweepChain;
 }
 // At start, after the data of the other device arrived, and after a skipped sweep: once this PC may work.

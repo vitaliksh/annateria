@@ -15,9 +15,12 @@ Open the page and check the build marker at the bottom of the sidebar. Choose th
 
 ## 2. Open a client and a month
 
-The month opens by your click, without a question. It closes by itself when you leave it.
+A month you click shows closed until you press reopen; there is no question. It closes by itself when you leave it, or on a reload. A month made today
+for a new client starts open. A new client: the form asks for the name and the activity (both required), home or office, the VAT and advance periods,
+the VAT number, the advance percent, PCN, and the first month.
 
 - כל הלקוחות
+- + לקוח חדש
 - פתיחה מחדש
 
 ## 3. Bring in the documents
@@ -40,9 +43,16 @@ Check: every document is a row, every file with rows is attached as the original
 ## 5. Import cards
 
 Rivhit's journal, the codes ledger, the operations ledger and the income report arrive as cards with a wizard. The agent imports nothing.
+Drop them into the inbox of the open month and press the check button: each file gets a card with a button. A journal goes into the month it names;
+a missing month is created, a closed one is opened after a question and closed again. Rivhit's operations ledger holds the codes too: load them in the
+journal wizard's first step, or from the ledger check's own button, before the journals. Then run the ledger check: it lists what the journals miss.
 
+- בדיקה וייבוא
 - טעינת כרטסת קודי מיון של הלקוח…
+- טעינת קודי המיון מהכרטסת הזו
+- הבא
 - ייבוא
+- הוספה
 
 ## 6. Review every row
 
@@ -63,6 +73,8 @@ Read each on screen and compare with Rivhit: VAT slip, advances, profit and loss
 - שמירת קובץ PCN874
 
 ## 8. Close
+
+The lock is in the month's menu, the three dots next to the reports button.
 
 - נעילת הצהרה
 

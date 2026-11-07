@@ -26,7 +26,7 @@ Write the worked examples the skill still lacks.
 
 *Done when:* no **OPEN** rule is left unexplained (each has a source or is on the question list for Anna), and a fresh agent with only the skill can say what to do with 20 sample situations you wrote down in advance. Continues in the background after that: every exam feeds it.
 
-## M2. Books exam
+## M2. Books exam (done 7 November 2026)
 
 The deterministic half. For clients A and B: restore the lab, create the client from nothing, load codes, import every journal by the buttons, check against the ledger, make all reports, close, back up, restore. Compare with Rivhit's ledger, VAT, advances and profit and loss.
 

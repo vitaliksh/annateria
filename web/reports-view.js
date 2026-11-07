@@ -112,6 +112,12 @@ export function renderProfitLossReport(report, context) {
     group("הכנסות"),
     ...report.income.map((item) => line(item, 1)),
     total("סה״כ הכנסות", report.incomeTotal, report.incomeTotal ? 100 : 0),
+    ...(report.cost?.length ? [
+      group("עלות המכר"),
+      ...report.cost.map((item) => line(item, -1)),
+      total("סה״כ עלות המכר", -report.costTotal, report.costPercent),
+      total("רווח גולמי לתקופה", report.grossProfit, report.grossPercent),
+    ] : []),
     group("הוצאות הנהלה וכלליות"),
     ...report.expenses.map((item) => line(item, -1)),
     total("סה״כ הוצאות הנהלה וכלליות", -report.expenseTotal, report.expensePercent),

@@ -254,6 +254,17 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     if (!entry.todo || entry.box.dataset.state !== "answered") return;
     entry.todo.item.dataset.state = "done";
     entry.todo.go.disabled = true;
+    entry.todo.item.firstChild.replaceWith(isolated("", ["ייבוא ", { name: entry.card.file.name }, ` ל«${entry.card.client.name}» הושלם`]));
+  };
+  // Every run draws its own card for a file still in the inbox; once one of them imported it, all of them are done (M2 exam,
+  // 7 November 2026: "not done" stayed on every earlier card and line after the import).
+  const sameFile = (a, b) => a.card.file.name === b.card.file.name && a.card.client.name === b.card.client.name && a.card.kind === b.card.kind;
+  const markDone = (done) => {
+    for (const other of allImports.filter((entry) => sameFile(entry, done))) {
+      other.wizard.disabled = true;
+      other.box.dataset.state = "answered";
+      drawTodoLine(other);
+    }
   };
 
   // Where the rows of a run went: one button per month that opens it. months: [{ clientId, month, count }].
@@ -491,7 +502,7 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
         type: "import", card,
         report: ({ text, done = false, state = "" }) => {
           status.textContent = text;
-          if (done) { wizard.disabled = true; box.dataset.state = "answered"; } else if (state) box.dataset.state = state;
+          if (done) markDone(entry); else if (state) box.dataset.state = state;
           drawTodoLine(entry);
           notify();
         },

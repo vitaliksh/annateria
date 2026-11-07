@@ -40,6 +40,8 @@ export function normaliseChart(value, reserved = {}) {
     const name = cleanName(account?.name);
     if (!validCode(code) || reserved[code] || !name || names.has(name) || !ACCOUNT_TYPES.includes(account?.type)) continue;
     accounts[code] = { name, type: account.type };
+    // Rivhit's ledger puts some expenses under "עלות המכר"; the profit and loss shows them as their own group with a gross profit.
+    if (account.costOfSales === true && account.type !== "income") accounts[code].costOfSales = true;
     const clientTypes = Object.fromEntries(
       Object.entries(account.clientTypes ?? {}).filter(([clientId, type]) => clientId && ACCOUNT_TYPES.includes(type) && type !== account.type),
     );
@@ -52,7 +54,11 @@ export function normaliseChart(value, reserved = {}) {
 // One client's view of the chart: per-client types (Rivhit settings differ between clients) replace the default type.
 export function chartForClient(accounts, clientId) {
   return Object.fromEntries(
-    Object.entries(accounts).map(([code, account]) => [code, { name: account.name, type: account.clientTypes?.[clientId] ?? account.type }]),
+    Object.entries(accounts).map(([code, account]) => [code, {
+      name: account.name,
+      type: account.clientTypes?.[clientId] ?? account.type,
+      ...(account.costOfSales ? { costOfSales: true } : {}),
+    }]),
   );
 }
 

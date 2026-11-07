@@ -45,6 +45,7 @@ export function reportEntries(declarations, accounts = {}, names = {}) {
         code,
         name,
         type: account?.type ?? (name === "הכנסות" ? "income" : "expense"),
+        ...(account?.costOfSales ? { costOfSales: true } : {}),
         date: String(values[0] ?? ""),
         details: String(values[3] || values[2] || ""),
         reference: String(values[5] ?? ""),
@@ -107,21 +108,30 @@ function byCode(entries) {
   return [...groups.values()].sort((a, b) => a.code.localeCompare(b.code));
 }
 
-// Net amounts without VAT; equipment is not part of the result. Percentages are of total income.
+// Net amounts without VAT; equipment is not part of the result. Percentages are of total income. Expenses of Rivhit's "עלות המכר"
+// section are their own group, followed by the gross profit, as in Rivhit's report; without such codes `cost` is empty.
 export function profitLoss(entries) {
   const incomeEntries = ofType(entries, "income");
-  const expenseEntries = ofType(entries, "expense", "outsideVatBase");
+  const costEntries = ofType(entries, "expense", "outsideVatBase").filter((entry) => entry.costOfSales);
+  const expenseEntries = ofType(entries, "expense", "outsideVatBase").filter((entry) => !entry.costOfSales);
   const incomeTotal = sum(incomeEntries, "net");
   const percent = (amount) => (incomeTotal ? round2((amount / incomeTotal) * 100) : 0);
   const lines = (list) => byCode(list).map((group) => {
     const amount = sum(group.entries, "net");
     return { code: group.code, name: group.name, amount: whole(amount), percent: percent(amount) };
   });
+  const costTotal = sum(costEntries, "net");
+  const grossProfit = round2(incomeTotal - costTotal);
   const expenseTotal = sum(expenseEntries, "net");
-  const profit = round2(incomeTotal - expenseTotal);
+  const profit = round2(grossProfit - expenseTotal);
   return {
     income: lines(incomeEntries),
     incomeTotal: whole(incomeTotal),
+    cost: lines(costEntries),
+    costTotal: whole(costTotal),
+    costPercent: percent(costTotal),
+    grossProfit: whole(grossProfit),
+    grossPercent: percent(grossProfit),
     expenses: lines(expenseEntries),
     expenseTotal: whole(expenseTotal),
     expensePercent: percent(expenseTotal),
@@ -157,7 +167,8 @@ export function classificationLedger(entries) {
   };
   const sections = [
     section("הכנסות", ofType(entries, "income")),
-    section("הוצאות הנהלה וכלליות", ofType(entries, "expense", "outsideVatBase")),
+    section("עלות המכר", ofType(entries, "expense", "outsideVatBase").filter((entry) => entry.costOfSales)),
+    section("הוצאות הנהלה וכלליות", ofType(entries, "expense", "outsideVatBase").filter((entry) => !entry.costOfSales)),
     section("לא משתתף", ofType(entries, "equipment")),
   ].filter((item) => item.accounts.length);
   return {

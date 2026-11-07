@@ -183,6 +183,13 @@ async function day(page, scanPath, log) {
   await click("#create-client");
   await page.getByRole("button", { name: CLIENT }).first().waitFor();
 
+  step("create a second client in the same dialog");
+  await click("#show-new-client");
+  await page.locator("#new-client-name").fill(`${CLIENT} 2`, { timeout: 5000 });
+  await page.locator("#new-client-activity").fill("שירותים");
+  await click("#create-client");
+  await page.getByRole("button", { name: `${CLIENT} 2` }).first().waitFor();
+
   step("reload the page, which closes the month, and open it again by the click on reopen");
   await page.reload();
   await page.locator("#access-code").fill("GATE01");

@@ -63,7 +63,12 @@ export function ledgerEntriesFromPdfPages(pages) {
 
 // `typeByName` carries known types of this client (name -> type): a class outside the VAT input base cannot be told
 // from the ledger sections. `skipped` lists entries that could not become accounts.
-export function chartFromLedgerEntries(entries, { typeByName = {}, reserved = {} } = {}) {
+// Classes that Anna's Rivhit keeps outside the VAT input base (SAMPLE: her journals' input lines leave them out), for a client whose
+// types are not known yet. Without it a new client's clothing VAT counted as input VAT, 76 shekels in one month (M2 exam, 7 Nov 2026).
+export const OUTSIDE_VAT_BASE_NAMES = Object.freeze(["ביגוד", "ארנונה", "ביטוח עסק"]);
+
+export function chartFromLedgerEntries(entries, { typeByName: known = {}, reserved = {} } = {}) {
+  const typeByName = { ...Object.fromEntries(OUTSIDE_VAT_BASE_NAMES.map((name) => [name, "outsideVatBase"])), ...known };
   const accounts = {};
   const skipped = [];
   for (const { section, code, name } of entries) {
@@ -73,6 +78,7 @@ export function chartFromLedgerEntries(entries, { typeByName = {}, reserved = {}
     } else {
       const type = sectionType(section);
       accounts[code] = { name, type: type === "expense" && typeByName[name] === "outsideVatBase" ? "outsideVatBase" : type };
+      if (type === "expense" && section.startsWith("עלות המכר")) accounts[code].costOfSales = true;
     }
   }
   const chart = normaliseChart({ accounts }, reserved);
