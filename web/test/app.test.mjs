@@ -59,11 +59,11 @@ test("a record the agent did not include is unchecked and not for export", async
   assert.ok(row.classList.contains("not-for-export"));
 });
 
-test("limited-VAT codes default to 66.67% VAT recognition", async () => {
+test("limited-VAT codes default to 66% VAT recognition, as Anna's Rivhit", async () => {
   const { app } = await loadApp();
   for (const code of ["806", "807", "812"]) {
     const row = await addRecord(app, { rivhit_code: code });
-    assert.deepEqual([...amounts(app, row), snapshotValues(app, row)[10]], ["118.00", "106.00", "12.00", "66.67"], code);
+    assert.deepEqual([...amounts(app, row), snapshotValues(app, row)[10]], ["118.00", "106.12", "11.88", "66"], code);
   }
 });
 

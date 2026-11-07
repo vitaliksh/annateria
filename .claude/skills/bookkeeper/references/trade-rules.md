@@ -49,14 +49,14 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
   what the document is. Never by the supplier's name: a shop with "electricity" in its name sells goods.
 - **Amounts already booked, OWNER (30 Oct 2026).** Rows imported from Rivhit, and percentages set by hand, are never cut again.
   Anna's journal already holds the 25% share.
-- **Mobile phone, code rule.** VAT at 66.67% when VAT is present, for built-in codes 806, 807, 812. Internet code 888 at 100%.
-- **Vehicle and mobile at 66.67%, LAW and ANNA.** Reg. 18 and Anna agree. The app decides by the built-in codes and, since 7 November 2026, by the
+- **Mobile phone, code rule.** VAT at 66% when VAT is present: built-in codes 806, 807, 812, and a client's own vehicle, fuel, parking and mobile accounts by name. Internet at 100%.
+- **Vehicle and mobile at 66%, LAW and ANNA.** Two thirds (reg. 18) taken as 66%, as in Anna's Rivhit (Anna, 7 Nov 2026; her journals agree to the agora). Parking counts as vehicle. Reg. 18 and Anna agree. The app decides by the built-in codes and, since 7 November 2026, by the
   name of the client's own account (vehicle, fuel, mobile). Check it in every exam of a client with a vehicle: it was the cause of 3 false "ready" in M4.
 - **Subscriptions of foreign services, ANNA (7 Nov 2026).** Google, Apple, Zoom: advertising or upkeep, "it does not matter". Not counted as a wrong account.
 - **Fixed asset or consumable, ANNA (7 Nov 2026).** A fixed asset is usually a single item of 1,000 shekels or more. Sports weights and mats bought together are
   consumables, not fixed assets.
 - **The amounts of a share, ANNA (21 Oct 2026).** Two cases. VAT only at a share (car, mobile): gross stays the total with VAT, VAT is the invoice's VAT times the percent, net is gross minus VAT. Expense and VAT both at a share (home, 25%): all three amounts take the percent. This is `recognisedAmounts`.
-- **Example, code rule.** Net 100 and VAT 18, expense at 100%, VAT at 66.67%: gross 118, net 106, VAT 12. The VAT that cannot be deducted
+- **Example, code rule.** Net 100 and VAT 18, expense at 100%, VAT at 66%: gross 118.00, net 106.12, VAT 11.88. The VAT that cannot be deducted
   stays in the expense.
 - **Foreign currency, ANNA.** Entered in shekels at the rate of the date the invoice was received. The app does not convert yet,
   so the row goes to review. A software vendor's guide reads the rate at the document's date (WEB); Anna's practice stands until she says otherwise.

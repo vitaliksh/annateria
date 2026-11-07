@@ -2,11 +2,11 @@
 // the page: the same row that the table shows after recognition, so that it can be put into the open table through restoreRow or
 // written straight into the draft file of a month that is not open. Pure; the page and the files are the caller's.
 // Rules (docs/AGENT_TOOLS.md, 5.3): the values of the document are copied from the fact; the recognition percentages come from the
-// business rule (25% of a home for electricity, water, sewage and property tax; 66.67% VAT for the mobile phone codes); a duplicate or
+// business rule (25% of a home for electricity, water, sewage and property tax; 66% VAT for a vehicle and a mobile phone); a duplicate or
 // a document of a previous year is an inactive row with its reason; a row is "ready" only when the code and the model agree that
 // nothing needs a look.
 import { dateKey } from "./intake-facts.js";
-import { isHomeUtility, isLimitedVat } from "./home-utilities.js";
+import { isHomeUtility, isLimitedVat, VAT_SHARE_LIMITED } from "./home-utilities.js";
 import { formatMonth } from "./month-format.js";
 import { recognisedAmounts } from "./row-calculations.js";
 
@@ -67,7 +67,7 @@ export function recognition({ record, account, kind, accountName = "" }) {
   const homeUtility = !record.booked && kind === "home" && isHomeUtility({ accountName, texts: [record.purpose, record.document_title] });
   const expensePercent = homeUtility ? 25 : 100;
   const limitedVat = !record.booked && isLimitedVat({ account, accountName });
-  const vatPercent = record.vat ? (homeUtility ? 25 : limitedVat ? 66.67 : 100) : 100;
+  const vatPercent = record.vat ? (homeUtility ? 25 : limitedVat ? VAT_SHARE_LIMITED : 100) : 100;
   return { expensePercent, vatPercent, amounts: recognisedAmounts(record.net, record.vat, expensePercent, vatPercent) };
 }
 

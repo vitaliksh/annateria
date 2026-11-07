@@ -22,16 +22,16 @@ test("an ordinary invoice becomes a ready, active row whose values are those of 
   assert.deepEqual([row.imageFile, row.imageIndex, row.highlights, row.pcnApproved, row.imageIndex], ["", 0, [], "", 0]);
 });
 
-test("recognition follows the business rule of the page: 25% of a home for utilities, 66.67% VAT for the mobile codes, none without VAT", () => {
+test("recognition follows the business rule of the page: 25% of a home for utilities, 66% VAT for the mobile codes, none without VAT", () => {
   const power = record({ purpose: "חשמל", net: 800, vat: 144, total: 944 });
   assert.deepEqual(recognition({ record: power, account: "204", kind: "home" }), { expensePercent: 25, vatPercent: 25, amounts: { gross: "236.00", net: "200.00", vat: "36.00" } });
   assert.equal(recognition({ record: power, account: "204", kind: "office" }).expensePercent, 100, "an office client has no 25% rule");
   assert.equal(recognition({ record: record({ purpose: "חשמל" }), account: "204", kind: "home", accountName: "" }).expensePercent, 25);
   assert.equal(recognition({ record: record({ purpose: "מזון", document_title: "קבלה" }), account: "209", kind: "home" }).expensePercent, 100);
-  assert.deepEqual(recognition({ record: record(), account: "807", kind: "office" }).vatPercent, 66.67);
-  assert.deepEqual(recognition({ record: record(), account: "807", kind: "office" }).amounts, { gross: "236.00", net: "212.00", vat: "24.00" });
+  assert.deepEqual(recognition({ record: record(), account: "807", kind: "office" }).vatPercent, 66);
+  assert.deepEqual(recognition({ record: record(), account: "807", kind: "office" }).amounts, { gross: "236.00", net: "212.24", vat: "23.76" });
   // A client's own fuel account (B's 228) takes the same share by its name; a train ticket does not.
-  assert.deepEqual(recognition({ record: record(), account: "228", kind: "home", accountName: "דלק" }).amounts, { gross: "236.00", net: "212.00", vat: "24.00" });
+  assert.deepEqual(recognition({ record: record(), account: "228", kind: "home", accountName: "דלק" }).amounts, { gross: "236.00", net: "212.24", vat: "23.76" });
   assert.equal(recognition({ record: record(), account: "215", kind: "home", accountName: "נסיעות ברכבת" }).vatPercent, 100);
   const exempt = recognition({ record: record({ net: 500, vat: 0, total: 500 }), account: "807", kind: "home" });
   assert.deepEqual([exempt.vatPercent, exempt.amounts], [100, { gross: "500.00", net: "500.00", vat: "0.00" }]);

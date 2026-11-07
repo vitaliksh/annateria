@@ -187,7 +187,7 @@ test("propose_change: the user sees a card with parsed values; nothing on disk c
       { row: handle, field: "date", value: "14/03/2026", reason: "התאריך בצילום שונה" },
       { row: handle, field: "net", value: "1,234.5".replace(",", ""), reason: "סכום" },
       { row: handle, field: "account", value: "206", reason: "ביטוח" },
-      { row: handle, field: "vat_recognized_percent", value: "66.67", reason: "נייד" },
+      { row: handle, field: "vat_recognized_percent", value: "66", reason: "נייד" },
       { row: handle, field: "include", value: "false", reason: "כפילות" },
       { row: handle, field: "supplier_vat_id", value: "514123456", reason: "ח.פ." },
     ],
@@ -195,7 +195,7 @@ test("propose_change: the user sees a card with parsed values; nothing on disk c
   assert.deepEqual(result, { ok: true, proposal: "P1", count: 6 });
   assert.equal(ui.proposals.length, 1);
   assert.deepEqual(ui.proposals[0].changes.map((change) => [change.field, change.value]), [
-    ["date", "2026-03-14"], ["net", 1234.5], ["account", "206"], ["vat_recognized_percent", 66.67], ["include", false], ["supplier_vat_id", "514123456"],
+    ["date", "2026-03-14"], ["net", 1234.5], ["account", "206"], ["vat_recognized_percent", 66], ["include", false], ["supplier_vat_id", "514123456"],
   ]);
   assert.deepEqual([ui.proposals[0].client, ui.proposals[0].changes[0].documentId, ui.proposals[0].changes[0].month], [{ id: "id-Levi", name: "Levi Plumbing Ltd" }, "doc-1", "2026-02"]);
   assert.deepEqual(await listPaths(w.root), before);

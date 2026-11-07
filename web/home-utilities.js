@@ -35,3 +35,7 @@ export function isLimitedVat({ account = "", accountName = "" } = {}) {
   const name = String(accountName ?? "");
   return limitedPatterns.some((pattern) => pattern.test(name));
 }
+
+// Two thirds as Anna's Rivhit takes them: 66% (Anna, through the owner, 7 November 2026; her journals agree to the agora, while 66.67%
+// was off by agorot).
+export const VAT_SHARE_LIMITED = 66;

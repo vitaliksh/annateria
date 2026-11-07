@@ -56,7 +56,7 @@ import { closedMonthText, lockProblems } from "./lock-check.js";
 import { closeOpenMonths } from "./month-lock.js";
 import { setupMonthChoice } from "./month-choice.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
-import { isHomeUtility, isLimitedVat } from "./home-utilities.js";
+import { isHomeUtility, isLimitedVat, VAT_SHARE_LIMITED } from "./home-utilities.js";
 import {
   readCustomRivhitMapping,
   readCustomRivhitMappingMetadata,
@@ -1216,6 +1216,8 @@ function setStatus(row, text, state = "") {
 function percentSelect(value = 100, choices = [100, 25], role = "") {
   const select = document.createElement("select");
   select.dataset.role = role;
+  // A row saved with another share (66.67% before 7 November 2026) keeps it: its amounts must not change by opening the month.
+  if (!choices.includes(Number(value))) choices = [...choices, Number(value)];
   for (const item of choices) {
     const option = new Option(`${item}%`, String(item), false, Number(value) === item);
     select.add(option);
@@ -1520,7 +1522,7 @@ function applyBusinessRule(row) {
     expense = row.cells[12].querySelector("select"),
     vat = row.cells[11].querySelector("select");
   if (expense) expense.value = homeUtility ? "25" : "100";
-  if (vat && Number(row.dataset.rawVat || 0)) vat.value = homeUtility ? "25" : limitedVat ? "66.67" : "100";
+  if (vat && Number(row.dataset.rawVat || 0)) vat.value = homeUtility ? "25" : limitedVat ? String(VAT_SHARE_LIMITED) : "100";
   recalculateRow(row);
 }
 function applyBusinessRules() {
@@ -1808,7 +1810,7 @@ async function applyRecord(row, record) {
   const classification =
     record.document_kind === "income_report" ? await ensureIncomeClassification() : record.rivhit_code || "";
   row.cells[1].replaceChildren(classificationSelect(classification));
-  row.cells[11].replaceChildren(percentSelect(record.vat_recognized_percent ?? 100, [100, 66.67, 25, 0], "vat"));
+  row.cells[11].replaceChildren(percentSelect(record.vat_recognized_percent ?? 100, [100, VAT_SHARE_LIMITED, 25, 0], "vat"));
   row.cells[12].replaceChildren(percentSelect(record.recognized_percent || 100, [100, 25, 0], "expense"));
   applyBusinessRule(row);
   addFieldSwapButton(row);
@@ -1923,7 +1925,7 @@ function restoreRow(saved, blob) {
   row.replaceChild(amountCell(values[9], "מע״מ"), row.cells[10]);
   row.cells[6].textContent = displayedReference(values[5]);
   row.cells[1].replaceChildren(classificationSelect(values[1] || ""));
-  row.cells[11].replaceChildren(percentSelect(values[10] || 100, [100, 66.67, 25, 0], "vat"));
+  row.cells[11].replaceChildren(percentSelect(values[10] || 100, [100, VAT_SHARE_LIMITED, 25, 0], "vat"));
   row.cells[12].replaceChildren(percentSelect(values[11] || 100, [100, 25, 0], "expense"));
   addFieldSwapButton(row);
   recalculateRow(row);

@@ -21,7 +21,7 @@ const FIELDS = {
   vat: money,
   total: money,
   account: (value) => { if (!/^\d{3}$/.test(value)) throw bad("account must be a three-digit code."); return value; },
-  vat_recognized_percent: oneOf([100, 66.67, 25, 0]),
+  vat_recognized_percent: oneOf([100, 66, 25, 0]),
   expense_recognized_percent: oneOf([100, 25, 0]),
   include: (value) => { if (!["true", "false"].includes(value)) throw bad("include must be true or false."); return value === "true"; },
   month: (value) => { if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) throw bad("month must look like 2026-03."); return value; },

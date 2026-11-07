@@ -16,13 +16,13 @@ The bill: net 400.00, VAT 72.00, total 472.00, dated in September. The open mont
 
 The invoice: net 200.00, VAT 36.00, total 236.00.
 
-- VAT at two thirds (reg. 18, Anna). 24.00 is deductible. The 12.00 that cannot be deducted stays in the expense.
-- Row: gross 236.00, VAT 24.00, net 212.00.
-- Today's app applies this only for built-in codes. With a chart of the client's own, check the VAT: expect the full 36.00 until the code is fixed, and report it.
+- VAT at two thirds, taken as 66% like Anna's Rivhit (reg. 18, Anna). 23.76 is deductible. The 12.24 that cannot be deducted stays in the expense.
+- Row: gross 236.00, VAT 23.76, net 212.24.
+- The app decides it by the account's name too (vehicle, fuel, parking, mobile). Rows saved before 7 Nov 2026 keep 66.67%: never change them silently.
 
 ## 3. Mobile phone bill
 
-Net 100.00, VAT 18.00. VAT at two thirds, as in example 2. Internet at 100%. If one bill holds both and prints them apart, there are two rows. If it does not print them apart, one row, marked for review.
+Net 100.00, VAT 18.00. VAT at 66%, as in example 2: 11.88. Internet at 100%. If one bill holds both and prints them apart, there are two rows. If it does not print them apart, one row, marked for review.
 
 ## 4. Invoice above the allocation ceiling
 
