@@ -56,7 +56,7 @@ import { closedMonthText, lockProblems } from "./lock-check.js";
 import { closeOpenMonths } from "./month-lock.js";
 import { setupMonthChoice } from "./month-choice.js";
 import { recognisedAmounts, sourceAmountsFromGross, sourceAmountsFromNet, sourceAmountsFromVat } from "./row-calculations.js";
-import { isHomeUtility } from "./home-utilities.js";
+import { isHomeUtility, isLimitedVat } from "./home-utilities.js";
 import {
   readCustomRivhitMapping,
   readCustomRivhitMappingMetadata,
@@ -1516,7 +1516,7 @@ function applyBusinessRule(row) {
         accountName: chartAccounts[code]?.name || rivhitMapping[code],
         texts: [cellValue(row.cells[3]), row.dataset.documentTitle],
       }),
-    limitedVat = ["806", "807", "812"].includes(code),
+    limitedVat = isLimitedVat({ account: code, accountName: chartAccounts[code]?.name || rivhitMapping[code] }),
     expense = row.cells[12].querySelector("select"),
     vat = row.cells[11].querySelector("select");
   if (expense) expense.value = homeUtility ? "25" : "100";

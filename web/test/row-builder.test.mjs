@@ -30,6 +30,9 @@ test("recognition follows the business rule of the page: 25% of a home for utili
   assert.equal(recognition({ record: record({ purpose: "מזון", document_title: "קבלה" }), account: "209", kind: "home" }).expensePercent, 100);
   assert.deepEqual(recognition({ record: record(), account: "807", kind: "office" }).vatPercent, 66.67);
   assert.deepEqual(recognition({ record: record(), account: "807", kind: "office" }).amounts, { gross: "236.00", net: "212.00", vat: "24.00" });
+  // A client's own fuel account (B's 228) takes the same share by its name; a train ticket does not.
+  assert.deepEqual(recognition({ record: record(), account: "228", kind: "home", accountName: "דלק" }).amounts, { gross: "236.00", net: "212.00", vat: "24.00" });
+  assert.equal(recognition({ record: record(), account: "215", kind: "home", accountName: "נסיעות ברכבת" }).vatPercent, 100);
   const exempt = recognition({ record: record({ net: 500, vat: 0, total: 500 }), account: "807", kind: "home" });
   assert.deepEqual([exempt.vatPercent, exempt.amounts], [100, { gross: "500.00", net: "500.00", vat: "0.00" }]);
   const row = build({ record: power, kind: "home", account: "204" });

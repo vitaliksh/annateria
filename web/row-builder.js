@@ -6,12 +6,11 @@
 // a document of a previous year is an inactive row with its reason; a row is "ready" only when the code and the model agree that
 // nothing needs a look.
 import { dateKey } from "./intake-facts.js";
-import { isHomeUtility } from "./home-utilities.js";
+import { isHomeUtility, isLimitedVat } from "./home-utilities.js";
 import { formatMonth } from "./month-format.js";
 import { recognisedAmounts } from "./row-calculations.js";
 
 export const READY_CONFIDENCE = 80;
-const LIMITED_VAT_CODES = ["806", "807", "812"];
 
 // What a code reason of facts_for says in Hebrew, for the opinion column of the row.
 export const REASON_TEXT = {
@@ -67,7 +66,7 @@ export function excludeText(facts, month) {
 export function recognition({ record, account, kind, accountName = "" }) {
   const homeUtility = !record.booked && kind === "home" && isHomeUtility({ accountName, texts: [record.purpose, record.document_title] });
   const expensePercent = homeUtility ? 25 : 100;
-  const limitedVat = !record.booked && LIMITED_VAT_CODES.includes(account);
+  const limitedVat = !record.booked && isLimitedVat({ account, accountName });
   const vatPercent = record.vat ? (homeUtility ? 25 : limitedVat ? 66.67 : 100) : 100;
   return { expensePercent, vatPercent, amounts: recognisedAmounts(record.net, record.vat, expensePercent, vatPercent) };
 }

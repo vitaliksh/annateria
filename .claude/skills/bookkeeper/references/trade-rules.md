@@ -49,8 +49,9 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 - **Amounts already booked, OWNER (30 Oct 2026).** Rows imported from Rivhit, and percentages set by hand, are never cut again.
   Anna's journal already holds the 25% share.
 - **Mobile phone, code rule.** VAT at 66.67% when VAT is present, for built-in codes 806, 807, 812. Internet code 888 at 100%.
-- **Vehicle at 66.67%, LAW and ANNA, the code is behind.** Reg. 18 and Anna agree. The app applies it only for built-in codes; real client charts miss it. Expect a wrong VAT
-  figure until this is fixed, and check it in every exam of a client with a vehicle.
+- **Vehicle and mobile at 66.67%, LAW and ANNA.** Reg. 18 and Anna agree. The app decides by the built-in codes and, since 7 November 2026, by the
+  name of the client's own account (vehicle, fuel, mobile). Check it in every exam of a client with a vehicle: it was the cause of 3 false "ready" in M4.
+- **Subscriptions of foreign services, SAMPLE (B).** Google, Apple and Zoom subscriptions, no VAT, are booked to the advertising account in Anna's B journals. Not yet a rule: ask Anna whether it holds for every client.
 - **The amounts of a share, ANNA (21 Oct 2026).** Two cases. VAT only at a share (car, mobile): gross stays the total with VAT, VAT is the invoice's VAT times the percent, net is gross minus VAT. Expense and VAT both at a share (home, 25%): all three amounts take the percent. This is `recognisedAmounts`.
 - **Example, code rule.** Net 100 and VAT 18, expense at 100%, VAT at 66.67%: gross 118, net 106, VAT 12. The VAT that cannot be deducted
   stays in the expense.
