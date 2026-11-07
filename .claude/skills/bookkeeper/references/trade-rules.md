@@ -79,7 +79,7 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 - **The open month decides, OWNER (1 Nov 2026).** Every document in a month's inbox becomes a row of that month. Doubts become marks.
 - **A closed month is filed and paid, OWNER (6 Nov 2026).** It takes nothing. Two exceptions, each after a question: Rivhit's own files go to their own month,
   and VAT moved to a future month.
-- **Which month a document belongs to, ANNA (21 Oct 2026).** A yearly insurance: the month it was received. Electricity, telephone, water: the date of the invoice. A water bill that becomes a tax invoice only on payment: the month it was received. The agent does not move documents; these say what to mark when the open month differs.
+- **Which month a document belongs to, ANNA (21 Oct 2026).** A yearly insurance: the month it was received. Electricity, telephone, water: the date of the invoice. A water bill that becomes a tax invoice only on payment: entered when received, and its six months run from the date of the invoice, standing order or not (7 Nov 2026). The agent does not move documents; these say what to mark when the open month differs.
 - **Dated after the month.** Written and marked: its VAT cannot be deducted before its date.
 - **Dated before the month.** Written and marked: that month is filed. **Earlier year:** excluded softly, the row stays.
 - **Declared together, SAMPLE.** A low-volume month may have no file of its own: one client's March is in journal 4, July in journal 8, so
@@ -111,6 +111,5 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 
 ## Questions for Anna, when nothing else settles them
 
-- A water bill reads "tax invoice only after payment" and is paid by a standing order. Is the date on it still the date for the six months?
 - How should a moved sale appear in PCN874 (owner left it for later on 6 November 2026)?
 - Should the allocation check count sales rows? The code does, as `ocr` did; Rivhit's sale line carries no allocation number.

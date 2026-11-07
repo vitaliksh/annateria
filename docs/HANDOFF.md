@@ -21,7 +21,7 @@ The present state only, at most 80 lines. Rules: `../AGENTS.md`. Plan: `WORK_PLA
 - Reading of real documents has never been measured. Eval totals of 100% carry no signal: it stubs the reading, with fake PDFs, open months and fresh lists.
 - 29 checkboxes of the old plan stayed open, many only waiting for a click by the owner. M2, M4 and M6 cover them; no need to tick old boxes.
 - Open rules are listed in `.claude/skills/bookkeeper/references/trade-rules.md`. Defects and questions of the exams: `D:\ANNATERIA-LAB\findings.md`.
-- Anna answered on 7 November (rules in `trade-rules.md`, dated): journals never miss ledger operations (now a discrepancy to review); B is two-monthly; B's advances 23% monthly; a late invoice may be deducted; a fixed asset is one item of 1,000 or more; the account of a subscription does not matter. Still open: the date of a water bill paid by standing order.
+- Anna answered on 7 November (rules in `trade-rules.md`, dated): journals never miss ledger operations (now a discrepancy to review); B is two-monthly; B's advances 23% monthly; a late invoice may be deducted; a fixed asset is one item of 1,000 or more; the account of a subscription does not matter. A water bill paid by standing order: the six months run from the invoice's date.
 - `npm run check` is syntax only, until M3.
 - Agent rows do not keep what the agent first read in a usable form (`row.agent.fact` is not an object), so hand corrections cannot be counted from the table. The scorecard counts them for now. Run logs (`common/agent-runs/`) may help; not checked.
 
