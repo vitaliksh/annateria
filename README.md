@@ -15,7 +15,8 @@ deployed with the access code (`/v1/auth`) and the Gemini proxy (`/v1/model`). T
 "בדיקת חיבור ל‑AI" work on the published page. Everything comes in through the **inbox** (`תיבת קלט`): the assistant turns
 invoices into rows, and recognises import files (Rivhit journal, classification-codes ledger, operations ledger, income report),
 for which it leaves a card that opens the existing wizard (step 4.7; the menu "ייבוא ובדיקות" is gone). Where to start:
-[`docs/HANDOFF.md`](docs/HANDOFF.md), section "Start here"; the plan: [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md).
+[`docs/HANDOFF.md`](docs/HANDOFF.md); the plan: [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md); the working method: the skill
+[`.claude/skills/bookkeeper/`](.claude/skills/bookkeeper/SKILL.md).
 
 ## Layout
 
@@ -37,6 +38,7 @@ cd worker; npm ci; npm test; npm run check  # 69 tests (check = wrangler dry run
 
 ## For developers and AI agents
 
-Read [`AGENTS.md`](AGENTS.md) (rules that must not be broken), [`docs/WORK_PLAN.md`](docs/WORK_PLAN.md) (what to do next),
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/HANDOFF.md`](docs/HANDOFF.md) (repository map, versions, open
-points). The predecessor is `vitaliksh/ocr`; it is read-only for this project.
+Read [`AGENTS.md`](AGENTS.md) (rules that must not be broken), [`docs/HANDOFF.md`](docs/HANDOFF.md) (the present state),
+[`docs/WORK_PLAN.md`](docs/WORK_PLAN.md) (what to do next) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). A new session starts from
+[`docs/NEXT_SESSION.md`](docs/NEXT_SESSION.md). History before 7 November 2026 is in `docs/archive/`, with the repository map. The predecessor is
+`vitaliksh/ocr`; it is read-only for this project.

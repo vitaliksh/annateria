@@ -20,3 +20,7 @@ inbox/
 clients/
 processed_documents/
 tmp/
+
+# Claude Code: skills are shared, the rest of the folder is per machine.
+.claude/*
+!.claude/skills/
