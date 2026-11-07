@@ -17,21 +17,31 @@ $Tree = [System.Windows.Automation.TreeScope]
 $Element = [System.Windows.Automation.AutomationElement]
 $True_ = [System.Windows.Automation.Condition]::TrueCondition
 
-function Get-LabWindows {
+function Get-LabProcesses {
   $profile = Join-Path $Lab "browser-profile"
-  $ids = Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
+  Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
     Where-Object { $_.CommandLine -and $_.CommandLine.Contains($profile) } |
     ForEach-Object { [int]$_.ProcessId }
+}
+
+function Get-LabWindows {
+  $ids = @(Get-LabProcesses)
   $Element::RootElement.FindAll($Tree::Children, $True_) | Where-Object {
     $_.Current.ClassName -eq "Chrome_WidgetWin_1" -and $ids -contains $_.Current.ProcessId
   }
 }
 
+# A dialog is owned by the browser window, or, when Chrome runs it in its own utility process (seen on 7 November 2026 after a
+# reload), stands at the top level with that process's id.
 function Find-Dialog {
   $byClass = New-Object System.Windows.Automation.PropertyCondition($Element::ClassNameProperty, "#32770")
   foreach ($window in @(Get-LabWindows)) {
     $found = $window.FindFirst($Tree::Children, $byClass)
     if ($found) { return $found }
+  }
+  $ids = @(Get-LabProcesses)
+  foreach ($top in $Element::RootElement.FindAll($Tree::Children, $byClass)) {
+    if ($ids -contains $top.Current.ProcessId) { return $top }
   }
   return $null
 }
@@ -132,7 +142,10 @@ switch ($Action) {
   }
   "cancel" {
     $dialog = Wait-Dialog
-    $cancel = Get-Children $dialog | Where-Object { $_.Class -eq "Button" -and $_.Id -eq 2 } | Select-Object -First 1
+    # Cancel is button 2. A message box of the dialog ("file not found") may have one plain button only.
+    $buttons = @(Get-Children $dialog | Where-Object { $_.Class -eq "Button" -and $_.Visible })
+    $cancel = $buttons | Where-Object { $_.Id -eq 2 } | Select-Object -First 1
+    if (-not $cancel) { $cancel = $buttons | Select-Object -First 1 }
     [void][Lab.Win32]::PostMessage($cancel.Hwnd, $BM_CLICK, [IntPtr]::Zero, [IntPtr]::Zero)
     "cancelled"
   }

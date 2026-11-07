@@ -9,6 +9,8 @@
 //   node tools/browser.mjs at <x> <y>            a real mouse click at a point of the page
 //   node tools/browser.mjs type <text>           real key presses into what has the focus
 //   node tools/browser.mjs press <key>           one key, such as Enter or Escape
+//   node tools/browser.mjs select <css> <value>  chooses in a drop-down list
+//   node tools/browser.mjs clear <css>           selects what a field holds and deletes it, as a person would
 //   node tools/browser.mjs files <css> <path>..  answers the file dialog of an input: the one thing replaced, the rest stays real
 //   node tools/browser.mjs look <expression>     evaluates an expression to read the page. Never to act: rule 1 of the skill
 //   node tools/browser.mjs until <s> <expression>  waits for a condition on the page
@@ -67,15 +69,16 @@ async function start() {
 }
 
 // The visible things a person could click, in reading order.
-const listVisible = (page) => page.evaluate((selector) => {
+const listVisible = (page, scrollIndex = null) => page.evaluate(([selector, scrollTo]) => {
   const shown = [...document.querySelectorAll(selector)].filter((element) => {
     const box = element.getBoundingClientRect();
     if (!box.width || !box.height) return false;
     const style = getComputedStyle(element);
     if (style.visibility === "hidden" || style.display === "none") return false;
-    const dialog = document.querySelector("dialog[open]:modal");
+    const dialog = document.elementFromPoint(innerWidth / 2, innerHeight / 2)?.closest("dialog[open]") || document.querySelector("dialog[open]:modal");
     return !dialog || dialog.contains(element);
   });
+  if (scrollTo !== null) shown[scrollTo]?.scrollIntoView({ block: "center" });
   return shown.map((element, index) => {
     const box = element.getBoundingClientRect();
     return {
@@ -88,25 +91,25 @@ const listVisible = (page) => page.evaluate((selector) => {
       y: Math.round(box.y + box.height / 2),
     };
   });
-}, VISIBLE);
+}, [VISIBLE, scrollIndex]);
+
+// Brings item n into view, as a person scrolls to it, and clicks it where it then stands.
+async function clickItem(page, n) {
+  const item = (await listVisible(page, n))[n];
+  if (!item) throw new Error(`No item #${n} on the page.`);
+  await page.mouse.click(item.x, item.y);
+  return `${item.tag} "${item.text}" at ${item.x},${item.y}`;
+}
 
 async function clickTarget(page, target) {
-  if (target.startsWith("#") && /^#\d+$/.test(target)) {
-    const item = (await listVisible(page))[Number(target.slice(1))];
-    if (!item) throw new Error(`No item ${target} on the page.`);
-    await page.mouse.click(item.x, item.y);
-    return `${item.tag} "${item.text}" at ${item.x},${item.y}`;
-  }
+  if (/^#\d+$/.test(target)) return clickItem(page, Number(target.slice(1)));
   if (/^[#.\[]/.test(target)) {
     await page.locator(target).first().click({ timeout: 5000 });
     return target;
   }
-  const items = (await listVisible(page)).filter((item) => item.text === target);
-  const item = items[0] || (await listVisible(page)).find((candidate) => candidate.text.includes(target));
-  if (item) {
-    await page.mouse.click(item.x, item.y);
-    return `${item.tag} "${item.text}" at ${item.x},${item.y}`;
-  }
+  const items = await listVisible(page);
+  const item = items.find((candidate) => candidate.text === target) || items.find((candidate) => candidate.text.includes(target));
+  if (item) return clickItem(page, item.n);
   await page.getByText(target).first().click({ timeout: 5000 });
   return `text "${target}"`;
 }
@@ -124,7 +127,7 @@ if (command === "start") {
       console.log(file);
     } else if (command === "text") {
       console.log(await page.evaluate(() => {
-        const dialog = document.querySelector("dialog[open]:modal");
+        const dialog = document.elementFromPoint(innerWidth / 2, innerHeight / 2)?.closest("dialog[open]") || document.querySelector("dialog[open]:modal");
         return (dialog || document.body).innerText;
       }));
     } else if (command === "buttons") {
@@ -136,6 +139,12 @@ if (command === "start") {
       console.log("clicked", await clickTarget(page, args.join(" ")));
     } else if (command === "at") {
       await page.mouse.click(Number(args[0]), Number(args[1]));
+    } else if (command === "select") {
+      // The one native list of a <select> cannot be driven by mouse from here; the choice and its events are the real ones.
+      console.log("selected", await page.locator(args[0]).first().selectOption(args.slice(1).join(" ")));
+    } else if (command === "clear") {
+      await page.locator(args[0]).first().click({ clickCount: 3, timeout: 5000 });
+      await page.keyboard.press("Backspace");
     } else if (command === "type") {
       await page.keyboard.type(args.join(" "));
     } else if (command === "press") {
@@ -156,6 +165,9 @@ if (command === "start") {
     } else {
       throw new Error(`Unknown command: ${command}`);
     }
+  } catch (error) {
+    console.log(`FAILED: ${error.message.split(/\r?\n/)[0]}`);
+    process.exitCode = 1;
   } finally {
     // Disconnect only: the window stays open and keeps its state.
     await browser.close();

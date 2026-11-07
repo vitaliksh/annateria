@@ -1,6 +1,7 @@
 // Journal columns: the fixed order of the 20 cells (app.js addresses cells by index, so cells are never removed or
 // reordered), which columns the user can hide, the presets and the width arithmetic. Pure; no DOM.
 
+// VAT and its percent had too little room: "30.26" showed as "30.2" and "25%" as "5%" in a window 1486 px wide (7 November 2026).
 export const COLUMNS = [
   { key: "index", group: "core", locked: true, weight: 3 },
   { key: "code", group: "core", locked: true, weight: 12 },
@@ -12,16 +13,16 @@ export const COLUMNS = [
   { key: "allocation", group: "tax", weight: 7 },
   { key: "gross", group: "core", locked: true, weight: 12 },
   { key: "net", group: "core", locked: true, weight: 12 },
-  { key: "vat", group: "core", locked: true, weight: 8 },
-  { key: "vatPercent", group: "tax", weight: 8 },
+  { key: "vat", group: "core", locked: true, weight: 11 },
+  { key: "vatPercent", group: "tax", weight: 10 },
   { key: "expensePercent", group: "tax", weight: 8 },
   { key: "image", group: "service", weight: 9 },
   { key: "agent", group: "ai", weight: 16 },
   { key: "confidence", group: "ai", weight: 7 },
   { key: "status", group: "service", weight: 11 },
   { key: "export", group: "service", weight: 5 },
-  { key: "delete", group: "service", weight: 8 },
-  { key: "vatMonth", group: "tax", weight: 12 },
+  { key: "delete", group: "service", weight: 6 },
+  { key: "vatMonth", group: "tax", weight: 10 },
 ];
 
 export const GROUP_LABELS = { core: "עיקריות", tax: "מס", ai: "AI", service: "שירות" };

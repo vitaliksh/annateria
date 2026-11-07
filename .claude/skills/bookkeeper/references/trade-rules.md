@@ -11,28 +11,30 @@ Everything known so far, with its source. Tags say how far to trust a rule:
 
 ## The law
 
-Source for this section: VAT Regulations, 1976, on he.wikisource, version of 6 July 2026, read 7 November 2026. Wikisource
-is a copy, so check against an official text before changing a figure. The reading was through a summary tool: re-read the
-exact wording of any regulation before you build on it.
+Sources: VAT Law, 1975, and VAT Regulations, 1976, full wikitext on he.wikisource, version of 6 July 2026, read word by word on 7 November 2026 (a copy is in
+`D:\ANNATERIA-LAB\law`). Wikisource is a copy of the law, so check an official text before changing a figure in code. Figures that the law indexes each year need a fresh look.
 
-- **Mixed use (reg. 18), LAW.** Input VAT follows the share of business use. Where no share was set: two thirds when
-  business use is the main use, one quarter when private use is the main use. This is where 66.67% and 25% come from.
-- **Buying a private car (reg. 14), LAW.** VAT on buying or importing one is not deductible, except for vehicle dealers,
-  driving schools, car rental, passenger transport and organised tours. Running costs fall under mixed use (WEB, a CPA firm).
-- **Reporting period (reg. 20), LAW.** One month by default. Two months for a dealer with turnover up to a threshold, measured
-  over the 12 months ending 31 August. The page gives 1,775,000 from January 2026; a secondary guide says 1,725,000. OPEN.
-- **Invoice not in the dealer's name (reg. 12c), LAW.** For telephone, water, gas, electricity and the like, the Director may
-  accept it when the input served the business. It explains home clients' bills in another name.
-- **A dwelling (reg. 15), OPEN.** Limits deduction on buying or building a home. The summary of the wording was unclear: read it.
-- **The six-month window, OPEN.** The code flags late deduction after six months (`month-distribution.js`), from non-official
-  sources. It is not in regulations 14 to 23; reg. 24a speaks of six months only for bad debts. Find it, probably in the VAT Law
-  itself, and confirm the exact rule and how it can be extended.
-- **Allocation-number ceiling, WEB.** For the deduction: 20,000 in 2025, 10,000 from 1 January 2026, 5,000 from 1 June 2026, before
-  VAT. Several secondary sources agree, and `pcn-review.js` has the same table. Read the Tax Authority's directive.
-- **Deadlines, WEB.** VAT and advances by the 15th; online by the 19th; the detailed file by the 23rd. One vendor gives another
-  date. Not used in any calculation.
-- **Who must file PCN874, WEB, conflicting.** A turnover test of 2.5 million is quoted by one site only. The app keeps it as a
-  client setting (`pcnRequired`), so Anna decides.
+- **The deduction itself (s. 38(a)), LAW.** A dealer deducts input VAT shown in a tax invoice issued to them lawfully, or an import declaration or other approved document,
+  and the deduction must be made within six months of the day the invoice, declaration or document was issued. From issue, not from receipt.
+  This is the six-month window of `month-distribution.js`; Anna confirmed it (21 Oct 2026). The text read has no general power to extend it; whether one exists is **OPEN** for Anna.
+- **Allocation number (s. 38(a1)), LAW.** No deduction of the VAT of a tax invoice whose amount **without VAT** is above 5,000, without an allocation number. From January to May 2026 the figure was
+  10,000. 2025: 20,000 (WEB). The ceiling follows the invoice's date, ANNA. A document with no VAT needs none, ANNA. Asking for the number after the invoice does not move the six months (s. 47(a2)(4)), LAW.
+- **Mixed use (reg. 18), LAW.** VAT is deductible by the share of business use. Where the share is unspecified and the Director has set none: two thirds if the main use is business,
+  one quarter if the main use is not. This is where 66.67% and 25% come from.
+- **Buying a private car (reg. 14), LAW.** The VAT on buying or importing one is not deductible, except for a dealer in cars, and a car used only for driving lessons, rental, passenger transport
+  or organised tours by someone in that trade. Running costs fall under reg. 18.
+- **A dwelling (reg. 15), LAW.** No deduction of VAT on buying or building the dealer's own home, or part of it, or on services for that, even if it is also the place of business. Running costs of a home business are a different matter: reg. 18.
+- **Benefit to an employee (reg. 15a), LAW.** VAT on something for an employee, owner or manager included, is deductible only if it was sold or provided to them and reported as a taxable deal.
+- **Invoice not in the dealer's name (reg. 12c), LAW.** The Director may accept one for telephone, water, gas, electricity and the like when the input served the business. This is why home clients' bills in a spouse's name are normal.
+- **Reporting period (s. 67(a2), reg. 20), LAW.** One month by default. Two months if turnover does not pass the ceiling: 1,500,000 as indexed to July 2015, 1,775,000 from September 2025 (the note in the law), indexed each 1 September. Measured over the 12 months ending 31 August.
+  Two-month periods start in January, March, May, July, September, November. The Director may let a two-month dealer file monthly. The figure for September 2026 was not in this version: look again before relying on it.
+- **Deadlines (s. 67(b), s. 67a(d)), LAW.** A periodic report within 15 days after the period; a detailed report within 23 days. The Authority publishes dates for each year. Not used in any calculation.
+- **Who files the detailed report, PCN874 (s. 69a(g)), LAW.** A dealer with turnover above 500,000, or who must keep double-entry books, or whom the Director allowed on request. It is always monthly (s. 67a(a)). The app keeps it as a client setting (`pcnRequired`), so Anna decides. The figure of 2.5 million quoted on one site was wrong or old.
+- **Sales in the detailed report (s. 69a(c)), LAW.** Each sales tax invoice above 5,000 without VAT is listed; the ones below go in as a total. Input documents the dealer claims are listed (s. 69a(a)(5)). Compare with `docs/PCN874_SPEC.md` in the PCN exam.
+- **Bad debts (reg. 24a), LAW.** The six months there are a different rule: a credit note for a bad debt, after six months and before three years.
+
+Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of running costs (Income Tax Regulations, Deduction of Vehicle Expenses, 1995, reg. 2; seen through a reading tool on Nevo, to be re-read). Mobile phone: about 50% with a yearly ceiling (firms disagree on the figure). Home: by the share of rooms or area, usually a quarter.
+**The app does not compute income-tax shares by itself:** Anna's percent per class counts. Whether the app's expense percent for a vehicle or mobile matches her books is checked in M2 against her journals.
 
 ## What counts, and how much
 
@@ -47,12 +49,13 @@ exact wording of any regulation before you build on it.
 - **Amounts already booked, OWNER (30 Oct 2026).** Rows imported from Rivhit, and percentages set by hand, are never cut again.
   Anna's journal already holds the 25% share.
 - **Mobile phone, code rule.** VAT at 66.67% when VAT is present, for built-in codes 806, 807, 812. Internet code 888 at 100%.
-- **Vehicle at 66.67%, OPEN since 21 October.** It works only for built-in codes; real client charts miss it. Expect a wrong VAT
+- **Vehicle at 66.67%, LAW and ANNA, the code is behind.** Reg. 18 and Anna agree. The app applies it only for built-in codes; real client charts miss it. Expect a wrong VAT
   figure until this is fixed, and check it in every exam of a client with a vehicle.
+- **The amounts of a share, ANNA (21 Oct 2026).** Two cases. VAT only at a share (car, mobile): gross stays the total with VAT, VAT is the invoice's VAT times the percent, net is gross minus VAT. Expense and VAT both at a share (home, 25%): all three amounts take the percent. This is `recognisedAmounts`.
 - **Example, code rule.** Net 100 and VAT 18, expense at 100%, VAT at 66.67%: gross 118, net 106, VAT 12. The VAT that cannot be deducted
   stays in the expense.
 - **Foreign currency, ANNA.** Entered in shekels at the rate of the date the invoice was received. The app does not convert yet,
-  so the row goes to review.
+  so the row goes to review. A software vendor's guide reads the rate at the document's date (WEB); Anna's practice stands until she says otherwise.
 - **A loose account fit is not ready, ANNA practice.** With no account of that kind, give the near one and mark it to review.
 
 ## Reading a document
@@ -72,6 +75,7 @@ exact wording of any regulation before you build on it.
 - **The open month decides, OWNER (1 Nov 2026).** Every document in a month's inbox becomes a row of that month. Doubts become marks.
 - **A closed month is filed and paid, OWNER (6 Nov 2026).** It takes nothing. Two exceptions, each after a question: Rivhit's own files go to their own month,
   and VAT moved to a future month.
+- **Which month a document belongs to, ANNA (21 Oct 2026).** A yearly insurance: the month it was received. Electricity, telephone, water: the date of the invoice. A water bill that becomes a tax invoice only on payment: the month it was received. The agent does not move documents; these say what to mark when the open month differs.
 - **Dated after the month.** Written and marked: its VAT cannot be deducted before its date.
 - **Dated before the month.** Written and marked: that month is filed. **Earlier year:** excluded softly, the row stays.
 - **Declared together, SAMPLE.** A low-volume month may have no file of its own: one client's March is in journal 4, July in journal 8, so
@@ -104,5 +108,7 @@ exact wording of any regulation before you build on it.
 ## Questions for Anna, when nothing else settles them
 
 - Why do journals miss operations the ledger has?
+- Can the six months of s. 38(a) ever be extended, and how does the office handle a late invoice?
+- A water bill reads "tax invoice only after payment" and is paid by a standing order. Is the date on it still the date for the six months?
 - How should a moved sale appear in PCN874 (owner left it for later on 6 November 2026)?
 - Should the allocation check count sales rows? The code does, as `ocr` did; Rivhit's sale line carries no allocation number.

@@ -52,12 +52,11 @@ export function reconcile(operations, declarations, chart) {
     }
   }
   const unmatched = [];
-  let matched = 0;
+  const matchedMonths = [];
   for (const operation of operations) {
     const candidates = pool.get(operation.key);
     if (candidates?.length) {
-      candidates.pop();
-      matched += 1;
+      matchedMonths.push(candidates.pop().month);
     } else {
       unmatched.push(operation);
     }
@@ -67,12 +66,22 @@ export function reconcile(operations, declarations, chart) {
   for (const operation of unmatched) {
     const found = [...pool].find(([key, candidates]) => candidates.length && withoutMonth(key) === withoutMonth(operation.key));
     if (found) {
-      found[1].pop();
-      matched += 1;
+      matchedMonths.push(found[1].pop().month);
     } else {
       missing.push(operation);
     }
   }
   const extra = [...pool.values()].flat().sort((a, b) => a.month.localeCompare(b.month) || a.date.localeCompare(b.date));
-  return { matched, missing, extra };
+  return { matched: matchedMonths.length, matchedMonths, missing, extra };
+}
+
+// Is the ledger probably another client's? Only the months in which the tables have rows can tell: there, almost no operation of the
+// ledger is found. Months the books do not have yet say nothing (7 November 2026: after the first of six journals of a client, 36 of
+// 36 operations of that month were found, and the 188 of the months not imported yet raised "another client's ledger").
+export function suspectOtherClient({ matchedMonths, missing, extra }) {
+  const booked = new Set([...matchedMonths, ...extra.map((row) => row.month)]);
+  const matched = matchedMonths.length;
+  const missingThere = missing.filter((operation) => booked.has(operation.month)).length;
+  const rowsThere = matched + extra.length;
+  return matched + missingThere >= 10 && matched < (matched + missingThere) * 0.2 && rowsThere >= 3;
 }

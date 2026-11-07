@@ -65,7 +65,7 @@ const importNow = async ({ q, calls }) => {
   await waitFor(() => calls.imported.length);
 };
 
-test("a journal goes into the month it names, unmarked: the month cannot be changed, and that month is closed again at once", async () => {
+test("a journal goes into the month it names, unmarked: the month cannot be changed, a missing month is made without a second question, and it is closed at once", async () => {
   const asked = [];
   const ui = await setup({ openMonth: "2026-08", confirmMonth: async (question) => { asked.push(question); return true; } });
   ui.open();
@@ -73,7 +73,7 @@ test("a journal goes into the month it names, unmarked: the month cannot be chan
   assert.equal(ui.q("excel-import-month").value, "01/2026");
   assert.equal(ui.q("excel-import-month").readOnly, true);
   await importNow(ui);
-  assert.deepEqual(asked, [{ month: "2026-01", state: "missing" }]);
+  assert.deepEqual(asked, [], "the step said the month will be created");
   assert.equal(ui.calls.imported[0].month, "2026-01");
   const { declaration, draft } = await loadDeclaration(ui.client.directory, "2026-01");
   assert.equal(declaration.status, "closed", "only the month on screen stays open");

@@ -76,6 +76,7 @@ One line each, newest first.
 
 | Date | Decision |
 | --- | --- |
+| 2026-11-07 | Journal wizard: a missing month is created without a second question; leaving a month asks nothing (it is saved and closed anyway). Found as friction in the M2 exam. |
 | 2026-11-07 | The lab runs in a separate real Chrome, not in the desktop app's embedded browser, which aborts the folder picker. Windows dialogs and Chrome's prompts are answered by real controls (`tools/windows-dialog.ps1`), so folder permission bugs stay visible. |
 | 2026-11-07 | Owner: the agent works as a real bookkeeper in the real app; all materials may be used for development and testing. Autonomy between milestones. |
 | 2026-11-07 | Owner: the app's agent runs on `gemini-3.6-flash`. Checked that day: no shutdown date on the Gemini API; Google Cloud lists retirement on 19 November 2026 for its own platform; same price as 3.8 Flash until 31 December 2026. Re-check before M7. |

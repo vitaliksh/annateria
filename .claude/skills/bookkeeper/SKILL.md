@@ -50,6 +50,8 @@ The scorecard counts, in this order:
 | Places you did not know what to do | each one is a defect |
 | Gemini cost and minutes | recorded |
 
+One error counts on every line it fits: a wrong date on a row marked ready is a wrong date, a hand fix and a false ready. Client and month are set by the user, so an agent's question about them is a defect.
+
 ### A defect
 
 Reproduce it in the lab first. Then answer in `D:\ANNATERIA-LAB\findings.md`: what Anna would have seen, why no check

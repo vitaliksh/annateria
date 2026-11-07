@@ -6,7 +6,7 @@ import { createDeclaration, loadDeclaration, saveDraft } from "../declaration-st
 import { buildImportedRows } from "../excel-import.js";
 import { importRowsIntoDeclaration } from "../excel-import-store.js";
 import { parseJournalGrid } from "../excel-journal.js";
-import { ledgerOperations, reconcile } from "../ledger-reconcile.js";
+import { ledgerOperations, reconcile, suspectOtherClient } from "../ledger-reconcile.js";
 import { commitReconcile, monthsToApprove, prepareReconcile } from "../ledger-reconcile-flow.js";
 import { buildJournalGrid, SAMPLE_ROWS } from "./excel-journal-fixture.mjs";
 import { ledgerRowsGrid } from "./ledger-fixture.mjs";
@@ -144,4 +144,16 @@ test("сверка: дата входит в ключ — те же суммы �
   const shifted = sampleBlocks().map((block) => ({ ...block, rows: block.rows.map((row) => ({ ...row, date: nextDay(row.date) })) }));
   const prepared = await prepareReconcile(ledgerFile(shifted), options(c));
   assert.deepEqual([prepared.matched, prepared.missing.length, prepared.extra.length], [0, SAMPLE_ROWS.length, SAMPLE_ROWS.length]);
+});
+
+test("another client's ledger is suspected only from the months the tables already have", () => {
+  const months = (month, count) => Array.from({ length: count }, () => month);
+  const missingIn = (month, count) => months(month, count).map((value) => ({ month: value }));
+  // The first of six journals imported: all 36 operations of January found, 188 of other months not in the books yet (7 November 2026).
+  assert.equal(suspectOtherClient({ matchedMonths: months("2026-01", 36), missing: missingIn("2026-04", 188), extra: [] }), false);
+  // The tables have January and February, and almost nothing of the ledger is there.
+  const extra = [...months("2026-01", 5), ...months("2026-02", 5)].map((month) => ({ month }));
+  assert.equal(suspectOtherClient({ matchedMonths: [], missing: [...missingIn("2026-01", 6), ...missingIn("2026-02", 6)], extra }), true);
+  // Nothing in the books to compare with: not suspected.
+  assert.equal(suspectOtherClient({ matchedMonths: [], missing: missingIn("2026-01", 12), extra: [] }), false);
 });

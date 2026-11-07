@@ -19,13 +19,18 @@ function element(tag, text, className) {
 
 // getContext() returns { dataRoot, client, reserved, openMonth } or null (openMonth, step 9.7.1: only its own operations start ticked;
 // each goes into its own month, and confirmMonths(months) is asked about those closed or not there yet); onBeforeWrite(months) lets the host detach the open table
-// and returns what onSaved(result, detached) needs to put it back.
-export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, onError, onBeforeWrite, loadLibrary, loadPdf, confirmMonths = async () => true }) {
+// and returns what onSaved(result, detached) needs to put it back. onLoadCodes(file) opens the codes dialog with the same ledger and
+// resolves when it is closed: a new client's ledger holds its codes too (7 November 2026: without it the check said "load the codes
+// first" and offered no way to).
+export function setupLedgerCheck({
+  button = null, dialog, getContext, onSaved, onError, onBeforeWrite, onLoadCodes = null, loadLibrary, loadPdf, confirmMonths = async () => true,
+}) {
   const part = (id) => dialog.querySelector(`#${id}`);
   const [clientLine, file, details, summary, list, extraBox, extraList, errorLine, add] = [
     "ledger-check-client", "ledger-check-file", "ledger-check-details", "ledger-check-summary", "ledger-check-list",
     "ledger-check-extra", "ledger-check-extra-list", "ledger-check-error", "ledger-check-add",
   ].map(part);
+  const [codesLine, codesButton] = ["ledger-check-codes-line", "ledger-check-codes"].map(part);
   let context = null;
   let prepared = null;
   let loaded = null; // the file that `prepared` was read from
@@ -55,6 +60,7 @@ export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, o
       ? `בכרטסת ${operations} פעולות: ${matched} קיימות בהצהרות, ${missing.length} חסרות${extra.length ? `, ו-${extra.length} שורות בהצהרות אין להן התאמה בכרטסת` : ""}.`
       : `הכול תואם: כל ${operations} הפעולות שבכרטסת נמצאות בהצהרות.`;
     summary.className = missing.length || extra.length ? "summary-line" : "summary-line plate-success";
+    codesLine.hidden = !onLoadCodes || !missing.some((operation) => operation.problem === "unknown-class");
     list.replaceChildren(...missing.map((operation, index) => {
       const row = element("label", undefined, "check-line ledger-missing");
       const box = element("input");
@@ -77,6 +83,13 @@ export function setupLedgerCheck({ button = null, dialog, getContext, onSaved, o
     details.hidden = false;
     updateAdd();
   };
+
+  codesButton.addEventListener("click", async () => {
+    const ledger = loaded;
+    if (!ledger) return;
+    await onLoadCodes?.(ledger);
+    if (loaded === ledger) await load(ledger);
+  });
 
   file.addEventListener("change", async () => {
     errorLine.textContent = "";

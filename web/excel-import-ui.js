@@ -58,8 +58,8 @@ function element(tag, text, className) {
 
 // getContext() returns { dataRoot, client, reserved, openMonth } or null when no data root or client is selected. openMonth: the month
 // shown in the page (step 9.7.1): a journal goes into the month its header names, else into openMonth, and the month of the wizard
-// cannot be changed; another month that is closed or missing is written after confirmMonth({ month, state }) says yes, and is closed
-// again at once.
+// cannot be changed; another month that is closed is written after confirmMonth({ month, state }) says yes, and is closed again at once.
+// A missing month is created without a question: the step already says so (asking again cost a click per month, 7 November 2026).
 // What the user is told about the chosen month; the import is blocked for a closed declaration.
 const TARGET_TEXTS = {
   missing: (month) => `ההצהרה ל-${month} לא קיימת ותיווצר.`,
@@ -332,7 +332,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
     errorLine.textContent = "";
     const elsewhere = Boolean(context.openMonth) && iso !== context.openMonth;
     try {
-      if (elsewhere && ["missing", "closed"].includes(target?.state) && !(await confirmMonth({ month: iso, state: target.state }))) {
+      if (elsewhere && target?.state === "closed" && !(await confirmMonth({ month: iso, state: target.state }))) {
         updateRunState();
         return;
       }

@@ -5,8 +5,10 @@ The present state only, at most 80 lines. Rules: `../AGENTS.md`. Plan: `WORK_PLA
 
 ## State on 7 November 2026
 
-- **M0 is done** (see the skill's `references/lab.md`): one document of client B through the real app and the real Gemini; row equal to my reading. Next: **M1, M2**.
-- `main` has everything. Web 997 tests, Worker 69, per the last counts on record.
+- **M0 done.** One document of client B through the real app and the real Gemini; row equal to my reading.
+- **M1 done in its first form.** The law read for every OPEN and WEB rule (`trade-rules.md`, sources in the lab's `law` folder); worked examples added; a fresh agent with only the skill answered 20 situations in line with the key (`D:\ANNATERIA-LABuns\m1-situations`). Continues with every exam.
+- **M2 first run passed, repeat pending.** A and B from nothing by the buttons: VAT, advances, every P&L line equal to Rivhit; backup to the lab's flash and shared folders, restore into an empty folder equal. One difference explained: Rivhit's "cost of sales" group in B's P&L (finding D9). Fixed after the run: a false "another client's ledger" alarm, a dead end without codes in the ledger check, two extra questions, clipped VAT figures. Next: the same exam from clean by an independent agent.
+- `main` has everything. Web 1000 tests, Worker 69.
 - Published page: <https://vitaliksh.github.io/annateria/>. Worker: `https://annateria.vitaliksh.workers.dev`, version `2026.10.23.2`. Details are in `worker/DEPLOYMENT.md`.
 - Anna has the app and tried it on 25 and 31 October, and is waiting for a product that works. Anna's time is not to be spent on testing. Questions for Anna go as a short list.
 - `D:\ANNATERIA` has real clients (5, one empty). It is the owner's debug master and is read only for agents.
@@ -16,7 +18,8 @@ The present state only, at most 80 lines. Rules: `../AGENTS.md`. Plan: `WORK_PLA
 - No run through the page before 6 November had really worked since step 9.6; the fixes are not proved on a real month. M4 is the first proof.
 - Reading of real documents has never been measured. Eval totals of 100% carry no signal: it stubs the reading, with fake PDFs, open months and fresh lists.
 - 29 checkboxes of the old plan stayed open, many only waiting for a click by the owner. M2, M4 and M6 cover them; no need to tick old boxes.
-- Open rules are listed in `.claude/skills/bookkeeper/references/trade-rules.md`.
+- Open rules are listed in `.claude/skills/bookkeeper/references/trade-rules.md`. Defects and questions of the exams: `D:\ANNATERIA-LABindings.md`.
+- Questions for Anna, so far: why journals miss some ledger operations (no-VAT items at A and B); B's VAT period (monthly in the data, two-month in Rivhit's report); whether the six months can be extended.
 - `npm run check` is syntax only, until M3.
 - Agent rows do not keep what the agent first read in a usable form (`row.agent.fact` is not an object), so hand corrections cannot be counted from the table. The scorecard counts them for now. Run logs (`common/agent-runs/`) may help; not checked.
 

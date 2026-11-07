@@ -40,7 +40,7 @@ function ledgerFile(extra = []) {
 }
 const MISSING = { month: 1, line: "99", date: "2026-01-20", details: "Water bill", ref1: "4455", gross: -118, net: -100, vat: -18 };
 
-async function setup({ context = true, openMonth, confirmMonths } = {}) {
+async function setup({ context = true, openMonth, confirmMonths, onLoadCodes } = {}) {
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/ocr/" });
   Object.assign(globalThis, { document: window.document, window });
   const dialog = window.document.querySelector("#ledger-check-dialog");
@@ -64,6 +64,7 @@ async function setup({ context = true, openMonth, confirmMonths } = {}) {
     onError: (message) => calls.errors.push(message),
     loadLibrary: async () => XLSX,
     ...(confirmMonths ? { confirmMonths } : {}),
+    ...(onLoadCodes ? { onLoadCodes: (file) => onLoadCodes(file, client) } : {}),
   });
   const q = (id) => dialog.querySelector(`#${id}`);
   const pick = async (file) => {
@@ -186,4 +187,27 @@ test("with an open month only its own operations start ticked; another month's g
   const march = await loadDeclaration(client.directory, "2026-03");
   assert.deepEqual([march.declaration.status, march.draft.rows[0].values[3]], ["closed", "March bill"]);
 
+});
+
+test("a ledger with classes the client has no codes for offers to load the codes from the same file, then checks again", async () => {
+  const loads = [];
+  const { client, q, pick, open } = await setup({ onLoadCodes: async (file, owner) => { loads.push(file.name); await saveClientChart(owner.directory, chart); } });
+  const withoutUpkeep = Object.fromEntries(Object.entries(chart).filter(([, account]) => account.name !== "אחזקה"));
+  await saveClientChart(client.directory, withoutUpkeep);
+  open();
+  await pick(ledgerFile([MISSING]));
+  assert.match(q("ledger-check-list").textContent, /יש לטעון קודם/);
+  assert.equal(q("ledger-check-codes-line").hidden, false);
+  q("ledger-check-codes").click();
+  for (let i = 0; i < 50 && q("ledger-check-list").textContent.includes("יש לטעון קודם"); i += 1) await settle();
+  assert.deepEqual(loads, ["כרטסת.xlsx"]);
+  assert.match(q("ledger-check-summary").textContent, /9 פעולות: 8 קיימות בהצהרות, 1 חסרות/);
+  assert.equal(q("ledger-check-codes-line").hidden, true);
+});
+
+test("without a way to load codes the line stays hidden", async () => {
+  const { q, pick, open } = await setup();
+  open();
+  await pick(ledgerFile([MISSING]));
+  assert.equal(q("ledger-check-codes-line").hidden, true);
 });

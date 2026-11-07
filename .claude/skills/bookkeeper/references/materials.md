@@ -16,7 +16,7 @@ Also, in the predecessor's folder (read only, never change that repository):
 - `examples`: 15 photos of invoices.
 - `pdf examples`: 4 two-month PDFs (1-2, 3-4, 5-6, 7-8 of 2026). Which client is not known yet.
 - `new examples`: the same set as A.
-- Anna's PCN samples (VAT report, journal, file): said to be on the owner's PC; not located in this inventory. Look for them; ask only if not found.
+- Anna's PCN samples (VAT report, journal, file): found in the owner's Downloads folder; the names are in `D:\ANNATERIA-LAB\materials-map.md`.
 
 ## What each referee can prove
 

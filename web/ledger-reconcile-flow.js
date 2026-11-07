@@ -4,7 +4,7 @@ import { NO_EXPORT_MARKER, RIVHIT_REOPEN_REASON } from "./declaration-core.js";
 import { createDeclaration, finalizeDeclaration, listDeclarations, loadDeclaration, reopenLockedDeclaration, saveDraft } from "./declaration-store.js";
 import { buildImportedRows } from "./excel-import.js";
 import { readLedgerFile } from "./ledger-rows.js";
-import { ledgerOperations, reconcile } from "./ledger-reconcile.js";
+import { ledgerOperations, reconcile, suspectOtherClient } from "./ledger-reconcile.js";
 
 const NOTE = "נוסף מהכרטסת";
 
@@ -30,7 +30,10 @@ export async function prepareReconcile(file, { dataRoot, client, reserved = {}, 
     if (openMonth) return { ...operation, problem: unknown ? "unknown-class" : null, creates: !target, closed: Boolean(target && target.status !== "open"), otherMonth: operation.month !== openMonth };
     return { ...operation, problem: unknown ? "unknown-class" : target && target.status !== "open" ? "locked" : null, creates: !target };
   });
-  return { chart, year: ledger.year, operations: operations.length, matched: result.matched, missing, extra: result.extra, openMonth };
+  return {
+    chart, year: ledger.year, operations: operations.length, matched: result.matched, missing, extra: result.extra, openMonth,
+    otherClientSuspected: suspectOtherClient(result),
+  };
 }
 
 async function backupDraft(directory, draft, now) {
