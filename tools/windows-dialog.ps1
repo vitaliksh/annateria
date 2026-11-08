@@ -127,7 +127,10 @@ switch ($Action) {
   }
   "choose" {
     $full = [System.IO.Path]::GetFullPath($Value)
-    if (-not $full.StartsWith($Lab, [System.StringComparison]::OrdinalIgnoreCase)) { throw "Only paths inside $Lab are allowed in the lab: $full" }
+    # The lab, and the one Drive folder the owner gave for the backup test (8 November 2026). Nothing else of the real Drive.
+    $driveTest = "G:\My Drive\ANNATERIA-TEST"
+    $allowed = $full.StartsWith($Lab, [System.StringComparison]::OrdinalIgnoreCase) -or $full.StartsWith($driveTest, [System.StringComparison]::OrdinalIgnoreCase)
+    if (-not $allowed) { throw "Only paths inside $Lab or $driveTest are allowed in the lab: $full" }
     $dialog = Wait-Dialog
     [void][Lab.Win32]::SendMessage((Get-PathField $dialog), $WM_SETTEXT, [IntPtr]::Zero, $full)
     Press-Confirm $dialog

@@ -55,8 +55,10 @@ Move what made you better into `web/skills/`, with short rules, sources and exam
 The harder days in `references/month-cycle.md`, and the items below. Fix or cut each one. A second, independent agent repeats two exams from the skill alone.
 
 - Backup, restore, sync and baton: full round trip in the lab; then a dedicated test folder on the real Drive, with the owner's word.
-- PCN874 of a real month (old 6.4.4), and old 9.8 VAT month on both reports.
-- Vehicle at 66.67% for real charts of accounts (open since 21 October 2026).
+  Backup to the Drive test folder and restore into an empty folder: equal file by file (8 November 2026). Baton between two PCs: open.
+- ~~PCN874 of a real month (old 6.4.4)~~: cut, the only sample with a PCN874 keeps double-entry books, which Anna does not keep.
+  Old 9.8 VAT month on both reports: open.
+- ~~Vehicle at 66.67% for real charts of accounts~~: done, 66% by account code or name (8 November 2026).
 - Client rules (old 4.6.1), ledger check (old 4.7.4), foreign currency.
 - Dead code named in the archive: the client chooser, `agent/aliases.js`, `lockProblem`, `offerDistribution` and others.
 - Text on screen that was never checked: new Hebrew strings of 9.x, for Anna's list.
@@ -76,6 +78,8 @@ One line each, newest first.
 
 | Date | Decision |
 | --- | --- |
+| 2026-11-08 | Owner: Anna will not keep double-entry books, so journal entry vouchers are not imported and PCN874 of such a client is not tested. |
+| 2026-11-08 | Owner: the lab may write to `G:\My Drive\ANNATERIA-TEST` (encryption optional there); nothing else of the real Drive. |
 | 2026-11-08 | Anna: two thirds of VAT is 66%, as in her Rivhit; rows saved at 66.67% keep it. A two-monthly client's first month in the second is not "before the month". |
 | 2026-11-07 | The gate: `tools/gate/anna-day.mjs` (headless Chrome, fake Worker, scripted model, a 21 MiB scan, the folder picker replaced by a folder of the browser's private file system). `tools/gate/prove.mjs` shows it fails on each bug of 6 November. `npm run check` now fails on undeclared names. |
 | 2026-11-07 | Journal wizard: a missing month is created without a second question; leaving a month asks nothing (it is saved and closed anyway). Found as friction in the M2 exam. |
