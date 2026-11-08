@@ -76,7 +76,7 @@ function orchestrator(request, log) {
   return answer([{ text: "סיימתי." }]);
 }
 
-// The reading of a document: one invoice per request, on its first page.
+// The reading of a document: one invoice, on the first page of the first request; the second page holds no document.
 function extraction(request, log) {
   const parts = request.contents?.[0]?.parts ?? [];
   const inline = parts.find((part) => part.inlineData);
@@ -269,7 +269,9 @@ async function main() {
   const problems = [];
   if (!outcome) problems.push("the day did not finish");
   else {
-    if (outcome.rows !== 1) problems.push(`the table has ${outcome.rows} rows, 1 expected`);
+    // The scan has two pages and one invoice: the second page, which holds no document, is a row to look at (every page ends as a row,
+    // 8 November 2026).
+    if (outcome.rows !== 2) problems.push(`the table has ${outcome.rows} rows, 2 expected (the invoice and the page without a document)`);
     if (!outcome.hasSupplier) problems.push("the row of the scanned invoice is not in the table");
     if (/שגיאה|נכשל|לא הצלחתי|is not defined|not allowed|נעול/.test(outcome.feed)) problems.push(`the feed reports a problem: ${outcome.feed.slice(-300)}`);
   }
