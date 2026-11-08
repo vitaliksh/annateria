@@ -208,6 +208,28 @@ test("a new snapshot is reported with a beat; the tab coming back asks again", a
   assert.equal(server.calls.length, before + 1);
 });
 
+// Lab, 8 November 2026: the tab came back to the front while "finish work" was still sending the copy, and the check it asked
+// for ran after the release and took the baton again.
+test("a check asked for while the work is being finished does not take the baton back", async () => {
+  let send;
+  const sending = new Promise((resolve) => { send = resolve; });
+  const pushNow = async () => { await sending; return { name: "snap-20261023T070500Z-fin.bin", store: "0123456789abcdef" }; };
+  const { plate, baton, server, document, window, settle, click } = await setup({ receive: { pushNow } });
+  await baton.check();
+  const finishing = baton.pause();
+  await settle();
+  document.dispatchEvent(new window.Event("visibilitychange"));
+  await settle();
+  send();
+  await finishing;
+  await settle();
+  assert.equal(plate.dataset.state, "paused");
+  assert.equal(server.holder.released, true);
+  assert.equal(server.snapshot.name, "snap-20261023T070500Z-fin.bin");
+  await click(plate);
+  assert.equal(plate.dataset.state, "here");
+});
+
 test("the baton came with another device's copy: blue plate, read only, no copy sent, tried every 15 s until written", async () => {
   const attempts = [];
   const results = [{ applied: false, message: "ממתין ל‑Google Drive" }, { applied: true }];

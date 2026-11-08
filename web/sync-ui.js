@@ -43,6 +43,7 @@ export function setupSync({
   let running = false;
   let pending = null;
   let again = false;
+  let current = null;
   let afterSave = null;
   let interval = null;
 
@@ -84,12 +85,18 @@ export function setupSync({
     }
   }
 
-  // interactive: started by a click, so the browser may be asked for the folder permission.
-  async function push({ interactive = false } = {}) {
+  // interactive: started by a click, so the browser may be asked for the folder permission. Asked while a copy is being written,
+  // it waits for that copy and for one more of what changed meanwhile: "finish work" names the copy the other PC takes.
+  function push(options) {
     if (running) {
       again = true;
-      return;
+      return current;
     }
+    current = pushOnce(options);
+    return current;
+  }
+
+  async function pushOnce({ interactive = false } = {}) {
     const root = getDataRoot();
     if (!root || !folder) return;
     const allowed = await canPush({ interactive });

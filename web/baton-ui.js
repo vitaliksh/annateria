@@ -132,8 +132,11 @@ export function setupBaton({
   }
 
   // Take the baton or keep it (force: "start anyway"); `pushed` = { name, store } of the snapshot just written to the shared folder.
-  function check({ force = false, pushed } = {}) {
+  // Once given back, only a click or a key takes it again (resume): a check asked for while the work was being finished (the tab
+  // came back to the front, a timer) runs after the release and must not take it back (lab, 8 November 2026).
+  function check({ force = false, pushed, resume = false } = {}) {
     return serial(async () => {
+      if (state === "paused" && !force && !resume) return state;
       const { device, user } = await getDevice();
       holderUser = user ?? null;
       const answer = await client.beat({
@@ -206,13 +209,13 @@ export function setupBaton({
       return;
     }
     if (state === "unknown" && reason === "login") await ensureLoggedIn();
-    await check();
+    await check({ resume: true });
   }
 
   function onActivity(event) {
     lastActivity = now();
     if (state === "paused" && (event.type === "keydown" || event.type === "pointerdown") && event.target !== plate) {
-      check().catch(() => {});
+      check({ resume: true }).catch(() => {});
     }
   }
 

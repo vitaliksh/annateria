@@ -145,6 +145,44 @@ test("saves in a row give one push ten seconds after the last one; no change giv
   assert.equal((await snapshots(shared)).length, 2);
 });
 
+// Lab, 8 November 2026: "finish work" asked for a copy while the copy after the last save was still being written; the push
+// returned at once, and the baton named the copy before, so the other PC missed the last changes.
+test("a push asked for while one runs waits for it and for a copy of what changed meanwhile", async () => {
+  const shared = withPermission(binaryDirectory("drive"));
+  const { sync, snapshots, root, icon, clock } = await setup({ folder: shared });
+  // The first copy is held when it records itself, after it has read the data: a save then lands between the two copies.
+  let open;
+  let reached;
+  const gate = new Promise((resolve) => { open = resolve; });
+  const atGate = new Promise((resolve) => { reached = resolve; });
+  const getDirectoryHandle = root.getDirectoryHandle.bind(root);
+  let held = false;
+  root.getDirectoryHandle = async (name, options) => {
+    if (name === "common" && options?.create && !held) {
+      held = true;
+      reached();
+      await gate;
+    }
+    return getDirectoryHandle(name, options);
+  };
+  const first = sync.push();
+  await atGate;
+  assert.equal(icon.dataset.state, "running");
+  await putFile(root, "clients/c1/declarations/2026-09/draft-table.json", '{"rows":[2]}');
+  clock.value = "2026-10-22T08:31:00.000Z";
+  let finished = false;
+  const asked = sync.push().then(() => { finished = true; });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(finished, false);
+  open();
+  await asked;
+  await first;
+  const copies = await snapshots(shared);
+  assert.equal(copies.length, 2);
+  const newest = copies.find((copy) => copy.at.startsWith("2026-10-22T08:31"));
+  assert.equal((await sync.lastPushInfo()).name, newest.name);
+});
+
 test("the five-minute check runs only with a folder and catches changes made without a save call", async () => {
   const shared = withPermission(binaryDirectory("drive"));
   const { sync, timers, snapshots, root } = await setup({ folder: shared });
