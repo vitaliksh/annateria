@@ -223,17 +223,6 @@ test("диалог импорта: замена непустой деклара�
   assert.equal((await loadDeclaration(client.directory, "2026-02")).draft.rows.length, 8);
 });
 
-test("диалог импорта: «закрыть сразу» не требует системного подтверждения", async () => {
-  const { calls, pick, q, open, client } = await setup({ confirm: () => false });
-  open();
-  await pick(buildJournalGrid());
-  await settle();
-  q("excel-import-close").checked = true;
-  q("excel-import-run").click();
-  for (let i = 0; i < 100 && !calls.imported.length; i += 1) await settle();
-  assert.equal((await loadDeclaration(client.directory, "2026-01")).declaration.status, "closed");
-});
-
 test("диалог импорта: предупреждения и ошибки показываются по-ивритски", async () => {
   const { pick, q, open } = await setup();
   open();

@@ -52,7 +52,7 @@ test("Enter in a field presses the primary action instead of closing the dialog;
   assert.equal(press(document.querySelector("#new-client-name")), true);
   assert.equal(clicks, 1);
   const wizard = document.querySelector("#excel-import-dialog");
-  assert.equal(press(wizard.querySelector("#excel-import-close")), false);
+  assert.equal(press(wizard.querySelector("#excel-import-replace")), false);
   assert.equal(press(dialog.querySelector(".dialog-close")), false);
   assert.equal(clicks, 1);
 });

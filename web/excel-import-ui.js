@@ -73,9 +73,9 @@ const TARGET_TEXTS = {
 // 4.7.2): the steps are the same, only the choosing of the file is skipped.
 export function setupExcelImport({ button, dialog, getContext, onImported, onError, loadLibrary, onBeforeCommit, onOpenCodes, confirmMonth = async () => true }) {
   const part = (id) => dialog.querySelector(`#${id}`);
-  const [file, details, summary, problems, month, unknownBox, unknownList, closeNow, errorLine, run] = [
+  const [file, details, summary, problems, month, unknownBox, unknownList, errorLine, run] = [
     "excel-import-file", "excel-import-details", "excel-import-summary", "excel-import-problems", "excel-import-month",
-    "excel-import-unknown", "excel-import-unknown-list", "excel-import-close", "excel-import-error", "excel-import-run",
+    "excel-import-unknown", "excel-import-unknown-list", "excel-import-error", "excel-import-run",
   ].map(part);
   const [clientLine, targetLine, replaceLabel, replaceBox, replaceText] = [
     "excel-import-client", "excel-import-target", "excel-import-replace-label", "excel-import-replace",
@@ -151,7 +151,6 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
     resultLine.textContent = "";
     quickLine.hidden = quickWarnings.hidden = true;
     setStep("file");
-    closeNow.checked = false;
     month.readOnly = Boolean(context.openMonth);
     target = null;
     targetCheck += 1;
@@ -341,7 +340,8 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
         newAccounts: unknownInputs(),
         typeChanges: typeChanges(),
         month: iso,
-        closeNow: closeNow.checked || elsewhere,
+        // A month other than the open one is closed again at once (step 9.3: only the month the user is in stays open).
+        closeNow: elsewhere,
         replace: replaceBox.checked && hasRows(),
         allowClosed: askable(),
         dataRoot: context.dataRoot,
@@ -351,7 +351,7 @@ export function setupExcelImport({ button, dialog, getContext, onImported, onErr
       });
       const filed = await afterCommit(iso);
       await onImported(result, iso);
-      resultLine.textContent = `יובאו ${prepared.rows.length} שורות להצהרה ${formatMonth(iso)}${closeNow.checked ? " וההצהרה ננעלה" : ""}.${filed ? ` ${filed}` : ""}`;
+      resultLine.textContent = `יובאו ${prepared.rows.length} שורות להצהרה ${formatMonth(iso)}${elsewhere ? " וההצהרה ננעלה" : ""}.${filed ? ` ${filed}` : ""}`;
       setStep("done");
     } catch (error) {
       errorLine.textContent = error.message;

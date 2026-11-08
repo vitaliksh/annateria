@@ -14,7 +14,7 @@ const sources = (directory) => readdirSync(directory, { withFileTypes: true }).f
 });
 
 const REMOVED = ["loadTemplateFromRoot", "clearTemplate", "X-Upload-Token", "webauthn", "DeviceRegistry", "navigator.credentials", "rivhit-export", "TELEGRAM_TRANSFER_API",
-  "offerDistribution", "onRememberAlias", "CLIENT_HINTS", "holdersOf"];
+  "offerDistribution", "onRememberAlias", "CLIENT_HINTS", "holdersOf", "excel-import-close"];
 
 test("no source of the page mentions an identifier that was removed on purpose", () => {
   const files = sources(web);
