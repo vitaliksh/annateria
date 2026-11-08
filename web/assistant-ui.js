@@ -116,7 +116,11 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
   let runImports = []; // the import cards of the current or last run: { card, box, wizard, todo }
   const allImports = []; // every import card of this page, for the strip "ממתין לך"
   const openQuestions = new Set(); // question cards waiting for an answer
-  const pendingImports = () => allImports.filter((entry) => entry.box.dataset.state !== "answered");
+  // One entry per file: a file still in the inbox gets a card in every run (M2, D4), and the newest card stands for it.
+  const pendingImports = () => {
+    const open = allImports.filter((entry) => entry.box.dataset.state !== "answered");
+    return open.filter((entry, index) => !open.slice(index + 1).some((later) => sameFile(later, entry)));
+  };
   // Tells the page what waits in the feed (docs/UI_REDESIGN_PROPOSAL.md, C6): { questions, imports: [{ name }] }.
   const notify = () => onPending({
     questions: openQuestions.size,

@@ -196,7 +196,12 @@ export function setupReports({
     if (checks) checks.textContent = lines.join("\n");
     const advancePercent = percent.value === "" ? null : Number(percent.value);
     const validPercent = advancePercent !== null && advancePercent >= 0 && advancePercent <= 100;
-    if (kind.value === "advances" && !validPercent) return;
+    if (kind.value === "advances" && !validPercent) {
+      const hint = Object.assign(preview.ownerDocument.createElement("p"), { className: "muted" });
+      hint.textContent = "יש להזין אחוז מקדמות (בשדה «אחוז מקדמות») כדי להציג את הדוח.";
+      preview.append(hint);
+      return;
+    }
     try {
       const report = buildReport(kind.value, { fromIso, toIso, advancePercent: validPercent ? advancePercent : null });
       if (report.scope.length || report.file) preview.append(report.node());

@@ -277,6 +277,21 @@ test("the card לטיפולך lists what is left after a run, each with its butt
   assert.ok(q("[data-kind='todo']"));
 });
 
+// M2, D4: each run draws its own card for a file still in the inbox, and the strip "ממתין לך" showed the same import once per run.
+test("the same import from two runs waits once in the strip, and opens at the newer card", () => {
+  const told = [];
+  const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/annateria/" });
+  const root = window.document.querySelector("#assistant");
+  const assistant = setupAssistant({ root, onCommand: () => {}, onPending: (pending) => told.push(pending) });
+  assistant.ui.importCard(importCard());
+  assistant.ui.importCard(importCard());
+  assert.deepEqual(told.at(-1).imports, [{ name: "journal-08.xlsx", client: "Levi", clientId: "c1", state: "waiting" }]);
+  const cards = root.querySelectorAll(".assistant-card[data-kind='import']");
+  assert.equal(cards.length, 2);
+  assert.equal(assistant.reveal({ kind: "import", index: 0 }), true);
+  assert.equal(window.document.activeElement?.closest(".assistant-card"), cards[1]);
+});
+
 test("the panel tells the page what waits in its feed and opens at it on request (C6)", async () => {
   const told = [];
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/annateria/" });

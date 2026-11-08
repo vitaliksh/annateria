@@ -214,7 +214,9 @@ test("страница отчётов: открывается для явно з
 test("страница отчётов: авансы без процента не показывают отчёт, с процентом — показывают", async () => {
   const { q, reports, client } = await setup();
   await reports.open({ client, kind: "advances" });
-  assert.equal(q("reports-preview").childElementCount, 0);
+  // M2 repeat: the page stayed blank without a word; it now says what is missing.
+  assert.equal(q("reports-preview").querySelector(".report-sheet"), null);
+  assert.match(q("reports-preview").textContent, /יש להזין אחוז מקדמות/);
   q("reports-advance-percent").value = "12";
   q("reports-advance-percent").dispatchEvent(new globalThis.window.Event("input"));
   assert.ok(q("reports-preview").querySelector(".report-sheet"));

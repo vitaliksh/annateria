@@ -79,3 +79,14 @@ test("the lock button closes a month without an active row and says so in red", 
   const status = document.querySelector("#status");
   assert.match(status.textContent, /ההצהרה ננעלה\. ההיסטוריה עודכנה\. אין בהצהרה שורה פעילה\./);
 });
+
+// Lab, 8 November 2026 (and M2, D8): after a reload the page said a new data folder had been chosen, though nothing was chosen.
+test("a reload opens the last data folder without saying a new one was chosen", async () => {
+  const loaded = await loadApp();
+  const { root } = await dataRoot(["2026-01"]);
+  const summary = loaded.document.querySelector("#workspace-summary");
+  await loaded.app.switchDataRoot(root, { restoring: true });
+  assert.equal(summary.textContent, "יש לבחור לקוח והצהרה.");
+  await loaded.app.switchDataRoot(root);
+  assert.match(summary.textContent, /נבחרה תיקיית נתונים חדשה/);
+});

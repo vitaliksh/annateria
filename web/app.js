@@ -270,7 +270,8 @@ function clearActiveDeclaration(declarationId) {
   journalTitle.textContent = "לקוח והצהרה לא נבחרו";
   updateStartAvailability();
 }
-async function switchDataRoot(selected) {
+// restoring: the folder of the last visit, opened again after a reload (nothing new was chosen).
+async function switchDataRoot(selected, { restoring = false } = {}) {
   await saveCurrentDraft();
   dataRoot = selected;
   inboxUi?.refreshCounts();
@@ -300,7 +301,7 @@ async function switchDataRoot(selected) {
   records.replaceChildren(emptyRow);
   currentClient.textContent = "לא נבחרה הצהרה";
   journalTitle.textContent = "לקוח והצהרה לא נבחרו";
-  workspaceSummary.textContent = "נבחרה תיקיית נתונים חדשה. יש לבחור לקוח והצהרה.";
+  workspaceSummary.textContent = restoring ? "יש לבחור לקוח והצהרה." : "נבחרה תיקיית נתונים חדשה. יש לבחור לקוח והצהרה.";
   workspaceSummary.classList.remove("workspace-ready");
   customMapping = {};
   chartAccounts = {};
@@ -312,7 +313,7 @@ async function switchDataRoot(selected) {
   } catch (error) {
     showError("לא ניתן לטעון קודי מיון מקומיים: " + error.message);
   }
-  status.textContent = "תיקיית הנתונים הוחלפה. יש לבחור לקוח והצהרה מהתיקייה החדשה.";
+  status.textContent = restoring ? "יש לבחור לקוח והצהרה." : "תיקיית הנתונים הוחלפה. יש לבחור לקוח והצהרה מהתיקייה החדשה.";
   updateStartAvailability();
 }
 function refreshClassificationSelectors() {
@@ -826,7 +827,7 @@ const baton = setupBaton({
     const result = await sync.pull(name, { beforeWrite: dropOpenTable });
     if (result.empty) status.textContent = "העותק מהמחשב השני היה ריק, ולכן לא נלקח. הנתונים של המחשב הזה נשארו.";
     if (result.applied && !result.empty) {
-      await switchDataRoot(dataRoot);
+      await switchDataRoot(dataRoot, { restoring: true });
       await workspaceControls.refreshFromUserAction();
       status.textContent = result.before
         ? `התקבלו הנתונים מהמחשב השני. הגרסאות הקודמות של ${result.written + result.removed} קבצים נשמרו ב‑${result.before}.`
