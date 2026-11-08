@@ -18,9 +18,11 @@ $Element = [System.Windows.Automation.AutomationElement]
 $True_ = [System.Windows.Automation.Condition]::TrueCondition
 
 function Get-LabProcesses {
-  $profile = Join-Path $Lab "browser-profile"
+  # The window of one profile only: LAB_PROFILE names the second PC's profile in the baton test.
+  $name = if ($env:LAB_PROFILE) { $env:LAB_PROFILE } else { "browser-profile" }
+  $profile = "--user-data-dir=" + (Join-Path $Lab $name)
   Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
-    Where-Object { $_.CommandLine -and $_.CommandLine.Contains($profile) } |
+    Where-Object { $_.CommandLine -and ($_.CommandLine -match ([regex]::Escape($profile) + '("|\s|$)')) } |
     ForEach-Object { [int]$_.ProcessId }
 }
 

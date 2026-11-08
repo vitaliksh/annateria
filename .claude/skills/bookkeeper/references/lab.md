@@ -21,7 +21,7 @@ D:\ANNATERIA-LAB\
 
 - `D:\ANNATERIA` is only read, to make `clean`. Refresh `clean` only with the owner's word, because the owner's own tests go on there.
 - Browser folder permissions belong to the page's address. Work on the local address only. Do not open the published page and point it at real folders.
-- Choosing `G:\My Drive\...` is not allowed until the plan's last milestone, and then only a dedicated test folder.
+- On the real Drive only `G:\My Drive\ANNATERIA-TEST` (owner, 8 November 2026); the dialog helper refuses any other Drive path.
 - The local Worker keeps its own baton and lock-out, so it cannot disturb the real baton of Anna's and Vitalik's PCs.
 
 ## Running it
@@ -42,6 +42,9 @@ Run `serve` and `browser.mjs start` in the background; `preview_start` with the 
 - **Browser:** a separate Chrome with its own profile in the lab, driven by `tools/browser.mjs`: `shot`, `text`, `buttons`, `click`, `type`, `press`, `until`, `look`. Pictures go to `D:\ANNATERIA-LAB\shots`; read them with the Read tool.
 - **Windows dialogs:** `powershell -File tools/windows-dialog.ps1 choose <path>` answers the folder, open and save dialogs, for lab paths only. `prompt` lists Chrome's own buttons and `prompt Allow` presses one.
 - **A folder step:** click the button, `choose D:\ANNATERIA-LAB\work`, then `prompt Allow`.
+- **A second PC (the baton):** `LAB_PROFILE=browser-profile-2 LAB_CHROME_PORT=9334` before `browser.mjs` and `windows-dialog.ps1`
+  gives a second Chrome with its own device id. Give it a data folder restored from the backup, the same shared folder and the
+  recovery code (`secrets\lab-recovery-code.txt` holds the whole dialog text; take the 14 groups of four).
 - **Reading originals yourself:** `tools/doc.py` renders PDF and HEIC to pictures and prints Excel, with the lab's Python.
 
 The built-in browser of the desktop app is not used. It answers the folder picker with `AbortError` at once (tried with the pane hidden, 7 November 2026), and a second Worker device there takes the baton.
@@ -56,4 +59,6 @@ page still opens, a month opened by a click takes the agent's rows, and a scan a
 
 - While the pane is hidden Chrome holds back a dialog's `close` event until the page draws again, and timers run as in a background page. Prefer the pane shown, or a real window.
 - A cloned `<dialog>` keeps its `open` attribute and refuses `showModal()`.
+- After a reload Chrome may show its own "Allow" bubble for a folder; until it is answered (`prompt Allow`) keys typed into the page are lost.
+- `until` waits on animation frames, which stop in a window hidden behind the other lab window; poll with `look` instead.
 - `npm ci` warns that install scripts of `esbuild` and `workerd` are blocked; tests still run.

@@ -16,6 +16,7 @@
 //   node tools/browser.mjs until <s> <expression>  waits for a condition on the page
 //
 // Native Windows dialogs (the folder picker, the save dialog) are answered by tools/windows-dialog.ps1.
+// A second PC for the baton test: LAB_PROFILE=browser-profile-2 LAB_CHROME_PORT=9334 (and the same LAB_PROFILE for the dialogs).
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -26,7 +27,8 @@ const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const PORT = Number(process.env.LAB_CHROME_PORT || 9333);
 const PAGE = `http://127.0.0.1:${process.env.LAB_PAGE_PORT || 8000}/`;
 const SHOTS = join(LAB, "shots");
-const LOG = join(LAB, "browser.log");
+const PROFILE = process.env.LAB_PROFILE || "browser-profile";
+const LOG = join(LAB, PROFILE === "browser-profile" ? "browser.log" : `${PROFILE}.log`);
 const VISIBLE = "button, a, input, select, textarea, summary, [role=button], [role=tab], [role=menuitem]";
 
 async function connect() {
@@ -38,9 +40,9 @@ async function connect() {
 }
 
 async function start() {
-  mkdirSync(join(LAB, "browser-profile"), { recursive: true });
+  mkdirSync(join(LAB, PROFILE), { recursive: true });
   const window = spawn(CHROME, [
-    `--user-data-dir=${join(LAB, "browser-profile")}`,
+    `--user-data-dir=${join(LAB, PROFILE)}`,
     `--remote-debugging-port=${PORT}`,
     "--no-first-run",
     "--no-default-browser-check",
