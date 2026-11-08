@@ -110,16 +110,6 @@ test("income rows get no deduction warning", async () => {
   assert.doesNotMatch(select.closest(".move-line").querySelector(".move-note").textContent, /ניכוי/);
 });
 
-test("offer never opens by itself: nothing is proposed (step 9.7)", async () => {
-  const quiet = await setup({ rows: [row("p1", "23/09/26", 118), row("import-2", "14/05/26", 10)] });
-  assert.equal(await quiet.move.offer(), false);
-  assert.notEqual(quiet.dialog.open, true);
-  assert.deepEqual(quiet.calls.errors, []);
-  const busy = await setup();
-  assert.equal(await busy.move.offer(), false);
-  assert.notEqual(busy.dialog.open, true);
-});
-
 test("opening by hand with nothing to propose still shows all rows, closed under one heading", async () => {
   const { dialog, move, q } = await setup({ rows: [row("p1", "23/09/26", 118)] });
   assert.equal(await move.open(), true);
@@ -130,12 +120,10 @@ test("opening by hand with nothing to propose still shows all rows, closed under
   assert.equal(q("rows-move-run").disabled, true);
 });
 
-test("a refusal from the host keeps the dialog closed and is reported only for a manual open", async () => {
+test("a refusal from the host keeps the dialog closed and is reported", async () => {
   const { dialog, calls, move } = await setup({ beforeOpen: async () => "ממתינים לסיום עיבוד של 2 תמונות." });
   assert.equal(await move.open(), false);
   assert.deepEqual(calls.errors, ["ממתינים לסיום עיבוד של 2 תמונות."]);
-  assert.equal(await move.offer(), false);
-  assert.equal(calls.errors.length, 1);
   assert.notEqual(dialog.open, true);
 });
 

@@ -133,18 +133,6 @@ test("editing an approved amount takes the approval back", async () => {
   assert.equal(box(big).checked, false);
 });
 
-test("the lock check names what is left and passes once every invoice is approved and numbered", () => {
-  const { records, window, pcn } = setup();
-  const [big] = records.rows;
-  assert.match(pcn.lockProblem(), /יש 1 שורה מעל סף מספר ההקצאה/);
-  click(window, box(big));
-  assert.match(pcn.lockProblem(), /שלא אושרו או שחסר להן מספר הקצאה/, "approved but still without a number");
-  big.cells[7].textContent = "123456789";
-  click(window, box(big));
-  click(window, box(big));
-  assert.equal(pcn.lockProblem(), "");
-});
-
 test("a locked table keeps the box visible but disabled", () => {
   const { records, state, pcn } = setup({ locked: true });
   pcn.refresh();

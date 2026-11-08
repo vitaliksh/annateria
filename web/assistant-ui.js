@@ -56,8 +56,6 @@ const IMPORT_PROBLEMS = {
   rows_not_in_ledger: (item) => `ל-${item.count} שורות בהצהרות אין התאמה בכרטסת; האשף מציג אותן.`,
   types_suggested: (item) => `ל-${item.count} קודי מיון הוצע סוג אחר כדי שהסכומים בסוף הקובץ יתאימו; האשף מראה זאת.`,
 };
-// Why a client is offered as a button of the question "which client?" (choose_client).
-const CLIENT_HINTS = { open: "הלקוח הפתוח כעת", vat_id: "מספר העוסק במסמך זהה", alias: "הקונה במסמך אושר בעבר ללקוח הזה", name_exact: "נמצא לפי שם זהה", name_partial: "נמצא לפי שם דומה, לא בטוח" };
 const money = (value) => value.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const importProblemText = (item) => (IMPORT_PROBLEMS[item.code] ?? problemText)(item) ?? item.code;
 
@@ -104,12 +102,10 @@ function valueText(field, value) {
 // onApply(proposal, kept) is called when the user applies a proposal (kept: the numbers of the changes that stayed ticked); it resolves with
 // { applied, refused: [{ change, reason }] }. Without it a proposal card only shows the changes.
 // onRemember({ clientId, rule }) appends a confirmed rule to the client's rules.md and resolves with { added }; it is called only after
-// the user ticked "זכור ללקוח" and clicked the answer the rule belongs to. onRememberAlias({ clientId, vatId, name }) keeps the printed buyer of
-// the documents of a "which client?" question as an alias of the chosen client (step 4.6.2) and resolves with { added }; it is called only after
-// the user ticked that box and chose a client.
+// the user ticked "זכור ללקוח" and clicked the answer the rule belongs to.
 // onPending({ questions, imports }) is called whenever a question card or an import card opens or ends; reveal({ kind, index })
 // opens the panel at the first open question (kind "question") or at the index-th import card not done (kind "import").
-export function setupAssistant({ root, onCommand, onApply = null, onRemember = null, onRememberAlias = null, onPending = () => {} }) {
+export function setupAssistant({ root, onCommand, onApply = null, onRemember = null, onPending = () => {} }) {
   const part = (id) => root.querySelector(`#${id}`);
   const [toggle, progress, body, feed, form, input, sendButton, processButton, leftButton, reportButton, cancelButton, minimizeButton] = [
     "assistant-toggle", "assistant-progress", "assistant-body", "assistant-feed", "assistant-form", "assistant-input", "assistant-send",
@@ -315,32 +311,6 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
           return { remember: true, saved: false };
         }
       };
-      // choose_client: remember the buyer printed on the documents for the client that is chosen.
-      let aliasBox = null;
-      if (card.alias) {
-        const label = element("label", "check-line");
-        aliasBox = Object.assign(doc.createElement("input"), { type: "checkbox" });
-        const buyer = [card.alias.name ? `«${card.alias.name}»` : "", card.alias.vatId ? `מס׳ ${card.alias.vatId}` : ""].filter(Boolean).join(" ");
-        label.append(aliasBox, ` לזכור: מסמכים שהקונה בהם ${buyer} שייכים ללקוח שייבחר`);
-        box.append(label);
-      }
-      const saveAlias = async (answer, shown) => {
-        if (!aliasBox?.checked) return {};
-        const clientId = answer.type === "option" ? card.alias.clients?.[answer.id] : null;
-        if (!clientId) {
-          box.append(element("p", "card-answer muted", "הקונה לא נשמר: לא נבחר לקוח."));
-          return { aliasSaved: false };
-        }
-        try {
-          if (!onRememberAlias) throw new Error("אין אפשרות לשמור כאן.");
-          const { added } = await onRememberAlias({ clientId, vatId: card.alias.vatId, name: card.alias.name });
-          box.append(element("p", "card-answer muted", added ? `הקונה נשמר ללקוח «${shown}».` : `הקונה כבר רשום ללקוח «${shown}».`));
-          return { aliasSaved: true };
-        } catch (error) {
-          box.append(element("p", "card-answer", `הקונה לא נשמר: ${error.message}`));
-          return { aliasSaved: false };
-        }
-      };
       let finished = false;
       const finish = async (answer, shown) => {
         if (finished) return;
@@ -351,8 +321,7 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
         box.dataset.state = "answered";
         box.append(element("p", "card-answer", `נבחר: ${shown}`));
         const saved = await saveRule(answer);
-        const aliasSaved = await saveAlias(answer, shown);
-        resolve({ ...answer, ...(remember ? { remember: remember.checked, ...saved } : {}), ...(aliasBox ? { alias: aliasBox.checked, ...aliasSaved } : {}) });
+        resolve({ ...answer, ...(remember ? { remember: remember.checked, ...saved } : {}) });
         scrollDown();
       };
       const options = element("div", "card-options");
@@ -365,23 +334,6 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
       dismiss.addEventListener("click", () => finish({ type: "dismissed" }, "דילוג"));
       options.append(dismiss);
       box.append(options);
-      const hints = card.options.filter((option) => CLIENT_HINTS[option.hint]).map((option) => `${option.label}: ${CLIENT_HINTS[option.hint]}`);
-      if (hints.length) box.append(element("p", "card-about muted", hints.join(" · ")));
-      // The question "which client?" (choose_client): every client that is not a button is in this list.
-      if (card.more?.length) {
-        const other = element("div", "card-other");
-        const list = doc.createElement("select");
-        list.setAttribute("aria-label", "לקוח אחר");
-        list.append(new doc.defaultView.Option("לקוח אחר…", ""));
-        for (const option of card.more) list.append(new doc.defaultView.Option(option.label, option.id));
-        const pick = button("בחירה");
-        pick.addEventListener("click", () => {
-          const option = card.more.find((item) => item.id === list.value);
-          if (option) finish({ type: "option", id: option.id }, option.label);
-        });
-        other.append(list, pick);
-        box.append(other);
-      }
       if (card.allowOther) {
         const other = element("div", "card-other");
         const text = Object.assign(doc.createElement("input"), { type: "text", maxLength: 300, placeholder: "אחר…", autocomplete: "off" });

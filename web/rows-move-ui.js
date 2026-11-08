@@ -40,10 +40,6 @@ export function setupRowsMove({ button = null, dialog, getContext, beforeOpen, o
 
   const note = (line, target) => {
     const parts = [];
-    if (line.reason === "after-locked") parts.push(`התאריך בחודש שכבר הוגש (עד ${formatMonth(prepared.lockedThrough)} נעול); הוצע החודש הראשון שאחריו`);
-    if (line.reason === "period-received") parts.push("מסמך לתקופה — נרשם בחודש הקבלה");
-    if (line.reason === "no-date") parts.push("אין תאריך קריא — לא הוצע חודש");
-    if (line.reason === "implausible") parts.push("התאריך חשוד — לא הוצע חודש");
     const deduction = context.isIncomeCode?.(line.code) ? "ok" : prepared.deduction(line, target);
     if (deduction !== "ok") parts.push(DEDUCTION_TEXTS[deduction]);
     if (target !== prepared.month && prepared.similar(line, target)) parts.push(`בהצהרה ${formatMonth(target)} כבר יש שורה עם אותו תאריך, קוד וסכום — לבדוק כפילות`);
@@ -94,12 +90,10 @@ export function setupRowsMove({ button = null, dialog, getContext, beforeOpen, o
     refreshButton();
   };
 
-  // auto: offered after a batch of documents; shown only when some row has a proposal other than its own month.
-  const open = async ({ auto = false } = {}) => {
-    const fail = (message) => (auto ? false : (onError(message), false));
+  const open = async () => {
+    const fail = (message) => (onError(message), false);
     context = getContext();
     if (!context) return fail("יש לבחור הצהרה פתוחה לפני פיזור שורות לחודשים.");
-    if (auto && typeof dialog.showModal !== "function") return false;
     const blocked = await beforeOpen?.();
     if (blocked) return fail(blocked);
     try {
@@ -108,7 +102,6 @@ export function setupRowsMove({ button = null, dialog, getContext, beforeOpen, o
       return fail(error.message);
     }
     if (!prepared.lines.length) return fail("אין שורות בהצהרה.");
-    if (auto && !prepared.lines.some((line) => prepared.suggested(line) !== prepared.month)) return false;
     render();
     dialog.showModal();
     return true;
@@ -142,5 +135,5 @@ export function setupRowsMove({ button = null, dialog, getContext, beforeOpen, o
   });
 
   button?.addEventListener("click", () => open());
-  return { open, offer: () => open({ auto: true }) };
+  return { open };
 }

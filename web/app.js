@@ -49,7 +49,6 @@ import { buildMessage, createAssistantFlow, keptNote, leftNote, resultNote } fro
 import { setupModelSettings } from "./model-settings-ui.js";
 import { applyProposal } from "./proposal-apply.js";
 import { appendRule } from "./rules-store.js";
-import { addAlias } from "./aliases-store.js";
 import { setupClientRules } from "./client-rules-ui.js";
 import { setupPcnReview } from "./pcn-review-ui.js";
 import { closedMonthText, lockProblems } from "./lock-check.js";
@@ -703,8 +702,6 @@ function isIncomeCode(code) {
   const account = chartForClient(chartAccounts, committedWorkspace?.config.clientId)[String(code)];
   return (account?.type ?? (rivhitMapping[code] === "הכנסות" ? "income" : "expense")) === "income";
 }
-// After a batch of documents: offers the distribution dialog when some rows belong to another month.
-const offerDistribution = () => rowsMove.offer().catch(() => false);
 const transfer = setupTransfer({
   dialog: document.querySelector("#transfer-dialog"),
   openButton: document.querySelector("#open-transfer"),
@@ -1048,12 +1045,6 @@ const assistant = setupAssistant({
     const client = workspaceControls?.getClients().active.find((item) => item.id === clientId && item.parent);
     if (!client) throw new Error("הלקוח לא נמצא ברשימת הלקוחות.");
     return appendRule(client.directory, rule);
-  },
-  // The buyer printed on the documents of a "which client?" question, kept for the chosen client when the user ticked the box (step 4.6.2).
-  onRememberAlias: async ({ clientId, vatId, name }) => {
-    const client = workspaceControls?.getClients().active.find((item) => item.id === clientId && item.parent);
-    if (!client) throw new Error("הלקוח לא נמצא ברשימת הלקוחות.");
-    return addAlias(client.directory, { vatId, name });
   },
   onCommand: (command) => {
     if (command.type === "cancel") assistantRun?.abort();
@@ -1702,7 +1693,6 @@ async function importIncomeReportFile(file, report = null) {
   for (const row of rows) restoreRow(row, null);
   queueDraftSave();
   status.textContent = rows[0].agentOpinion;
-  offerDistribution();
 }
 // The empty table points to the inbox: every document and every import file comes in there (step 4.7.6).
 document.querySelector("#empty-open-inbox").addEventListener("click", () => document.querySelector("#open-inbox").click());

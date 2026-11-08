@@ -13,7 +13,8 @@ const sources = (directory) => readdirSync(directory, { withFileTypes: true }).f
   return item.isDirectory() ? sources(path) : item.name.endsWith(".js") ? [path] : [];
 });
 
-const REMOVED = ["loadTemplateFromRoot", "clearTemplate", "X-Upload-Token", "webauthn", "DeviceRegistry", "navigator.credentials", "rivhit-export", "TELEGRAM_TRANSFER_API"];
+const REMOVED = ["loadTemplateFromRoot", "clearTemplate", "X-Upload-Token", "webauthn", "DeviceRegistry", "navigator.credentials", "rivhit-export", "TELEGRAM_TRANSFER_API",
+  "offerDistribution", "onRememberAlias", "CLIENT_HINTS", "holdersOf"];
 
 test("no source of the page mentions an identifier that was removed on purpose", () => {
   const files = sources(web);

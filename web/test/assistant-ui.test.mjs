@@ -9,11 +9,11 @@ import { FIELD_LABELS, TOOL_LABELS, progressLabel, setupAssistant } from "../ass
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "index.html"), "utf8");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
-function setup({ onApply, onRemember, onRememberAlias } = {}) {
+function setup({ onApply, onRemember } = {}) {
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/annateria/" });
   const commands = [];
   const root = window.document.querySelector("#assistant");
-  const assistant = setupAssistant({ root, onCommand: (command) => commands.push(command), ...(onApply ? { onApply } : {}), ...(onRemember ? { onRemember } : {}), ...(onRememberAlias ? { onRememberAlias } : {}) });
+  const assistant = setupAssistant({ root, onCommand: (command) => commands.push(command), ...(onApply ? { onApply } : {}), ...(onRemember ? { onRemember } : {}) });
   const q = (selector) => root.querySelector(selector);
   const messages = () => [...root.querySelectorAll(".assistant-message")].map((node) => [node.dataset.kind, node.textContent]);
   return { window, root, assistant, commands, q, messages, click: (selector) => q(selector).click() };
@@ -489,22 +489,6 @@ test("prepare_import has a label for the progress line", () => {
   assert.equal(progressLabel({ type: "call", name: "prepare_import" }, {}), "בודק קובץ לייבוא");
 });
 
-test("the question about the client has a list of the other clients; choosing one answers with its option and locks the card", async () => {
-  const { assistant, q } = setup();
-  const answer = assistant.ui.ask(card({ question: "לאיזה לקוח?", options: [{ id: "client1", label: "Levi" }], more: [{ id: "list1", label: "Cohen" }, { id: "list2", label: "Pcn" }] }));
-  const box = q(".assistant-card[data-kind='question']");
-  const list = box.querySelector("select");
-  assert.deepEqual([...list.options].map((option) => option.textContent), ["לקוח אחר…", "Cohen", "Pcn"]);
-  const pick = [...box.querySelectorAll("button")].find((item) => item.textContent === "בחירה");
-  pick.click();
-  assert.equal(box.dataset.state, undefined, "nothing chosen yet: no answer");
-  list.value = "list2";
-  pick.click();
-  assert.deepEqual(await answer, { type: "option", id: "list2" });
-  assert.equal(list.disabled, true);
-  assert.match(box.textContent, /נבחר: Pcn/);
-});
-
 test("the card of a classification-codes ledger says how many codes and which imported rows get new codes", () => {
   const { assistant, q } = setup();
   assistant.ui.importCard(importCard({
@@ -529,12 +513,6 @@ test("the card of an operations ledger says how many operations are in the table
   assert.equal(text.includes("undefined"), false);
 });
 
-test("the question about the client says why each button is offered", () => {
-  const { assistant, q } = setup();
-  assistant.ui.ask(card({ question: "לאיזה לקוח?", options: [{ id: "client1", label: "Pcn", hint: "open" }, { id: "client2", label: "Levi", hint: "name_partial" }, { id: "mixed", label: "לקוחות שונים" }], more: [] }));
-  assert.match(q(".assistant-card[data-kind='question']").textContent, /Pcn: הלקוח הפתוח כעת · Levi: נמצא לפי שם דומה, לא בטוח/);
-});
-
 test("an import card that may be of another client shows that first, as an error", () => {
   const { assistant, q } = setup();
   assistant.ui.importCard(importCard({
@@ -555,31 +533,6 @@ test("the card of an income report says the period, the sums and where the rows 
   const text = q(".assistant-card[data-kind='import']").textContent;
   for (const part of ["דוח הכנסות תקופתי (חשבונית ירוקה)", "01/02/2026–28/02/2026: 5 מסמכים", "ללא מע״מ 250.50", "כולל 295.59", "שתי שורות (חייב ופטור) תתווסף להצהרה 02/2026; הפירוט תואם לסיכום", "סכום הפירוט שונה מהסיכום", "שגיאה: אין הצהרה לחודש של הדוח"]) assert.ok(text.includes(part), part);
   assert.equal(text.includes("undefined"), false);
-});
-
-test("which client: the box keeps the printed buyer for the chosen client, through the page, and only when a client is chosen", async () => {
-  const offer = card({ question: "לאיזה לקוח?", options: [...options, { id: "mixed", label: "לקוחות שונים" }], alias: { vatId: "300000007", name: "משה לוי", clients: { levi: "id-Levi", cohen: "id-Cohen" } } });
-  const kept = [];
-  const onRememberAlias = async (item) => { kept.push(item); return { added: true }; };
-  const ticked = setup({ onRememberAlias });
-  const first = ticked.assistant.ui.ask(offer);
-  assert.match(ticked.q(".assistant-card label").textContent, /לזכור: מסמכים שהקונה בהם «משה לוי» מס׳ 300000007 שייכים ללקוח שייבחר/);
-  ticked.q(".assistant-card label input").click();
-  ticked.root.querySelectorAll(".card-options button")[1].click();
-  assert.deepEqual(await first, { type: "option", id: "cohen", alias: true, aliasSaved: true });
-  assert.deepEqual(kept, [{ clientId: "id-Cohen", vatId: "300000007", name: "משה לוי" }]);
-  assert.ok(ticked.root.textContent.includes("הקונה נשמר ללקוח «Cohen»."));
-  const mixed = setup({ onRememberAlias });
-  const second = mixed.assistant.ui.ask(offer);
-  mixed.q(".assistant-card label input").click();
-  mixed.root.querySelectorAll(".card-options button")[2].click();
-  assert.deepEqual(await second, { type: "option", id: "mixed", alias: true, aliasSaved: false });
-  assert.ok(mixed.root.textContent.includes("הקונה לא נשמר: לא נבחר לקוח."));
-  const unticked = setup({ onRememberAlias });
-  const third = unticked.assistant.ui.ask(offer);
-  unticked.root.querySelector(".card-options button").click();
-  assert.deepEqual(await third, { type: "option", id: "levi", alias: false });
-  assert.equal(kept.length, 1);
 });
 
 test("a file imported from one run's card is done on the cards of every run, and on their lines", () => {

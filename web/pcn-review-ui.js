@@ -2,7 +2,6 @@
 // the allocation-number ceiling gets a yellow row and a box that the bookkeeper ticks; a missing allocation number is
 // marked in its cell, the allocation column is shown while such a client is open, and a plate counts what is left.
 // The host passes snapshot(row) (rowSnapshot of app.js) and getContext(): null (no open declaration) or { pcnRequired }.
-import { lockProblemText } from "./lock-check.js";
 import { approvalKey, pcnReview, pcnSummary } from "./pcn-review.js";
 
 const STATUS_CELL = 16;
@@ -111,11 +110,5 @@ export function setupPcnReview({ records, plate, getContext, snapshot, columns =
   new Observer(schedule).observe(records, { childList: true, subtree: true });
   refresh();
 
-  // The text of the refusal to lock, or "" when every invoice above the ceiling is approved and has its number.
-  function lockProblem() {
-    refresh();
-    const { blocked } = pcnSummary(reviews);
-    return blocked ? lockProblemText({ code: "pcn_blocked", count: blocked }) : "";
-  }
-  return { refresh, lockProblem };
+  return { refresh };
 }

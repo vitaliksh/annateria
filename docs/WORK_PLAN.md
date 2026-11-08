@@ -62,7 +62,8 @@ The harder days in `references/month-cycle.md`, and the items below. Fix or cut 
 - Client rules (old 4.6.1): done, a rule saved by the button changed the agent's account; an edit keeps a copy (8 November 2026).
   Ledger check (old 4.7.4): done in M2, twice; it found exactly the operations the journals miss. Foreign currency: done, a real Zoom invoice in USD goes to review with the
   reason, converted by Anna at the rate of the day of payment (8 November 2026).
-- Dead code named in the archive: the client chooser, `agent/aliases.js`, `lockProblem`, `offerDistribution` and others.
+- ~~Dead code named in the archive~~: removed on 8 November 2026 (the client chooser's hints, list and buyer box, `agent/aliases.js`,
+  `lockProblem`, `offerDistribution` and the move dialog's reason lines); the names are guarded by `removed-code.test.mjs`.
 - Text on screen that was never checked: new Hebrew strings of 9.x, for Anna's list.
 - **Physically needs people:** phone scanning on Anna's Android (old 2.5.2).
 
