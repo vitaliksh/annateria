@@ -11,6 +11,8 @@ import { createSemaphore } from "./semaphore.js";
 const RETRY_CODES = new Set(["busy", "unavailable", "network"]);
 const REFUSAL_REASONS = new Set(["SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "IMAGE_SAFETY", "RECITATION"]);
 const MALFORMED_NUDGE = "Your last function call was malformed. Call the tool again with valid arguments, or answer in text.";
+// An empty last answer after the work was done (lab eval, 8 November 2026) is asked for once more before the run fails.
+const EMPTY_NUDGE = "Your last answer was empty. Write the short summary for the user now, in Hebrew, or call the next tool.";
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isAbort = (error) => error?.name === "AbortError";
 
@@ -88,6 +90,7 @@ export async function runAgent({
   let turns = 0;
   let refusals = 0;
   let malformed = 0;
+  let empty = 0;
   const progress = (event) => { try { onProgress?.(event); } catch { /* a faulty listener must not stop the run */ } };
   // Where the rows of this run went: [{ clientId, month, count }] (only the month of the run).
   // review: how many of them are to look at (for the panel's "for you" card), set only when there are some.
@@ -197,8 +200,14 @@ export async function runAgent({
     }
     malformed = 0;
 
+    if (!calls.length && !text.trim()) {
+      empty += 1;
+      if (empty >= 2) return finish("failed", { error: "The model gave an empty answer twice." });
+      contents.push({ role: "user", parts: [{ text: EMPTY_NUDGE }] });
+      continue;
+    }
+    empty = 0;
     if (!calls.length) {
-      if (!text.trim()) return finish("failed", { error: "The model gave an empty answer." });
       contents.push({ role: "model", parts });
       return finish("completed", { text: ctx.handles.readable(text), truncated: reply?.finishReason === "MAX_TOKENS" });
     }

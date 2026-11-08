@@ -152,10 +152,16 @@ test("a malformed function call gets one nudge, a second one fails the run", asy
   assert.equal((await run({ model: scriptedModel([malformed, malformed]) })).result.status, "failed");
 });
 
-test("an empty answer fails and a cut-off answer is marked truncated", async () => {
-  assert.equal((await run({ model: scriptedModel([{ parts: [say("  ")], finishReason: "STOP" }]) })).result.status, "failed", "a blank answer is empty too");
-  const empty = (await run({ model: scriptedModel([{ parts: [], finishReason: "STOP" }]) })).result;
-  assert.deepEqual([empty.status, empty.error], ["failed", "The model gave an empty answer."]);
+// Lab eval, 8 November 2026: after the rows were added and the file filed, one run ended "failed" on an empty last answer.
+test("an empty answer gets one nudge, a second one fails; a cut-off answer is marked truncated", async () => {
+  const empty1 = { parts: [], finishReason: "STOP" };
+  const nudged = scriptedModel([empty1, reply(say("Done: one row."))]);
+  assert.equal((await run({ model: nudged })).result.status, "completed");
+  assert.match(nudged.requests[1].contents.at(-1).parts[0].text, /summary/);
+  const blank = { parts: [say("  ")], finishReason: "STOP" };
+  assert.equal((await run({ model: scriptedModel([blank, blank]) })).result.status, "failed", "a blank answer is empty too");
+  const empty = (await run({ model: scriptedModel([empty1, empty1]) })).result;
+  assert.deepEqual([empty.status, empty.error], ["failed", "The model gave an empty answer twice."]);
   const cut = (await run({ model: scriptedModel([{ parts: [say("half an ans")], finishReason: "MAX_TOKENS" }]) })).result;
   assert.deepEqual([cut.status, cut.truncated], ["completed", true]);
 });
