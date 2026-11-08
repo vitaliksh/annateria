@@ -175,16 +175,19 @@ async function day(page, scanPath, log) {
   await clickText("בחירת תיקיית נתונים");
   await page.getByText("אין לקוחות בתיקייה זו").first().waitFor({ timeout: 10000 });
 
-  step("create a client from nothing");
+  step("create a client from nothing, two-monthly");
   await click("#show-new-client");
   await page.locator("#new-client-name").fill(CLIENT);
   await page.locator("#new-client-activity").fill("שירותים");
+  await page.locator("#new-client-vat-period").selectOption("bimonthly");
   await page.locator("#new-client-month").fill("01/2026");
   await click("#create-client");
   await page.getByRole("button", { name: CLIENT }).first().waitFor();
 
-  step("create a second client in the same dialog");
+  step("create a second client in the same dialog, which starts from the defaults");
   await click("#show-new-client");
+  const period = await page.locator("#new-client-vat-period").inputValue();
+  if (period !== "monthly") throw new Error(`the second client's form kept the first one's VAT period (${period})`);
   await page.locator("#new-client-name").fill(`${CLIENT} 2`, { timeout: 5000 });
   await page.locator("#new-client-activity").fill("שירותים");
   await click("#create-client");
