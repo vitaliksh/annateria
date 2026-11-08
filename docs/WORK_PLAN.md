@@ -50,6 +50,9 @@ Move what made you better into `web/skills/`, with short rules, sources and exam
 
 *Done when:* M4's scores are better than baseline, and a Hebrew rule sheet exists for Anna to read through once.
 
+Progress, 8 November 2026: the eval runs in the lab (`--api`) and can read real synthetic documents (`--read`, `eval/files/`); one case so far.
+Next: more cases with documents, closed months and stale lists.
+
 ## M6. Everything else Anna needs
 
 The harder days in `references/month-cycle.md`, and the items below. Fix or cut each one. A second, independent agent repeats two exams from the skill alone.
