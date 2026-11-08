@@ -62,3 +62,16 @@ test("opening a month shows all its rows, whatever filter the last month had", a
   await drawn();
   assert.deepEqual(rows().map((tr) => tr.hidden), [false, false]);
 });
+
+// Eva's September, 8 November 2026: opening a month turned off every row whose last four digits matched a row above it, whatever the
+// supplier and amount (the policy of 2026-27 as a copy of 2025-26; a tax invoice as a copy of its till receipt).
+test("opening a month turns off only a real copy: the same full number, supplier and amount", async () => {
+  const { app, rows } = await loadApp();
+  const policy = (id, reference, date) => ({ ...row(id, "001.jpg"), reference, values: [date, "", "x", "Phoenix", "520004078", reference.slice(-4), "", "941.00", "941.00", "0.00", "100", "100"], rawNet: "941", rawVat: "0" });
+  const other = (id) => ({ ...row(id, "002.jpg"), reference: "SHOP-7507", values: ["12/09/26", "", "x", "Shop", "514000002", "7507", "", "50.00", "42.37", "7.63", "100", "100"], rawNet: "42.37", rawVat: "7.63" });
+  const copy = (id) => ({ ...policy(id, "26/001/673/1017507", "07/09/26") });
+  const { selected } = await restoredMonth([policy("a", "25/001/673/1017507", "16/09/25"), policy("b", "26/001/673/1017507", "07/09/26"), other("c"), copy("d")]);
+  await app.activateDeclaration(selected);
+  const off = rows().map((tr) => tr.classList.contains("not-for-export"));
+  assert.deepEqual(off, [false, false, false, true], "only the second copy of the same policy is off");
+});

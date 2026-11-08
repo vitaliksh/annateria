@@ -19,6 +19,7 @@ import { confirmDialog } from "./confirm-dialog.js";
 import { CLICK_REOPEN_REASON, NO_EXPORT_MARKER, declarationActions } from "./declaration-core.js";
 import { formatMonth } from "./month-format.js";
 import { deductionStatus, monthOfDate } from "./month-distribution.js";
+import { entryFromRow, findDuplicates } from "./intake-facts.js";
 import { addMovedLine, movedLine, removeMovedLine, vatMonths } from "./vat-move-flow.js";
 import { inspectImportTarget } from "./excel-import-store.js";
 import { createClientsHome } from "./clients-home.js";
@@ -1486,18 +1487,18 @@ function setExportIncluded(row, included) {
   checkbox.checked = Boolean(included);
   row.classList.toggle("not-for-export", !checkbox.checked);
 }
+// A row is a copy of one above it only by the rule of the intake (intake-facts.js): the same number, supplier and amount, or the same
+// number, amount and date. The last four digits alone turned off different documents whenever a month opened (Eva's September,
+// 8 November 2026: the policy of 2026-27 as a copy of 2025-26).
 function updateDuplicateState(row) {
   const reference = normalReference(cellValue(row.cells[6]));
   // A line of moved VAT repeats the number of its document and is no document itself (step 9.8).
   if (!reference || row.dataset.vatMovedId) return;
-  const duplicate = [...records.querySelectorAll("tr[data-document-id]")].some(
-    (candidate) =>
-      candidate !== row &&
-      !candidate.dataset.vatMovedId &&
-      candidate.dataset.documentId !== row.dataset.documentId &&
-      normalReference(cellValue(candidate.cells[6])) === reference,
-  );
-  if (!duplicate) return;
+  const all = [...records.querySelectorAll("tr[data-document-id]")];
+  const entryOf = (item) => entryFromRow(rowSnapshot(item), { month: "table", position: all.indexOf(item) });
+  const others = all.filter((candidate) => candidate !== row && !candidate.dataset.vatMovedId && candidate.dataset.documentId !== row.dataset.documentId);
+  const { level } = findDuplicates(others.map(entryOf), entryOf(row));
+  if (level !== "strong" && level !== "likely") return;
   setExportIncluded(row, false);
   row.dataset.duplicate = "true";
   setStatus(row, "חשד לכפילות לפי אסמכתא — נדרש עיון", "review");
