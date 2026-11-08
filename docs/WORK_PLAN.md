@@ -72,7 +72,7 @@ The harder days in `references/month-cycle.md`, and the items below. Fix or cut 
 
 ## M7. Hand-over to Anna
 
-Three unseen months in a row (from what you kept back) with 0 lost, 0 false ready, reports equal to Rivhit, and the hand-correction target met. Then, with the owner: walk through `docs/ROLLOUT.md`, new access codes for all, Anna's real data folder moved safely with a copy first, restore drill from Drive and flash, the first real month in parallel with Anna's usual way. A one-page Hebrew guide.
+Three unseen months in a row (from what you kept back) with 0 lost, 0 false ready, reports equal to Rivhit, and the hand-correction target met. Then, with the owner: walk through `docs/ROLLOUT.md`, new access codes for all, Anna's real data folder moved safely with a copy first, restore drill from Drive and flash, the first real month in parallel with Anna's usual way. A one-page Hebrew guide (draft: `docs/anna/guide-he.md`, 8 November 2026; to check with Anna).
 
 *Done when:* **Anna closes a real month in ANNATERIA without help, and it equals the same month in Rivhit.**
 
