@@ -139,6 +139,15 @@ test("a copy in the open table is found although the document is dated in a late
   assert.deepEqual([facts.targetMonth, facts.duplicates.level, facts.exclude], ["2026-10", "strong", "duplicate"]);
 });
 
+// Eva's September, 8 November 2026: October documents of a two-monthly client sat in September; the same papers coming again in
+// October were searched for only from October on, so both would count.
+test("a copy dated in a later month is found in the earlier month where it sits", () => {
+  const entries = [entry("sep", "02/10/26", 663.49, "2026-09", {}, "open", 3)];
+  assert.equal(findDuplicates(entries, candidate("oct", "02/10/26", 663.49, "2026-10"), { fromMonth: "2026-10" }).level, "strong");
+  const facts = intakeFacts({ row: row("oct", "02/10/26", 663.49), month: "2026-10", position: 0 }, { entries, today: new Date(2026, 10, 8) });
+  assert.deepEqual([facts.duplicates.level, facts.exclude], ["strong", "duplicate"]);
+});
+
 test("a document of the previous year is excluded, also after the filed months push it forward", () => {
   const facts = intakeFacts({ row: row("old", "20/12/25", 118), month: "2026-09", position: 0 }, { lockedThrough: "2026-08", today });
   assert.deepEqual([facts.targetMonth, facts.year.status, facts.exclude], ["2026-09", "previous-year", "previous-year"]);

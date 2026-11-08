@@ -5,7 +5,7 @@
 // Rules (docs/HANDOFF.md, "Two-agent redesign"):
 // 1. A document of any month of the declaration's year is accepted (an invoice for March that arrives in October).
 // 2. Every document is searched for among the rows of all declarations from the month of its date onwards, locked
-//    months included.
+//    months included, and among rows of earlier months whose document is dated in that window.
 // 3. Only the year of the declaration month the row goes to is accepted ("previous-year" otherwise).
 // 4. A document for a period (annual insurance) is judged by the end of the period and goes to the month of receipt.
 import { deductionStatus, monthOfDate, monthsBetween, nextMonth, proposeMonth } from "./month-distribution.js";
@@ -163,7 +163,9 @@ function similarity(candidate, entry) {
 export function findDuplicates(entries, candidate, { fromMonth = null } = {}) {
   const matches = [];
   for (const entry of entries) {
-    if (fromMonth && entry.month < fromMonth) continue;
+    // A row of an earlier month counts when its document is dated in the window: a two-monthly client's October paper may sit in
+    // September (Eva's September, 8 November 2026).
+    if (fromMonth && entry.month < fromMonth && !(entry.date && entry.date.slice(0, 7) >= fromMonth)) continue;
     if (entry.documentId && entry.documentId === candidate.documentId) continue;
     if (entry.month === candidate.month && entry.position >= candidate.position) continue;
     const level = similarity(candidate, entry);
