@@ -60,5 +60,8 @@ page still opens, a month opened by a click takes the agent's rows, and a scan a
 - While the pane is hidden Chrome holds back a dialog's `close` event until the page draws again, and timers run as in a background page. Prefer the pane shown, or a real window.
 - A cloned `<dialog>` keeps its `open` attribute and refuses `showModal()`.
 - After a reload Chrome may show its own "Allow" bubble for a folder; until it is answered (`prompt Allow`) keys typed into the page are lost.
+- Every folder picker and folder permission answered `AbortError` at once (8 November 2026, afternoon) while a Windows shell surface
+  (`ShellHost`) held the foreground and the lab window could not be brought forward; a Chrome restart did not help. A person's click
+  on the lab window is needed; ask, do not loop.
 - `until` waits on animation frames, which stop in a window hidden behind the other lab window; poll with `look` instead.
 - `npm ci` warns that install scripts of `esbuild` and `workerd` are blocked; tests still run.
