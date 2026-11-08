@@ -65,6 +65,9 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 
 ## Reading a document
 
+- **The supplier's number is its VAT file number, SAMPLE (8 Nov 2026).** A toll road and a mobile operator print company numbers and,
+  beside them, the number of a union of dealers (or an authorised dealer number); the union's number is the VAT file. Found by the
+  independent exam on D's scans: the app took a company number, three rows were ready with it. Extraction skill v4.
 - **A document the client issued itself** is income. Supplier number equals the client's, usually with no buyer number.
 - **Dates** are day, month, year. A blurred year is often misread: a "previous year" on a bad photo should be doubted.
 - **The shekel sign** is not a digit. A number printed after it keeps its first digit.

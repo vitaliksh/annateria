@@ -4,8 +4,8 @@
     "sha256": "a9672a242aa32bbf7213bf997a8fa533bb1e161e6cafdee85cdf82e0a73b651f"
   },
   "invoice-extraction": {
-    "version": 3,
-    "sha256": "07565f5bdd12de5e0f09eee30fa15fd1788fa53a07467e841e961c46d7f57498"
+    "version": 4,
+    "sha256": "2b2747f80d81e03b4d625e4f9c4305df4cac0209cc5acbbcee98e5a83eb089b5"
   },
   "month-closing-checklist": {
     "version": 2,
