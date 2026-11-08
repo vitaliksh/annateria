@@ -6,6 +6,7 @@ import { createBackup, keyFromRecoveryCode, listSnapshots, newRecoveryCode, rest
 import { SLOTS, backupLevel, readBackupState, saveBackupState, usbReminder } from "./backup-state.js";
 import { BACKUP_FOLDER_KEYS, BACKUP_KEY_NAME, readSetting, writeSetting } from "./backup-handles.js";
 import { confirmDialog } from "./confirm-dialog.js";
+import { isLocalOnly } from "./sync-store.js";
 
 const PLATE_CLASS = { ok: "plate-success", warning: "plate-warning", error: "plate-error", info: "plate-info", success: "plate-success" };
 const LEVEL_TEXT = {
@@ -126,6 +127,9 @@ export function setupBackup({
         destination,
         key,
         images: state?.includeImages === true,
+        // The files that belong to this PC (the state of the shared copy and its earlier versions, the screen settings) stay out,
+        // as in the shared copy: a copy restored on another PC must not take them (independent exam, 8 November 2026).
+        exclude: isLocalOnly,
         now: at,
         onProgress: ({ phase, done, total }) => { if (phase === "scan") plate.textContent = `מעתיק… ${done}/${total}`; },
       });
@@ -240,6 +244,7 @@ export function setupBackup({
         key: useKey,
         name: restoreSnapshotSelect.value,
         target,
+        exclude: isLocalOnly,
         onProgress: ({ done, total }) => { plate.textContent = `משחזר… ${done}/${total}`; },
       });
       message = { kind: "success", text: `שוחזרו ${result.files} קבצים אל «${target.name}». כדי להשתמש בהם: הגדרות ← החלפת תיקיית נתונים.` };

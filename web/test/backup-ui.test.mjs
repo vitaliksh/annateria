@@ -124,7 +124,8 @@ test("backup needs a key; then it writes the flash copy, remembers the time and 
   await giveKey();
   await click(slotButton("usb", "run"));
   assert.equal(error(), "");
-  assert.match(plate(), /הגיבוי הושלם: 3 קבצים/);
+  // The files that belong to this PC (common/ui-settings.json here) stay out, as in the shared copy (independent exam, 8 November 2026).
+  assert.match(plate(), /הגיבוי הושלם: 2 קבצים/);
   assert.equal((await listSnapshots(flash)).length, 1);
   assert.equal((await readBackupState(root)).usb.at, clock.value);
   assert.equal(openButton.dataset.level, "ok");
@@ -204,6 +205,7 @@ test("restore: pick the backup folder, choose a snapshot, give the code, get the
   const source = binaryDirectory("data");
   await putFile(source, "clients/c1/workspace.json", '{"name":"synthetic"}');
   await putFile(source, "common/ui-settings.json", "{}");
+  await putFile(source, "common/sync-state.json", '{"schemaVersion":1}');
   const flash = binaryDirectory("flash");
   await createBackup({ source, destination: flash, key, now: "2026-10-01T10:00:00.000Z" });
   await createBackup({ source, destination: flash, key, now: "2026-10-02T10:00:00.000Z" });
@@ -215,8 +217,9 @@ test("restore: pick the backup folder, choose a snapshot, give the code, get the
   const target = binaryDirectory("restored");
   picks.push(target);
   await click(q("#backup-restore-run"));
-  assert.match(plate(), /שוחזרו 2 קבצים אל «restored»/);
-  assert.deepEqual(await listPaths(target), ["clients/c1/workspace.json", "common/ui-settings.json"]);
+  // A copy made before the flash backup left them out still holds this PC's state: it is not written into the new folder.
+  assert.match(plate(), /שוחזרו 1 קבצים אל «restored»/);
+  assert.deepEqual(await listPaths(target), ["clients/c1/workspace.json"]);
 });
 
 test("restore: a wrong or malformed code and a folder without a backup are reported", async () => {

@@ -408,14 +408,16 @@ async function* snapshotBlobs(store, key, known, snapshot) {
 }
 
 // Restores a snapshot into an empty folder, checking every file against its hash.
-export async function restoreSnapshot({ destination, key, name, target, onProgress }) {
+// exclude(path): files of the snapshot that are not written (the page leaves out the files that belong to the PC that made it).
+export async function restoreSnapshot({ destination, key, name, target, onProgress, exclude = () => false }) {
   const store = await openStore(destination, key);
   const snapshot = await readSnapshot(destination, key, name);
   for await (const _ of target.entries()) throw backupError("BACKUP_NOT_EMPTY");
   const known = await loadKnownBlobs(store, key);
-  const total = Object.keys(snapshot.files).length;
+  const total = Object.keys(snapshot.files).filter((path) => !exclude(path)).length;
   let done = 0;
   for await (const { path, plain } of snapshotBlobs(store, key, known, snapshot)) {
+    if (exclude(path)) continue;
     const parts = path.split("/");
     let directory = target;
     for (const part of parts.slice(0, -1)) directory = await directory.getDirectoryHandle(part, { create: true });
