@@ -64,7 +64,8 @@ The harder days in `references/month-cycle.md`, and the items below. Fix or cut 
   reason, converted by Anna at the rate of the day of payment (8 November 2026).
 - ~~Dead code named in the archive~~: removed on 8 November 2026 (the client chooser's hints, list and buyer box, `agent/aliases.js`,
   `lockProblem`, `offerDistribution` and the move dialog's reason lines); the names are guarded by `removed-code.test.mjs`.
-- Text on screen that was never checked: new Hebrew strings of 9.x, for Anna's list.
+- Text on screen that was never checked: new Hebrew strings of 9.x, for Anna's list. The list is `docs/anna/new-texts-he.md`
+  (37 texts, 8 November 2026); waiting for Anna's marks.
 - **Physically needs people:** phone scanning on Anna's Android (old 2.5.2).
 
 *Done when:* the independent agent passes both exams, and the list above is done, or cut with a line saying why.
