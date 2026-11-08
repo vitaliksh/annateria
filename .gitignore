@@ -13,6 +13,8 @@ node_modules/
 *.heic
 *.heif
 *.pdf
+# The eval's synthetic documents (web/eval/files/make.py writes them; every name and amount is invented).
+!web/eval/files/*.pdf
 *.xlsx
 *.xls
 *.csv
