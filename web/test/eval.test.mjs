@@ -48,6 +48,7 @@ const PLANS = {
   "internet-maintenance": { decision: "expense", account: "220" },
   "licence-fee": { decision: "expense", account: "214" },
   "parking-fine": { decision: "not_expense" },
+  "sports-gear": { decision: "expense", account: "200" },
   "close-month": { closing: "2026-09" },
 };
 const OPEN_CLIENT = "C1";

@@ -1,0 +1,72 @@
+{
+  "name": "sports-gear",
+  "about": "Many weights and mats on one invoice above 1,000 are consumables, not equipment (the bookkeeper, 7 November 2026).",
+  "today": "2026-10-20",
+  "open": {
+    "client": "Studio",
+    "month": "2026-09"
+  },
+  "clients": [
+    {
+      "folder": "Studio",
+      "name": "Studio Pilates",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "sport and pilates lessons",
+      "chart": {
+        "110": {
+          "name": "הכנסה חייבת",
+          "type": "income"
+        },
+        "200": {
+          "name": "ציוד ספורט מתכלה",
+          "type": "expense"
+        },
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "900": {
+          "name": "רכישת ציוד/רכוש קבוע",
+          "type": "equipment"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    }
+  ],
+  "inbox": [
+    {
+      "name": "gear-sep.jpg",
+      "records": [
+        {
+          "supplier_name": "Sport Wholesale Ltd",
+          "supplier_vat_id": "515300010",
+          "document_title": "חשבונית מס מרכזת",
+          "document_number": "SI-7781",
+          "date": "2026-09-12",
+          "currency": "ILS",
+          "net": 2620.34,
+          "vat": 471.66,
+          "total": 3092,
+          "vat_percent": 18,
+          "purpose": "ציוד ספורט",
+          "buyer_name": "Studio Pilates",
+          "buyer_vat_id": "037123452"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "rows": [
+      {
+        "reference": "SI-7781",
+        "account": "200"
+      }
+    ],
+    "filed": [
+      "gear-sep.jpg"
+    ]
+  }
+}
