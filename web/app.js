@@ -195,6 +195,8 @@ async function activateDeclaration(selected) {
   businessActivity.value = workspace.config.businessActivity;
   businessKind.value = workspace.config.businessKind;
   records.replaceChildren();
+  // Another month opens with all its rows: a filter left on from the last one hid most of them (lab, 8 November 2026).
+  journalToolbar.setFilter("all");
   recordCount = 0;
   imageCount = 0;
   newCustomCodes = new Set(

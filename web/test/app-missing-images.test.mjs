@@ -44,3 +44,21 @@ test("opening a month that fails half way must not let the next save empty its t
   assert.equal(draft.rows.length, 2, "the saved table is untouched");
   assert.equal(rows().length, 0);
 });
+
+// Lab, 8 November 2026: the filter "לבדיקה" chosen in one month stayed on when the next month opened, so most of its rows seemed
+// missing until "הכול" was clicked.
+test("opening a month shows all its rows, whatever filter the last month had", async () => {
+  const { app, rows, document } = await loadApp();
+  const drawn = () => new Promise((resolve) => setTimeout(resolve, 20));
+  // A row left out of the reports is not one to look at.
+  const other = { ...row("d2", "002.jpg"), reference: "INV-5678", rawNet: "200", rawVat: "36", active: false };
+  other.values = ["11/09/26", "", "x", "Other supplier", "514000002", "5678", "", "236.00", "200.00", "36.00", "100", "100"];
+  const { selected } = await restoredMonth([row("d1", "001.jpg"), other]);
+  await app.activateDeclaration(selected);
+  await drawn();
+  document.querySelector('[data-filter="review"]').click();
+  assert.deepEqual(rows().map((tr) => tr.hidden), [false, true]);
+  await app.activateDeclaration(selected);
+  await drawn();
+  assert.deepEqual(rows().map((tr) => tr.hidden), [false, false]);
+});

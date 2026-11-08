@@ -57,7 +57,7 @@ The harder days in `references/month-cycle.md`, and the items below. Fix or cut 
 - Backup, restore, sync and baton: full round trip in the lab; then a dedicated test folder on the real Drive, with the owner's word.
   Backup to the Drive test folder and restore into an empty folder: equal file by file (8 November 2026). Baton between two PCs: open.
 - ~~PCN874 of a real month (old 6.4.4)~~: cut, the only sample with a PCN874 keeps double-entry books, which Anna does not keep.
-  Old 9.8 VAT month on both reports: open.
+  Old 9.8 VAT month on both reports: done in the lab, a sale and a purchase of a monthly client moved to the next month (8 November 2026).
 - ~~Vehicle at 66.67% for real charts of accounts~~: done, 66% by account code or name (8 November 2026).
 - Client rules (old 4.6.1), ledger check (old 4.7.4), foreign currency.
 - Dead code named in the archive: the client chooser, `agent/aliases.js`, `lockProblem`, `offerDistribution` and others.
