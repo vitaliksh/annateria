@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
-import { FIELD_LABELS, TOOL_LABELS, progressLabel, setupAssistant } from "../assistant-ui.js";
+import { FIELD_LABELS, TOOL_LABELS, progressLabel, progressMeter, setupAssistant } from "../assistant-ui.js";
 
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "index.html"), "utf8");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
@@ -265,7 +265,7 @@ test("the card לטיפולך lists what is left after a run, each with its butt
   assert.deepEqual(lines.map((line) => line.querySelector("p").textContent), [
     "ייבוא journal-08.xlsx ל«Levi» לא הושלם", "2 שורות לבדיקה ב-08/2026 של «Levi»", "קובץ אחד נשאר בתיבת הקלט",
   ]);
-  assert.deepEqual(lines.map((line) => line.querySelector("button").textContent), ["בדיקה וייבוא", "08/2026", "תיבת קלט"]);
+  assert.deepEqual(lines.map((line) => line.querySelector("button").textContent), ["בדיקה וייבוא", "פתיחת 08/2026", "פתיחת תיבת הקלט"]);
   lines[0].querySelector("button").click();
   assert.deepEqual([commands.at(-1).type, commands.at(-1).card.id], ["import", "I1"], "the same wizard as the card's own button");
   commands.at(-1).report({ text: "הייבוא בוצע.", done: true });
@@ -337,7 +337,7 @@ test("nothing left after a run: no card לטיפולך; an import already done i
 
 test("a long final answer is folded under a control that shows it all; a short one is not", () => {
   const { assistant, root } = setup();
-  const long = assistant.addMessage("assistant", "א".repeat(300), { fold: true });
+  const long = assistant.addMessage("assistant", "א".repeat(1600), { fold: true });
   assert.ok(long.classList.contains("folded"));
   const more = long.nextElementSibling;
   assert.equal(more.textContent, "הצג את כל הסיכום");
@@ -345,6 +345,8 @@ test("a long final answer is folded under a control that shows it all; a short o
   assert.equal(long.classList.contains("folded"), false);
   assert.equal(root.querySelector("#assistant-feed").contains(more), false);
   assert.equal(assistant.addMessage("assistant", "קצר", { fold: true }).classList.contains("folded"), false);
+  // The owner, 8 November 2026: a summary of a few hundred characters is shown whole.
+  assert.equal(assistant.addMessage("assistant", "ב".repeat(600), { fold: true }).classList.contains("folded"), false);
 });
 
 test("one check, one name: the dock's button counts the files waiting and is off with an empty inbox (C3)", () => {
@@ -437,7 +439,7 @@ test("after a run the dock offers a button for each month that got rows; a click
   assert.equal(q(".assistant-card[data-kind='placed']"), null, "nothing was added: nothing to offer");
   assistant.showPlaced([{ clientId: "id-Levi", month: "2026-01", count: 5 }, { clientId: "id-Levi", month: "2026-03", count: 1 }]);
   const buttons = [...q(".assistant-card[data-kind='placed']").querySelectorAll("button")];
-  assert.deepEqual(buttons.map((button) => button.textContent), ["01/2026 · 5 שורות", "03/2026 · 1 שורות"]);
+  assert.deepEqual(buttons.map((button) => button.textContent), ["פתיחת 01/2026 · 5 שורות", "פתיחת 03/2026 · 1 שורות"]);
   buttons[1].click();
   assert.deepEqual(commands.at(-1), { type: "open", clientId: "id-Levi", month: "2026-03" });
 });
@@ -565,4 +567,26 @@ test("a file imported from one run's card is done on the cards of every run, and
   assert.deepEqual(wizards.map((item) => item.disabled), [true, true]);
   const lines = [...root.querySelectorAll("[data-kind='todo'] li")];
   assert.deepEqual(lines.map((line) => line.querySelector("p").textContent), ["ייבוא journal-08.xlsx ל«Levi» הושלם", "ייבוא journal-08.xlsx ל«Levi» הושלם"]);
+});
+
+// The owner, 8 November 2026: a thermometer of the run, the number of documents found and the name of the file worked on now.
+test("the run shows a thermometer, what was found and the name of the file being read", async () => {
+  const counts = {};
+  const files = [{ file: "F1", name: "sep.pdf", kind: "pdf", status: "waiting" }, { file: "F2", name: "sep_1.pdf", kind: "pdf", status: "waiting" }];
+  assert.equal(progressMeter(counts), null, "nothing to measure before the files are known");
+  progressLabel({ type: "done", name: "list_inbox", ok: true, result: { files } }, counts);
+  assert.equal(progressLabel({ type: "call", name: "extract_document", args: { file: "F1" } }, counts), "קורא את «sep.pdf» (קובץ 1 מתוך 2)");
+  progressLabel({ type: "done", name: "extract_document", ok: true, result: { documents: [{}, {}, {}] } }, counts);
+  assert.deepEqual(progressMeter(counts), { value: 1, max: 4, caption: "2 קבצים בתיבת הקלט · נמצאו 3 מסמכים בקובץ אחד · תויקו 0 מתוך 2" });
+  assert.equal(progressLabel({ type: "call", name: "move_file_to_declaration", args: { file: "F1" } }, counts), "מתייק את «sep.pdf»");
+  progressLabel({ type: "done", name: "move_file_to_declaration", ok: true, result: { state: "filed" } }, counts);
+  assert.equal(progressMeter(counts).value, 2);
+  const { assistant, root } = setup();
+  assistant.setProgress("קורא את «sep.pdf» (קובץ 1 מתוך 2)", progressMeter(counts));
+  const meter = root.querySelector("#assistant-meter");
+  assert.equal(meter.hidden, false);
+  assert.deepEqual([meter.querySelector("progress").value, meter.querySelector("progress").max], [2, 4]);
+  assert.match(meter.textContent, /נמצאו 3 מסמכים/);
+  assistant.setProgress("מתחיל…", null);
+  assert.equal(meter.hidden, true, "a new run starts with no old thermometer");
 });

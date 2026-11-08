@@ -222,7 +222,10 @@ async function day(page, scanPath, log) {
   const rows = await page.locator("#journal-table tbody tr[data-document-id]").count();
   const table = await page.locator("#journal-table").innerText();
   const feed = await page.locator("#assistant-feed").innerText();
-  return { rows, hasSupplier: table.includes(SUPPLIER.slice(0, 8)), feed };
+  // The thermometer of the run stays with its last state: the file filed, the documents found.
+  const meter = (await page.locator("#assistant-meter").isVisible()) ? await page.locator("#assistant-meter").innerText() : "";
+  await page.screenshot({ path: join(tmpdir(), "anna-day-after-run.png") }).catch(() => {});
+  return { rows, hasSupplier: table.includes(SUPPLIER.slice(0, 8)), feed, meter };
 }
 
 async function main() {
@@ -273,6 +276,7 @@ async function main() {
     // 8 November 2026).
     if (outcome.rows !== 2) problems.push(`the table has ${outcome.rows} rows, 2 expected (the invoice and the page without a document)`);
     if (!outcome.hasSupplier) problems.push("the row of the scanned invoice is not in the table");
+    if (!/תויקו 1 מתוך 1/.test(outcome.meter)) problems.push(`the thermometer does not show the filed file: "${outcome.meter}"`);
     if (/שגיאה|נכשל|לא הצלחתי|is not defined|not allowed|נעול/.test(outcome.feed)) problems.push(`the feed reports a problem: ${outcome.feed.slice(-300)}`);
   }
   if (!log.some((line) => line.startsWith("extraction:"))) problems.push("the document was never sent for reading");

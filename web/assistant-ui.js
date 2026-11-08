@@ -60,7 +60,7 @@ const money = (value) => value.toLocaleString("he-IL", { minimumFractionDigits: 
 const importProblemText = (item) => (IMPORT_PROBLEMS[item.code] ?? problemText)(item) ?? item.code;
 
 const ADDED_STATES = ["created", "moved_month", "already_added"];
-const FOLD_AFTER = 240; // characters of a final answer shown before "הצג את כל הסיכום"
+const FOLD_AFTER = 1500; // characters of a final answer shown before "הצג את כל הסיכום" (the owner: folded lines are not seen)
 
 // What the run has done so far, for the progress line: documents read of the files found, rows added, originals filed.
 function summaryOf(counts) {
@@ -77,9 +77,13 @@ export function progressLabel(event, counts) {
   if (event.type === "done") {
     const result = event.result ?? {};
     if (event.name === "list_inbox" && event.ok) {
-      const found = (result.files ?? []).filter((file) => file.kind !== "spreadsheet" && file.status === "waiting").length;
-      counts.total = Math.max(counts.total ?? 0, found);
-    } else if (event.name === "extract_document") counts.read = (counts.read ?? 0) + 1;
+      const waiting = (result.files ?? []).filter((file) => file.kind !== "spreadsheet" && file.status === "waiting");
+      counts.total = Math.max(counts.total ?? 0, waiting.length);
+      counts.names = { ...(counts.names ?? {}), ...Object.fromEntries((result.files ?? []).map((file) => [file.file, file.name])) };
+    } else if (event.name === "extract_document") {
+      counts.read = (counts.read ?? 0) + 1;
+      counts.documents = (counts.documents ?? 0) + (result.documents ?? []).length;
+    }
     else if (event.name === "add_rows") counts.rows = (counts.rows ?? 0) + (result.rows ?? []).filter((row) => ADDED_STATES.includes(row.state)).length;
     else if (event.name === "move_file_to_declaration" && result.state === "filed") counts.filed = (counts.filed ?? 0) + 1;
     return null;
@@ -87,9 +91,24 @@ export function progressLabel(event, counts) {
   const summary = summaryOf(counts);
   if (event.type === "turn") return summary ? `חושב… · ${summary}` : "חושב…";
   if (event.name === "extract_document") counts.extracted = (counts.extracted ?? 0) + 1;
+  // The file worked on now, by its name (the owner, 8 November 2026: say which document is being read).
+  const name = counts.names?.[event.args?.file];
+  if (name && event.name === "extract_document") return `קורא את «${name}» (קובץ ${counts.extracted} מתוך ${Math.max(counts.total ?? 0, counts.extracted)})`;
+  if (name && event.name === "move_file_to_declaration") return `מתייק את «${name}»`;
   const label = TOOL_LABELS[event.name] ?? "עובד…";
   const line = event.name === "extract_document" ? `${label} (${counts.extracted})` : label;
   return summary ? `${line} · ${summary}` : line;
+}
+
+// The thermometer under the line: every file is read, then filed, so a file counts twice. null until the files are known.
+export function progressMeter(counts) {
+  if (!counts.total) return null;
+  const parts = [`${counts.total === 1 ? "קובץ אחד" : `${counts.total} קבצים`} בתיבת הקלט`];
+  if (counts.read) parts.push(`נמצאו ${counts.documents ?? 0} מסמכים ${counts.read === 1 ? "בקובץ אחד" : `ב-${counts.read} קבצים`}`);
+  if (counts.rows) parts.push(`נוספו ${counts.rows} שורות`);
+  parts.push(`תויקו ${counts.filed ?? 0} מתוך ${counts.total}`);
+  const value = Math.min(counts.total * 2, (counts.read ?? 0) + (counts.filed ?? 0));
+  return { value, max: counts.total * 2, caption: parts.join(" · ") };
 }
 
 function valueText(field, value) {
@@ -112,6 +131,9 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     "assistant-process", "assistant-left", "assistant-report", "assistant-cancel", "assistant-minimize",
   ].map(part);
   const doc = root.ownerDocument;
+  const meterBox = root.querySelector("#assistant-meter");
+  const meterBar = root.querySelector("#assistant-meter-bar");
+  const meterText = root.querySelector("#assistant-meter-text");
   let busy = false;
   let runImports = []; // the import cards of the current or last run: { card, box, wizard, todo }
   const allImports = []; // every import card of this page, for the strip "ממתין לך"
@@ -165,10 +187,17 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     const seconds = Math.floor((Date.now() - since) / 1000);
     progress.textContent = shown && seconds >= 5 ? `${shown} · ${seconds} שנ׳` : shown;
   };
-  function setProgress(text) {
+  // meter: { value, max, caption } from progressMeter, null to hide it, undefined to leave it as it is.
+  function setProgress(text, meter) {
+    if (text !== shown) since = Date.now();
     shown = text;
-    since = Date.now();
     drawProgress();
+    if (meter === undefined || !meterBox) return;
+    meterBox.hidden = !meter;
+    if (!meter) return;
+    meterBar.max = meter.max;
+    meterBar.value = meter.value;
+    meterText.textContent = meter.caption;
   }
 
   // The check button says how many files wait and is off with an empty inbox: a run there would only find nothing
@@ -238,11 +267,11 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     }
     for (const { clientId, client, month, review } of reviewed) {
       const count = review === 1 ? "שורה אחת" : `${review} שורות`;
-      line(element("p", "", `${count} לבדיקה ב-${formatMonth(month)} של «${client}»`), formatMonth(month), () => onCommand({ type: "open", clientId, month }));
+      line(element("p", "", `${count} לבדיקה ב-${formatMonth(month)} של «${client}»`), `פתיחת ${formatMonth(month)}`, () => onCommand({ type: "open", clientId, month }));
     }
     if (inbox) {
       const text = inbox === 1 ? "קובץ אחד נשאר בתיבת הקלט" : `${inbox} קבצים נשארו בתיבת הקלט`;
-      line(element("p", "", text), "תיבת קלט", () => onCommand({ type: "inbox" }));
+      line(element("p", "", text), "פתיחת תיבת הקלט", () => onCommand({ type: "inbox" }));
     }
     box.append(list);
     add(box);
@@ -275,7 +304,7 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     box.append(element("p", "card-text", "נוספו שורות בחודשים:"));
     const options = element("div", "card-options");
     for (const { clientId, month, count } of months) {
-      const choice = button(`${formatMonth(month)} · ${count} שורות`, "small");
+      const choice = button(`פתיחת ${formatMonth(month)} · ${count} שורות`, "small");
       choice.addEventListener("click", () => onCommand({ type: "open", clientId, month }));
       options.append(choice);
     }
@@ -504,7 +533,7 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
   }
 
   return {
-    open, setBusy, setWaiting, addMessage, trigger: start, setProgress, showPlaced, showTodo, reveal,
+    open, setBusy, setWaiting, addMessage, trigger: start, setProgress, progressText: () => shown, showPlaced, showTodo, reveal,
     ui: { ask, propose, importCard }, isBusy: () => busy,
   };
 }

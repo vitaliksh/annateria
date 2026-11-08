@@ -54,6 +54,29 @@
   white-space: nowrap;
 }
 
+/* The thermometer of a run: how much of the inbox is read and filed, and what was found (the owner, 8 November 2026). */
+.assistant-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s1) var(--s3) var(--s2);
+}
+
+.assistant-meter[hidden] {
+  display: none;
+}
+
+.assistant-meter progress {
+  width: 100%;
+  height: 14px;
+  accent-color: var(--accent);
+}
+
+.assistant-meter span {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .assistant-progress:empty {
   display: none;
 }

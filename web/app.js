@@ -44,7 +44,7 @@ import { watchWizard } from "./import-card-flow.js";
 import { setupWaiting } from "./waiting-ui.js";
 import { reviewCounts } from "./review-counts.js";
 import { setupPhoneIntake } from "./phone-ui.js";
-import { progressLabel, setupAssistant } from "./assistant-ui.js";
+import { progressLabel, progressMeter, setupAssistant } from "./assistant-ui.js";
 import { buildMessage, createAssistantFlow, keptNote, leftNote, resultNote } from "./assistant-flow.js";
 import { setupModelSettings } from "./model-settings-ui.js";
 import { applyProposal } from "./proposal-apply.js";
@@ -895,7 +895,7 @@ async function runAssistant(kind, text) {
   assistantRun = controller;
   assistant.setBusy(true);
   inboxUi?.refreshCounts(); // the inbox dialog locks its remove buttons for the run
-  assistant.setProgress("מתחיל…");
+  assistant.setProgress("מתחיל…", null);
   try {
     const result = await assistantFlow.run({
       message: buildMessage({
@@ -908,7 +908,7 @@ async function runAssistant(kind, text) {
       signal: controller.signal,
       onProgress: (event) => {
         const text = progressLabel(event, counts);
-        if (text) assistant.setProgress(text);
+        assistant.setProgress(text ?? assistant.progressText(), progressMeter(counts));
       },
     });
     const note = resultNote(result);

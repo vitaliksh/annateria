@@ -161,7 +161,7 @@ export async function runAgent({
   let queue = Promise.resolve();
   async function callTool(call) {
     const started = clock();
-    progress({ type: "call", name: call.name });
+    progress({ type: "call", name: call.name, args: call.args });
     const envelope = await (registry.isExclusive(call.name) ? (queue = queue.then(() => registry.dispatch(call, ctx))) : registry.dispatch(call, ctx));
     log.add({ kind: "tool", name: call.name, args: shorten(call.args ?? {}), ok: envelope.ok, error: envelope.error?.code, result: shorten(envelope), ms: clock() - started });
     progress({ type: "done", name: call.name, ok: envelope.ok, result: envelope });
