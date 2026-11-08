@@ -6,7 +6,17 @@ import { taxIdProblem } from "../workspace-core.js";
 export const KINDS = ["expense_invoice", "payment_confirmation", "income_report", "other"];
 // Issues the model may report; the code adds amounts_mismatch, bad_vat_id, no_date and foreign_currency itself.
 export const MODEL_ISSUES = ["blurred", "date_unclear", "amount_unclear", "cropped", "handwritten", "other_language"];
-export const CODE_ISSUES = ["amounts_mismatch", "bad_vat_id", "no_date", "foreign_currency"];
+export const CODE_ISSUES = ["amounts_mismatch", "bad_vat_id", "no_date", "foreign_currency", "page_not_read"];
+
+// A page of a PDF for which the vision call returned no document. The code makes it a fact of its own, so that it becomes a row to look
+// at with the page as its original: a page that is lost cannot be corrected (the owner, 8 November 2026).
+export function pageNotReadRecord(page) {
+  return Object.freeze({
+    kind: "other", page, date: null, period_from: null, period_to: null, document_title: `עמוד ${page} – לא זוהה מסמך`, supplier_name: null,
+    supplier_vat_id: null, buyer_name: null, buyer_vat_id: null, document_number: null, allocation_number: null, currency: "ILS",
+    net: 0, vat: 0, total: 0, vat_percent: 0, purpose: null, confidence: 0, issues: Object.freeze(["no_date", "page_not_read"]),
+  });
+}
 
 const text = { type: "string", nullable: true };
 export const RECORD_SCHEMA = {

@@ -1,11 +1,11 @@
 {
   "classification": {
-    "version": 7,
-    "sha256": "a9672a242aa32bbf7213bf997a8fa533bb1e161e6cafdee85cdf82e0a73b651f"
+    "version": 8,
+    "sha256": "2021f0a762bd956f55e887186b473b5646ab040a175f2793f44056ceca9cef06"
   },
   "invoice-extraction": {
-    "version": 4,
-    "sha256": "2b2747f80d81e03b4d625e4f9c4305df4cac0209cc5acbbcee98e5a83eb089b5"
+    "version": 5,
+    "sha256": "13b36b3d5c74fdc86c162fcda299bb9a7040994b23cf842c07c6540c3a0291c3"
   },
   "month-closing-checklist": {
     "version": 2,

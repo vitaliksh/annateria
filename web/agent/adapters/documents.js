@@ -23,11 +23,12 @@ async function browserImageSize(file) {
 const lines = (text, count) => text.split(/\r?\n/).filter((line) => line.trim() !== "").slice(0, count).join("\n");
 
 export function createDocumentReader({ loadPdf = loadPdfJs, loadXlsx = () => import(XLSX_URL), imageSize = browserImageSize } = {}) {
-  async function pdf(file, { page, maxChars }) {
+  async function pdf(file, { page, maxChars, pagesOnly = false }) {
     const library = await loadPdf();
     const document = await library.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
     try {
       const pages = document.numPages;
+      if (pagesOnly) return { kind: "pdf", pages };
       if (page !== undefined && (page < 1 || page > pages)) throw new DocumentError("page_out_of_range", `The file has ${pages} pages.`);
       let text = "";
       for (const number of page !== undefined ? [page] : Array.from({ length: pages }, (_, index) => index + 1)) {
@@ -69,9 +70,10 @@ export function createDocumentReader({ loadPdf = loadPdfJs, loadXlsx = () => imp
 
   return {
     // file: a File of the inbox, entry: its index entry. Returns { kind, ... } with at most about maxChars of text.
-    async inspect(file, entry, { page, maxChars = 6000 } = {}) {
+    // pagesOnly: only the number of pages of a PDF (extract_document checks that every page gave a document).
+    async inspect(file, entry, { page, maxChars = 6000, pagesOnly = false } = {}) {
       const kind = kindOf(entry);
-      if (kind === "pdf") return pdf(file, { page, maxChars });
+      if (kind === "pdf") return pdf(file, { page, maxChars, pagesOnly });
       if (kind === "spreadsheet") return spreadsheet(file, entry);
       if (kind === "image") {
         const size = await imageSize(file).catch(() => null);

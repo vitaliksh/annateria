@@ -510,3 +510,35 @@ test("a document of the first month of a two-month VAT period is in its own peri
   assert.equal(sameVatPeriod("bimonthly", "2026-10", "2026-09"), true, "October in September: one report too");
   assert.equal(sameVatPeriod("monthly", "2026-07", "2026-08"), false, "a monthly client filed July alone");
 });
+
+// The owner, 8 November 2026: every receipt must be seen in its month; a page the model returned nothing for must not vanish.
+test("a page of a PDF that gave no document becomes a row to look at, with the page as its original", async () => {
+  const documents = { inspect: async (_file, entry, options) => (options?.pagesOnly ? { kind: "pdf", pages: 3 } : { kind: "pdf", pages: 3 }) };
+  const { w, dispatch, handles, levi } = await session([[rawRecord({ page: 1 }), rawRecord({ page: 3, document_number: "INV-3003", total: 118, net: 100, vat: 18 })]], { documents });
+  const read = await dispatch("extract_document", { file: handles["policy.pdf"] });
+  assert.deepEqual(read.pages_without_document, [2]);
+  assert.equal(read.documents.length, 3);
+  const unread = read.documents.find((doc) => doc.page === 2);
+  assert.deepEqual(unread.issues, ["no_date", "page_not_read"]);
+  const facts = read.documents.filter((doc) => doc.page !== 2).map((doc) => doc.fact);
+  await dispatch("add_rows", { client: levi, rows: facts.map((fact) => decision(fact)) });
+  const moved = await dispatch("move_file_to_declaration", { file: handles["policy.pdf"] });
+  assert.equal(moved.state, "filed");
+  assert.equal(moved.added_for_review.length, 1, "the unread page got its row");
+  const rows = await tableOf(w);
+  const pageRow = rows.find((row) => row.agent?.page === 2);
+  assert.ok(pageRow, "a row for page 2");
+  assert.equal(pageRow.active, false);
+  assert.match(pageRow.agentOpinion, /לא זוהה מסמך/);
+  assert.ok(pageRow.imageFile, "the PDF is its original");
+});
+
+test("a PDF whose every page gave a document, or a file whose pages cannot be counted, adds nothing", async () => {
+  const counted = { inspect: async () => ({ kind: "pdf", pages: 2 }) };
+  const all = await session([[rawRecord({ page: 1 }), rawRecord({ page: 2, document_number: "INV-3004", total: 59, net: 50, vat: 9 })]], { documents: counted });
+  assert.equal((await all.dispatch("extract_document", { file: all.handles["policy.pdf"] })).pages_without_document, undefined);
+  const broken = { inspect: async () => { throw new Error("not a PDF"); } };
+  const unknown = await session([[rawRecord({ page: 1 })]], { documents: broken });
+  const read = await unknown.dispatch("extract_document", { file: unknown.handles["policy.pdf"] });
+  assert.deepEqual([read.documents.length, read.pages_without_document], [1, undefined]);
+});

@@ -1,7 +1,7 @@
 // extract_document (docs/AGENT_TOOLS.md, 5.2): turn one inbox file into fact records through the vision call. The records are
 // validated, cleaned and stored for the run; from then on they are immutable, and add_rows (4.4) takes a fact handle, never values.
 import { ToolError } from "../errors.js";
-import { RECORD_SCHEMA, normalizeRecord } from "../fact-record.js";
+import { RECORD_SCHEMA, normalizeRecord, pageNotReadRecord } from "../fact-record.js";
 import { kindOf } from "../kinds.js";
 import { validate } from "../schema.js";
 
@@ -20,13 +20,29 @@ function present(file, state, ctx) {
   return {
     file, model: state.model, documents,
     ...(documents.length ? {} : { note: "no financial document found in this file" }),
+    ...(state.unread?.length ? { pages_without_document: state.unread } : {}),
     ...(state.skipped ? { skipped: state.skipped } : {}),
   };
 }
 
+// The pages of a PDF that no record names. When no record names a page at all (a one-page file, or a model that left pages out) a file
+// of several pages cannot be judged and nothing is added; a file that cannot be counted is not judged either.
+async function pagesWithoutDocument(entry, records, ctx) {
+  if (entry.type !== "application/pdf" || !records.some((record) => record.page)) return [];
+  let pages;
+  try {
+    ({ pages } = await ctx.services.documents.inspect(entry, { pagesOnly: true }));
+  } catch {
+    return [];
+  }
+  if (!Number.isInteger(pages) || pages < 2) return [];
+  const named = new Set(records.map((record) => record.page).filter(Boolean));
+  return Array.from({ length: pages }, (_, index) => index + 1).filter((page) => !named.has(page));
+}
+
 export default {
   name: "extract_document",
-  description: "Read one inbox file with the vision model and get its facts: kind, date, period, supplier, buyer, document number, allocation number, amounts, confidence and issues. One file can hold several documents. A file is read once per run (a second call returns the same facts); model strong re-reads it once with the stronger model, only if no row was made from the first reading. The facts are final: you cannot change them.",
+  description: "Read one inbox file with the vision model and get its facts: kind, date, period, supplier, buyer, document number, allocation number, amounts, confidence and issues. One file can hold several documents. A file is read once per run (a second call returns the same facts); model strong re-reads it once with the stronger model, only if no row was made from the first reading. The facts are final: you cannot change them. A page of a PDF that gave no document comes back as a fact of its own with the issue page_not_read (listed in pages_without_document); add it as unclear for the user to look at, or leave it: the code adds it anyway.",
   schema: {
     type: "object",
     required: ["file"],
@@ -63,9 +79,13 @@ export default {
     }
     if (!records.length && skipped) throw new ToolError("unavailable", "The answer of the model was not valid. Try again, or use the strong model.");
 
+    // Every page of a PDF must end as a row: the pages the model returned nothing for get a fact of their own (page_not_read).
+    const unread = await pagesWithoutDocument(entry, records, ctx);
+    for (const page of unread) records.push(pageNotReadRecord(page));
+
     if (stored) ctx.handles.dropFacts(args.file);
     const facts = records.map((record, index) => ctx.handles.createFact(args.file, index + 1, { file: args.file, entry, record }));
-    const state = { tries: (stored?.tries ?? 0) + 1, facts, skipped, model: strong ? "strong" : "default" };
+    const state = { tries: (stored?.tries ?? 0) + 1, facts, skipped, unread, model: strong ? "strong" : "default" };
     ctx.run.extractions.set(args.file, state);
     ctx.run.fileStatus.set(args.file, "extracted");
     return present(args.file, state, ctx);

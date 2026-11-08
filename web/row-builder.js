@@ -18,6 +18,7 @@ export const REASON_TEXT = {
   bad_vat_id: "ספרת הביקורת של ע.מ. הספק אינה תקינה",
   no_date: "אין תאריך קריא",
   foreign_currency: "מטבע זר",
+  page_not_read: "בעמוד הזה לא זוהה מסמך – לבדוק את העמוד",
   buyer_mismatch: "המסמך מיועד לקונה אחר",
   duplicate: "כפילות",
   possible_duplicate: "חשד לכפילות",
