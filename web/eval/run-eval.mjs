@@ -1,4 +1,6 @@
-// npm run eval [-- --case name,name] [--repeat 2] [--model id] [--out folder]
+// npm run eval [-- --case name,name] [--repeat 2] [--model id] [--out folder] [--api url]
+// --api: another Worker than config.js names, such as the lab's local one (http://127.0.0.1:8787) with the lab's test code.
+// --read: the files of a case that have a source (eval/files/) are read by the real vision call, and the reading is checked too.
 // Runs the cases of eval/cases against the real model through the Worker, as the page does, and prints what passed. The access
 // code comes from the environment variable ANNATERIA_CODE (typed by the owner in his terminal); it and the token stay in this
 // process. Every run costs money on the paid tier, so this is never part of npm test or CI. The report (synthetic data only)
@@ -9,7 +11,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createAccess } from "../access.js";
+import { createExtractionAdapter } from "../agent/adapters/extraction.js";
 import { MODELS } from "../agent/models.js";
+import { instructionFor, loadSkills } from "../agent/skills.js";
 import { createModelClient } from "../model-client.js";
 import { checkCase, diskSkills, loadCases, runCase } from "./eval-core.mjs";
 
@@ -23,6 +27,8 @@ const { values: options } = parseArgs({
     repeat: { type: "string", default: "2" },
     model: { type: "string", default: "" },
     out: { type: "string", default: join(tmpdir(), "annateria-eval") },
+    api: { type: "string", default: "" },
+    read: { type: "boolean", default: false },
   },
 });
 
@@ -62,9 +68,12 @@ async function main() {
   const repeat = Math.max(1, Number.parseInt(options.repeat, 10) || 1);
   const cases = await loadCases(join(webDirectory, "eval", "cases"), options.case ? options.case.split(",").map((name) => name.trim()) : []);
   const models = { ...MODELS, ...(options.model ? { orchestrator: options.model } : {}) };
-  const modelClient = await connect(await workerUrl(), code);
+  const modelClient = await connect(options.api || (await workerUrl()), code);
   const fetchSkill = diskSkills(webDirectory);
-  console.log(`${cases.length} cases x ${repeat}, orchestrator ${models.orchestrator}`);
+  const reader = options.read
+    ? createExtractionAdapter({ client: modelClient, prompt: instructionFor("extraction", await loadSkills(fetchSkill)), models })
+    : null;
+  console.log(`${cases.length} cases x ${repeat}, orchestrator ${models.orchestrator}${reader ? ", real reading" : ""}`);
 
   const report = { startedAt: new Date().toISOString(), models, repeat, cases: [] };
   let failed = 0;
@@ -72,12 +81,13 @@ async function main() {
   for (const spec of cases) {
     const runs = [];
     for (let attempt = 1; attempt <= repeat; attempt += 1) {
-      const outcome = await runCase(spec, { modelClient, fetchSkill, getModels: () => models });
+      const outcome = await runCase(spec, { modelClient, fetchSkill, getModels: () => models, reader });
       const checks = checkCase(spec, outcome);
       const { result } = outcome;
       runs.push({
         attempt, checks, status: result.status, text: result.text ?? result.error ?? "", turns: result.turns, toolCalls: result.toolCalls,
         tokens: result.log ? tokens(result.log) : { input: 0, output: 0 }, cards: outcome.cards, rows: outcome.rows, left: outcome.left,
+        readings: outcome.readings,
         log: result.log?.entries ?? [],
       });
       const bad = checks.filter((item) => !item.ok);

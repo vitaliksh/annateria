@@ -3,14 +3,18 @@
 // how the model put it. The vision call is replaced by the facts of the case, so the eval measures the decisions of the
 // orchestrator and its skills. run-eval.mjs runs it against the real model through the Worker; test/eval.test.mjs against a
 // scripted model. All names, numbers and amounts of the cases are invented.
+// Reading mode (run-eval --read): a file of a case with `source` (a synthetic document under eval/files/) is read by the real vision
+// call, and what it read is checked against the records of the case (date, total, currency, number), so the reading is measured too.
 import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { buildMessage, createAssistantFlow } from "../assistant-flow.js";
 import { saveClientChart } from "../chart-of-accounts.js";
 import { createDeclaration, finalizeDeclaration, listDeclarations, loadDeclaration, saveDraft } from "../declaration-store.js";
 import { addToInbox, readInboxIndex } from "../inbox-store.js";
 import { binaryDirectory } from "../test/memory-binary-directory.mjs";
 
+const EVAL_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 // A handle the user must never read (docs/AGENT_TOOLS.md, section 3).
 const HANDLE = /\b[CFRQPI][1-9]\d*(?:\.[1-9]\d*)?\b/;
 const TYPES = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", pdf: "application/pdf" };
@@ -75,8 +79,8 @@ export async function buildWorld(spec) {
   }
   for (const file of spec.inbox) {
     const type = TYPES[file.name.split(".").pop().toLowerCase()] ?? "";
-    // The bytes only have to differ per file: the stand-in of the vision call never reads them.
-    const bytes = new TextEncoder().encode(`${spec.name}/${file.name}`);
+    // The bytes only have to differ per file: the stand-in of the vision call never reads them. A file with a source is the real document.
+    const bytes = file.source ? await readFile(join(EVAL_DIRECTORY, file.source)) : new TextEncoder().encode(`${spec.name}/${file.name}`);
     const folder = spec.open ? { folder: spec.open.client, month: spec.open.month } : {};
     const added = new File([bytes], file.name, { type, lastModified: Date.UTC(2026, 0, 1) });
     await addToInbox(root, [added], { now: `${spec.today}T08:00:00.000Z`, ...folder });
@@ -85,13 +89,22 @@ export async function buildWorld(spec) {
 }
 
 // The stand-in of the vision call: the records of the case for the file, as the model would return them (the tool cleans them).
-export function extractionFor(spec) {
+// reader: the real vision adapter in reading mode; it reads every file that has a source, and `readings` keeps what it read.
+export function extractionFor(spec, { reader = null } = {}) {
   const byName = new Map(spec.inbox.map((file) => [file.name, file.records]));
+  const sources = new Set(spec.inbox.filter((file) => file.source).map((file) => file.name));
   const calls = [];
+  const readings = {};
   return {
     calls,
-    async run(entry) {
+    readings,
+    async run(entry, file, options) {
       calls.push(entry.name);
+      if (reader && sources.has(entry.name)) {
+        const result = await reader.run(entry, file, options);
+        readings[entry.name] = result.records;
+        return result;
+      }
       const records = byName.get(entry.name);
       if (!records) throw new Error(`The case has no facts for ${entry.name}.`);
       return { records: records.map((record) => ({ ...BLANK_RECORD, ...record })), model: "eval-facts" };
@@ -128,7 +141,7 @@ async function agentRows(clients, runId) {
 }
 
 // modelClient: createModelClient(...) or anything with generate(). Resolves with what the checks read and the reports keep.
-export async function runCase(spec, { modelClient, fetchSkill, getModels, signal, onProgress } = {}) {
+export async function runCase(spec, { modelClient, fetchSkill, getModels, signal, onProgress, reader = null } = {}) {
   const { root, clients } = await buildWorld(spec);
   const cards = [];
   const proposals = [];
@@ -140,7 +153,7 @@ export async function runCase(spec, { modelClient, fetchSkill, getModels, signal
     propose: async (proposal) => { proposals.push(proposal); },
     importCard: async () => {},
   };
-  const extraction = extractionFor(spec);
+  const extraction = extractionFor(spec, { reader });
   const flow = createAssistantFlow({
     modelClient, getDataRoot: () => root, getClients: () => clients, fetchSkill, now: () => `${spec.today}T09:00:00.000Z`, extraction,
     ...(getModels ? { getModels } : {}),
@@ -157,7 +170,7 @@ export async function runCase(spec, { modelClient, fetchSkill, getModels, signal
   for (const client of clients) {
     for (const { declaration } of await listDeclarations(client.directory)) states[`${client.entryName} ${declaration.month}`] = declaration.status;
   }
-  return { result, cards, proposals, extracted: extraction.calls, rows: result.runId ? await agentRows(clients, result.runId) : [], left, called, states };
+  return { result, cards, proposals, extracted: extraction.calls, readings: extraction.readings, rows: result.runId ? await agentRows(clients, result.runId) : [], left, called, states };
 }
 
 const check = (name, ok, detail = "") => ({ name, ok: Boolean(ok), detail: ok ? "" : detail });
@@ -205,5 +218,27 @@ export function checkCase(spec, outcome) {
   for (const name of expect.kept ?? []) checks.push(check(`kept ${name}`, left.includes(name), "left the inbox"));
   for (const name of expect.called ?? []) checks.push(check(`called ${name}`, outcome.called.includes(name), `called: ${outcome.called.join(", ")}`));
   for (const key of expect.stillOpen ?? []) checks.push(check(`still open ${key}`, outcome.states[key] === "open", `${outcome.states[key]}`));
+  checks.push(...readingChecks(spec, outcome.readings ?? {}));
+  return checks;
+}
+
+// Reading mode: every record of a file with a source must be found among what the model read, with the same facts.
+const READ_FIELDS = ["date", "document_number", "currency", "total"];
+// A document number is compared by its letters and digits: "US 551" and "US-551" are one number.
+const plain = (value) => String(value ?? "").toUpperCase().replace(/[^\p{L}\p{N}]/gu, "");
+const sameFact = (field, read, wanted) => (field === "total" ? Math.abs(Number(read) - Number(wanted)) < 0.005 : plain(read) === plain(wanted));
+function readingChecks(spec, readings) {
+  const checks = [];
+  for (const file of spec.inbox.filter((item) => item.source && readings[item.name])) {
+    const read = readings[file.name];
+    checks.push(check(`read ${file.name}: ${file.records.length} documents`, read.length === file.records.length, `${read.length} read`));
+    for (const wanted of file.records) {
+      const fields = READ_FIELDS.filter((field) => wanted[field] !== undefined && wanted[field] !== null);
+      const best = read.find((record) => sameFact("document_number", record.document_number, wanted.document_number)) ?? read[0];
+      const wrong = fields.filter((field) => !best || !sameFact(field, best[field], wanted[field]));
+      const told = wrong.map((field) => `${field} ${JSON.stringify(best?.[field])}, expected ${JSON.stringify(wanted[field])}`);
+      checks.push(check(`read ${file.name} ${wanted.document_number ?? ""}`.trim(), !wrong.length, told.join("; ")));
+    }
+  }
   return checks;
 }

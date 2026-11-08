@@ -76,6 +76,7 @@
   "inbox": [
     {
       "name": "saas-sep.pdf",
+      "source": "files/saas-sep.pdf",
       "records": [
         {
           "supplier_name": "Overseas Soft Inc",

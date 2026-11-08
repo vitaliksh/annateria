@@ -140,3 +140,18 @@ test("a run that fails is reported with its status", async () => {
   assert.equal(completed.ok, false);
   assert.match(completed.detail, /^status failed/);
 });
+
+// Reading mode (run-eval --read): what the real vision call read is checked against the records of the case.
+test("reading mode checks the date, number, currency and total that were read", () => {
+  const spec = {
+    inbox: [{ name: "doc.pdf", source: "files/saas-sep.pdf", records: [{ document_number: "US-551", date: "2026-09-03", currency: "USD", total: 50 }] }],
+  };
+  const outcome = (records) => ({ result: { status: "completed", text: "" }, rows: [], cards: [], left: [], called: [], states: {}, readings: { "doc.pdf": records } });
+  const reading = (checks) => checks.filter((item) => item.name.startsWith("read "));
+  const right = reading(checkCase(spec, outcome([{ document_number: "US 551", date: "2026-09-03", currency: "usd", total: 50.001 }])));
+  assert.deepEqual(right.map((item) => item.ok), [true, true]);
+  const wrong = reading(checkCase(spec, outcome([{ document_number: "US-551", date: "2026-09-03", currency: "ILS", total: 50 }])));
+  assert.equal(wrong[1].ok, false);
+  assert.match(wrong[1].detail, /currency "ILS", expected "USD"/);
+  assert.deepEqual(reading(checkCase(spec, { ...outcome([]), readings: {} })), [], "no reading, no reading checks");
+});
