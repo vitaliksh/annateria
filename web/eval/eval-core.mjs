@@ -4,9 +4,10 @@
 // orchestrator and its skills. run-eval.mjs runs it against the real model through the Worker; test/eval.test.mjs against a
 // scripted model. All names, numbers and amounts of the cases are invented.
 // Reading mode (run-eval --read): a file of a case with `source` (a synthetic document under eval/files/) is read by the real vision
-// call, and what it read is checked against the records of the case (date, total, currency, number), so the reading is measured too.
+// call, and what it read is checked against the records of the case (date, number, currency, total, VAT), so the reading is measured too.
+// A source may be an absolute path: the lab keeps cases with real documents outside the repository (run-eval --cases <folder>).
 import { readFile, readdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildMessage, createAssistantFlow } from "../assistant-flow.js";
 import { saveClientChart } from "../chart-of-accounts.js";
@@ -80,7 +81,7 @@ export async function buildWorld(spec) {
   for (const file of spec.inbox) {
     const type = TYPES[file.name.split(".").pop().toLowerCase()] ?? "";
     // The bytes only have to differ per file: the stand-in of the vision call never reads them. A file with a source is the real document.
-    const bytes = file.source ? await readFile(join(EVAL_DIRECTORY, file.source)) : new TextEncoder().encode(`${spec.name}/${file.name}`);
+    const bytes = file.source ? await readFile(resolve(EVAL_DIRECTORY, file.source)) : new TextEncoder().encode(`${spec.name}/${file.name}`);
     const folder = spec.open ? { folder: spec.open.client, month: spec.open.month } : {};
     const added = new File([bytes], file.name, { type, lastModified: Date.UTC(2026, 0, 1) });
     await addToInbox(root, [added], { now: `${spec.today}T08:00:00.000Z`, ...folder });
@@ -223,10 +224,11 @@ export function checkCase(spec, outcome) {
 }
 
 // Reading mode: every record of a file with a source must be found among what the model read, with the same facts.
-const READ_FIELDS = ["date", "document_number", "currency", "total"];
+const READ_FIELDS = ["date", "document_number", "currency", "total", "vat"];
 // A document number is compared by its letters and digits: "US 551" and "US-551" are one number.
 const plain = (value) => String(value ?? "").toUpperCase().replace(/[^\p{L}\p{N}]/gu, "");
-const sameFact = (field, read, wanted) => (field === "total" ? Math.abs(Number(read) - Number(wanted)) < 0.005 : plain(read) === plain(wanted));
+const MONEY_FIELDS = new Set(["total", "vat"]);
+const sameFact = (field, read, wanted) => (MONEY_FIELDS.has(field) ? Math.abs(Number(read ?? 0) - Number(wanted)) < 0.005 : plain(read) === plain(wanted));
 function readingChecks(spec, readings) {
   const checks = [];
   for (const file of spec.inbox.filter((item) => item.source && readings[item.name])) {
