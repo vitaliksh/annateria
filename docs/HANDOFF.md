@@ -3,13 +3,15 @@
 The present state only, at most 80 lines. Rules: `../AGENTS.md`. Plan: `WORK_PLAN.md`. Old notes: `archive/HANDOFF-to-2026-11-07.md`; search it by name when needed
 (repository map, deployed versions, Cloudflare and Gemini facts), do not read it through.
 
-## State on 7 November 2026
+## State on 8 November 2026
 
 - **M0 done.** One document of client B through the real app and the real Gemini; row equal to my reading.
 - **M1 done in its first form.** The law read for every OPEN and WEB rule (`trade-rules.md`, sources in the lab's `law` folder); worked examples added; a fresh agent with only the skill answered 20 situations in line with the key (`D:\ANNATERIA-LAB\runs\m1-situations`). Continues with every exam.
 - **M2 done.** A and B from nothing by the buttons, twice: by me, then by an independent agent with only the skill. VAT, advances, every P&L line and every ledger total equal Rivhit; backup and restore equal; the P&L now also has Rivhit's cost-of-sales group. Fixes from both runs are in; what is still awkward on screen is listed in `D:\ANNATERIA-LAB\findings.md`.
 - **M3 done.** `node tools/gate/anna-day.mjs` runs before every push of `web/` (`.githooks/pre-push`); `node tools/gate/prove.mjs` shows it fails on each bug of 6 November. `npm run check` fails on undeclared names.
 - **M4 done.** Real documents through the real agent, against my reading and Anna's journals, each with a clean repeat: B's 21-page scan, B's 15 phone photos (14 rows equal her journals, VAT to the agora at 66%), C's photographed ledger (47 of 47 lines exact), D's two scans (25 rows), E's two-month pack (34 pages). Lost 0, false ready 0 on every clean repeat. Targets from the baseline: wrong account at most 1 in 20 rows, hand corrections at most 1 in 10. B's September (36 photos, two PDFs) checked against my own reading: 0 lost, 0 false ready after the receipt-and-invoice fix. Scorecards in the lab's `runs`.
+- **M5:** Hebrew rules sheet for Anna (`docs/anna/rules-he.md`); rules that made me better are in `web/skills/` (classification v6).
+- **M6 under way.** Backup to the Drive test folder `G:\My Drive\ANNATERIA-TEST` and restore into an empty folder: equal file by file. Two PCs (a second Chrome profile): the baton and the copy go both ways; two defects found and fixed (the last copy on "finish work", the baton taken back). Cut: PCN874 of a real month (double-entry client; Anna will not keep double-entry books). Next in M6: VAT month on both reports, foreign currency, client rules, ledger check, dead code, the list of new Hebrew strings, then the independent agent's two exams.
 - `main` has everything. Web 1008 tests, Worker 69.
 - Published page: <https://vitaliksh.github.io/annateria/>. Worker: `https://annateria.vitaliksh.workers.dev`, version `2026.10.23.2`. Details are in `worker/DEPLOYMENT.md`.
 - Anna has the app and tried it on 25 and 31 October, and is waiting for a product that works. Anna's time is not to be spent on testing. Questions for Anna go as a short list.
@@ -22,7 +24,6 @@ The present state only, at most 80 lines. Rules: `../AGENTS.md`. Plan: `WORK_PLA
 - 29 checkboxes of the old plan stayed open, many only waiting for a click by the owner. M2, M4 and M6 cover them; no need to tick old boxes.
 - Open rules are listed in `.claude/skills/bookkeeper/references/trade-rules.md`. Defects and questions of the exams: `D:\ANNATERIA-LAB\findings.md`.
 - Anna answered on 7 November (rules in `trade-rules.md`, dated): journals never miss ledger operations (now a discrepancy to review); B is two-monthly; B's advances 23% monthly; a late invoice may be deducted; a fixed asset is one item of 1,000 or more; the account of a subscription does not matter. A water bill paid by standing order: the six months run from the invoice's date.
-- `npm run check` is syntax only, until M3.
 - Agent rows do not keep what the agent first read in a usable form (`row.agent.fact` is not an object), so hand corrections cannot be counted from the table. The scorecard counts them for now. Run logs (`common/agent-runs/`) may help; not checked.
 
 ## Environment
