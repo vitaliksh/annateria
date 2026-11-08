@@ -106,7 +106,7 @@ test("add_rows: the decision decides the status; an account outside the chart is
 
 // Step 9.6: every document of the month becomes a row of the month; what the facts doubt marks the row, never moves or refuses it.
 test("add_rows: a buyer that is another business is written into the month and marked to look at; no buyer is no doubt", async () => {
-  const { w, dispatch, factsOf, levi } = await session([[rawRecord({ buyer_vat_id: "999999990", document_number: "B-1" }), rawRecord({ buyer_vat_id: null, document_number: "B-2" })]]);
+  const { w, dispatch, factsOf, levi } = await session([[rawRecord({ buyer_vat_id: "999999990", document_number: "B-1" }), rawRecord({ buyer_vat_id: null, document_number: "B-2", net: 50, vat: 9, total: 59 })]]);
   const [other, none] = await factsOf("photo.jpg");
   const rows = (await dispatch("add_rows", { client: levi, rows: [decision(other), decision(none)] })).rows;
   assert.deepEqual(rows.map((row) => [row.state, row.month, row.status]), [["created", "2026-02", "review"], ["created", "2026-02", "ready"]]);
@@ -507,5 +507,6 @@ test("a document of the first month of a two-month VAT period is in its own peri
   assert.equal(sameVatPeriod("bimonthly", "2026-07", "2026-08"), true, "July in August: one report");
   assert.equal(sameVatPeriod("bimonthly", "2026-06", "2026-08"), false, "June was filed with May");
   assert.equal(sameVatPeriod("bimonthly", "2026-08", "2026-09"), false);
+  assert.equal(sameVatPeriod("bimonthly", "2026-10", "2026-09"), true, "October in September: one report too");
   assert.equal(sameVatPeriod("monthly", "2026-07", "2026-08"), false, "a monthly client filed July alone");
 });

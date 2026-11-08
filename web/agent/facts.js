@@ -64,7 +64,8 @@ export async function computeFacts(ctx, args) {
   if (facts.deduction === "check") reasons.add("deduction_check");
   if (facts.deduction === "late") reasons.add("deduction_late");
   // A document dated after the month it goes into: its VAT cannot be deducted before its date (owner, 2 November 2026).
-  if (facts.docMonth && facts.docMonth > facts.targetMonth) reasons.add("doc_after_month");
+  // In a two-month period both months are reported together, so a document of the second month in the first is in its own period too.
+  if (facts.docMonth && facts.docMonth > facts.targetMonth && !sameVatPeriod(profile.vatPeriod, facts.docMonth, facts.targetMonth)) reasons.add("doc_after_month");
   // A document of an earlier month goes into the open month, marked: the earlier month is filed and paid (owner, 6 November 2026).
   // A document for a period is judged by its period, and a previous year has its own reason.
   // A client who reports VAT for two months files both months together: a document of the first month in the second one is in

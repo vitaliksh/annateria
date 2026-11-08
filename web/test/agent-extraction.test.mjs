@@ -286,11 +286,11 @@ test("facts_for sees the rows made earlier in the same run, so a second copy is 
 
 test("facts_for reads the open table as it is on screen", async () => {
   let live = null;
-  const { dispatch, client, factOf } = await factsFixture([rawRecord({ date: "2026-02-14", document_number: "SCREEN-1", supplier_vat_id: "512345679", net: 100, vat: 18, total: 118 })], { liveTable: () => live });
+  const { dispatch, client, factOf } = await factsFixture([rawRecord({ date: "2026-02-16", document_number: "SCREEN-1", supplier_vat_id: "512345679", net: 100, vat: 18, total: 118 })], { liveTable: () => live });
   const fact = await factOf();
   const levi = await client("Levi");
   assert.equal((await dispatch("facts_for", { fact, client: levi })).duplicates.level, null);
-  live = { clientId: "id-Levi", month: "2026-02", rows: [{ documentId: "typed", values: ["14/02/2026", "", "", "Paper Shop", "512345679", "SCREEN-1", "", "118", "100", "18"], rawNet: 100, rawVat: 18, reference: "SCREEN-1", active: true }] };
+  live = { clientId: "id-Levi", month: "2026-02", rows: [{ documentId: "typed", values: ["16/02/2026", "", "", "Paper Shop", "512345679", "SCREEN-1", "", "118", "100", "18"], rawNet: 100, rawVat: 18, reference: "SCREEN-1", active: true }] };
   assert.equal((await dispatch("facts_for", { fact, client: levi })).duplicates.level, "strong");
 });
 

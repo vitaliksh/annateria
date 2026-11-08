@@ -150,7 +150,11 @@ function similarity(candidate, entry) {
     if (sameSupplier(candidate, entry)) return "strong";
     return sameDate && candidate.reference.length >= 3 ? "likely" : null;
   }
-  return (!candidate.reference || !entry.reference) && sameDate && sameSupplier(candidate, entry) ? "possible" : null;
+  // Same supplier, date and amount under another number: often the receipt of a shop and the tax invoice printed for the same
+  // purchase (M4 exam, 8 November 2026: three such pairs were both "ready"). Only a mark; two real purchases stay possible.
+  // Two full references with the same last digits are a series of one supplier (an insurer's yearly letters): different documents.
+  const series = candidate.fullReference && entry.fullReference && candidate.referenceTail && candidate.referenceTail === entry.referenceTail;
+  return sameDate && !series && sameSupplier(candidate, entry) ? "possible" : null;
 }
 
 // entries: entryFromRow results of every active row to search. A row never matches itself or another record of the

@@ -83,10 +83,12 @@ test("no reference: only the same supplier, date and amount is possible; differe
   assert.equal(findDuplicates([entry("old", "12/02/26", 118, "2026-02")], candidate("new", "12/02/26", 118, "2026-09", { supplierId: "510000001" })).level, null);
 });
 
-test("a different amount, another reference or an earlier month than the window is not a duplicate", () => {
+test("a different amount, another reference on another day or an earlier month than the window is not a duplicate", () => {
   const entries = [entry("old", "12/02/26", 118, "2026-02")];
   assert.equal(findDuplicates(entries, candidate("new", "12/02/26", 120, "2026-09")).level, null);
-  assert.equal(findDuplicates(entries, candidate("new", "12/02/26", 118, "2026-09", { reference: "5502" })).level, null);
+  // Another number from the same supplier on the same day for the same amount: the receipt and the tax invoice of one purchase. A mark only.
+  assert.equal(findDuplicates(entries, candidate("new", "12/02/26", 118, "2026-09", { reference: "5502" })).level, "possible");
+  assert.equal(findDuplicates(entries, candidate("new", "13/02/26", 118, "2026-09", { reference: "5502" })).level, null);
   assert.equal(findDuplicates(entries, candidate("new", "12/02/26", 118, "2026-09"), { fromMonth: "2026-03" }).level, null);
 });
 
