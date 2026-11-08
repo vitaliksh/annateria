@@ -58,8 +58,9 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 - **The amounts of a share, ANNA (21 Oct 2026).** Two cases. VAT only at a share (car, mobile): gross stays the total with VAT, VAT is the invoice's VAT times the percent, net is gross minus VAT. Expense and VAT both at a share (home, 25%): all three amounts take the percent. This is `recognisedAmounts`.
 - **Example, code rule.** Net 100 and VAT 18, expense at 100%, VAT at 66%: gross 118.00, net 106.12, VAT 11.88. The VAT that cannot be deducted
   stays in the expense.
-- **Foreign currency, ANNA.** Entered in shekels at the rate of the date the invoice was received. The app does not convert yet,
-  so the row goes to review. A software vendor's guide reads the rate at the document's date (WEB); Anna's practice stands until she says otherwise.
+- **Foreign currency, ANNA (8 Nov 2026, through the owner).** Always entered in shekels at the rate of the moment of the payment
+  (the transfer). This replaces "the date the invoice was received". The app does not convert, so the row goes to review with the
+  reason; never guess a rate. Real sample: a Zoom invoice in USD among the ocr examples.
 - **A loose account fit is not ready, ANNA practice.** With no account of that kind, give the near one and mark it to review.
 
 ## Reading a document

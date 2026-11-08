@@ -59,7 +59,8 @@ The harder days in `references/month-cycle.md`, and the items below. Fix or cut 
 - ~~PCN874 of a real month (old 6.4.4)~~: cut, the only sample with a PCN874 keeps double-entry books, which Anna does not keep.
   Old 9.8 VAT month on both reports: done in the lab, a sale and a purchase of a monthly client moved to the next month (8 November 2026).
 - ~~Vehicle at 66.67% for real charts of accounts~~: done, 66% by account code or name (8 November 2026).
-- Client rules (old 4.6.1), ledger check (old 4.7.4), foreign currency.
+- Client rules (old 4.6.1), ledger check (old 4.7.4). Foreign currency: done, a real Zoom invoice in USD goes to review with the
+  reason, converted by Anna at the rate of the day of payment (8 November 2026).
 - Dead code named in the archive: the client chooser, `agent/aliases.js`, `lockProblem`, `offerDistribution` and others.
 - Text on screen that was never checked: new Hebrew strings of 9.x, for Anna's list.
 - **Physically needs people:** phone scanning on Anna's Android (old 2.5.2).
@@ -78,6 +79,7 @@ One line each, newest first.
 
 | Date | Decision |
 | --- | --- |
+| 2026-11-08 | Anna (through the owner): foreign currency is always converted at the rate of the day of payment; the app marks, Anna converts. |
 | 2026-11-08 | Owner: Anna will not keep double-entry books, so journal entry vouchers are not imported and PCN874 of such a client is not tested. |
 | 2026-11-08 | Owner: the lab may write to `G:\My Drive\ANNATERIA-TEST` (encryption optional there); nothing else of the real Drive. |
 | 2026-11-08 | Anna: two thirds of VAT is 66%, as in her Rivhit; rows saved at 66.67% keep it. A two-monthly client's first month in the second is not "before the month". |

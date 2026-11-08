@@ -1,7 +1,7 @@
 {
   "classification": {
-    "version": 6,
-    "sha256": "190cc9cb9e2f8004861f915890f6dccd9a1762ff5025040fbf8cd544edb82b54"
+    "version": 7,
+    "sha256": "a9672a242aa32bbf7213bf997a8fa533bb1e161e6cafdee85cdf82e0a73b651f"
   },
   "invoice-extraction": {
     "version": 3,

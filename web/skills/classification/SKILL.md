@@ -2,7 +2,7 @@
 name: classification
 description: Decides what a document is for the books (an expense, not an expense or unclear) and which account of the client's chart fits an expense. Used by the orchestrator when it adds rows with add_rows.
 metadata:
-  version: 6
+  version: 7
 ---
 CLASSIFICATION: what a document is for the books and its account.
 
@@ -22,6 +22,6 @@ A LIST OF BOOKED DOCUMENTS: one file can hold many records read from a ledger pr
 
 A LOOSE FIT IS NOT READY: when the client has no account of that kind and only a general one comes near, give that account but set needs_review true and say in the reason that the account is only a loose fit. When no account fits at all, give none and set needs_review true.
 
-A FOREIGN CURRENCY: the bookkeeper enters such an invoice in shekels, at the exchange rate of the date the invoice was received. The software does not convert yet: set needs_review true and say in the reason that the amounts are in a foreign currency and must be converted to shekels at the rate of the date of receipt. Never convert or guess a rate yourself.
+A FOREIGN CURRENCY: the bookkeeper always enters such an invoice in shekels, at the exchange rate of the moment it was paid (the transfer). The software does not convert: set needs_review true and say in the reason that the amounts are in a foreign currency and must be converted to shekels at the rate of the day of payment. Never convert or guess a rate yourself.
 
 THE REASON is one short Hebrew sentence: what the document is, the decision and the name of the account; add the fact of the software when there is one (a duplicate, a previous year, a late VAT deduction, an invoice above the allocation ceiling).
