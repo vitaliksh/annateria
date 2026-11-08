@@ -85,6 +85,7 @@ One line each, newest first.
 
 | Date | Decision |
 | --- | --- |
+| 2026-11-08 | Owner: after M7, a batch import of Rivhit exports (journals, codes ledger) for all clients, current year only; Anna has the desktop Rivhit, whose data the Rivhit API does not reach. |
 | 2026-11-08 | Anna (through the owner): foreign currency is always converted at the rate of the day of payment; the app marks, Anna converts. |
 | 2026-11-08 | Owner: Anna will not keep double-entry books, so journal entry vouchers are not imported and PCN874 of such a client is not tested. |
 | 2026-11-08 | Owner: the lab may write to `G:\My Drive\ANNATERIA-TEST` (encryption optional there); nothing else of the real Drive. |
