@@ -38,7 +38,7 @@ Turn what you did in M2 into a repeatable run of "Anna's day" in a real browser,
 
 *Done when:* the gate fails on each of the three bugs of 6 November 2026 when you put them back (`view is not defined`; a month opened by click refused by the agent; a big PDF refused), and passes on the fix.
 
-## M4. Documents exam, with the real agent
+## M4. Documents exam, with the real agent (done 8 November 2026)
 
 The hard half. Client B's real scan waiting in the inbox first, then B's September and October, C's photographed ledger, D's months, the photos of `examples`, and `pdf examples`. Read each document yourself before looking at the agent's rows. Use the scorecard of the skill.
 
@@ -76,6 +76,7 @@ One line each, newest first.
 
 | Date | Decision |
 | --- | --- |
+| 2026-11-08 | Anna: two thirds of VAT is 66%, as in her Rivhit; rows saved at 66.67% keep it. A two-monthly client's first month in the second is not "before the month". |
 | 2026-11-07 | The gate: `tools/gate/anna-day.mjs` (headless Chrome, fake Worker, scripted model, a 21 MiB scan, the folder picker replaced by a folder of the browser's private file system). `tools/gate/prove.mjs` shows it fails on each bug of 6 November. `npm run check` now fails on undeclared names. |
 | 2026-11-07 | Journal wizard: a missing month is created without a second question; leaving a month asks nothing (it is saved and closed anyway). Found as friction in the M2 exam. |
 | 2026-11-07 | The lab runs in a separate real Chrome, not in the desktop app's embedded browser, which aborts the folder picker. Windows dialogs and Chrome's prompts are answered by real controls (`tools/windows-dialog.ps1`), so folder permission bugs stay visible. |
