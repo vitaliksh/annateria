@@ -55,6 +55,9 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 - **Subscriptions of foreign services, ANNA (7 Nov 2026).** Google, Apple, Zoom: advertising or upkeep, "it does not matter". Not counted as a wrong account.
 - **Fixed asset or consumable, ANNA (7 Nov 2026).** A fixed asset is usually a single item of 1,000 shekels or more. Sports weights and mats bought together are
   consumables, not fixed assets.
+- **Example of a fixed asset, SAMPLE (8 Nov 2026).** Client B: one shading installation for the studio, above 1,000, is a fixed asset; an
+  invoice of fourteen weights and mats, none above a few hundred, is consumables though its total is above 1,000. The reader sees only the
+  total, so the classification skill takes equipment only for one named item.
 - **The amounts of a share, ANNA (21 Oct 2026).** Two cases. VAT only at a share (car, mobile): gross stays the total with VAT, VAT is the invoice's VAT times the percent, net is gross minus VAT. Expense and VAT both at a share (home, 25%): all three amounts take the percent. This is `recognisedAmounts`.
 - **Example, code rule.** Net 100 and VAT 18, expense at 100%, VAT at 66%: gross 118.00, net 106.12, VAT 11.88. The VAT that cannot be deducted
   stays in the expense.
@@ -68,6 +71,16 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 - **The supplier's number is its VAT file number, SAMPLE (8 Nov 2026).** A toll road and a mobile operator print company numbers and,
   beside them, the number of a union of dealers (or an authorised dealer number); the union's number is the VAT file. Found by the
   independent exam on D's scans: the app took a company number, three rows were ready with it. Extraction skill v4.
+- **A till receipt and the tax invoice of one purchase, LAW and SAMPLE (8 Nov 2026).** A supermarket prints a "חשבונית / קבלה" with only the
+  total and, on request, a tax invoice with the VAT. VAT is deducted only from a tax invoice that shows it (s. 38(a)); the receipt is the same
+  purchase. Keep the tax invoice, switch the receipt off; when only the receipt exists, it is an expense with VAT 0.
+- **A total that says it includes VAT, SAMPLE (8 Nov 2026).** A mobile operator's bill prints only "סה״כ כולל מע״מ". The bookkeeper deducts its
+  VAT: total minus total/1.18, then two thirds (client B's own months). A receipt that says nothing of VAT (a foreign service: Apple, Google,
+  Zoom) has VAT 0. Extraction skill v6.
+- **A bill and its payment confirmation, SAMPLE (8 Nov 2026).** A water bill and the confirmation of its card payment, a property-tax voucher
+  and the municipal portal's confirmation: one expense. Keep the bill, switch the confirmation off. The dates differ, so the code only marks it.
+- **An insurer's letters of one policy, SAMPLE (8 Nov 2026).** The same policy number with another year in front (25/... and 26/...) is another
+  year's policy; a renewal letter of the current year repeats the confirmation. Only the current year's counts once; last year's copy is off.
 - **A document the client issued itself** is income. Supplier number equals the client's, usually with no buyer number.
 - **Dates** are day, month, year. A blurred year is often misread: a "previous year" on a bad photo should be doubted.
 - **The shekel sign** is not a digit. A number printed after it keeps its first digit.
@@ -80,12 +93,18 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 
 ## Months and periods
 
+- **A bad photo, OWNER (9 Nov 2026).** What the reading cannot see stays empty, never a guess; the row asks for a retake and is never ready.
+  A cropped receipt whose total is cut off was given an invented total by the model in the lab. The row's "צילום חדש" takes a better photo.
 - **The open month decides, OWNER (1 Nov 2026).** Every document in a month's inbox becomes a row of that month. Doubts become marks.
 - **A closed month is filed and paid, OWNER (6 Nov 2026).** It takes nothing. Two exceptions, each after a question: Rivhit's own files go to their own month,
   and VAT moved to a future month.
 - **Which month a document belongs to, ANNA (21 Oct 2026).** A yearly insurance: the month it was received. Electricity, telephone, water: the date of the invoice. A water bill that becomes a tax invoice only on payment: entered when received, and its six months run from the date of the invoice, standing order or not (7 Nov 2026). The agent does not move documents; these say what to mark when the open month differs.
 - **Dated after the month.** Written and marked: its VAT cannot be deducted before its date.
 - **Dated before the month.** Written and marked: that month is filed. **Earlier year:** excluded softly, the row stays.
+- **Two-monthly client, SAMPLE (8 Nov 2026).** Papers of the second month of the period scanned with the first are in the same VAT report; they
+  must not be entered again in the second month (the code finds such a copy in the earlier month since 8 Nov). Papers of the next period
+  (November for a 9-10 filer) are marked "after the month" and wait for that period. Papers of the filed period (August) are late: Anna may
+  still deduct them (her answer of 7 Nov).
 - **Declared together, SAMPLE.** A low-volume month may have no file of its own: one client's March is in journal 4, July in journal 8, so
   its VAT period 7 to 8 comes from declaration 08. This is normal; there is nothing to ask for.
 - **VAT and advance periods are separate client settings, SAMPLE.** Pairs are 1-2, 3-4, up to 11-12.
