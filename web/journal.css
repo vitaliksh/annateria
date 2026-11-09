@@ -462,3 +462,9 @@ tr[data-unreadable~="date"] > td:nth-child(3) {
   border-bottom: 1px solid var(--border);
   text-align: start;
 }
+
+/* A row whose reading is not reliable: the whole row is tinted, so it is seen at once in a long table (the owner, 9 November 2026). */
+#journal-table tr[data-unreadable] td {
+  /* Above the grey of a row left out of the reports: an unreadable row must be seen whether it is counted or not. */
+  background: var(--error-soft) !important;
+}

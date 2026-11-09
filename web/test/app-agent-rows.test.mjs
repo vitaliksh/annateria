@@ -40,7 +40,8 @@ test("rows of the agent are added at the end of the open table, with their value
   assert.equal(first.cells[17].querySelector("input").checked, true);
   assert.equal(first.cells[14].textContent, "חשבונית משרדית");
   assert.equal(first.cells[15].textContent, "92%");
-  assert.equal(first.cells[13].textContent, "—", "no original yet");
+  assert.equal(first.cells[13].firstChild.textContent, "—", "no original yet");
+  assert.equal(first.cells[13].querySelector(".retake-button").textContent, "צילום חדש", "every row can take a photo, with or without an original");
   assert.equal(app.appendSnapshots([snapshot({ document_number: "INV-9" }, { documentId: "agent-ffff-p2" })])[0], 3);
 });
 

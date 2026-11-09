@@ -1,17 +1,8 @@
-// "צילום חדש" on a row (the owner, 9 November 2026): a new photo of the same document replaces the original of the row (the old one
-// stays in the images of the month), only this document is read again, and the user applies the values that changed. Pure but for the
-// file it writes; the dialog is retake-ui.js and the page applies the values.
+// "צילום חדש" on a row (the owner, 9 November 2026): a new photo of the same document becomes the original of the row (the old one
+// stays in the images of the month), only this document is read again, and the row is filled from it at once, with what it cannot read
+// left empty. Pure but for the file it writes; the page fills the row.
 import { nextImageNumber } from "./inbox-store.js";
 import { displayDate, unreadableParts } from "./row-builder.js";
-
-export const RETAKE_FIELDS = Object.freeze([
-  { key: "date", label: "תאריך" },
-  { key: "supplier", label: "ספק" },
-  { key: "supplierId", label: "ע.מ./ת.ז" },
-  { key: "reference", label: "אסמכתא" },
-  { key: "gross", label: "כולל מע״מ" },
-  { key: "vat", label: "מע״מ" },
-]);
 
 const money = (value) => (value === "" || value === null || value === undefined || !Number.isFinite(Number(value)) ? "" : Number(value).toFixed(2));
 
@@ -44,6 +35,7 @@ export function recordFacts(record) {
     gross: blank ? "" : money(record.total),
     vat: blank ? "" : money(record.vat),
     net: blank ? "" : money(record.net),
+    unreadable,
   };
 }
 
@@ -55,16 +47,6 @@ export function pickRecord(records, current) {
   if (same) return same;
   const total = Number(current.gross);
   return [...records].sort((a, b) => Math.abs((Number(a.total) || 0) - total) - Math.abs((Number(b.total) || 0) - total))[0];
-}
-
-// The fields that differ: { key, label, from, to, apply } where apply is the default tick (a new value that is not empty).
-// Every field is shown, so that the user sees the whole document; a field whose value stays the same is not ticked.
-export function retakeChanges(current, next) {
-  return RETAKE_FIELDS.map(({ key, label }) => {
-    const from = String(current[key] ?? "");
-    const to = String(next[key] ?? "");
-    return { key, label, from, to, apply: to !== "" && to !== from };
-  });
 }
 
 // Writes the new photo as the next original of the month (001.jpg, 002.pdf, ...); the old original is not touched.

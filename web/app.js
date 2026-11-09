@@ -24,8 +24,7 @@ import { createExtractionAdapter } from "./agent/adapters/extraction.js";
 import { normalizeRecord } from "./agent/fact-record.js";
 import { fetchSkillFromSite, instructionFor, loadSkills } from "./agent/skills.js";
 import { pickRecord, recordFacts, rowFacts, saveRetakeImage } from "./retake-flow.js";
-import { setupRetake } from "./retake-ui.js";
-import { poorPages, poorPagesText } from "./quality-check.js";
+import { RETAKE_TEXT } from "./row-builder.js";
 import { addMovedLine, movedLine, removeMovedLine, vatMonths } from "./vat-move-flow.js";
 import { inspectImportTarget } from "./excel-import-store.js";
 import { createClientsHome } from "./clients-home.js";
@@ -689,18 +688,44 @@ function setRowImage(row, blob, imageFile, imageIndex) {
   row.cells[13].replaceChildren(open, retakeButton(row));
   imageCount = Math.max(imageCount, imageIndex);
 }
-// "צילום חדש" (the owner, 9 November 2026): a better photo of the same document for this row; see retake-flow.js.
+// "צילום חדש" on every row (the owner, 9 November 2026): a better photo of the same document; the row is filled from it at once.
+// One file picker serves every row.
+const retakePicker = Object.assign(document.createElement("input"), { type: "file", accept: ".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf", hidden: true });
+document.body.append(retakePicker);
+let retakeRow = null;
+retakePicker.addEventListener("change", () => {
+  const [file] = retakePicker.files ?? [];
+  retakePicker.value = "";
+  const row = retakeRow;
+  retakeRow = null;
+  if (file && row) retakeRowWith(row, file).catch((error) => showError(`לא ניתן לקרוא את הצילום החדש: ${error.message}`));
+});
 function retakeButton(row) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "photo-button retake-button";
   button.textContent = "צילום חדש";
-  button.title = "צילום חדש של המסמך הזה: נקרא שוב, והערכים שהשתנו מוצגים לאישור. הצילום הקודם נשמר.";
+  button.title = "צילום חדש של המסמך הזה: השורה תמולא מחדש ממנו. הצילום הקודם נשמר בתיקיית החודש.";
   button.addEventListener("click", () => {
     if (currentDeclaration?.status !== "open") return showError("יש לפתוח את החודש («פתיחה מחדש») לפני צילום חדש.");
-    retake.open(row, rowSnapshot(row));
+    retakeRow = row;
+    retakePicker.click();
   });
   return button;
+}
+// Every row of a document gets the button, with or without an original yet.
+function ensureRetakeButton(row) {
+  if (!row.dataset.documentId || row.dataset.vatMovedId || row.cells[13].querySelector(".retake-button")) return;
+  row.cells[13].append(retakeButton(row));
+}
+async function retakeRowWith(row, file) {
+  status.textContent = `קורא את הצילום החדש «${file.name}»…`;
+  const record = await readRetake(file, row);
+  if (!record) {
+    status.textContent = "בצילום החדש לא נמצא מסמך. אפשר לנסות צילום אחר.";
+    return;
+  }
+  await applyRetake(row, file, record);
 }
 // Reads the new photo alone with the extraction skill of the site, and picks the document closest to the row.
 async function readRetake(file, row) {
@@ -719,34 +744,31 @@ async function readRetake(file, row) {
   });
   return pickRecord(records, rowFacts(rowSnapshot(row)));
 }
-// Writes the ticked values of the new reading into the row; the new photo becomes its original and the old one stays in the month.
-async function applyRetake(row, file, record, keys) {
+// Fills the row from the new reading: date, supplier, numbers and amounts, with what it cannot read left empty and red. The account,
+// the percentages and the decisions of the row stay. The new photo becomes its original; the old one stays in the month.
+async function applyRetake(row, file, record) {
   if (currentDeclaration?.status !== "open" || !currentDeclarationDirectory) throw new Error("החודש אינו פתוח.");
   const next = recordFacts(record);
   const { imageFile, imageIndex } = await saveRetakeImage(currentDeclarationDirectory, file);
   const previous = JSON.parse(row.dataset.previousImages || "[]");
   if (row.dataset.imageFile) previous.push(row.dataset.imageFile);
-  row.dataset.previousImages = JSON.stringify(previous);
+  if (previous.length) row.dataset.previousImages = JSON.stringify(previous);
   setRowImage(row, file, imageFile, imageIndex);
-  if (keys.includes("date")) {
-    row.cells[2].textContent = next.date;
-    clearUnreadable(row, "date");
-  }
-  if (keys.includes("supplier")) row.cells[4].textContent = next.supplier;
-  if (keys.includes("supplierId")) row.cells[5].textContent = next.supplierId;
-  if (keys.includes("reference")) {
+  row.cells[2].textContent = next.date;
+  if (next.supplier) row.cells[4].textContent = next.supplier;
+  if (next.supplierId) row.cells[5].textContent = next.supplierId;
+  if (next.reference) {
     row.cells[6].textContent = displayedReference(next.reference);
     row.dataset.fullReference = next.reference;
   }
-  if (keys.includes("gross") || keys.includes("vat")) {
-    const gross = keys.includes("gross") ? Number(next.gross) : Number(row.dataset.rawNet || 0) + Number(row.dataset.rawVat || 0);
-    const vat = keys.includes("vat") ? Number(next.vat || 0) : Number(row.dataset.rawVat || 0);
-    row.dataset.rawNet = (gross - vat).toFixed(2);
-    row.dataset.rawVat = vat.toFixed(2);
-    clearUnreadable(row, "amounts");
+  if (next.unreadable.length) row.dataset.unreadable = next.unreadable.join(" ");
+  else delete row.dataset.unreadable;
+  if (!next.unreadable.includes("amounts")) {
+    row.dataset.rawNet = (Number(next.gross) - Number(next.vat || 0)).toFixed(2);
+    row.dataset.rawVat = Number(next.vat || 0).toFixed(2);
   }
   recalculateRow(row);
-  setStatus(row, "עודכן מצילום חדש – לבדיקה", "review");
+  setStatus(row, next.unreadable.length ? RETAKE_TEXT : "עודכן מצילום חדש – לבדיקה", "review");
   updateDuplicateState(row);
   queueDraftSave();
   status.textContent = `הצילום החדש נשמר כ‑${imageFile}${previous.length ? `; הקודם (${previous.at(-1)}) נשאר בתיקיית החודש` : ""}.`;
@@ -928,7 +950,6 @@ if (api) accessUi.ensureLoggedIn().then(() => baton.check()).catch(() => {});
 window.addEventListener("pagehide", () => { sync.push().catch(() => {}); });
 const modelClient = createModelClient({ api, access: accessUi.access, ensureLoggedIn: accessUi.ensureLoggedIn });
 modelSettings = setupModelSettings({ container: document.querySelector("#settings-dialog"), getDataRoot: () => dataRoot, onError: showError });
-const retake = setupRetake({ read: readRetake, apply: applyRetake, onError: showError });
 document.querySelector("#check-model").addEventListener("click", async () => {
   const result = document.querySelector("#model-check-result");
   result.textContent = "בודק…";
@@ -1130,35 +1151,12 @@ const assistant = setupAssistant({
   },
 });
 // Step 9.5: "check new documents" works on the month shown in the journal; a closed month is opened first (the user's click).
-// Before the agent reads the month's inbox: the pages too blurred to read are named, and the user retakes them or reads them as they
-// are (quality-check.js; the owner, 9 November 2026). Read as they are, they still become rows.
-async function photosGoodEnough() {
-  const openId = committedWorkspace?.config.clientId;
-  const folder = workspaceControls?.getClients().active.find((client) => client.config?.clientId === openId)?.entryName;
-  if (!dataRoot || !folder || !currentDeclaration) return true;
-  const entries = (await readInboxIndex(dataRoot).catch(() => ({ files: [] }))).files
-    .filter((entry) => entry.folder === folder && entry.month === currentDeclaration.month);
-  if (!entries.length) return true;
-  status.textContent = "בודק את איכות הצילומים…";
-  const found = [];
-  for (const entry of entries) {
-    const file = await readInboxFile(dataRoot, entry).catch(() => null);
-    const pages = file ? await poorPages(file, entry.type) : [];
-    if (pages.length) found.push({ name: entry.name, pages });
-  }
-  status.textContent = "";
-  if (!found.length) return true;
-  const read = await confirmDialog(poorPagesText(found), { title: "צילום לא ברור", confirmLabel: "לקרוא בכל זאת", cancelLabel: "לצלם מחדש" });
-  if (!read) status.textContent = "אפשר לצלם מחדש, להסיר את הקובץ מתיבת הקלט ולהוסיף את הצילום החדש.";
-  return read;
-}
 async function processShownMonth() {
   if (document.body.dataset.view !== "journal" || !currentDeclaration) {
     assistant.addMessage("error", "יש לפתוח חודש של לקוח לפני בדיקת מסמכים.");
     return;
   }
   if (currentDeclaration.status !== "open" && !(await reopenMonth())) return;
-  if (!(await photosGoodEnough())) return;
   runAssistant("process");
 }
 async function saveCurrentDraft() {
@@ -2052,6 +2050,7 @@ function restoreRow(saved, blob) {
   updateDuplicateState(row);
   fillVatMonthCell(row);
   lockVatMovedRow(row);
+  ensureRetakeButton(row);
 }
 records.addEventListener("input", (event) => {
   const cell = event.target.closest?.("td"),

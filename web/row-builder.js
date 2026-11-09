@@ -76,12 +76,12 @@ export function recognition({ record, account, kind, accountName = "" }) {
 // account: a valid code of the client chart, or null. facts: what facts_for computed (target month, exclude, year, duplicates, reasons,
 // deduction). kind: "home" | "office". documentId: the id that all the rows of one page of one file share. agent: { run, version, ... }.
 // What a bad photo did not let the model read with confidence: its amounts and its date stay empty, never the model's guess (the
-// owner, 9 November 2026: guesses confuse). An unclear mark empties that field; a blurred or cropped page read with low confidence both.
+// owner, 9 November 2026: guesses confuse). An unclear mark empties that field; a reading below the confidence line empties both.
 export const UNREADABLE_CONFIDENCE = 60;
 export const RETAKE_TEXT = "צילום לא קריא – לצלם מחדש";
 export function unreadableParts(record) {
   const issues = record.issues ?? [];
-  const poor = (issues.includes("blurred") || issues.includes("cropped")) && record.confidence < UNREADABLE_CONFIDENCE;
+  const poor = record.confidence < UNREADABLE_CONFIDENCE;
   return [...(issues.includes("amount_unclear") || poor ? ["amounts"] : []), ...(issues.includes("date_unclear") || poor ? ["date"] : [])];
 }
 

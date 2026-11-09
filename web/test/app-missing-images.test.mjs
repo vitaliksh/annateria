@@ -94,7 +94,7 @@ test("a row of a bad photo opens with empty red amounts; typing the total fills 
 });
 
 // The owner, 9 November 2026: "צילום חדש" on the row of a bad photo; the new photo becomes the original and the old one stays.
-test("a retake fills the empty fields of a bad photo after the user applies them, and keeps the old photo", async () => {
+test("a retake fills the row of a bad photo from the new photo at once, and keeps the old photo", async () => {
   const { app, rows, window } = await loadApp();
   const { rawRecord } = await import("./agent-fixtures.mjs");
   const { normalizeRecord } = await import("../agent/fact-record.js");
@@ -107,7 +107,7 @@ test("a retake fills the empty fields of a bad photo after the user applies them
   await app.activateDeclaration(selected);
   const [tr] = rows();
   window.URL.createObjectURL = () => "blob:test";
-  await app.applyRetake(tr, new window.File(["new photo"], "retake.jpg", { type: "image/jpeg" }), normalizeRecord(rawRecord()), ["date", "gross", "vat"]);
+  await app.applyRetake(tr, new window.File(["new photo"], "retake.jpg", { type: "image/jpeg" }), normalizeRecord(rawRecord()));
   assert.deepEqual([8, 9, 10].map((column) => tr.cells[column].querySelector("input").value), ["236.00", "200.00", "36.00"]);
   assert.equal(tr.cells[2].textContent, "20/02/26");
   assert.equal(tr.dataset.unreadable, undefined);
@@ -118,4 +118,18 @@ test("a retake fills the empty fields of a bad photo after the user applies them
   const names = [];
   for await (const [name] of images.entries()) names.push(name);
   assert.deepEqual(names.sort(), ["001.jpg", "002.jpg"]);
+});
+
+test("a retake that is still unreadable leaves the amounts empty and the row red", async () => {
+  const { app, rows, window } = await loadApp();
+  const { rawRecord } = await import("./agent-fixtures.mjs");
+  const { normalizeRecord } = await import("../agent/fact-record.js");
+  const { selected } = await restoredMonth([row("d1", "001.jpg")]);
+  await app.activateDeclaration(selected);
+  const [tr] = rows();
+  window.URL.createObjectURL = () => "blob:test";
+  await app.applyRetake(tr, new window.File(["still bad"], "retake.jpg", { type: "image/jpeg" }), normalizeRecord(rawRecord({ confidence: 30 })));
+  assert.deepEqual([8, 9, 10].map((column) => tr.cells[column].querySelector("input").value), ["", "", ""]);
+  assert.equal(tr.dataset.unreadable, "amounts date");
+  assert.equal(app.rowSnapshot(tr).statusText, "צילום לא קריא – לצלם מחדש");
 });

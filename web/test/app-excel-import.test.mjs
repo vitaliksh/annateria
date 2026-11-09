@@ -29,7 +29,7 @@ test("импортированные строки без изображения 
   app.applyBusinessRules();
   const snapshots = rows().map((row) => plain(app.rowSnapshot(row)));
   assert.deepEqual(snapshots.map((row) => row.values), imported().map((row) => row.values));
-  assert.equal(rows()[0].cells[13].textContent, "—");
+  assert.equal(rows()[0].cells[13].firstChild.textContent, "—");
 });
 
 test("a home client: an imported property tax keeps 100 %, on open and after a change of its account (amounts already booked)", async () => {
