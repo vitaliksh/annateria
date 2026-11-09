@@ -18,8 +18,10 @@ const money = (value) => (value === "" || value === null || value === undefined 
 // The values a row shows for a document, in the draft-table format: source amounts, not the recognised ones.
 export function rowFacts(snapshot) {
   const values = snapshot.values ?? [];
-  const net = snapshot.rawNet === "" ? "" : Number(snapshot.rawNet) || 0;
-  const vat = snapshot.rawVat === "" ? "" : Number(snapshot.rawVat) || 0;
+  // Amounts a bad photo did not show are empty, whatever the stored zero says.
+  const blank = (snapshot.unreadable ?? []).includes("amounts");
+  const net = blank || snapshot.rawNet === "" ? "" : Number(snapshot.rawNet) || 0;
+  const vat = blank || snapshot.rawVat === "" ? "" : Number(snapshot.rawVat) || 0;
   return {
     date: String(values[0] ?? ""),
     supplier: String(values[3] ?? ""),

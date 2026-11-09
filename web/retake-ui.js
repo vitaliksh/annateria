@@ -6,12 +6,12 @@ import { recordFacts, retakeChanges, rowFacts } from "./retake-flow.js";
 export function setupRetake({ document: doc = globalThis.document, read, apply, onError = () => {} }) {
   const dialog = doc.createElement("dialog");
   dialog.id = "retake-dialog";
-  dialog.className = "app-dialog";
+  dialog.className = "workspace-dialog";
   dialog.setAttribute("aria-labelledby", "retake-title");
-  dialog.innerHTML = `<header><h2 id="retake-title">צילום חדש</h2><button type="button" value="cancel" class="dialog-close" aria-label="סגור">×</button></header>
+  dialog.innerHTML = `<form method="dialog"><header><h2 id="retake-title">צילום חדש</h2><button value="cancel" aria-label="סגור" class="dialog-close">×</button></header>
     <p id="retake-status" role="status"></p><table id="retake-table" class="retake-table" hidden><thead><tr><th>שדה</th><th>עכשיו בשורה</th><th>בצילום החדש</th><th>להחיל</th></tr></thead><tbody></tbody></table>
     <p class="muted">הצילום הקודם נשמר בתיקיית החודש. שדה שלא נקרא בצילום החדש נשאר ריק.</p>
-    <footer><button type="button" id="retake-apply" disabled>החלה</button><button type="button" class="secondary" id="retake-cancel">ביטול</button></footer>`;
+    <div class="dialog-actions"><button type="button" id="retake-apply" disabled>החלה</button><span></span><button type="button" class="secondary" id="retake-cancel">ביטול</button></div></form>`;
   doc.body.append(dialog);
   const input = Object.assign(doc.createElement("input"), { type: "file", accept: ".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf", hidden: true });
   doc.body.append(input);
@@ -22,7 +22,7 @@ export function setupRetake({ document: doc = globalThis.document, read, apply, 
   let state = null;
 
   const close = () => { state = null; if (dialog.open) dialog.close(); };
-  dialog.querySelector(".dialog-close").addEventListener("click", close);
+  dialog.querySelector(".dialog-close").addEventListener("click", (event) => { event.preventDefault(); close(); });
   dialog.querySelector("#retake-cancel").addEventListener("click", close);
 
   async function readChosen(file) {
