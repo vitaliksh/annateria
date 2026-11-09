@@ -75,6 +75,16 @@ export function recognition({ record, account, kind, accountName = "" }) {
 // record: the fact record (agent/fact-record.js). entry: the inbox entry of the file. decision: "expense" | "not_expense" | "unclear".
 // account: a valid code of the client chart, or null. facts: what facts_for computed (target month, exclude, year, duplicates, reasons,
 // deduction). kind: "home" | "office". documentId: the id that all the rows of one page of one file share. agent: { run, version, ... }.
+// What a bad photo did not let the model read with confidence: its amounts and its date stay empty, never the model's guess (the
+// owner, 9 November 2026: guesses confuse). An unclear mark empties that field; a blurred or cropped page read with low confidence both.
+export const UNREADABLE_CONFIDENCE = 60;
+export const RETAKE_TEXT = "צילום לא קריא – לצלם מחדש";
+export function unreadableParts(record) {
+  const issues = record.issues ?? [];
+  const poor = (issues.includes("blurred") || issues.includes("cropped")) && record.confidence < UNREADABLE_CONFIDENCE;
+  return [...(issues.includes("amount_unclear") || poor ? ["amounts"] : []), ...(issues.includes("date_unclear") || poor ? ["date"] : [])];
+}
+
 export function buildRowSnapshot({ record, entry, documentId, decision, account, accountName = "", facts, kind, month, reason, needsReview, agent }) {
   const expense = decision === "expense";
   const coded = expense && Boolean(account);
@@ -83,8 +93,11 @@ export function buildRowSnapshot({ record, entry, documentId, decision, account,
   const warned = facts.reasons.length > 0 || record.confidence < READY_CONFIDENCE;
   const ready = coded && !needsReview && !warned && !excluded;
 
+  const unreadable = record.booked ? [] : unreadableParts(record);
+  const blankAmounts = unreadable.includes("amounts");
   let statusText = "מוכן לייצוא";
   if (excluded) statusText = excludeText(facts, month);
+  else if (unreadable.length) statusText = RETAKE_TEXT;
   else if (decision === "not_expense") statusText = "לא הוצאה — נדרש אישור";
   else if (decision === "unclear") statusText = "נדרש עיון";
   else if (!account) statusText = "נדרש קוד מיון";
@@ -99,12 +112,14 @@ export function buildRowSnapshot({ record, entry, documentId, decision, account,
     imageFile: "",
     receivedAt: entry.addedAt,
     values: [
-      displayDate(record.date), coded ? account : "", record.purpose ?? "", record.supplier_name ?? "", record.supplier_vat_id ?? "",
-      displayedReference(record.document_number), record.allocation_number ?? "", amounts.gross, amounts.net, amounts.vat,
+      unreadable.includes("date") ? "" : displayDate(record.date), coded ? account : "", record.purpose ?? "", record.supplier_name ?? "",
+      record.supplier_vat_id ?? "", displayedReference(record.document_number), record.allocation_number ?? "",
+      blankAmounts ? "" : amounts.gross, blankAmounts ? "" : amounts.net, blankAmounts ? "" : amounts.vat,
       String(vatPercent), String(expensePercent),
     ],
-    rawNet: String(record.net),
-    rawVat: String(record.vat),
+    rawNet: blankAmounts ? "" : String(record.net),
+    rawVat: blankAmounts ? "" : String(record.vat),
+    ...(unreadable.length ? { unreadable } : {}),
     vatPercent: String(record.vat_percent),
     form6111Code: "",
     documentKind: record.kind,
@@ -121,7 +136,7 @@ export function buildRowSnapshot({ record, entry, documentId, decision, account,
     agentOpinion: opinion,
     confidence: `${record.confidence}%`,
     statusText,
-    statusClass: ready ? "ready" : "review",
+    statusClass: ready && !unreadable.length ? "ready" : "review",
     agent: { ...agent, file: entry.hash, page: record.page, reasons: [...facts.reasons] },
   };
 }

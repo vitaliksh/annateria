@@ -99,3 +99,19 @@ test("a line of a ledger (booked) keeps 100 %: its amounts already hold the reco
   assert.equal(record().booked, undefined);
   assert.equal(recognition({ record: record({ purpose: "חשמל" }), account: "204", kind: "home" }).expensePercent, 25);
 });
+
+// The owner, 9 November 2026: a bad photo must not show the model's guess; the field stays empty and the row asks for a retake.
+test("an unclear amount or date of a bad photo stays empty, the row asks for a retake and is never ready", () => {
+  const amounts = build({ record: record({ issues: ["amount_unclear"] }) });
+  assert.deepEqual([amounts.values[7], amounts.values[8], amounts.values[9], amounts.rawNet, amounts.rawVat], ["", "", "", "", ""]);
+  assert.equal(amounts.values[0], "20/02/26", "the date was read");
+  assert.deepEqual(amounts.unreadable, ["amounts"]);
+  assert.deepEqual([amounts.statusText, amounts.statusClass], ["צילום לא קריא – לצלם מחדש", "review"]);
+  const date = build({ record: record({ issues: ["date_unclear"] }) });
+  assert.deepEqual([date.values[0], date.values[7], date.unreadable], ["", "236.00", ["date"]]);
+  const poor = build({ record: record({ issues: ["blurred"], confidence: 40 }) });
+  assert.deepEqual(poor.unreadable, ["amounts", "date"]);
+  const readable = build({ record: record({ issues: ["blurred"], confidence: 85 }) });
+  assert.equal(readable.unreadable, undefined, "a blurred page read with confidence keeps its values");
+  assert.equal(readable.values[7], "236.00");
+});

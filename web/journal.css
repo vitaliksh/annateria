@@ -433,3 +433,11 @@ td .photo-button {
 #journal-table td select.vat-month {
   min-width: 7.5em;
 }
+
+/* What a bad photo did not let the model read: empty, in red, until the user types it (row-builder.js, unreadableParts). */
+tr[data-unreadable~="amounts"] td.amount-cell input,
+tr[data-unreadable~="date"] > td:nth-child(3) {
+  outline: 2px solid var(--error);
+  outline-offset: -2px;
+  background: var(--error-soft);
+}

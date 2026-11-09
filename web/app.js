@@ -699,6 +699,8 @@ records.addEventListener("input", (event) => {
   const cell = event.target.closest?.("td"),
     row = cell?.parentElement;
   if (row?.dataset.documentId && [...row.cells].indexOf(cell) === 6) delete row.dataset.fullReference;
+  // The user types the date that the photo did not show: it is no longer an empty part.
+  if (row?.dataset.documentId && [...row.cells].indexOf(cell) === 2 && cellValue(cell).trim()) clearUnreadable(row, "date");
 });
 function isIncomeCode(code) {
   const account = chartForClient(chartAccounts, committedWorkspace?.config.clientId)[String(code)];
@@ -1313,7 +1315,21 @@ function recognisedVat(row) {
     vatRecognisedPercent = row.cells[11].querySelector("select")?.value || 100;
   return recognisedAmounts(row.dataset.rawNet, row.dataset.rawVat, expensePercent, vatRecognisedPercent).vat;
 }
+// A part of a bad photo that could not be read stays empty, in red, until the user types it (row-builder.js, unreadableParts).
+const unreadableOf = (row) => (row.dataset.unreadable ?? "").split(" ").filter(Boolean);
+function clearUnreadable(row, part) {
+  const left = unreadableOf(row).filter((item) => item !== part);
+  if (left.length) row.dataset.unreadable = left.join(" ");
+  else delete row.dataset.unreadable;
+}
 function recalculateRow(row) {
+  if (unreadableOf(row).includes("amounts")) {
+    for (const column of [8, 9, 10]) {
+      const input = row.cells[column].querySelector("input");
+      if (input) input.value = "";
+    }
+    return;
+  }
   const expensePercent = row.cells[12].querySelector("select")?.value || 100,
     vatRecognisedPercent = row.cells[11].querySelector("select")?.value || 100,
     amounts = recognisedAmounts(row.dataset.rawNet, row.dataset.rawVat, expensePercent, vatRecognisedPercent);
@@ -1448,6 +1464,7 @@ function manualAmountChanged(row, column) {
   row.dataset.rawNet = amounts.net;
   row.dataset.rawVat = amounts.vat;
   if (column === 10) row.dataset.vatPercent = String(amounts.percent);
+  clearUnreadable(row, "amounts");
   recalculateRow(row);
 }
 function normalReference(value) {
@@ -1859,6 +1876,7 @@ function rowSnapshot(row) {
     wouldInclude: row.dataset.wouldInclude || "",
     pcnApproved: row.dataset.pcnApproved || "",
     agent: row.dataset.agent ? JSON.parse(row.dataset.agent) : undefined,
+    ...(row.dataset.unreadable ? { unreadable: row.dataset.unreadable.split(" ") } : {}),
     highlights: row.highlights || [],
     active: Boolean(row.cells[17].querySelector("input")?.checked),
     ...(row.dataset.booked ? { booked: true } : {}),
@@ -1899,6 +1917,7 @@ function restoreRow(saved, blob) {
   for (const [key, field] of [["documentKind", "documentKind"], ["fullReference", "reference"], ["documentTitle", "documentTitle"], ["periodFrom", "periodFrom"], ["periodTo", "periodTo"], ["autoExclude", "autoExclude"], ["wouldInclude", "wouldInclude"], ["pcnApproved", "pcnApproved"]])
     if (saved[field]) row.dataset[key] = saved[field];
   row.highlights = Array.isArray(saved.highlights) ? saved.highlights : [];
+  if (Array.isArray(saved.unreadable) && saved.unreadable.length) row.dataset.unreadable = saved.unreadable.join(" ");
   if (saved.agent) row.dataset.agent = JSON.stringify(saved.agent);
   if (saved.booked) row.dataset.booked = "true";
   if (saved.vatMove) {

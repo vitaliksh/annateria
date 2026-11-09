@@ -75,3 +75,20 @@ test("opening a month turns off only a real copy: the same full number, supplier
   const off = rows().map((tr) => tr.classList.contains("not-for-export"));
   assert.deepEqual(off, [false, false, false, true], "only the second copy of the same policy is off");
 });
+
+// The owner, 9 November 2026: the empty fields of a bad photo stay empty and red until the user types them.
+test("a row of a bad photo opens with empty red amounts; typing the total fills them and clears the mark", async () => {
+  const { app, rows, window } = await loadApp();
+  const bad = { ...row("d1", "001.jpg"), values: ["10/09/26", "", "x", "Supplier", "514000001", "1234", "", "", "", "", "100", "100"], rawNet: "", rawVat: "", unreadable: ["amounts"], statusText: "צילום לא קריא – לצלם מחדש", statusClass: "review" };
+  const { selected } = await restoredMonth([bad]);
+  await app.activateDeclaration(selected);
+  const [tr] = rows();
+  const amounts = () => [8, 9, 10].map((column) => tr.cells[column].querySelector("input").value);
+  assert.deepEqual(amounts(), ["", "", ""]);
+  assert.equal(tr.dataset.unreadable, "amounts");
+  assert.deepEqual([...app.rowSnapshot(tr).unreadable], ["amounts"], "the mark is saved with the row");
+  tr.cells[8].querySelector("input").value = "118";
+  app.manualAmountChanged(tr, 8);
+  assert.deepEqual(amounts(), ["118.00", "100.00", "18.00"]);
+  assert.equal(tr.dataset.unreadable, undefined);
+});
