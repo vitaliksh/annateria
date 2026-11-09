@@ -20,6 +20,11 @@ import { CLICK_REOPEN_REASON, NO_EXPORT_MARKER, declarationActions } from "./dec
 import { formatMonth } from "./month-format.js";
 import { deductionStatus, monthOfDate } from "./month-distribution.js";
 import { entryFromRow, findDuplicates } from "./intake-facts.js";
+import { createExtractionAdapter } from "./agent/adapters/extraction.js";
+import { normalizeRecord } from "./agent/fact-record.js";
+import { fetchSkillFromSite, instructionFor, loadSkills } from "./agent/skills.js";
+import { pickRecord, recordFacts, rowFacts, saveRetakeImage } from "./retake-flow.js";
+import { setupRetake } from "./retake-ui.js";
 import { addMovedLine, movedLine, removeMovedLine, vatMonths } from "./vat-move-flow.js";
 import { inspectImportTarget } from "./excel-import-store.js";
 import { createClientsHome } from "./clients-home.js";
@@ -680,8 +685,70 @@ function setRowImage(row, blob, imageFile, imageIndex) {
   open.className = "photo-button";
   open.textContent = isPdfRow(row) ? `מקור PDF #${imageIndex}` : `מקור #${imageIndex}`;
   open.addEventListener("click", () => openPhoto(row.imageUrl, imageIndex, row));
-  row.cells[13].replaceChildren(open);
+  row.cells[13].replaceChildren(open, retakeButton(row));
   imageCount = Math.max(imageCount, imageIndex);
+}
+// "צילום חדש" (the owner, 9 November 2026): a better photo of the same document for this row; see retake-flow.js.
+function retakeButton(row) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "photo-button retake-button";
+  button.textContent = "צילום חדש";
+  button.title = "צילום חדש של המסמך הזה: נקרא שוב, והערכים שהשתנו מוצגים לאישור. הצילום הקודם נשמר.";
+  button.addEventListener("click", () => {
+    if (currentDeclaration?.status !== "open") return showError("יש לפתוח את החודש («פתיחה מחדש») לפני צילום חדש.");
+    retake.open(row, rowSnapshot(row));
+  });
+  return button;
+}
+// Reads the new photo alone with the extraction skill of the site, and picks the document closest to the row.
+async function readRetake(file, row) {
+  if (!api) throw new Error("אין חיבור לשרת העוזר.");
+  if (!(await accessUi.ensureLoggedIn())) throw new Error("נדרש קוד גישה.");
+  const skills = await loadSkills(fetchSkillFromSite, ["invoice-extraction"]);
+  const reader = createExtractionAdapter({ client: modelClient, prompt: instructionFor("extraction", skills), models: modelSettings.getModels() });
+  const type = file.type || (/\.pdf$/i.test(file.name) ? "application/pdf" : "image/jpeg");
+  const { records: raw } = await reader.run({ type, name: file.name }, file);
+  const records = raw.flatMap((item) => {
+    try {
+      return [normalizeRecord(item, { isImage: type !== "application/pdf" })];
+    } catch {
+      return [];
+    }
+  });
+  return pickRecord(records, rowFacts(rowSnapshot(row)));
+}
+// Writes the ticked values of the new reading into the row; the new photo becomes its original and the old one stays in the month.
+async function applyRetake(row, file, record, keys) {
+  if (currentDeclaration?.status !== "open" || !currentDeclarationDirectory) throw new Error("החודש אינו פתוח.");
+  const next = recordFacts(record);
+  const { imageFile, imageIndex } = await saveRetakeImage(currentDeclarationDirectory, file);
+  const previous = JSON.parse(row.dataset.previousImages || "[]");
+  if (row.dataset.imageFile) previous.push(row.dataset.imageFile);
+  row.dataset.previousImages = JSON.stringify(previous);
+  setRowImage(row, file, imageFile, imageIndex);
+  if (keys.includes("date")) {
+    row.cells[2].textContent = next.date;
+    clearUnreadable(row, "date");
+  }
+  if (keys.includes("supplier")) row.cells[4].textContent = next.supplier;
+  if (keys.includes("supplierId")) row.cells[5].textContent = next.supplierId;
+  if (keys.includes("reference")) {
+    row.cells[6].textContent = displayedReference(next.reference);
+    row.dataset.fullReference = next.reference;
+  }
+  if (keys.includes("gross") || keys.includes("vat")) {
+    const gross = keys.includes("gross") ? Number(next.gross) : Number(row.dataset.rawNet || 0) + Number(row.dataset.rawVat || 0);
+    const vat = keys.includes("vat") ? Number(next.vat || 0) : Number(row.dataset.rawVat || 0);
+    row.dataset.rawNet = (gross - vat).toFixed(2);
+    row.dataset.rawVat = vat.toFixed(2);
+    clearUnreadable(row, "amounts");
+  }
+  recalculateRow(row);
+  setStatus(row, "עודכן מצילום חדש – לבדיקה", "review");
+  updateDuplicateState(row);
+  queueDraftSave();
+  status.textContent = `הצילום החדש נשמר כ‑${imageFile}${previous.length ? `; הקודם (${previous.at(-1)}) נשאר בתיקיית החודש` : ""}.`;
 }
 // After the agent filed an original: every row of the open table made from that file gets it. Resolves with how many did.
 async function attachRowImages({ fileHash, imageFile, imageIndex }) {
@@ -860,6 +927,7 @@ if (api) accessUi.ensureLoggedIn().then(() => baton.check()).catch(() => {});
 window.addEventListener("pagehide", () => { sync.push().catch(() => {}); });
 const modelClient = createModelClient({ api, access: accessUi.access, ensureLoggedIn: accessUi.ensureLoggedIn });
 modelSettings = setupModelSettings({ container: document.querySelector("#settings-dialog"), getDataRoot: () => dataRoot, onError: showError });
+const retake = setupRetake({ read: readRetake, apply: applyRetake, onError: showError });
 document.querySelector("#check-model").addEventListener("click", async () => {
   const result = document.querySelector("#model-check-result");
   result.textContent = "בודק…";
@@ -1877,6 +1945,7 @@ function rowSnapshot(row) {
     pcnApproved: row.dataset.pcnApproved || "",
     agent: row.dataset.agent ? JSON.parse(row.dataset.agent) : undefined,
     ...(row.dataset.unreadable ? { unreadable: row.dataset.unreadable.split(" ") } : {}),
+    ...(row.dataset.previousImages ? { previousImages: JSON.parse(row.dataset.previousImages) } : {}),
     highlights: row.highlights || [],
     active: Boolean(row.cells[17].querySelector("input")?.checked),
     ...(row.dataset.booked ? { booked: true } : {}),
@@ -1918,6 +1987,7 @@ function restoreRow(saved, blob) {
     if (saved[field]) row.dataset[key] = saved[field];
   row.highlights = Array.isArray(saved.highlights) ? saved.highlights : [];
   if (Array.isArray(saved.unreadable) && saved.unreadable.length) row.dataset.unreadable = saved.unreadable.join(" ");
+  if (Array.isArray(saved.previousImages) && saved.previousImages.length) row.dataset.previousImages = JSON.stringify(saved.previousImages);
   if (saved.agent) row.dataset.agent = JSON.stringify(saved.agent);
   if (saved.booked) row.dataset.booked = "true";
   if (saved.vatMove) {

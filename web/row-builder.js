@@ -48,7 +48,7 @@ export const displayDate = (iso) => {
   return key ? `${key.slice(8)}/${key.slice(5, 7)}/${key.slice(2, 4)}` : "";
 };
 // The table shows the last four digits of a reference; the full one is kept in `reference`.
-const displayedReference = (value) => {
+export const displayedReference = (value) => {
   const digits = String(value ?? "").replace(/\D/g, "");
   return digits ? digits.slice(-4) : String(value ?? "").trim();
 };

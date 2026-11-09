@@ -103,7 +103,8 @@ test("the rows made from one file get its image: the button names the kind, the 
   await saveSourceImage(month, "001.pdf", new File([new Uint8Array([37, 80, 68, 70])], "001.pdf", { type: "application/pdf" }));
   const attached = await app.attachRowImages({ fileHash: entry.hash, imageFile: "001.pdf", imageIndex: 1 });
   assert.equal(attached, 1, "only the row made from that file");
-  assert.deepEqual([rows()[0].dataset.imageFile, rows()[0].dataset.imageIndex, rows()[0].cells[13].textContent], ["001.pdf", "1", "מקור PDF #1"]);
+  assert.deepEqual([rows()[0].dataset.imageFile, rows()[0].dataset.imageIndex, rows()[0].cells[13].querySelector(".photo-button").textContent], ["001.pdf", "1", "מקור PDF #1"]);
+  assert.equal(rows()[0].cells[13].querySelector(".retake-button").textContent, "צילום חדש", "each original can be retaken");
   assert.equal(rows()[1].dataset.imageFile ?? "", "");
   assert.equal(app.rowSnapshot(rows()[0]).imageFile, "001.pdf");
 });

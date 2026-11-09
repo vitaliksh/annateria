@@ -441,3 +441,24 @@ tr[data-unreadable~="date"] > td:nth-child(3) {
   outline-offset: -2px;
   background: var(--error-soft);
 }
+
+/* "צילום חדש" beside the original of a row: a smaller, quieter button. */
+.retake-button {
+  margin-inline-start: var(--s1);
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text-muted, inherit);
+}
+
+.retake-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-block: var(--s2);
+}
+
+.retake-table th,
+.retake-table td {
+  padding: var(--s1) var(--s2);
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+}

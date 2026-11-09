@@ -92,3 +92,30 @@ test("a row of a bad photo opens with empty red amounts; typing the total fills 
   assert.deepEqual(amounts(), ["118.00", "100.00", "18.00"]);
   assert.equal(tr.dataset.unreadable, undefined);
 });
+
+// The owner, 9 November 2026: "צילום חדש" on the row of a bad photo; the new photo becomes the original and the old one stays.
+test("a retake fills the empty fields of a bad photo after the user applies them, and keeps the old photo", async () => {
+  const { app, rows, window } = await loadApp();
+  const { rawRecord } = await import("./agent-fixtures.mjs");
+  const { normalizeRecord } = await import("../agent/fact-record.js");
+  const bad = { ...row("d1", "001.jpg"), values: ["", "202", "x", "Paper Shop", "512345679", "2002", "", "", "", "", "100", "100"], rawNet: "", rawVat: "", unreadable: ["amounts", "date"], statusText: "צילום לא קריא – לצלם מחדש", statusClass: "review" };
+  const { client, selected } = await restoredMonth([bad]);
+  const images = await (await (await client.getDirectoryHandle("declarations")).getDirectoryHandle("2026-09")).getDirectoryHandle("images", { create: true });
+  const old = await (await images.getFileHandle("001.jpg", { create: true })).createWritable();
+  await old.write("old photo");
+  await old.close();
+  await app.activateDeclaration(selected);
+  const [tr] = rows();
+  window.URL.createObjectURL = () => "blob:test";
+  await app.applyRetake(tr, new window.File(["new photo"], "retake.jpg", { type: "image/jpeg" }), normalizeRecord(rawRecord()), ["date", "gross", "vat"]);
+  assert.deepEqual([8, 9, 10].map((column) => tr.cells[column].querySelector("input").value), ["236.00", "200.00", "36.00"]);
+  assert.equal(tr.cells[2].textContent, "20/02/26");
+  assert.equal(tr.dataset.unreadable, undefined);
+  assert.equal(tr.dataset.imageFile, "002.jpg");
+  const saved = app.rowSnapshot(tr);
+  assert.deepEqual([...saved.previousImages], ["001.jpg"]);
+  assert.deepEqual([saved.statusText, saved.statusClass], ["עודכן מצילום חדש – לבדיקה", "review"]);
+  const names = [];
+  for await (const [name] of images.entries()) names.push(name);
+  assert.deepEqual(names.sort(), ["001.jpg", "002.jpg"]);
+});
