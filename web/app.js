@@ -25,6 +25,7 @@ import { normalizeRecord } from "./agent/fact-record.js";
 import { fetchSkillFromSite, instructionFor, loadSkills } from "./agent/skills.js";
 import { pickRecord, recordFacts, rowFacts, saveRetakeImage } from "./retake-flow.js";
 import { setupRetake } from "./retake-ui.js";
+import { poorPages, poorPagesText } from "./quality-check.js";
 import { addMovedLine, movedLine, removeMovedLine, vatMonths } from "./vat-move-flow.js";
 import { inspectImportTarget } from "./excel-import-store.js";
 import { createClientsHome } from "./clients-home.js";
@@ -1129,12 +1130,35 @@ const assistant = setupAssistant({
   },
 });
 // Step 9.5: "check new documents" works on the month shown in the journal; a closed month is opened first (the user's click).
+// Before the agent reads the month's inbox: the pages too blurred to read are named, and the user retakes them or reads them as they
+// are (quality-check.js; the owner, 9 November 2026). Read as they are, they still become rows.
+async function photosGoodEnough() {
+  const openId = committedWorkspace?.config.clientId;
+  const folder = workspaceControls?.getClients().active.find((client) => client.config?.clientId === openId)?.entryName;
+  if (!dataRoot || !folder || !currentDeclaration) return true;
+  const entries = (await readInboxIndex(dataRoot).catch(() => ({ files: [] }))).files
+    .filter((entry) => entry.folder === folder && entry.month === currentDeclaration.month);
+  if (!entries.length) return true;
+  status.textContent = "בודק את איכות הצילומים…";
+  const found = [];
+  for (const entry of entries) {
+    const file = await readInboxFile(dataRoot, entry).catch(() => null);
+    const pages = file ? await poorPages(file, entry.type) : [];
+    if (pages.length) found.push({ name: entry.name, pages });
+  }
+  status.textContent = "";
+  if (!found.length) return true;
+  const read = await confirmDialog(poorPagesText(found), { title: "צילום לא ברור", confirmLabel: "לקרוא בכל זאת", cancelLabel: "לצלם מחדש" });
+  if (!read) status.textContent = "אפשר לצלם מחדש, להסיר את הקובץ מתיבת הקלט ולהוסיף את הצילום החדש.";
+  return read;
+}
 async function processShownMonth() {
   if (document.body.dataset.view !== "journal" || !currentDeclaration) {
     assistant.addMessage("error", "יש לפתוח חודש של לקוח לפני בדיקת מסמכים.");
     return;
   }
   if (currentDeclaration.status !== "open" && !(await reopenMonth())) return;
+  if (!(await photosGoodEnough())) return;
   runAssistant("process");
 }
 async function saveCurrentDraft() {

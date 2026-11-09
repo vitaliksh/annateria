@@ -214,7 +214,8 @@ async function day(page, scanPath, log) {
   step("wait for the run");
   await page.waitForFunction(() => {
     const cancel = document.querySelector("#assistant-cancel");
-    return cancel && cancel.offsetParent === null && document.querySelector("#assistant-feed")?.innerText.includes("בדוק מסמכים חדשים");
+    // The run ends with the model's last word; before the run the page first looks at the photos, with the stop button hidden too.
+    return cancel && cancel.offsetParent === null && /סיימתי|השורות לא נכתבו|לא הצלחתי|נעצר/.test(document.querySelector("#assistant-feed")?.innerText ?? "");
   }, null, { timeout: 120000, polling: 500 });
   await page.waitForTimeout(500);
 

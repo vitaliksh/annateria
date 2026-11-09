@@ -33,12 +33,15 @@ export function dialogResult(dialog, { accept, getValue = () => true, onInvalid 
   });
 }
 
-export async function confirmDialog(message, { title = "אישור", confirmLabel = "אישור" } = {}) {
+// cancelLabel names the other answer when it is a choice of its own ("לצלם מחדש"), not only a cancel.
+export async function confirmDialog(message, { title = "אישור", confirmLabel = "אישור", cancelLabel = "ביטול" } = {}) {
   const dialog = document.querySelector("#confirm-dialog");
   if (typeof dialog?.showModal !== "function") return window.confirm(message);
   dialog.querySelector("#confirm-dialog-title").textContent = title;
   dialog.querySelector("#confirm-dialog-message").textContent = message;
   const accept = dialog.querySelector("#confirm-dialog-accept");
   accept.textContent = confirmLabel;
+  const cancel = [...dialog.querySelectorAll('button[value="cancel"]')].find((button) => !button.classList.contains("dialog-close"));
+  if (cancel) cancel.textContent = cancelLabel;
   return (await dialogResult(dialog, { accept })) === true;
 }
