@@ -27,7 +27,6 @@ test("pure formatters", async () => {
   assert.equal(app.displayDate(""), "—");
   assert.equal(app.displayedReference("INV-12345"), "2345");
   assert.equal(app.displayedReference(" abc "), "abc");
-  assert.equal(app.normalReference(" ab-12 /x "), "AB12X");
   assert.equal(app.receivedAtText("not a date"), "not a date");
   assert.equal(app.receivedAtText(""), "—");
 });

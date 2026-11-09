@@ -19,7 +19,7 @@ import { confirmDialog } from "./confirm-dialog.js";
 import { CLICK_REOPEN_REASON, NO_EXPORT_MARKER, declarationActions } from "./declaration-core.js";
 import { formatMonth } from "./month-format.js";
 import { deductionStatus, monthOfDate } from "./month-distribution.js";
-import { entryFromRow, findDuplicates } from "./intake-facts.js";
+import { entryFromRow, findDuplicates, secondPaper } from "./intake-facts.js";
 import { createExtractionAdapter } from "./agent/adapters/extraction.js";
 import { normalizeRecord } from "./agent/fact-record.js";
 import { fetchSkillFromSite, instructionFor, loadSkills } from "./agent/skills.js";
@@ -667,7 +667,7 @@ pcnJournal = setupPcnReview({
 // The rows of the agent for the table that is open: they go in at the end like rows of any other source. Resolves with their numbers.
 function appendSnapshots(snapshots) {
   const first = records.querySelectorAll("tr[data-document-id]").length;
-  for (const snapshot of snapshots) restoreRow(snapshot, null);
+  for (const snapshot of snapshots) restoreRow(snapshot, null, { fresh: true });
   refreshRows();
   queueDraftSave();
   pcnJournal?.refresh();
@@ -1557,12 +1557,6 @@ function manualAmountChanged(row, column) {
   clearUnreadable(row, "amounts");
   recalculateRow(row);
 }
-function normalReference(value) {
-  return String(value || "")
-    .trim()
-    .replace(/[^\p{L}\p{N}]/gu, "")
-    .toUpperCase();
-}
 function displayedReference(value) {
   const digits = String(value || "").replace(/\D/g, "");
   return digits ? digits.slice(-4) : String(value || "").trim();
@@ -1597,18 +1591,30 @@ function setExportIncluded(row, included) {
 // A row is a copy of one above it only by the rule of the intake (intake-facts.js): the same number, supplier and amount, or the same
 // number, amount and date. The last four digits alone turned off different documents whenever a month opened (Eva's September,
 // 8 November 2026: the policy of 2026-27 as a copy of 2025-26).
+// Of two papers of one purchase (a till receipt and its tax invoice, a bill and its payment confirmation) the receipt or the
+// confirmation is turned off, also when it stood above the better paper (client B's 9-10, 9 November 2026).
 function updateDuplicateState(row) {
-  const reference = normalReference(cellValue(row.cells[6]));
   // A line of moved VAT repeats the number of its document and is no document itself (step 9.8).
-  if (!reference || row.dataset.vatMovedId) return;
+  if (row.dataset.vatMovedId) return;
   const all = [...records.querySelectorAll("tr[data-document-id]")];
   const entryOf = (item) => entryFromRow(rowSnapshot(item), { month: "table", position: all.indexOf(item) });
-  const others = all.filter((candidate) => candidate !== row && !candidate.dataset.vatMovedId && candidate.dataset.documentId !== row.dataset.documentId);
-  const { level } = findDuplicates(others.map(entryOf), entryOf(row));
+  // Only included rows count, as in the agent's search (services.intake.context): a row that is off is no copy of anything.
+  const included = (item) => Boolean(item.cells[17].querySelector("input")?.checked);
+  if (!included(row)) return;
+  const others = all.filter((candidate) => candidate !== row && included(candidate) && !candidate.dataset.vatMovedId && candidate.dataset.documentId !== row.dataset.documentId);
+  const own = entryOf(row);
+  for (const other of others) {
+    const entry = entryOf(other);
+    if (secondPaper(own, entry) !== entry) continue;
+    setExportIncluded(other, false);
+    other.dataset.duplicate = "true";
+    setStatus(other, `מסמך נוסף של אותה קנייה כמו שורה ${all.indexOf(row) + 1} — נדרש עיון`, "review");
+  }
+  const { level } = findDuplicates(others.map(entryOf), own);
   if (level !== "strong" && level !== "likely") return;
   setExportIncluded(row, false);
   row.dataset.duplicate = "true";
-  setStatus(row, "חשד לכפילות לפי אסמכתא — נדרש עיון", "review");
+  setStatus(row, "חשד לכפילות — נדרש עיון", "review");
 }
 // Amounts already booked elsewhere (an Excel journal, a line of a ledger) carry their recognition: the rule never cuts them again.
 function applyBusinessRule(row) {
@@ -1799,7 +1805,7 @@ async function importIncomeReportFile(file, report = null) {
   const existing = [...records.querySelectorAll("tr[data-document-id]")].map(rowSnapshot);
   if (rows.some((row) => hasIncomeRow(existing, row))) throw new Error("דוח ההכנסות לתקופה זו כבר נמצא בהצהרה.");
   await saveSourceImage(currentDeclarationDirectory, pdfSourceFileName(new Date(), crypto.randomUUID()), file);
-  for (const row of rows) restoreRow(row, null);
+  for (const row of rows) restoreRow(row, null, { fresh: true });
   queueDraftSave();
   status.textContent = rows[0].agentOpinion;
 }
@@ -1987,7 +1993,9 @@ function rowSnapshot(row) {
     statusClass: row.cells[16].className.replace(/^state\s*/, ""),
   };
 }
-function restoreRow(saved, blob) {
+// fresh: a row that arrives now (the agent's, an income report's) is checked for copies; a saved row keeps what was decided and
+// what the user chose since, so opening a month never turns a row off again (review of 9 November 2026).
+function restoreRow(saved, blob, { fresh = false } = {}) {
   const imageUrl = blob ? URL.createObjectURL(blob) : "",
     row = addPendingRecord(
       imageUrl,
@@ -2047,7 +2055,7 @@ function restoreRow(saved, blob) {
     needsMarks ? "מוכן, חסרים סימונים" : saved.statusText || (saved.active ? "מוכן לייצוא" : "לא מיועד לייצוא"),
     needsMarks ? "review" : saved.statusClass || (saved.active ? "ready" : "review"),
   );
-  updateDuplicateState(row);
+  if (fresh) updateDuplicateState(row);
   fillVatMonthCell(row);
   lockVatMovedRow(row);
   ensureRetakeButton(row);

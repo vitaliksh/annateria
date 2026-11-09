@@ -67,9 +67,12 @@ export function intakeMonth({ date, periodFrom, periodTo, receivedAt, lockedThro
 }
 
 // status: "ok", "previous-year" (refused), "future-year" (to look at), "no-date". basis: "date" or "period".
-export function yearGate({ docMonth, periodFrom, periodTo, targetMonth }) {
+// A payment confirmation is judged by its date, the day of the payment, even when it names a period: an insurer's confirmation of a
+// payment made last year is last year's expense (trade rules, 8 November 2026: client B's policy of 2025-26 among the papers of 2026).
+export function yearGate({ docMonth, periodFrom, periodTo, targetMonth, kind = "" }) {
   const allowedYear = Number(targetMonth.slice(0, 4));
-  const period = periodMonths(periodFrom, periodTo);
+  const paidLastYear = kind === "payment_confirmation" && docMonth && Number(docMonth.slice(0, 4)) < allowedYear;
+  const period = paidLastYear ? null : periodMonths(periodFrom, periodTo);
   if (period) {
     const start = Number(period.from.slice(0, 4));
     const end = Number(period.to.slice(0, 4));
@@ -90,6 +93,7 @@ const SUPPLIER = 3;
 const SUPPLIER_ID = 4;
 const REFERENCE = 5;
 const GROSS = 7;
+const VAT = 9;
 
 const normalReference = (value) => String(value ?? "").replace(/[^\p{L}\p{N}]/gu, "").toUpperCase().replace(/^0+/, "");
 const supplierDigits = (value) => String(value ?? "").replace(/\D/g, "").replace(/^0+/, "");
@@ -110,7 +114,8 @@ export function entryFromRow(row, { month, status = "open", position = 0 }) {
   const values = row.values ?? [];
   const full = String(row.reference ?? "").trim();
   const reference = normalReference(full || values[REFERENCE]);
-  const source = Math.abs((Number(row.rawNet) || 0) + (Number(row.rawVat) || 0));
+  const signed = (Number(row.rawNet) || 0) + (Number(row.rawVat) || 0);
+  const source = Math.abs(signed);
   return {
     month,
     status,
@@ -123,6 +128,12 @@ export function entryFromRow(row, { month, status = "open", position = 0 }) {
     fullReference: Boolean(full),
     referenceTail: reference.replace(/\D/g, "").slice(-4),
     gross: source > 0 ? source : Math.abs(Number(values[GROSS]) || 0),
+    vat: Math.abs(Number(source > 0 ? row.rawVat : values[VAT]) || 0),
+    // A credit note or a refund is never the second paper of a purchase.
+    credit: (source > 0 ? signed : Number(values[GROSS]) || 0) < 0,
+    kind: String(row.documentKind ?? ""),
+    booked: Boolean(row.booked),
+    period: row.periodFrom && row.periodTo ? `${row.periodFrom}|${row.periodTo}` : "",
   };
 }
 
@@ -139,6 +150,25 @@ const differentSupplierIds = (left, right) =>
 
 const LEVEL_ORDER = { strong: 3, likely: 2, possible: 1 };
 
+const PAYMENT = "payment_confirmation";
+// A bill is paid within its due days; a monthly charge of the same amount is a month apart.
+const PAIR_DAYS = 21;
+const daysApart = (left, right) => (left && right ? Math.abs(Date.parse(left) - Date.parse(right)) / 86_400_000 : Infinity);
+
+// Two papers of one purchase (trade rules, 8 November 2026): a till receipt with only its total and the tax invoice printed for it
+// on the same day, or a bill and the confirmation of its payment. One expense: the second paper is the receipt or the confirmation,
+// whichever came first. Returns that entry (left or right itself), or null. Lines of a booked journal are never paired.
+// Client B's 9-10 (9 November 2026): a water bill, a property tax and a supermarket purchase were each counted twice.
+export function secondPaper(left, right) {
+  if (left.booked || right.booked || left.credit !== right.credit || !left.gross || Math.abs(left.gross - right.gross) >= 0.005) return null;
+  if (differentSupplierIds(left, right) || !sameSupplier(left, right)) return null;
+  const leftPaid = left.kind === PAYMENT;
+  const rightPaid = right.kind === PAYMENT;
+  if (leftPaid !== rightPaid) return daysApart(left.date, right.date) <= PAIR_DAYS ? (leftPaid ? left : right) : null;
+  if (leftPaid || !left.date || left.date !== right.date || (left.vat > 0) === (right.vat > 0)) return null;
+  return left.vat > 0 ? right : left;
+}
+
 // How alike two documents are. strong: same reference and amount from the same supplier. likely: same reference
 // (three or more characters), amount and date but no supplier evidence (rows of the bookkeeper's journals carry only a
 // short supplier name). possible: no reference on one side, same supplier, amount and date. Otherwise null.
@@ -150,10 +180,17 @@ function similarity(candidate, entry) {
     if (sameSupplier(candidate, entry)) return "strong";
     return sameDate && candidate.reference.length >= 3 ? "likely" : null;
   }
-  // Same supplier, date and amount under another number: often the receipt of a shop and the tax invoice printed for the same
-  // purchase (M4 exam, 8 November 2026: three such pairs were both "ready"). Only a mark; two real purchases stay possible.
-  // Two full references with the same last digits are a series of one supplier (an insurer's yearly letters): different documents.
+  // The same bill scanned twice when no number could be read (a mobile bill): same supplier number, date, amount and billing period.
+  const sameBill = candidate.supplierId && candidate.supplierId === entry.supplierId && candidate.period && candidate.period === entry.period;
+  const sameSign = candidate.credit === entry.credit;
+  if (sameSign && !candidate.reference && !entry.reference && sameDate && sameBill) return "likely";
+  // A voucher and the confirmation of its payment, both only confirmations (a property tax): one payment within days.
+  // Two full references with the same last digits are a series (an insurer's yearly letters), not one payment.
   const series = candidate.fullReference && entry.fullReference && candidate.referenceTail && candidate.referenceTail === entry.referenceTail;
+  if (sameSign && candidate.kind === PAYMENT && entry.kind === PAYMENT && !series && sameSupplier(candidate, entry)
+    && daysApart(candidate.date, entry.date) <= PAIR_DAYS) return "likely";
+  // Same supplier, date and amount under another number, both with or both without VAT: only a mark; two real purchases stay
+  // possible. A receipt and its tax invoice are paired above (secondPaper).
   return sameDate && !series && sameSupplier(candidate, entry) ? "possible" : null;
 }
 
@@ -167,6 +204,14 @@ export function findDuplicates(entries, candidate, { fromMonth = null } = {}) {
     // September (Eva's September, 8 November 2026).
     if (fromMonth && entry.month < fromMonth && !(entry.date && entry.date.slice(0, 7) >= fromMonth)) continue;
     if (entry.documentId && entry.documentId === candidate.documentId) continue;
+    // Of two papers of one purchase the receipt or the confirmation is the copy, wherever it stands; the better paper is no copy.
+    const second = secondPaper(candidate, entry);
+    if (second) {
+      // The better paper after its receipt or confirmation was filed in another month: that row cannot be turned off, so a mark.
+      const level = second === candidate ? "likely" : entry.month !== candidate.month ? "possible" : null;
+      if (level) matches.push({ level, month: entry.month, status: entry.status, documentId: entry.documentId, position: entry.position });
+      continue;
+    }
     if (entry.month === candidate.month && entry.position >= candidate.position) continue;
     const level = similarity(candidate, entry);
     if (!level) continue;
@@ -190,7 +235,7 @@ export function intakeFacts(candidate, { entries = [], lockedThrough = null, tod
   const { receivedAt } = candidate.row;
   const where = intakeMonth({ date: values[DATE], periodFrom, periodTo, receivedAt, lockedThrough, today });
   const targetMonth = forcedMonth ?? where.month ?? candidate.month;
-  const year = yearGate({ docMonth: where.docMonth, periodFrom, periodTo, targetMonth });
+  const year = yearGate({ docMonth: where.docMonth, periodFrom, periodTo, targetMonth, kind: candidate.row.documentKind });
   const own = entryFromRow(candidate.row, { month: candidate.month, position: candidate.position });
   // The search starts at the earliest of the document month, the target month and the month the row sits in now:
   // a copy in the open table is a duplicate even when the document belongs to a later month.

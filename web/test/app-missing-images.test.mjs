@@ -70,10 +70,26 @@ test("opening a month turns off only a real copy: the same full number, supplier
   const policy = (id, reference, date) => ({ ...row(id, "001.jpg"), reference, values: [date, "", "x", "Phoenix", "520004078", reference.slice(-4), "", "941.00", "941.00", "0.00", "100", "100"], rawNet: "941", rawVat: "0" });
   const other = (id) => ({ ...row(id, "002.jpg"), reference: "SHOP-7507", values: ["12/09/26", "", "x", "Shop", "514000002", "7507", "", "50.00", "42.37", "7.63", "100", "100"], rawNet: "42.37", rawVat: "7.63" });
   const copy = (id) => ({ ...policy(id, "26/001/673/1017507", "07/09/26") });
-  const { selected } = await restoredMonth([policy("a", "25/001/673/1017507", "16/09/25"), policy("b", "26/001/673/1017507", "07/09/26"), other("c"), copy("d")]);
+  const { selected } = await restoredMonth([policy("a", "25/001/673/1017507", "16/09/25"), policy("b", "26/001/673/1017507", "07/09/26"), other("c")]);
   await app.activateDeclaration(selected);
+  app.appendSnapshots([copy("d")]);
   const off = rows().map((tr) => tr.classList.contains("not-for-export"));
   assert.deepEqual(off, [false, false, false, true], "only the second copy of the same policy is off");
+});
+
+// Review of 9 November 2026: a saved choice stands when the month opens again; a receipt above its new tax invoice is turned off.
+test("opening a month keeps the rows as saved; the receipt of a tax invoice that arrives is turned off", async () => {
+  const { app, rows } = await loadApp();
+  const paper = (id, reference, vat) => ({ ...row(id, "001.jpg"), reference, documentKind: "expense_invoice",
+    values: ["10/09/26", "", "x", "Shop", "514000002", reference.slice(-4), "", "118.00", (118 - vat).toFixed(2), vat.toFixed(2), "100", "100"],
+    rawNet: String(118 - vat), rawVat: String(vat) });
+  const kept = { ...paper("k", "R-9001", 0), reference: "R-9001" };
+  const { selected } = await restoredMonth([paper("r", "R-1001", 0), kept, { ...paper("t", "T-9001", 18), documentId: "kept-invoice" }]);
+  await app.activateDeclaration(selected);
+  assert.deepEqual(rows().map((tr) => tr.classList.contains("not-for-export")), [false, false, false], "nothing saved is turned off by opening");
+  app.appendSnapshots([paper("t2", "T-2002", 18)]);
+  const off = rows().map((tr) => tr.classList.contains("not-for-export"));
+  assert.deepEqual(off, [true, true, false, false], "the receipts of the same day and amount are off, the invoices stay");
 });
 
 // The owner, 9 November 2026: the empty fields of a bad photo stay empty and red until the user types them.

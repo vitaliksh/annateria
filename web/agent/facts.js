@@ -21,7 +21,7 @@ function candidateRow(record, entry, handle) {
   return {
     documentId: `fact:${handle}`, receivedAt: entry.addedAt, documentKind: record.kind, active: true,
     values: [record.date ?? "", "", record.purpose ?? "", record.supplier_name ?? "", record.supplier_vat_id ?? "", record.document_number ?? "", record.allocation_number ?? "", String(record.total), String(record.net), String(record.vat)],
-    rawNet: record.net, rawVat: record.vat, reference: record.document_number ?? "",
+    rawNet: record.net, rawVat: record.vat, reference: record.document_number ?? "", ...(record.booked ? { booked: true } : {}),
   };
 }
 

@@ -197,3 +197,65 @@ test("the source amounts of a row, not the recognised table amounts, are compare
   assert.equal(saved.gross, 1236.11);
   assert.equal(findDuplicates([saved], fresh).level, "strong");
 });
+
+// Two papers of one purchase were both counted (client B's 9-10, 9 November 2026). Synthetic suppliers and amounts.
+const paper = (id, date, gross, { vat = 0, kind = "expense_invoice", reference = "", supplier = "סופר דוגמה", supplierId = "510000019", period = null, booked = false } = {}) => ({
+  documentId: id, receivedAt: NOW, documentKind: kind, active: true, reference,
+  values: [date, "209", "קניות", supplier, supplierId, reference.slice(-4), "", gross.toFixed(2), (gross - vat).toFixed(2), vat.toFixed(2), "100", "100"],
+  rawNet: (gross - vat).toFixed(2), rawVat: vat.toFixed(2), periodFrom: period?.[0] ?? "", periodTo: period?.[1] ?? "", ...(booked ? { booked: true } : {}),
+});
+const at = (snapshot, position) => entryFromRow(snapshot, { month: "2026-09", position });
+
+test("a till receipt and the tax invoice of one purchase: the receipt is the copy, above or below the invoice", () => {
+  const receipt = paper("r", "10/09/26", 118, { reference: "R-1001" });
+  const invoice = paper("i", "10/09/26", 118, { vat: 18, reference: "T-2002" });
+  assert.equal(findDuplicates([at(receipt, 0)], at(invoice, 1)).level, null);
+  assert.equal(findDuplicates([at(invoice, 1)], at(receipt, 0)).level, "likely");
+  assert.equal(findDuplicates([at(invoice, 0)], at(receipt, 1)).level, "likely");
+  // One printed number on both papers: still the receipt, never the invoice with the VAT.
+  const sameNumber = paper("s", "10/09/26", 118, { vat: 18, reference: "R-1001" });
+  assert.equal(findDuplicates([at(receipt, 0)], at(sameNumber, 1)).level, null);
+  // Another day is another purchase; lines of a booked journal are never paired, only marked.
+  assert.equal(findDuplicates([at(invoice, 0)], at(paper("r2", "11/09/26", 118), 1)).level, null);
+  const bookedInvoice = paper("b", "10/09/26", 118, { vat: 18, booked: true });
+  assert.equal(findDuplicates([at(bookedInvoice, 0)], at(paper("b2", "10/09/26", 118, { booked: true }), 1)).level, "possible");
+});
+
+test("a refund is never the second paper, and a better paper after a filed receipt of another month is marked", () => {
+  const invoice = paper("i", "10/09/26", 118, { vat: 18, reference: "T-2002" });
+  const refund = { ...paper("r", "10/09/26", 118, { reference: "R-1001" }), rawNet: "-118.00", values: paper("r", "10/09/26", -118, { reference: "R-1001" }).values };
+  assert.equal(findDuplicates([at(invoice, 0)], at(refund, 1)).level, "possible", "a mark only, never turned off");
+  const filed = entryFromRow(paper("old", "10/09/26", 118, { reference: "R-1001" }), { month: "2026-09", status: "closed", position: 0 });
+  const later = entryFromRow(invoice, { month: "2026-10", position: 0 });
+  assert.equal(findDuplicates([filed], later).level, "possible");
+});
+
+test("a bill and its payment confirmation are one expense: the confirmation is the copy within three weeks", () => {
+  const bill = paper("bill", "20/09/26", 400, { reference: "B-500", supplier: "מי העיר בע\"מ", supplierId: "" });
+  const confirmation = { kind: "payment_confirmation", supplier: "תאגיד מי העיר", supplierId: "" };
+  const paid = paper("paid", "02/10/26", 400, { ...confirmation, reference: "P-600" });
+  assert.equal(findDuplicates([at(bill, 0)], at(paid, 1)).level, "likely");
+  assert.equal(findDuplicates([at(paid, 1)], at(bill, 0)).level, null);
+  assert.equal(findDuplicates([at(paid, 0)], at(bill, 1)).level, null);
+  assert.equal(findDuplicates([at(bill, 0)], at(paper("late", "30/10/26", 400, { ...confirmation, reference: "P-700" }), 1)).level, null);
+  // A voucher and the portal's confirmation of a property tax, both only confirmations; the next period's voucher is another payment.
+  const city = { kind: "payment_confirmation", supplier: "עיריית דוגמה", supplierId: "" };
+  const voucher = paper("v", "05/10/26", 1000, { ...city, reference: "V-1" });
+  assert.equal(findDuplicates([at(voucher, 0)], at(paper("p", "12/10/26", 1000, { ...city, reference: "C-2" }), 1)).level, "likely");
+  assert.equal(findDuplicates([at(voucher, 0)], at(paper("n", "05/12/26", 1000, { ...city, reference: "V-3" }), 1)).level, null);
+});
+
+test("the same bill scanned twice with no number read is a copy only with the same billing period", () => {
+  const phone = { supplier: "סלולר דוגמה בע\"מ", supplierId: "510000027", vat: 18 };
+  const first = paper("a", "07/10/26", 118, { ...phone, period: ["2026-09-07", "2026-10-06"] });
+  assert.equal(findDuplicates([at(first, 0)], at(paper("b", "07/10/26", 118, { ...phone, period: ["2026-09-07", "2026-10-06"] }), 1)).level, "likely");
+  assert.equal(findDuplicates([at(first, 0)], at(paper("c", "07/10/26", 118, phone), 1)).level, "possible");
+});
+
+test("an insurer's confirmation of a payment made last year is last year's, whatever period it names", () => {
+  const period = ["2025-10-01", "2026-09-30"];
+  const old = paper("old", "16/09/25", 500, { kind: "payment_confirmation", reference: "25/001/1", supplier: "ביטוח דוגמה", supplierId: "", period });
+  const where = { month: "2026-09", position: 0, periodFrom: period[0], periodTo: period[1] };
+  assert.equal(intakeFacts({ row: old, ...where }, { today, targetMonth: "2026-09" }).exclude, "previous-year");
+  assert.equal(intakeFacts({ row: { ...old, documentKind: "expense_invoice" }, ...where }, { today, targetMonth: "2026-09" }).exclude, null);
+});

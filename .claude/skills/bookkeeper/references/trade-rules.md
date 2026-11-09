@@ -78,9 +78,11 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
   VAT: total minus total/1.18, then two thirds (client B's own months). A receipt that says nothing of VAT (a foreign service: Apple, Google,
   Zoom) has VAT 0. Extraction skill v6.
 - **A bill and its payment confirmation, SAMPLE (8 Nov 2026).** A water bill and the confirmation of its card payment, a property-tax voucher
-  and the municipal portal's confirmation: one expense. Keep the bill, switch the confirmation off. The dates differ, so the code only marks it.
+  and the municipal portal's confirmation: one expense. Keep the bill, switch the confirmation off. Since 9 Nov 2026 the code does it
+  (`secondPaper` in `web/intake-facts.js`: same supplier and amount within 21 days; a receipt with VAT 0 against its tax invoice on the same day).
 - **An insurer's letters of one policy, SAMPLE (8 Nov 2026).** The same policy number with another year in front (25/... and 26/...) is another
-  year's policy; a renewal letter of the current year repeats the confirmation. Only the current year's counts once; last year's copy is off.
+  year's policy; a renewal letter of the current year repeats the confirmation. Only the current year's counts once; last year's copy is off
+  (the code: a payment confirmation dated in a previous year is previous-year, 9 Nov 2026).
 - **A document the client issued itself** is income. Supplier number equals the client's, usually with no buyer number.
 - **Dates** are day, month, year. A blurred year is often misread: a "previous year" on a bad photo should be doubted.
 - **The shekel sign** is not a digit. A number printed after it keeps its first digit.
