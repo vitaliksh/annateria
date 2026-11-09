@@ -201,7 +201,7 @@ export function findDuplicates(entries, candidate, { fromMonth = null } = {}) {
   const matches = [];
   for (const entry of entries) {
     // A row of an earlier month counts when its document is dated in the window: a two-monthly client's October paper may sit in
-    // September (Eva's September, 8 November 2026).
+    // September (client B's September, 8 November 2026).
     if (fromMonth && entry.month < fromMonth && !(entry.date && entry.date.slice(0, 7) >= fromMonth)) continue;
     if (entry.documentId && entry.documentId === candidate.documentId) continue;
     // Of two papers of one purchase the receipt or the confirmation is the copy, wherever it stands; the better paper is no copy.

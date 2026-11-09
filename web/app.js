@@ -1589,7 +1589,7 @@ function setExportIncluded(row, included) {
   row.classList.toggle("not-for-export", !checkbox.checked);
 }
 // A row is a copy of one above it only by the rule of the intake (intake-facts.js): the same number, supplier and amount, or the same
-// number, amount and date. The last four digits alone turned off different documents whenever a month opened (Eva's September,
+// number, amount and date. The last four digits alone turned off different documents whenever a month opened (client B's September,
 // 8 November 2026: the policy of 2026-27 as a copy of 2025-26).
 // Of two papers of one purchase (a till receipt and its tax invoice, a bill and its payment confirmation) the receipt or the
 // confirmation is turned off, also when it stood above the better paper (client B's 9-10, 9 November 2026).

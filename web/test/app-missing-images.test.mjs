@@ -63,7 +63,7 @@ test("opening a month shows all its rows, whatever filter the last month had", a
   assert.deepEqual(rows().map((tr) => tr.hidden), [false, false]);
 });
 
-// Eva's September, 8 November 2026: opening a month turned off every row whose last four digits matched a row above it, whatever the
+// Client B's September, 8 November 2026: opening a month turned off every row whose last four digits matched a row above it, whatever the
 // supplier and amount (the policy of 2026-27 as a copy of 2025-26; a tax invoice as a copy of its till receipt).
 test("opening a month turns off only a real copy: the same full number, supplier and amount", async () => {
   const { app, rows } = await loadApp();

@@ -139,7 +139,7 @@ test("a copy in the open table is found although the document is dated in a late
   assert.deepEqual([facts.targetMonth, facts.duplicates.level, facts.exclude], ["2026-10", "strong", "duplicate"]);
 });
 
-// Eva's September, 8 November 2026: October documents of a two-monthly client sat in September; the same papers coming again in
+// Client B's September, 8 November 2026: October documents of a two-monthly client sat in September; the same papers coming again in
 // October were searched for only from October on, so both would count.
 test("a copy dated in a later month is found in the earlier month where it sits", () => {
   const entries = [entry("sep", "02/10/26", 663.49, "2026-09", {}, "open", 3)];
