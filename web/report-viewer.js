@@ -10,7 +10,9 @@ const STYLE = `body{margin:0;font-family:"Heebo Variable",Heebo,"Segoe UI",syste
 .bar button.secondary{background:#fff;border-color:#c9c5b4;color:#3d3929}.bar button.secondary:hover{background:#f5f4ee}.bar button:disabled{opacity:.5;cursor:not-allowed}
 .bar .title{flex:1;font-weight:650;color:#141413}.status{flex-basis:100%;padding:8px 12px;border:1px solid #b9d9c6;border-radius:6px;background:#e7f3ec;color:#2f6b4a;font-weight:600}.status:empty{display:none}.status.error{border-color:#efb8b4;background:#fcebea;color:#b3261e}
 main{padding:16px}main img{display:block;width:100%;max-width:900px;margin:0 auto 16px;background:#fff;box-shadow:0 1px 6px #14141340}
-.message{text-align:center;padding:40px;color:#6b6759}`;
+.message{text-align:center;padding:40px;color:#6b6759}
+@page{size:A4;margin:0}
+@media print{body{background:#fff}.bar{display:none}main{padding:0}main img{width:210mm;height:297mm;max-width:none;margin:0;box-shadow:none;break-after:page;page-break-after:always}main img:last-child{break-after:auto;page-break-after:auto}}`;
 
 // The new window does not share the page's fonts; link the token sheet by its absolute address when it is known.
 function fontLink() {
@@ -28,7 +30,8 @@ export function openReportWindow({ open = () => window.open("", WINDOW_NAME, WIN
   doc.open();
   doc.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>דוח</title>${fontLink()}<style>${STYLE}</style></head>`
     + `<body><header class="bar"><span class="title" id="title">טוען דוח…</span>`
-    + `<button id="save" type="button" disabled>שמירה</button>`
+    + `<button id="print" type="button" disabled>הדפסה</button>`
+    + `<button id="save" type="button" class="secondary" disabled>שמירה</button>`
     + `<button id="save-as" type="button" class="secondary" disabled>שמירת העתק בשם…</button>`
     + `<button id="close" type="button" class="secondary">סגירה</button>`
     + `<div class="status" id="status" role="status"></div></header><main id="pages"><p class="message">מכין את הדוח…</p></main></body></html>`);
@@ -54,8 +57,9 @@ export function openReportWindow({ open = () => window.open("", WINDOW_NAME, WIN
     win,
     setStatus,
     close: () => win.close(),
-    // pageUrls: image URLs of the pages; save() and saveAs(win) resolve to a message shown in the status line.
-    show({ title, pageUrls, save, saveAs }) {
+    // pageUrls: image URLs of the pages; save() and saveAs(win) resolve to a message shown in the status line. print: the print dialog
+    // opens as soon as the pages are drawn (the reports page's "הדפסה": one click, one A4 sheet per page).
+    show({ title, pageUrls, save, saveAs, print = false }) {
       doc.title = title;
       part("title").textContent = title;
       part("pages").replaceChildren(...pageUrls.map((url, index) => {
@@ -66,7 +70,13 @@ export function openReportWindow({ open = () => window.open("", WINDOW_NAME, WIN
       }));
       part("save").onclick = guarded(save);
       part("save-as").onclick = guarded(() => saveAs(win));
-      part("save").disabled = part("save-as").disabled = false;
+      part("print").onclick = () => win.print();
+      part("save").disabled = part("save-as").disabled = part("print").disabled = false;
+      if (print) {
+        const images = [...part("pages").querySelectorAll("img")];
+        Promise.all(images.map((image) => (image.complete ? null : new Promise((done) => { image.onload = image.onerror = done; }))))
+          .then(() => { win.focus(); win.print(); });
+      }
     },
     fail(message) {
       part("title").textContent = "הדוח לא נוצר";

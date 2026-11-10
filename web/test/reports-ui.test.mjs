@@ -15,7 +15,7 @@ import { memoryDirectory } from "./memory-directory.mjs";
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "index.html"), "utf8");
 const now = "2026-10-02T10:00:00.000Z";
 
-async function setup({ declarations = ["2026-01", "2026-02"], context = true, openViewer, renderPdf, renderDocuments, periods = {} } = {}) {
+async function setup({ declarations = ["2026-01", "2026-02"], context = true, openViewer, renderPdf, renderDocuments, periods = {}, today } = {}) {
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/ocr/" });
   Object.assign(globalThis, { document: window.document, window });
   const dialog = window.document.querySelector("#reports-view");
@@ -41,6 +41,7 @@ async function setup({ declarations = ["2026-01", "2026-02"], context = true, op
     ...(openViewer ? { openViewer } : {}),
     ...(renderPdf ? { renderPdf } : {}),
     ...(renderDocuments ? { renderDocuments } : {}),
+    ...(today ? { today: () => today } : {}),
   });
   const q = (id) => dialog.querySelector(`#${id}`);
   const open = async () => { window.document.querySelector("#open-reports").click(); await new Promise((r) => setTimeout(r, 80)); };
@@ -336,4 +337,40 @@ test("step 9.3: the page says in red which months of the period the checks of th
   q("reports-to").value = "02/2026";
   q("reports-to").dispatchEvent(new window.Event("change"));
   assert.equal(q("reports-checks").textContent, "02/2026: אין בהצהרה שורה פעילה.");
+});
+
+// The owner, 10 November 2026: the reports open on the period to report, a chosen month brings its whole period, and printing
+// is one click.
+test("the reports open on the period to report: in November a two-monthly client's September-October", async () => {
+  const { reportMonth } = await import("../reports-ui.js");
+  const rows = [{ active: true }];
+  const november = new Date(2026, 10, 10);
+  assert.equal(reportMonth([{ month: "2026-10", rows }, { month: "2026-11", rows }], november), "2026-10", "November's own rows do not move it");
+  assert.equal(reportMonth([{ month: "2026-03", rows }], november), "2026-03", "a client whose last rows are older opens on them");
+  assert.equal(reportMonth([], november), "2026-10");
+  const { q, open } = await setup({ declarations: ["2026-09", "2026-10", "2026-11"], periods: { vatPeriod: "bimonthly", advancesPeriod: "monthly" }, today: november });
+  await open();
+  assert.deepEqual([q("reports-from").value, q("reports-to").value], ["09/2026", "10/2026"]);
+});
+
+test("a month chosen for a VAT report brings its whole two-month period", async () => {
+  const { q, open, window } = await setup({ declarations: ["2026-01", "2026-02", "2026-03", "2026-04"], periods: { vatPeriod: "bimonthly" } });
+  await open();
+  q("reports-from-month").value = "04";
+  q("reports-from-month").dispatchEvent(new window.Event("change"));
+  assert.deepEqual([q("reports-from").value, q("reports-to").value], ["03/2026", "04/2026"]);
+});
+
+test("the print button opens the report and asks the window to print it", async () => {
+  let shown = null;
+  const viewer = { show: (options) => { shown = options; }, fail: () => {} };
+  const renderPdf = async () => ({ pdf: new Uint8Array(1), images: [] });
+  const { q, open } = await setup({ openViewer: () => viewer, renderPdf });
+  await open();
+  q("reports-print").click();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(shown?.print, true);
+  q("reports-show").click();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(shown?.print, false, "the show button only shows");
 });

@@ -16,7 +16,7 @@ const REPORT_FILES = { vat: "vat", advances: "advances", profitLoss: "profit-los
 const PDF_TYPES = [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }];
 const TEXT_TYPES = [{ description: "PCN874", accept: { "text/plain": [".txt"] } }];
 
-// Default period: the reporting period of the latest declaration for VAT/advances, the year to date otherwise.
+// Default period: the reporting period of the month to report for VAT/advances, the year to date otherwise.
 export function defaultPeriod(kind, latestMonth, vatPeriod, advancesPeriod = vatPeriod) {
   if (!latestMonth) return { from: "", to: "" };
   if (kind === "vat" || kind === "pcn874" || kind === "documents") return periodContaining(latestMonth, vatPeriod);
@@ -28,16 +28,26 @@ export function defaultPeriod(kind, latestMonth, vatPeriod, advancesPeriod = vat
 // client of the open declaration. `dialog` is the container with the controls (the reports view). onOpen() reveals it;
 // without onOpen a <dialog> container is shown modally. The returned open({ client, kind }) is used by the other
 // entry points (sidebar, client card). renderDocuments draws the documents report (replaceable in tests: jsdom has no canvas).
+// The month to report (the owner, 10 November 2026): in November the reports open on October, the period of a two-monthly client on
+// September-October. A client whose last rows are older opens on its last month with rows.
+export function reportMonth(declarations, today = new Date()) {
+  const previous = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const filing = `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, "0")}`;
+  const withRows = declarations.findLast((item) => item.rows.some((row) => row.active))?.month ?? "";
+  return withRows && withRows < filing ? withRows : filing;
+}
+const PERIOD_KINDS = new Set(["vat", "advances", "pcn874", "documents"]);
+
 export function setupReports({
   button, dialog, getContext, onError, onOpen, openViewer = openReportWindow, renderPdf = renderReportPdf,
-  renderDocuments = renderDocumentReport,
+  renderDocuments = renderDocumentReport, today = () => new Date(),
 }) {
   const part = (id) => dialog.querySelector(`#${id}`);
   const [kind, from, to, vatPeriod, percent, errorLine, statusLine, preview, show, saveAll, advancesPeriod] = [
     "reports-kind", "reports-from", "reports-to", "reports-vat-period", "reports-advance-percent", "reports-error",
     "reports-status", "reports-preview", "reports-show", "reports-save-all", "reports-advances-period",
   ].map(part);
-  const [savePcn, savePcnAs, checks] = ["reports-save-pcn", "reports-save-pcn-as", "reports-checks"].map(part);
+  const [savePcn, savePcnAs, checks, printButton] = ["reports-save-pcn", "reports-save-pcn-as", "reports-checks", "reports-print"].map(part);
   const pcnOption = kind.querySelector("option[value=\"pcn874\"]");
   const pickers = [from, to].map((input) => ({ input, month: part(`${input.id}-month`), year: part(`${input.id}-year`) }));
   let context = null;
@@ -52,6 +62,7 @@ export function setupReports({
   const showActions = () => {
     const pcn = kind.value === "pcn874";
     show.hidden = pcn;
+    if (printButton) printButton.hidden = pcn;
     savePcn.hidden = savePcnAs.hidden = !pcn;
   };
 
@@ -90,8 +101,7 @@ export function setupReports({
         readReportSettings(context.client.directory),
       ]);
       entries = reportEntries(declarations, chart, context.names);
-      // Prefer the latest month that has active rows: a freshly created empty declaration must not hide the data.
-      latestMonth = (declarations.findLast((item) => item.rows.some((row) => row.active)) ?? declarations.at(-1))?.month ?? "";
+      latestMonth = reportMonth(declarations, today());
       // The periods are client properties; the old report settings only serve clients saved before that.
       vatPeriod.value = context.client.config?.vatPeriod ?? settings.vatPeriod;
       advancesPeriod.value = context.client.config?.advancesPeriod ?? vatPeriod.value;
@@ -122,6 +132,14 @@ export function setupReports({
     for (const list of [month, year].filter(Boolean)) {
       list.addEventListener("change", () => {
         input.value = `${month.value}/${year.value}`;
+        // A VAT or advances report is always one whole reporting period: the month chosen brings its pair (the owner, 10 November 2026).
+        const chosen = parseMonthText(input.value);
+        if (PERIOD_KINDS.has(kind.value) && chosen) {
+          const period = periodContaining(chosen, kind.value === "advances" ? advancesPeriod.value : vatPeriod.value);
+          from.value = formatMonth(period.from);
+          to.value = formatMonth(period.to);
+          showPickers();
+        }
         periodChosen = true;
         renderPreview();
       });
@@ -239,8 +257,8 @@ export function setupReports({
     return `ההעתק נשמר: ${handle.name}`;
   };
 
-  // The window is opened before any await, while the click still counts as a user gesture.
-  show.addEventListener("click", async () => {
+  // The window is opened before any await, while the click still counts as a user gesture. print: the print dialog opens at once.
+  const present = async ({ print = false } = {}) => {
     const parameters = readParameters();
     if (!parameters) return;
     if (kind.value === "advances" && parameters.advancePercent === null) {
@@ -262,12 +280,15 @@ export function setupReports({
         pageUrls: images.map((image) => URL.createObjectURL(image)),
         save: async () => `הקובץ נשמר: ${await saveToReports(report.name, pdf)}`,
         saveAs: (win) => saveCopyAs(win, report.name, pdf),
+        print,
       });
     } catch (error) {
       errorLine.textContent = error.message;
       viewer?.fail(error.message);
     }
-  });
+  };
+  show.addEventListener("click", () => present());
+  printButton?.addEventListener("click", () => present({ print: true }));
 
   saveAll.addEventListener("click", async () => {
     const parameters = readParameters();
