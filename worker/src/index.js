@@ -1,8 +1,10 @@
 // ANNATERIA Worker. Step 1.1: the access code. POST /v1/auth turns a 6-character code into a signed token that the
 // browser keeps in page memory. Step 1.2: POST /v1/model forwards a constrained generateContent request to Gemini.
-// Step 7.4: /v1/baton says which device works now (baton.js). Every route but /health and /v1/auth calls requireUser().
+// Step 7.4: /v1/baton says which device works now (baton.js). GET /v1/rate gives the Bank of Israel's representative rate of a
+// currency on a day (rate.js). Every route but /health and /v1/auth calls requireUser().
 import { AccessConfigError, checkCode, normalizeCode, parseAccessCodes, signToken, verifyToken } from "./access.js";
 import { MAX_REQUEST_BYTES, readLimitedText, validateModelCall } from "./model.js";
+import { RateError, representativeRate } from "./rate.js";
 
 export { AuthGuard } from "./auth-guard.js";
 export { Baton } from "./baton.js";
@@ -196,6 +198,26 @@ async function batonCall(request, env, headers, action) {
   }
 }
 
+// GET /v1/rate?currency=USD&date=2026-10-25 -> { currency, date, rate } (the date of the rate may be earlier: a day without one).
+async function rateCall(request, env, headers) {
+  if (request.method !== "GET") return json({ error: "Method not allowed." }, 405, headers);
+  let user;
+  try {
+    user = await requireUser(request, env);
+  } catch (error) {
+    console.error("Token check failed:", error instanceof AccessConfigError ? error.message : error?.name);
+    return json({ error: "Login is not available." }, 503, headers);
+  }
+  if (!user) return json({ error: "Login required.", code: "login" }, 401, headers);
+  const url = new URL(request.url);
+  try {
+    return json(await representativeRate({ currency: url.searchParams.get("currency"), date: url.searchParams.get("date") }), 200, headers);
+  } catch (error) {
+    if (!(error instanceof RateError)) return json({ error: "The rate is not available.", code: "unavailable" }, 502, headers);
+    return json({ error: error.message, code: error.code }, error.code === "invalid" ? 400 : error.code === "not-found" ? 404 : 502, headers);
+  }
+}
+
 const BATON_ROUTES = { "/v1/baton": "get", "/v1/baton/beat": "beat", "/v1/baton/release": "release" };
 
 export default {
@@ -209,6 +231,7 @@ export default {
     if (url.pathname === "/v1/auth") return authenticate(request, env, cors(request, env));
     if (url.pathname === "/v1/model") return modelCall(request, env, cors(request, env));
     if (BATON_ROUTES[url.pathname]) return batonCall(request, env, cors(request, env), BATON_ROUTES[url.pathname]);
+    if (url.pathname === "/v1/rate") return rateCall(request, env, cors(request, env));
     return json({ error: "Not found." }, 404, cors(request, env));
   },
 };
