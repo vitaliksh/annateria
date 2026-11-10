@@ -38,7 +38,8 @@ async function setup({ declarations = ["2026-01", "2026-02"], context = true, op
     getContext: (explicit) => (context ? { client: explicit ?? client, dataRoot, names: {} } : null),
     onOpen: () => { opened += 1; },
     onError: (message) => errors.push(message),
-    ...(openViewer ? { openViewer } : {}),
+    // jsdom draws no canvas: without a viewer of the test, the page keeps its inline preview.
+    openViewer: openViewer ?? (() => null),
     ...(renderPdf ? { renderPdf } : {}),
     ...(renderDocuments ? { renderDocuments } : {}),
     ...(today ? { today: () => today } : {}),
@@ -167,8 +168,15 @@ test("страница отчётов: показ открывает окно п
   assert.equal(viewer.shown.pageUrls.length, 1);
   assert.match(await viewer.shown.save(), /reports\/vat_02-2026_02-2026\.pdf/);
   assert.deepEqual([...client.directory.children.get("reports").children.keys()], ["vat_02-2026_02-2026.pdf"]);
-  const win = { showSaveFilePicker: async (options) => ({ name: options.suggestedName, createWritable: async () => ({ write: async () => {}, close: async () => {} }) }) };
-  assert.match(await viewer.shown.saveAs(win), /vat_02-2026_02-2026\.pdf/);
+  assert.equal(viewer.shown.saveAs, undefined, "no save into a folder picked at random");
+  // The owner, 10 November 2026: a report saved before is listed, and the page says when the period shown already has one.
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(q("reports-saved").hidden, false);
+  assert.match(q("reports-saved-list").textContent, /דוח מס ערך מוסף · 02\/2026 · נשמר/);
+  assert.equal(q("reports-existing").hidden, false);
+  assert.match(q("reports-existing").textContent, /כבר נשמר/);
+  await click("reports-show");
+  assert.match(viewer.shown.notice, /כבר נשמר/, "showing it again says so");
 });
 
 test("диалог отчётов: ошибка при построении закрывает окно просмотра и показывается пользователю", async () => {

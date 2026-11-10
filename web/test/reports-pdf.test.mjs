@@ -115,43 +115,35 @@ test("כרטסת: מתפרסת על כמה עמודים עם כותרות חוז
   assert.equal(rows.length, 92);
 });
 
-test("חלון הצגה: כפתורי שמירה, שמירה בשם וסגירה; ביטול הדיאלוג אינו שגיאה", async () => {
-  const win = new JSDOM("<!doctype html><title>x</title>").window;
-  let closed = 0;
-  win.close = () => { closed += 1; };
-  const viewer = openReportWindow({ open: () => win });
+// The owner, 10 November 2026: the report opens inside the page, modal, and saves only into the client's folder.
+test("the report dialog is modal inside the page, saves into the client's folder, and closes", async () => {
+  const win = new JSDOM("<!doctype html><title>x</title><body><main>work</main></body>").window;
+  let modal = 0;
+  win.HTMLDialogElement.prototype.showModal = function showModal() { modal += 1; this.open = true; };
+  win.HTMLDialogElement.prototype.close = function close() { this.open = false; };
+  let printed = 0;
+  win.print = () => { printed += 1; };
   const doc = win.document;
-  assert.equal(doc.querySelector("#save").disabled, true);
-  const saved = [];
-  viewer.show({
-    title: "דוח בדיקה",
-    pageUrls: ["a.jpg", "b.jpg"],
-    save: async () => { saved.push("save"); return "נשמר: reports/x.pdf"; },
-    saveAs: async (target) => {
-      saved.push(target === win ? "saveAs" : "wrong window");
-      throw Object.assign(new Error("cancelled"), { name: "AbortError" });
-    },
-  });
-  assert.equal(doc.title, "דוח בדיקה");
-  assert.equal(doc.querySelectorAll("#pages img").length, 2);
-  doc.querySelector("#save").click();
+  const viewer = openReportWindow({ document: doc });
+  const dialog = doc.querySelector("#report-dialog");
+  assert.equal(modal, 1, "the work behind it is locked at once");
+  assert.equal(doc.querySelector("#report-save").disabled, true);
+  viewer.show({ title: "דוח בדיקה", pageUrls: ["a.jpg", "b.jpg"], save: async () => "הדוח נשמר בתיקיית הלקוח: c/reports/x.pdf", notice: "דוח לתקופה הזו כבר נשמר." });
+  assert.equal(doc.querySelectorAll("#report-pages img").length, 2);
+  assert.equal(doc.querySelector("#report-status").textContent, "דוח לתקופה הזו כבר נשמר.");
+  assert.equal(doc.querySelector("#report-save-as"), null, "no save into a folder picked at random");
+  doc.querySelector("#report-save").click();
   await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.equal(doc.querySelector("#status").textContent, "נשמר: reports/x.pdf");
-  doc.querySelector("#save-as").click();
+  assert.equal(doc.querySelector("#report-status").textContent, "הדוח נשמר בתיקיית הלקוח: c/reports/x.pdf");
+  doc.querySelector("#report-dialog-print").click();
+  assert.equal(printed, 1);
+  doc.querySelector("#report-close").click();
+  assert.equal(dialog.open, false);
+  const again = openReportWindow({ document: doc });
+  again.show({ title: "t", pageUrls: [], save: async () => { throw new Error("denied"); } });
+  doc.querySelector("#report-save").click();
   await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.deepEqual(saved, ["save", "saveAs"]);
-  assert.equal(doc.querySelector("#status").textContent, "");
-  doc.querySelector("#close").click();
-  assert.equal(closed, 1);
-  assert.equal(openReportWindow({ open: () => null }), null);
-});
-
-test("חלון הצגה: שגיאת שמירה מוצגת בשורת הסטטוס", async () => {
-  const win = new JSDOM("<!doctype html>").window;
-  const viewer = openReportWindow({ open: () => win });
-  viewer.show({ title: "t", pageUrls: [], save: async () => { throw new Error("denied"); }, saveAs: async () => "" });
-  win.document.querySelector("#save").click();
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.match(win.document.querySelector("#status").textContent, /denied/);
-  assert.ok(win.document.querySelector("#status").classList.contains("error"));
+  assert.match(doc.querySelector("#report-status").textContent, /denied/);
+  assert.ok(doc.querySelector("#report-status").classList.contains("error"));
+  assert.equal(doc.querySelectorAll("#report-dialog").length, 1, "one dialog is reused");
 });

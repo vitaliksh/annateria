@@ -1,86 +1,104 @@
-// Child window that shows the rendered report pages with Close / Save a copy as / Save buttons.
-// openReportWindow returns null when the browser blocks the window; the caller then falls back to an inline preview.
-const WINDOW_NAME = "reportViewer";
-const WINDOW_FEATURES = "popup=yes,width=980,height=900";
-
-const STYLE = `body{margin:0;font-family:"Heebo Variable",Heebo,"Segoe UI",system-ui,Arial,sans-serif;background:#ece9de;color:#3d3929}
-.bar{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;background:#fff;border-bottom:1px solid #e0ddd0}
-.bar button{padding:7px 16px;border:1px solid #b5542f;border-radius:6px;background:#b5542f;color:#fff;font:inherit;font-weight:600;cursor:pointer}
-.bar button:hover{background:#9c4627;border-color:#9c4627}.bar button:focus-visible{outline:none;box-shadow:0 0 0 3px #b5542f47}
-.bar button.secondary{background:#fff;border-color:#c9c5b4;color:#3d3929}.bar button.secondary:hover{background:#f5f4ee}.bar button:disabled{opacity:.5;cursor:not-allowed}
-.bar .title{flex:1;font-weight:650;color:#141413}.status{flex-basis:100%;padding:8px 12px;border:1px solid #b9d9c6;border-radius:6px;background:#e7f3ec;color:#2f6b4a;font-weight:600}.status:empty{display:none}.status.error{border-color:#efb8b4;background:#fcebea;color:#b3261e}
-main{padding:16px}main img{display:block;width:100%;max-width:900px;margin:0 auto 16px;background:#fff;box-shadow:0 1px 6px #14141340}
-.message{text-align:center;padding:40px;color:#6b6759}
+// The report on screen: a dialog inside the page, modal, so the work behind it cannot be touched until it is closed (the owner,
+// 10 November 2026: a separate browser window stayed open beside the work). It shows the pages (A4 images) or a saved PDF, and has
+// Print, Save (into the client's reports folder, never a folder picked at random) and Close.
+const STYLE_ID = "report-dialog-style";
+const STYLE = `#report-dialog{width:min(980px,96vw);height:94vh;max-height:94vh;padding:0;border:0;border-radius:10px;overflow:hidden}
+#report-dialog::backdrop{background:#14141399}
+#report-dialog .report-frame{display:flex;flex-direction:column;height:100%}
+#report-dialog .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;background:#fff;border-bottom:1px solid #e0ddd0}
+#report-dialog .title{flex:1;font-weight:650}
+#report-dialog .status{flex-basis:100%;padding:8px 12px;border:1px solid #b9d9c6;border-radius:6px;background:#e7f3ec;color:#2f6b4a;font-weight:600}
+#report-dialog .status:empty{display:none}#report-dialog .status.error{border-color:#efb8b4;background:#fcebea;color:#b3261e}
+#report-dialog .pages{flex:1;overflow:auto;padding:16px;background:#ece9de}
+#report-dialog .pages img{display:block;width:100%;max-width:900px;margin:0 auto 16px;background:#fff;box-shadow:0 1px 6px #14141340}
+#report-dialog .pages iframe{width:100%;height:100%;border:0;background:#fff}
+#report-dialog .message{text-align:center;padding:40px;color:#6b6759}
 @page{size:A4;margin:0}
-@media print{body{background:#fff}.bar{display:none}main{padding:0}main img{width:210mm;height:297mm;max-width:none;margin:0;box-shadow:none;break-after:page;page-break-after:always}main img:last-child{break-after:auto;page-break-after:auto}}`;
+@media print{body:has(#report-dialog[open])>*:not(#report-dialog){display:none!important}
+#report-dialog[open]{position:static;width:auto;height:auto;max-height:none;border-radius:0;overflow:visible}
+#report-dialog::backdrop{background:none}#report-dialog .bar{display:none}#report-dialog .pages{padding:0;background:#fff;overflow:visible}
+#report-dialog .pages img{width:210mm;height:297mm;max-width:none;margin:0;box-shadow:none;break-after:page}
+#report-dialog .pages img:last-child{break-after:auto}}`;
 
-// The new window does not share the page's fonts; link the token sheet by its absolute address when it is known.
-function fontLink() {
-  try {
-    return `<link rel="stylesheet" href="${new URL("tokens.css", globalThis.document.baseURI).href}">`;
-  } catch {
-    return "";
-  }
+function ensureDialog(doc) {
+  if (!doc.getElementById(STYLE_ID)) doc.head.append(Object.assign(doc.createElement("style"), { id: STYLE_ID, textContent: STYLE }));
+  let dialog = doc.getElementById("report-dialog");
+  if (dialog) return dialog;
+  dialog = doc.createElement("dialog");
+  dialog.id = "report-dialog";
+  dialog.setAttribute("aria-labelledby", "report-dialog-title");
+  dialog.innerHTML = `<div class="report-frame"><header class="bar"><span class="title" id="report-dialog-title">טוען דוח…</span>`
+    + `<button id="report-dialog-print" type="button" disabled>הדפסה</button>`
+    + `<button id="report-save" type="button" class="secondary" disabled>שמירה בתיקיית הלקוח</button>`
+    + `<button id="report-close" type="button" class="secondary">סגירה</button>`
+    + `<div class="status" id="report-status" role="status"></div></header><div class="pages" id="report-pages"></div></div>`;
+  doc.body.append(dialog);
+  return dialog;
 }
 
-export function openReportWindow({ open = () => window.open("", WINDOW_NAME, WINDOW_FEATURES) } = {}) {
-  const win = open();
-  if (!win) return null;
-  const doc = win.document;
-  doc.open();
-  doc.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>דוח</title>${fontLink()}<style>${STYLE}</style></head>`
-    + `<body><header class="bar"><span class="title" id="title">טוען דוח…</span>`
-    + `<button id="print" type="button" disabled>הדפסה</button>`
-    + `<button id="save" type="button" class="secondary" disabled>שמירה</button>`
-    + `<button id="save-as" type="button" class="secondary" disabled>שמירת העתק בשם…</button>`
-    + `<button id="close" type="button" class="secondary">סגירה</button>`
-    + `<div class="status" id="status" role="status"></div></header><main id="pages"><p class="message">מכין את הדוח…</p></main></body></html>`);
-  doc.close();
-  const part = (id) => doc.querySelector(`#${id}`);
-  const status = part("status");
+// Opens the dialog at once (the work behind it is locked) and returns { show, showPdf, fail, setStatus, close }.
+export function openReportWindow({ document: doc = globalThis.document } = {}) {
+  const dialog = ensureDialog(doc);
+  const part = (id) => dialog.querySelector(`#${id}`);
+  const status = part("report-status");
   const setStatus = (message, isError = false) => {
     status.textContent = message;
     status.classList.toggle("error", isError);
   };
-  part("close").onclick = () => win.close();
-  doc.addEventListener("keydown", (event) => { if (event.key === "Escape") win.close(); });
-  // Runs a save action and reports its result; the user cancelling the Save As dialog is not an error.
+  const urls = [];
+  const close = () => {
+    if (dialog.open) dialog.close();
+    for (const url of urls.splice(0)) URL.revokeObjectURL?.(url);
+  };
+  part("report-dialog-title").textContent = "טוען דוח…";
+  part("report-pages").replaceChildren(Object.assign(doc.createElement("p"), { className: "message", textContent: "מכין את הדוח…" }));
+  part("report-dialog-print").disabled = part("report-save").disabled = true;
+  part("report-save").hidden = false;
+  setStatus("");
+  part("report-close").onclick = close;
+  if (typeof dialog.showModal === "function" && !dialog.open) dialog.showModal();
+  else dialog.open = true;
+
   const guarded = (action) => async () => {
     setStatus("שומר…");
     try {
       setStatus(await action());
     } catch (error) {
-      setStatus(error?.name === "AbortError" ? "" : "השמירה נכשלה: " + error.message, error?.name !== "AbortError");
+      setStatus(`השמירה נכשלה: ${error.message}`, true);
     }
   };
+  const printWhenReady = (images) => Promise.all(images.map((image) => (image.complete ? null : new Promise((done) => { image.onload = image.onerror = done; }))))
+    .then(() => doc.defaultView?.print?.());
+
   return {
-    win,
     setStatus,
-    close: () => win.close(),
-    // pageUrls: image URLs of the pages; save() and saveAs(win) resolve to a message shown in the status line. print: the print dialog
-    // opens as soon as the pages are drawn (the reports page's "הדפסה": one click, one A4 sheet per page).
-    show({ title, pageUrls, save, saveAs, print = false }) {
-      doc.title = title;
-      part("title").textContent = title;
-      part("pages").replaceChildren(...pageUrls.map((url, index) => {
-        const image = doc.createElement("img");
-        image.src = url;
-        image.alt = `${title} · ${index + 1}`;
-        return image;
-      }));
-      part("save").onclick = guarded(save);
-      part("save-as").onclick = guarded(() => saveAs(win));
-      part("print").onclick = () => win.print();
-      part("save").disabled = part("save-as").disabled = part("print").disabled = false;
-      if (print) {
-        const images = [...part("pages").querySelectorAll("img")];
-        Promise.all(images.map((image) => (image.complete ? null : new Promise((done) => { image.onload = image.onerror = done; }))))
-          .then(() => { win.focus(); win.print(); });
-      }
+    close,
+    // pageUrls: the A4 images of the report. save() resolves with the message of where it went. print: the print dialog opens at once.
+    // notice: a line shown at the top (a report of this period saved before).
+    show({ title, pageUrls, save, print = false, notice = "" }) {
+      part("report-dialog-title").textContent = title;
+      urls.push(...pageUrls);
+      const images = pageUrls.map((url, index) => Object.assign(doc.createElement("img"), { src: url, alt: `${title} · ${index + 1}` }));
+      part("report-pages").replaceChildren(...images);
+      part("report-dialog-print").onclick = () => doc.defaultView?.print?.();
+      part("report-save").onclick = guarded(save);
+      part("report-dialog-print").disabled = part("report-save").disabled = false;
+      if (notice) setStatus(notice);
+      if (print) printWhenReady(images);
+    },
+    // A report saved before: the PDF itself, printed from its own frame.
+    showPdf({ title, url }) {
+      part("report-dialog-title").textContent = title;
+      urls.push(url);
+      const frame = Object.assign(doc.createElement("iframe"), { src: url, title });
+      part("report-pages").replaceChildren(frame);
+      part("report-save").hidden = true;
+      part("report-dialog-print").onclick = () => frame.contentWindow?.print?.();
+      part("report-dialog-print").disabled = false;
     },
     fail(message) {
-      part("title").textContent = "הדוח לא נוצר";
-      part("pages").replaceChildren();
+      part("report-dialog-title").textContent = "הדוח לא נוצר";
+      part("report-pages").replaceChildren();
       setStatus(message, true);
     },
   };

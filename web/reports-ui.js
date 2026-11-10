@@ -48,6 +48,7 @@ export function setupReports({
     "reports-status", "reports-preview", "reports-show", "reports-save-all", "reports-advances-period",
   ].map(part);
   const [savePcn, savePcnAs, checks, printButton] = ["reports-save-pcn", "reports-save-pcn-as", "reports-checks", "reports-print"].map(part);
+  const [savedBox, savedList, existingLine] = ["reports-saved", "reports-saved-list", "reports-existing"].map(part);
   const pcnOption = kind.querySelector("option[value=\"pcn874\"]");
   const pickers = [from, to].map((input) => ({ input, month: part(`${input.id}-month`), year: part(`${input.id}-year`) }));
   let context = null;
@@ -203,6 +204,7 @@ export function setupReports({
 
   // The page shows the chosen report at once; unusable parameters just leave the preview empty (show/save explain why).
   function renderPreview() {
+    drawSaved().catch(() => {});
     preview.replaceChildren();
     if (checks) checks.textContent = "";
     if (!context) return;
@@ -275,12 +277,17 @@ export function setupReports({
         return;
       }
       const { pdf, images } = report.render ? await report.render() : await renderPdf(report.pages());
+      const before = (await savedReports()).find((item) => item.name === report.name);
       viewer.show({
         title: report.node().querySelector("h2")?.textContent ?? "דוח",
         pageUrls: images.map((image) => URL.createObjectURL(image)),
-        save: async () => `הקובץ נשמר: ${await saveToReports(report.name, pdf)}`,
-        saveAs: (win) => saveCopyAs(win, report.name, pdf),
+        save: async () => {
+          const where = await saveToReports(report.name, pdf);
+          await drawSaved();
+          return `הדוח נשמר בתיקיית הלקוח: ${where}`;
+        },
         print,
+        notice: before ? `דוח לתקופה הזו כבר נשמר ב-${savedAt(before.at)}. שמירה תחליף אותו בדוח החדש.` : "",
       });
     } catch (error) {
       errorLine.textContent = error.message;
@@ -288,6 +295,65 @@ export function setupReports({
     }
   };
   show.addEventListener("click", () => present());
+
+  // The reports saved before, newest first (the owner, 10 November 2026: a report made before is to be found, not made again).
+  const savedAt = (ms) => new Date(ms).toLocaleString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const KIND_OF_FILE = Object.fromEntries(Object.entries(REPORT_FILES).map(([key, file]) => [file, key]));
+  const savedLabel = (name) => {
+    const match = /^(.+)_(\d{2})-(\d{4})_(\d{2})-(\d{4})\.pdf$/.exec(name);
+    if (!match) return name;
+    const label = kind.querySelector(`option[value="${KIND_OF_FILE[match[1]] ?? (match[1] === "documents" ? "documents" : "")}"]`)?.textContent ?? match[1];
+    const period = match[2] === match[4] && match[3] === match[5] ? `${match[2]}/${match[3]}` : `${match[2]}/${match[3]}–${match[4]}/${match[5]}`;
+    return `${label} · ${period}`;
+  };
+  async function savedReports() {
+    if (!context) return [];
+    try {
+      const directory = await context.client.directory.getDirectoryHandle("reports");
+      const items = [];
+      const names = [];
+      for await (const [name, handle] of directory.entries()) if (handle.kind === "file" && name.toLowerCase().endsWith(".pdf")) names.push(name);
+      for (const name of names) {
+        const file = await (await directory.getFileHandle(name)).getFile();
+        items.push({ name, at: file.lastModified ?? 0, file });
+      }
+      return items.sort((a, b) => b.at - a.at);
+    } catch (error) {
+      if (error?.name === "NotFoundError" || error?.name === "TypeMismatchError") return [];
+      throw error;
+    }
+  }
+  const currentName = () => {
+    const [fromIso, toIso] = [parseMonthText(from.value), parseMonthText(to.value)];
+    if (!fromIso || !toIso || !REPORT_FILES[kind.value]) return "";
+    return `${REPORT_FILES[kind.value]}_${formatMonth(fromIso).replace("/", "-")}_${formatMonth(toIso).replace("/", "-")}.pdf`;
+  };
+  const openSaved = (item) => {
+    const viewer = openViewer();
+    viewer?.showPdf({ title: savedLabel(item.name), url: URL.createObjectURL(item.file) });
+  };
+  async function drawSaved() {
+    if (!savedBox || !savedList) return;
+    const items = await savedReports().catch(() => []);
+    savedBox.hidden = !items.length;
+    savedList.replaceChildren(...items.slice(0, 30).map((item) => {
+      const line = dialog.ownerDocument.createElement("li");
+      const open = Object.assign(dialog.ownerDocument.createElement("button"), { type: "button", className: "secondary small", textContent: "פתיחה" });
+      open.addEventListener("click", () => openSaved(item));
+      line.append(`${savedLabel(item.name)} · נשמר ${savedAt(item.at)} `, open);
+      return line;
+    }));
+    const same = items.find((item) => item.name === currentName());
+    if (existingLine) {
+      existingLine.hidden = !same;
+      existingLine.replaceChildren();
+      if (same) {
+        const open = Object.assign(dialog.ownerDocument.createElement("button"), { type: "button", className: "secondary small", textContent: "פתיחת הדוח השמור" });
+        open.addEventListener("click", () => openSaved(same));
+        existingLine.append(`דוח לתקופה הזו כבר נשמר ב-${savedAt(same.at)}. `, open);
+      }
+    }
+  }
   printButton?.addEventListener("click", () => present({ print: true }));
 
   saveAll.addEventListener("click", async () => {

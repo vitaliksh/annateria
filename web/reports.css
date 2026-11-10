@@ -156,7 +156,7 @@
 }
 
 @media print {
-  body>*:not(#report-print) {
+  body>*:not(#report-print):not(#report-dialog) {
     display: none!important;
   }
   #report-print {
