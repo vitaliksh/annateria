@@ -120,13 +120,29 @@ test("a network failure is reported, and a too short code is refused without cal
   assert.deepEqual(await createAccess({ api: "" }).login("K7M2QX"), { ok: false, reason: "unavailable" });
 });
 
-test("closing the dialog gives null (the journal works without the assistant); two askers share one dialog", async () => {
+// The owner, 10 November 2026: Anna missed the dialog, worked without the code and got nothing from the other PC.
+test("the dialog cannot be closed: no close button, Esc does nothing; two askers share one dialog", async () => {
   const { dialog, ui, window } = setup();
-  const first = ui.ensureLoggedIn();
-  const second = ui.ensureLoggedIn();
-  dialog.close();
-  assert.deepEqual([await first, await second], [null, null]);
+  ui.ensureLoggedIn();
+  ui.ensureLoggedIn();
+  assert.equal(dialog.querySelector('button[value="cancel"]'), null);
+  const esc = new window.Event("cancel", { cancelable: true });
+  dialog.dispatchEvent(esc);
+  assert.equal(esc.defaultPrevented, true);
+  assert.equal(dialog.open, true);
+  assert.equal(dialog.querySelector("#access-offline").hidden, true, "no way around it while the server answers");
   assert.equal(window.document.querySelectorAll("#access-dialog").length, 1);
+});
+
+test("only when the server cannot be reached may one work without a connection, and then nothing is logged in", async () => {
+  const { dialog, ui, type } = setup({ answers: [] });
+  const user = ui.ensureLoggedIn();
+  await type("K7M2QX");
+  const offline = dialog.querySelector("#access-offline");
+  assert.equal(offline.hidden, false);
+  offline.click();
+  assert.equal(await user, null);
+  assert.equal(dialog.open, false);
 });
 
 test("Enter in the field submits, and the code is not echoed anywhere in the page", async () => {

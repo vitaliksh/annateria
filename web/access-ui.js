@@ -1,5 +1,6 @@
-// The login dialog (#access-dialog). ensureLoggedIn() resolves with the user name, or null when the person closes the
-// dialog: the journal and the reports work without the Worker, only the assistant needs the code.
+// The login dialog (#access-dialog). ensureLoggedIn() resolves with the user name. The dialog cannot be closed (the owner, 10 November
+// 2026: Anna missed it, worked without the code, and got nothing from the other PC); only when the server cannot be reached does it
+// offer to work without a connection, and then ensureLoggedIn() resolves with null.
 import { createAccess } from "./access.js";
 
 export const ACCESS_MESSAGES = {
@@ -18,6 +19,7 @@ export function setupAccess({ dialog, api, access = createAccess({ api }) }) {
   const input = dialog.querySelector("#access-code");
   const error = dialog.querySelector("#access-error");
   const submit = dialog.querySelector("#access-submit");
+  const offline = dialog.querySelector("#access-offline");
   let waiters = [];
 
   function finish(user) {
@@ -38,6 +40,7 @@ export function setupAccess({ dialog, api, access = createAccess({ api }) }) {
       return;
     }
     error.textContent = result.reason === "locked" ? lockedMessage(result.retryAfterSeconds) : ACCESS_MESSAGES[result.reason];
+    if (offline) offline.hidden = !["network", "unavailable"].includes(result.reason);
     input.select();
   }
 
@@ -49,6 +52,9 @@ export function setupAccess({ dialog, api, access = createAccess({ api }) }) {
     }
   });
   dialog.addEventListener("close", () => finish(null));
+  // Esc does not close it; neither is there a close button.
+  dialog.addEventListener("cancel", (event) => event.preventDefault());
+  offline?.addEventListener("click", () => dialog.close());
 
   return {
     access,
@@ -60,6 +66,7 @@ export function setupAccess({ dialog, api, access = createAccess({ api }) }) {
         if (waiters.length > 1) return;
         error.textContent = "";
         input.value = "";
+        if (offline) offline.hidden = true;
         dialog.showModal();
         input.focus();
       });

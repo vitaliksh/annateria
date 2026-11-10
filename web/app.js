@@ -1006,6 +1006,8 @@ async function runAssistant(kind, text) {
     });
     const note = resultNote(result);
     assistant.addMessage(note.kind, note.text, { fold: note.kind === "assistant" });
+    // An income report found by the run goes into the table at once, without a card to click (the owner, 10 November 2026).
+    assistant.importPending(["income_report"]);
     const unfiled = leftNote(result);
     if (unfiled) assistant.addMessage(unfiled.kind, unfiled.text);
     const kept = keptNote(result);
@@ -1031,13 +1033,10 @@ async function runAssistant(kind, text) {
 // inbox, for the client of the card.
 // The wizard works on the open client, so that client is opened first. Once the wizard has written the rows, the original goes from
 // the inbox to clients/<client>/imports/ (copied, read back, compared, then taken out); the agent has no part in this.
-// The income report has no dialog: from the menu it adds its rows to the open declaration at once. From a card the page has opened the
-// month of the card first (below), and the user confirms before the rows are added; a report of another month is marked (step 9.7).
+// The income report has no dialog and asks nothing (the owner, 10 November 2026: a question on the way made a report be missed): its rows
+// go into the open declaration at once; a report of another month is marked (step 9.7). After a run the page imports it by itself.
 const incomeReportImport = {
-  async openWith(file, { onCommitted, reportMonth } = {}) {
-    const where = `${formatMonth(currentDeclaration.month)} של «${committedWorkspace.config.clientName}»`;
-    const other = reportMonth && reportMonth !== currentDeclaration.month ? ` הדוח הוא של ${formatMonth(reportMonth)}, והשורות יסומנו לבדיקה.` : "";
-    if (!(await confirmDialog(`להוסיף את דוח ההכנסות להצהרה ${where}?${other}`, { title: "דוח הכנסות", confirmLabel: "הוספה" }))) return;
+  async openWith(file, { onCommitted } = {}) {
     await importIncomeReportFile(file);
     const filed = await onCommitted?.().catch((error) => `הקובץ לא הועבר מתיבת הקלט: ${error.message}`);
     if (filed) status.textContent = `${status.textContent} ${filed}`;

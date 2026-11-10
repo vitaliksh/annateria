@@ -590,3 +590,17 @@ test("the run shows a thermometer, what was found and the name of the file being
   assistant.setProgress("מתחיל…", null);
   assert.equal(meter.hidden, true, "a new run starts with no old thermometer");
 });
+
+// The owner, 10 November 2026: an income report found by a run is imported without a click; a card with an error waits.
+test("after a run the waiting income report cards are started by themselves, those with an error are not", () => {
+  const { assistant, commands } = setup();
+  assistant.setBusy(true);
+  assistant.ui.importCard(importCard({ kind: "income_report", file: { name: "report.pdf", hash: "e".repeat(64), folder: "Levi" }, totals: { net: 1, vat: 0.18, gross: 1.18 },
+    summary: { month: "2026-02", period_from: "2026-02-01", period_to: "2026-02-28", documents: 1, rows_to_add: 1, verified: true }, problems: [] }));
+  assistant.ui.importCard(importCard({ kind: "income_report", file: { name: "other.pdf", hash: "f".repeat(64), folder: "Levi" }, totals: null,
+    summary: { month: "2026-02", period_from: "2026-02-01", period_to: "2026-02-28", documents: 1, rows_to_add: 1, verified: true }, problems: [{ code: "month_missing", severity: "error", count: 1 }] }));
+  assistant.ui.importCard(importCard());
+  assistant.setBusy(false);
+  assert.equal(assistant.importPending(["income_report"]), 1);
+  assert.deepEqual(commands.filter((command) => command.type === "import").map((command) => command.card.file.name), ["report.pdf"]);
+});

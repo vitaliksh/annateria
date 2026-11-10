@@ -296,6 +296,19 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     }
   };
 
+  // Starts the import of every card of these kinds that waits and has no error, as its button would (the income report is imported
+  // after a run without a click). Resolves with how many were started.
+  function importPending(kinds) {
+    let started = 0;
+    for (const entry of runImports) {
+      if (!kinds.includes(entry.card.kind) || entry.box.dataset.state !== "waiting" || entry.wizard.disabled) continue;
+      if (entry.card.problems.some((item) => item.severity === "error")) continue;
+      entry.wizard.click();
+      started += 1;
+    }
+    return started;
+  }
+
   // Where the rows of a run went: one button per month that opens it. months: [{ clientId, month, count }].
   function showPlaced(months) {
     if (!months.length) return;
@@ -533,7 +546,7 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
   }
 
   return {
-    open, setBusy, setWaiting, addMessage, trigger: start, setProgress, progressText: () => shown, showPlaced, showTodo, reveal,
+    open, setBusy, setWaiting, addMessage, trigger: start, setProgress, progressText: () => shown, showPlaced, showTodo, reveal, importPending,
     ui: { ask, propose, importCard }, isBusy: () => busy,
   };
 }
