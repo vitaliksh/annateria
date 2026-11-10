@@ -100,8 +100,27 @@ export function renderAdvancesReport(report, context) {
   return sheet(header("דוח מקדמות ע״פ מחזור", context), table(["סעיף", "סכום בש״ח"], rows), footer());
 }
 
+// A line of the profit and loss opens to the documents it is made of (the owner, 10 November 2026): a click on the line shows a row
+// beneath it with their date, supplier, reference and amount without VAT; a second click closes it.
+function openableLine(tr, item, columns) {
+  if (!item.entries?.length) return [tr];
+  tr.classList.add("report-openable");
+  tr.title = "לחיצה מציגה את המסמכים של הסעיף";
+  const detail = el("tr", undefined, "report-detail");
+  detail.hidden = true;
+  const cell = el("td");
+  cell.colSpan = columns;
+  const rows = [...item.entries]
+    .sort((a, b) => a.month.localeCompare(b.month) || a.date.localeCompare(b.date))
+    .map((entry) => row([entry.date, entry.details, entry.reference, formatAmount(entry.net, 2)]));
+  cell.append(table(["תאריך", "פרטים", "אסמכתא", "ללא מע״מ"], rows, "report-table report-entries"));
+  detail.append(cell);
+  tr.addEventListener("click", () => { detail.hidden = !detail.hidden; tr.classList.toggle("open", !detail.hidden); });
+  return [tr, detail];
+}
+
 export function renderProfitLossReport(report, context) {
-  const line = (item, sign) => row([item.name, formatAmount(sign * item.amount), `${item.percent.toFixed(2)}%`]);
+  const line = (item, sign) => openableLine(row([item.name, formatAmount(sign * item.amount), `${item.percent.toFixed(2)}%`]), item, 3);
   const total = (label, amount, percent) => row([
     { text: label, className: "total" },
     { text: formatAmount(amount), className: "total" },
@@ -110,21 +129,48 @@ export function renderProfitLossReport(report, context) {
   const group = (title) => row([{ text: title, className: "group", head: true }, "", ""]);
   const rows = [
     group("הכנסות"),
-    ...report.income.map((item) => line(item, 1)),
+    ...report.income.flatMap((item) => line(item, 1)),
     total("סה״כ הכנסות", report.incomeTotal, report.incomeTotal ? 100 : 0),
     ...(report.cost?.length ? [
       group("עלות המכר"),
-      ...report.cost.map((item) => line(item, -1)),
+      ...report.cost.flatMap((item) => line(item, -1)),
       total("סה״כ עלות המכר", -report.costTotal, report.costPercent),
       total("רווח גולמי לתקופה", report.grossProfit, report.grossPercent),
     ] : []),
     group("הוצאות הנהלה וכלליות"),
-    ...report.expenses.map((item) => line(item, -1)),
+    ...report.expenses.flatMap((item) => line(item, -1)),
     total("סה״כ הוצאות הנהלה וכלליות", -report.expenseTotal, report.expensePercent),
     total("רווח לתקופה", report.profit, report.profitPercent),
   ];
   const content = table(["", "שקלים חדשים", "% מהמכירות"], rows);
   return sheet(header("דוח רווח והפסד", context, "ללא מס ערך מוסף"), content, footer());
+}
+
+// Profit and loss by month (reports.js profitLossByMonth): a column for each month and one for the period, every line openable.
+export function renderProfitLossByMonthReport(report, context) {
+  const columns = report.months.length + 2;
+  const cells = (amounts, total, sign) => [...amounts.map((amount) => formatAmount(sign * amount)), formatAmount(sign * total)];
+  const line = (item, sign) => openableLine(row([item.name, ...cells(item.amounts, item.total, sign)]), item, columns);
+  const total = (label, { amounts, total: sum }, sign = 1) => row([{ text: label, className: "total" },
+    ...cells(amounts, sum, sign).map((text) => ({ text, className: "total" }))]);
+  const group = (title) => row([{ text: title, className: "group", head: true }, ...Array(columns - 1).fill("")]);
+  const rows = [
+    group("הכנסות"),
+    ...report.income.flatMap((item) => line(item, 1)),
+    total("סה״כ הכנסות", report.incomeTotal),
+    ...(report.cost.length ? [
+      group("עלות המכר"),
+      ...report.cost.flatMap((item) => line(item, -1)),
+      total("סה״כ עלות המכר", report.costTotal, -1),
+      total("רווח גולמי", report.grossProfit),
+    ] : []),
+    group("הוצאות הנהלה וכלליות"),
+    ...report.expenses.flatMap((item) => line(item, -1)),
+    total("סה״כ הוצאות הנהלה וכלליות", report.expenseTotal, -1),
+    total("רווח לחודש", report.profit),
+  ];
+  const headers = ["", ...report.months.map((month) => `${monthName(month)} ${month.slice(0, 4)}`), "סה״כ לתקופה"];
+  return sheet(header("דוח רווח והפסד לפי חודשים", context, "ללא מס ערך מוסף"), table(headers, rows, "report-table report-wide"), footer());
 }
 
 const monthText = (month) => `${month.slice(5)}/${month.slice(0, 4)}`;

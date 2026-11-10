@@ -3,16 +3,16 @@ import { readEffectiveChart } from "./chart-of-accounts.js";
 import { closedMonthText, periodProblems } from "./lock-check.js";
 import { formatMonth, parseMonthText } from "./month-format.js";
 import { loadReportDeclarations, readReportSettings, saveReportSettings } from "./report-data.js";
-import { advancesReport, classificationLedger, inPeriod, periodContaining, profitLoss, reportEntries, vatReport } from "./reports.js";
+import { advancesReport, classificationLedger, inPeriod, monthsInPeriod, periodContaining, profitLoss, profitLossByMonth, reportEntries, vatReport } from "./reports.js";
 import { openReportWindow } from "./report-viewer.js";
 import { buildPcn874, pcn874FileName } from "./pcn874.js";
 import { layoutReport, renderReportPdf } from "./reports-pdf.js";
 import { documentReportItems, readRowOriginal, renderDocumentReport } from "./document-report.js";
 import {
-  renderAdvancesReport, renderDocumentsReport, renderLedgerReport, renderPcn874Report, renderProfitLossReport, renderVatReport,
+  renderAdvancesReport, renderDocumentsReport, renderLedgerReport, renderPcn874Report, renderProfitLossByMonthReport, renderProfitLossReport, renderVatReport,
 } from "./reports-view.js";
 
-const REPORT_FILES = { vat: "vat", advances: "advances", profitLoss: "profit-loss", ledger: "ledger" };
+const REPORT_FILES = { vat: "vat", advances: "advances", profitLoss: "profit-loss", profitLossByMonth: "profit-loss-months", ledger: "ledger" };
 const PDF_TYPES = [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }];
 const TEXT_TYPES = [{ description: "PCN874", accept: { "text/plain": [".txt"] } }];
 
@@ -193,10 +193,12 @@ export function setupReports({
       vat: () => vatReport(scope),
       advances: () => advancesReport(scope, { percent: advancePercent }),
       profitLoss: () => profitLoss(scope),
+      profitLossByMonth: () => profitLossByMonth(scope, monthsInPeriod(fromIso, toIso)),
       ledger: () => classificationLedger(scope),
     }[reportKind]();
     const html = {
-      vat: renderVatReport, advances: renderAdvancesReport, profitLoss: renderProfitLossReport, ledger: renderLedgerReport,
+      vat: renderVatReport, advances: renderAdvancesReport, profitLoss: renderProfitLossReport, profitLossByMonth: renderProfitLossByMonthReport,
+      ledger: renderLedgerReport,
     }[reportKind];
     const name = `${REPORT_FILES[reportKind]}_${info.from.replace("/", "-")}_${info.to.replace("/", "-")}.pdf`;
     return { scope, name, node: () => html(data, info), pages: () => layoutReport(reportKind, data, info) };
@@ -364,7 +366,8 @@ export function setupReports({
     try {
       await saveReportSettings(context.client.directory, { vatPeriod: vatPeriod.value, advancePercent: parameters.advancePercent });
       const saved = [];
-      for (const reportKind of Object.keys(REPORT_FILES)) {
+      // The four reports of the month, as Rivhit makes them; the profit and loss by month is made on request only.
+      for (const reportKind of ["vat", "advances", "profitLoss", "ledger"]) {
         if (reportKind === "advances" && parameters.advancePercent === null) continue;
         const report = buildReport(reportKind, parameters);
         saved.push(await saveToReports(report.name, (await renderPdf(report.pages())).pdf));

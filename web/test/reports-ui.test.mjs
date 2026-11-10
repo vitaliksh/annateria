@@ -382,3 +382,25 @@ test("the print button opens the report and asks the window to print it", async 
   await new Promise((resolve) => setTimeout(resolve, 50));
   assert.equal(shown?.print, false, "the show button only shows");
 });
+
+// The owner, 10 November 2026: a line of the profit and loss opens to its documents; the profit and loss by month has a column for
+// each month and one for the period.
+test("a line of the profit and loss opens to its documents, and the report by month has a column for each month", async () => {
+  const { q, open, window } = await setup();
+  await open();
+  q("reports-kind").value = "profitLoss";
+  q("reports-kind").dispatchEvent(new window.Event("change"));
+  const line = q("reports-preview").querySelector(".report-openable");
+  assert.ok(line, "a line can be opened");
+  const detail = line.nextElementSibling;
+  assert.equal(detail.hidden, true);
+  line.click();
+  assert.equal(detail.hidden, false);
+  assert.ok(detail.querySelectorAll(".report-entries tbody tr").length > 0, "its documents are listed");
+  line.click();
+  assert.equal(detail.hidden, true);
+  q("reports-kind").value = "profitLossByMonth";
+  q("reports-kind").dispatchEvent(new window.Event("change"));
+  const heads = [...q("reports-preview").querySelectorAll(".report-wide > thead th")].map((th) => th.textContent);
+  assert.deepEqual(heads.slice(-3), ["ינואר 2026", "פברואר 2026", "סה״כ לתקופה"]);
+});

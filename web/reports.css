@@ -177,3 +177,36 @@
 }
 
 
+
+/* A line of the profit and loss opens to its documents (the owner, 10 November 2026). */
+.report-openable {
+  cursor: pointer;
+}
+
+.report-openable > td:first-child::before {
+  content: "▸ ";
+  color: var(--accent);
+}
+
+.report-openable.open > td:first-child::before {
+  content: "▾ ";
+}
+
+.report-detail > td {
+  padding: 4px 24px 12px;
+  background: var(--surface-muted);
+}
+
+.report-entries {
+  font-size: 0.9em;
+}
+
+/* The profit and loss by month is wide: it scrolls inside its card instead of breaking the page. */
+.report-sheet:has(.report-wide) {
+  overflow-x: auto;
+}
+
+.report-wide td,
+.report-wide th {
+  white-space: nowrap;
+}

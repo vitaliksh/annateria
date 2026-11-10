@@ -75,7 +75,8 @@ test("отчёт по авансам: оборот × процент, округ
 
 test("отчёт о прибылях и убытках: нетто по классам, оборудование исключено, проценты от дохода", () => {
   const report = profitLoss(entries(declaration("2026-01")));
-  assert.deepEqual(report.income, [{ code: "160", name: "הכנסות", amount: 10000, percent: 100 }]);
+  assert.deepEqual(report.income.map(({ entries: documents, ...line }) => line), [{ code: "160", name: "הכנסות", amount: 10000, percent: 100 }]);
+  assert.equal(report.income[0].entries.length > 0, true, "a line keeps its documents");
   assert.deepEqual(report.expenses.map((line) => [line.code, line.amount]), [
     ["203", 80], ["204", 1251], ["205", 500], ["208", 90], ["234", 100],
   ]);
@@ -129,4 +130,20 @@ test("profit and loss: Rivhit's cost of sales is its own group with a gross prof
   // Without such codes nothing changes: no group, the profit is income less expenses.
   const plain = profitLoss(reportEntries([declaration("2026-01", "open", [row("110", 1000, 180), row("203", 50, 9)])], chart));
   assert.deepEqual([plain.cost.length, plain.grossProfit, plain.profit], [0, 1000, 950]);
+});
+
+// The owner, 10 November 2026: profit and loss by month, and the documents of each line.
+test("profit and loss by month: a column for each month and the period's total, lines carry their documents", async () => {
+  const { profitLoss, profitLossByMonth } = await import("../reports.js");
+  const entry = (month, code, name, type, net) => ({ month, code, name, type, date: `01/${month.slice(5)}/26`, details: name, reference: "1", gross: net, net, vat: 0 });
+  const entries = [
+    entry("2026-09", "110", "הכנסות", "income", 1000), entry("2026-10", "110", "הכנסות", "income", 3000),
+    entry("2026-09", "202", "משרדיות", "expense", 100), entry("2026-10", "209", "כיבוד", "expense", 50), entry("2026-10", "202", "משרדיות", "expense", 20),
+  ];
+  const report = profitLossByMonth(entries, ["2026-09", "2026-10"]);
+  assert.deepEqual(report.income.map((line) => [line.code, line.amounts, line.total]), [["110", [1000, 3000], 4000]]);
+  assert.deepEqual(report.expenses.map((line) => [line.code, line.amounts, line.total]), [["202", [100, 20], 120], ["209", [0, 50], 50]]);
+  assert.deepEqual(report.profit, { amounts: [900, 2930], total: 3830 });
+  assert.equal(report.expenses[0].entries.length, 2, "the line keeps its documents");
+  assert.equal(profitLoss(entries).expenses.find((line) => line.code === "202").entries.length, 2);
 });

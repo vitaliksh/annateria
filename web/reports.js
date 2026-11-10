@@ -118,7 +118,8 @@ export function profitLoss(entries) {
   const percent = (amount) => (incomeTotal ? round2((amount / incomeTotal) * 100) : 0);
   const lines = (list) => byCode(list).map((group) => {
     const amount = sum(group.entries, "net");
-    return { code: group.code, name: group.name, amount: whole(amount), percent: percent(amount) };
+    // entries: the documents of the line, for the user to open it (the owner, 10 November 2026).
+    return { code: group.code, name: group.name, amount: whole(amount), percent: percent(amount), entries: group.entries };
   });
   const costTotal = sum(costEntries, "net");
   const grossProfit = round2(incomeTotal - costTotal);
@@ -137,6 +138,25 @@ export function profitLoss(entries) {
     expensePercent: percent(expenseTotal),
     profit: whole(profit),
     profitPercent: percent(profit),
+  };
+}
+
+// Profit and loss with a column for each month and one for the whole period (the owner, 10 November 2026). months: "YYYY-MM" in order.
+// Every line of the period is in every column (0 where the month has none); totals are per column too.
+export function profitLossByMonth(entries, months) {
+  const each = months.map((month) => profitLoss(entries.filter((entry) => entry.month === month)));
+  const whole = profitLoss(entries.filter((entry) => months.includes(entry.month)));
+  const section = (key) => whole[key].map((item) => ({
+    code: item.code, name: item.name, entries: item.entries,
+    amounts: each.map((report) => report[key].find((line) => line.code === item.code)?.amount ?? 0), total: item.amount,
+  }));
+  const totals = (key) => ({ amounts: each.map((report) => report[key]), total: whole[key] });
+  return {
+    months,
+    income: section("income"), incomeTotal: totals("incomeTotal"),
+    cost: section("cost"), costTotal: totals("costTotal"), grossProfit: totals("grossProfit"),
+    expenses: section("expenses"), expenseTotal: totals("expenseTotal"),
+    profit: totals("profit"),
   };
 }
 

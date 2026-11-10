@@ -250,7 +250,59 @@ function layoutLedger(ledger, { from, to }, statusLabel = (status) => (status ==
   return { title: "כרטסת קודי מיון", subtitle: `לתקופה: ${from} – ${to}`, pages: builder.pages };
 }
 
-const LAYOUTS = { vat: layoutVat, advances: layoutAdvances, profitLoss: layoutProfitLoss, ledger: layoutLedger };
+// The profit and loss by month: the names on the right, a column for each month, the period's total on the left. Up to twelve
+// months fit an A4 page at a smaller type.
+function layoutProfitLossByMonth(report, { from, to }) {
+  const builder = pageBuilder();
+  const nameX = RIGHT;
+  const columns = report.months.length + 1;
+  // The numbers stand right-aligned at these x: the last column ends well inside the margin, so a long total is not cut.
+  const first = 880;
+  const last = LEFT + 130;
+  const step = (first - last) / Math.max(columns - 1, 1);
+  const xs = Array.from({ length: columns }, (_, index) => first - index * step);
+  const size = columns > 7 ? 15 : 18;
+  const rowHeight = 32;
+  const heads = [...report.months.map((month) => `${month.slice(5)}/${month.slice(2, 4)}`), "סה״כ"];
+  heads.forEach((head, index) => builder.add(text(xs[index], BODY_TOP, head, { size, bold: true, underline: true })));
+  builder.y = BODY_TOP + 50;
+  const amounts = (values, sign, options = {}) => values.forEach((value, index) => builder.add(text(xs[index], builder.y, formatAmount(sign * value), { size, ...options })));
+  const group = (title) => {
+    builder.ensure(rowHeight * 3);
+    builder.add(text(nameX, builder.y, title, { size: size + 2, bold: true, underline: true }));
+    builder.y += rowHeight + 6;
+  };
+  const row = (item, sign) => {
+    builder.ensure(rowHeight);
+    builder.add(text(nameX, builder.y, item.name, { size, maxWidth: RIGHT - first - 30 }));
+    amounts([...item.amounts, item.total], sign);
+    builder.y += rowHeight;
+  };
+  const total = (label, { amounts: values, total: sum }, sign = 1) => {
+    builder.ensure(rowHeight * 2);
+    builder.add(line(last - 120, first, builder.y - 22, 1));
+    builder.add(text(nameX, builder.y + 6, label, { size, bold: true }));
+    builder.y += 6;
+    amounts([...values, sum], sign, { bold: true });
+    builder.y += rowHeight + 22;
+  };
+  group("הכנסות");
+  for (const item of report.income) row(item, 1);
+  total("סה״כ הכנסות:", report.incomeTotal);
+  if (report.cost.length) {
+    group("עלות המכר");
+    for (const item of report.cost) row(item, -1);
+    total("סה״כ עלות המכר:", report.costTotal, -1);
+    total("רווח גולמי:", report.grossProfit);
+  }
+  group("הוצאות הנהלה וכלליות");
+  for (const item of report.expenses) row(item, -1);
+  total("סה״כ הוצאות:", report.expenseTotal, -1);
+  total("רווח:", report.profit);
+  return { title: "דוח רווח והפסד לפי חודשים", subtitle: `לתקופה ${from} – ${to}`, note: "ללא מס ערך מוסף", pages: builder.pages };
+}
+
+const LAYOUTS = { vat: layoutVat, advances: layoutAdvances, profitLoss: layoutProfitLoss, profitLossByMonth: layoutProfitLossByMonth, ledger: layoutLedger };
 
 // kind: "vat" | "advances" | "profitLoss" | "ledger"; data: the matching result of reports.js;
 // info: { clientName, from, to, vatId?, address? } with months as MM/YYYY. Returns one operation list per page.
