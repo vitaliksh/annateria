@@ -63,8 +63,8 @@ The harder days in `references/month-cycle.md`, and the items below. Fix or cut 
   Old 9.8 VAT month on both reports: done in the lab, a sale and a purchase of a monthly client moved to the next month (8 November 2026).
 - ~~Vehicle at 66.67% for real charts of accounts~~: done, 66% by account code or name (8 November 2026).
 - Client rules (old 4.6.1): done, a rule saved by the button changed the agent's account; an edit keeps a copy (8 November 2026).
-  Ledger check (old 4.7.4): done in M2, twice; it found exactly the operations the journals miss. Foreign currency: done, a real Zoom invoice in USD goes to review with the
-  reason, converted by Anna at the rate of the day of payment (8 November 2026).
+  Ledger check (old 4.7.4): done in M2, twice; it found exactly the operations the journals miss. Foreign currency: done, a real Zoom invoice in USD becomes a row in shekels at the
+  representative rate of its day, the original amount and the rate on the row (10 November 2026).
 - ~~Dead code named in the archive~~: removed on 8 November 2026 (the client chooser's hints, list and buyer box, `agent/aliases.js`,
   `lockProblem`, `offerDistribution` and the move dialog's reason lines); the names are guarded by `removed-code.test.mjs`.
 - Text on screen that was never checked: new Hebrew strings of 9.x, for Anna's list. The list is `docs/anna/new-texts-he.md`
@@ -86,7 +86,8 @@ One line each, newest first.
 | Date | Decision |
 | --- | --- |
 | 2026-11-08 | Owner: after M7, a batch import of Rivhit exports (journals, codes ledger) for all clients, current year only; Anna has the desktop Rivhit, whose data the Rivhit API does not reach. |
-| 2026-11-08 | Anna (through the owner): foreign currency is always converted at the rate of the day of payment; the app marks, Anna converts. |
+| 2026-11-10 | Owner: the app converts a foreign currency itself, at the Bank of Israel representative rate of the document's date (through the Worker); the row keeps the original amount and names the rate. Replaces the decision of 8 November. |
+| 2026-11-08 | Anna (through the owner): foreign currency is always converted at the rate of the day of payment. |
 | 2026-11-08 | Owner: Anna will not keep double-entry books, so journal entry vouchers are not imported and PCN874 of such a client is not tested. |
 | 2026-11-08 | Owner: the lab may write to `G:\My Drive\ANNATERIA-TEST` (encryption optional there); nothing else of the real Drive. |
 | 2026-11-08 | Anna: two thirds of VAT is 66%, as in her Rivhit; rows saved at 66.67% keep it. A two-monthly client's first month in the second is not "before the month". |

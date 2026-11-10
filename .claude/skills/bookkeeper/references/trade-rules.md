@@ -62,8 +62,11 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 - **Example, code rule.** Net 100 and VAT 18, expense at 100%, VAT at 66%: gross 118.00, net 106.12, VAT 11.88. The VAT that cannot be deducted
   stays in the expense.
 - **Foreign currency, ANNA (8 Nov 2026, through the owner).** Always entered in shekels at the rate of the moment of the payment
-  (the transfer). This replaces "the date the invoice was received". The app does not convert, so the row goes to review with the
-  reason; never guess a rate. Real sample: a Zoom invoice in USD among the ocr examples.
+  (the transfer). This replaces "the date the invoice was received". Since 10 Nov 2026 (owner) the app converts by itself at the
+  Bank of Israel representative rate ("שער יציג") of the document's date, the last published rate before a weekend or holiday
+  (source: the Bank's series database EXR, RER_<CUR>_ILS, checked 10 Nov 2026). The row keeps the original amount and names the rate.
+  OPEN: in client B's October Anna entered Zoom USD 16.99 as 54.40, the rate of 25/10 gives 52.87 and no day of Oct-Nov gives 54.40;
+  probably the card's charge in shekels (with the card's fee). Asked Anna which one counts.
 - **A loose account fit is not ready, ANNA practice.** With no account of that kind, give the near one and mark it to review.
 
 ## Reading a document

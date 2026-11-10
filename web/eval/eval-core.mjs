@@ -132,7 +132,7 @@ async function agentRows(clients, runId) {
         if (row.agent?.run !== runId) continue;
         rows.push({
           client: client.entryName, month: declaration.month, position: index + 1, reference: row.reference,
-          account: row.values[1], status: row.statusClass, active: row.active !== false, expensePercent: row.values[11],
+          account: row.values[1], status: row.statusClass, active: row.active !== false, expensePercent: row.values[11], gross: row.values[7],
           reasons: row.agent.reasons ?? [], opinion: row.agentOpinion,
         });
       }
@@ -142,7 +142,8 @@ async function agentRows(clients, runId) {
 }
 
 // modelClient: createModelClient(...) or anything with generate(). Resolves with what the checks read and the reports keep.
-export async function runCase(spec, { modelClient, fetchSkill, getModels, signal, onProgress, reader = null } = {}) {
+// rates: the representative rates (currency.js); the real Worker's in npm run eval, a fixed one in the tests.
+export async function runCase(spec, { modelClient, fetchSkill, getModels, signal, onProgress, reader = null, rates = null } = {}) {
   const { root, clients } = await buildWorld(spec);
   const cards = [];
   const proposals = [];
@@ -156,7 +157,7 @@ export async function runCase(spec, { modelClient, fetchSkill, getModels, signal
   };
   const extraction = extractionFor(spec, { reader });
   const flow = createAssistantFlow({
-    modelClient, getDataRoot: () => root, getClients: () => clients, fetchSkill, now: () => `${spec.today}T09:00:00.000Z`, extraction,
+    modelClient, getDataRoot: () => root, getClients: () => clients, fetchSkill, now: () => `${spec.today}T09:00:00.000Z`, extraction, rates,
     ...(getModels ? { getModels } : {}),
   });
   // A case is "process the inbox" unless it gives the words of the user (request); it runs on the open client and month.
@@ -175,9 +176,9 @@ export async function runCase(spec, { modelClient, fetchSkill, getModels, signal
 }
 
 const check = (name, ok, detail = "") => ({ name, ok: Boolean(ok), detail: ok ? "" : detail });
-const FIELDS = ["client", "month", "account", "status", "active", "expensePercent"];
+const FIELDS = ["client", "month", "account", "status", "active", "expensePercent", "gross"];
 
-// expect: { rows: [{ reference, client?, month?, account?, status?, active?, expensePercent? }], inactive: [reference],
+// expect: { rows: [{ reference, client?, month?, account?, status?, active?, expensePercent?, gross? }], inactive: [reference],
 // notReady: [reference], questions: { max?, min? }, filed: [file name], kept: [file name], called: [tool name],
 // stillOpen: ["<client folder> YYYY-MM"] }. Every case also checks that
 // the run completed and that the answer holds no handle.

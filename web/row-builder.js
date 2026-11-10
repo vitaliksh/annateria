@@ -53,6 +53,11 @@ export const displayedReference = (value) => {
   return digits ? digits.slice(-4) : String(value ?? "").trim();
 };
 
+// A document in a foreign currency that the code put into shekels (currency.js): what the document says and the rate used.
+export const FOREIGN_PREFIX = "הומר לשקלים:";
+export const foreignText = (foreign) =>
+  `${FOREIGN_PREFIX} ${Number(foreign.total).toFixed(2)} ${foreign.currency} לפי השער היציג ${foreign.rate} מיום ${displayDate(foreign.rate_date)}`;
+
 // The line shown for a row that the code itself excluded (a duplicate or a document of a previous year).
 export function excludeText(facts, month) {
   if (facts.exclude === "previous-year") return `מסמך משנה קודמת (${facts.year.year ?? "?"}) — לבדוק את התאריך; אפשר לכלול ידנית`;
@@ -104,7 +109,11 @@ export function buildRowSnapshot({ record, entry, documentId, decision, account,
   else if (!ready) statusText = "נדרש עיון";
 
   const notes = facts.reasons.map((code) => REASON_TEXT[code]).filter(Boolean);
-  const opinion = [String(reason ?? "").trim() || "לא נמסר הסבר מהסוכן.", ...(notes.length ? [`לבדיקה: ${notes.join(", ")}`] : [])].join(" · ");
+  const opinion = [
+    String(reason ?? "").trim() || "לא נמסר הסבר מהסוכן.",
+    ...(record.foreign ? [foreignText(record.foreign)] : []),
+    ...(notes.length ? [`לבדיקה: ${notes.join(", ")}`] : []),
+  ].join(" · ");
 
   return {
     documentId,
@@ -133,6 +142,7 @@ export function buildRowSnapshot({ record, entry, documentId, decision, account,
     highlights: [],
     active: coded && !excluded,
     ...(record.booked ? { booked: true } : {}),
+    ...(record.foreign ? { foreign: { ...record.foreign } } : {}),
     agentOpinion: opinion,
     confidence: `${record.confidence}%`,
     statusText,

@@ -60,7 +60,7 @@ async function clientEntry(root, entryName, { clientName = entryName, vatId = ""
 // scope: the client and month of the run ({ clientId, month, folder }), Levi's 02/2026 unless given; null for a run that only reads.
 export const LEVI_MONTH = Object.freeze({ clientId: "id-Levi", month: "2026-02", folder: "Levi" });
 
-export async function world({ documents, extraction, imports, liveTable = () => null, scope = LEVI_MONTH } = {}) {
+export async function world({ documents, extraction, imports, liveTable = () => null, scope = LEVI_MONTH, rates = null } = {}) {
   const root = binaryDirectory("data");
   const levi = await clientEntry(root, "Levi", {
     clientName: "Levi Plumbing Ltd", vatId: "514123456", months: ["2026-01", "2026-02"], locked: ["2026-01"],
@@ -82,7 +82,7 @@ export async function world({ documents, extraction, imports, liveTable = () => 
   const clients = [levi, cohen, pcn];
   await addToInbox(root, [file("photo.jpg", "jpeg-bytes", "image/jpeg")], { folder: "Levi", month: "2026-02", now: "2026-10-16T08:00:00.000Z" });
   await addToInbox(root, [file("policy.pdf", "pdf-bytes", "application/pdf"), file("journal.xlsx", "xlsx-bytes")], { folder: "Levi", month: "2026-02", now: "2026-10-16T08:01:00.000Z" });
-  const services = createServices({ getDataRoot: () => root, getClients: () => clients, getLiveTable: liveTable, documents: documents ?? createDocumentReader(), extraction, imports, scope });
+  const services = createServices({ getDataRoot: () => root, getClients: () => clients, getLiveTable: liveTable, documents: documents ?? createDocumentReader(), extraction, imports, scope, rates });
   return { root, levi, cohen, pcn, clients, services, scope, putFile: (path, content) => putFile(root, path, content) };
 }
 

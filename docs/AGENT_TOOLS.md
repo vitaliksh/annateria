@@ -165,7 +165,7 @@ orchestrator's decision, `include` to the code.
 | `buyer_name`, `buyer_vat_id` | text, digits, or null | **New.** Needed to route `_unsorted` files (4.5) and to warn about a document addressed to someone else |
 | `document_number` | text or null | The full printed number |
 | `allocation_number` | digits or null | "מספר הקצאה" |
-| `currency` | `ILS` or an ISO code | Anything but `ILS` adds the issue `foreign_currency` |
+| `currency` | `ILS` or an ISO code | Anything but `ILS` is put into shekels by code at the Bank of Israel representative rate of `date` (`web/currency.js`, Worker `GET /v1/rate`); the record then says `ILS`, its amounts are in shekels and `foreign` keeps `{ currency, net, vat, total, rate, rate_date }`. With no date or no rate it stays as read with the issue `foreign_currency` |
 | `net`, `vat`, `total` | numbers | **Source** amounts as printed; the recognition percentages are applied later by code |
 | `vat_percent` | number | Printed rate; 0 for an exempt group |
 | `purpose` | text | What was bought, a few Hebrew words |

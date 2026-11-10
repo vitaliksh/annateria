@@ -40,7 +40,7 @@ const PLANS = {
   "previous-year": { decision: "expense", account: "202" },
   "home-utility": { decision: "expense", account: "230" },
   "pcn-no-allocation": { decision: "expense", account: "240" },
-  "foreign-currency": { decision: "expense", account: "215", needsReview: true },
+  "foreign-currency": { decision: "expense", account: "215" },
   "private-purchase": { decision: "not_expense" },
   "insurance-letter": { decision: "expense", account: "206" },
   "vehicle-insurance": { decision: "expense", account: "214" },
@@ -55,6 +55,8 @@ const PLANS = {
   "close-month": { closing: "2026-09" },
 };
 const OPEN_CLIENT = "C1";
+// The representative rate of the one foreign case (the Bank of Israel, 3 September 2026), as the Worker would answer.
+const BANK = { rate: async (currency, date) => ({ currency, date, rate: currency === "USD" && date === "2026-09-03" ? 3.025 : 1 }) };
 
 // Asked to close a month: check the month, answer. There is no tool that locks.
 const closingSteps = (plan) => [
@@ -122,7 +124,7 @@ test("every case runs on an open client and month of its world", () => {
 
 for (const spec of cases) {
   test(`case ${spec.name}: an agent that decides as the owner would passes every check`, async () => {
-    const outcome = await runCase(spec, { modelClient: scriptedClient(idealSteps(PLANS[spec.name])), fetchSkill });
+    const outcome = await runCase(spec, { modelClient: scriptedClient(idealSteps(PLANS[spec.name])), fetchSkill, rates: BANK });
     const failed = checkCase(spec, outcome).filter((item) => !item.ok);
     assert.deepEqual(failed, [], JSON.stringify(outcome.rows));
     assert.deepEqual(outcome.extracted.sort(), spec.inbox.map((file) => file.name).sort(), "every file was read from the facts of the case");

@@ -12,6 +12,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createAccess } from "../access.js";
+import { createRatesClient } from "../currency.js";
 import { createExtractionAdapter } from "../agent/adapters/extraction.js";
 import { MODELS } from "../agent/models.js";
 import { instructionFor, loadSkills } from "../agent/skills.js";
@@ -54,7 +55,7 @@ async function connect(api, code) {
     refused = !(await access.login(code)).ok;
     return !refused;
   };
-  return createModelClient({ api, access, ensureLoggedIn, fetchImpl });
+  return { modelClient: createModelClient({ api, access, ensureLoggedIn, fetchImpl }), rates: createRatesClient({ api, access, fetchImpl }) };
 }
 
 const addTokens = (sum, more) => ({ input: sum.input + more.input, output: sum.output + more.output });
@@ -70,7 +71,7 @@ async function main() {
   const repeat = Math.max(1, Number.parseInt(options.repeat, 10) || 1);
   const cases = await loadCases(options.cases || join(webDirectory, "eval", "cases"), options.case ? options.case.split(",").map((name) => name.trim()) : []);
   const models = { ...MODELS, ...(options.model ? { orchestrator: options.model } : {}) };
-  const modelClient = await connect(options.api || (await workerUrl()), code);
+  const { modelClient, rates } = await connect(options.api || (await workerUrl()), code);
   const fetchSkill = diskSkills(webDirectory);
   const reader = options.read
     ? createExtractionAdapter({ client: modelClient, prompt: instructionFor("extraction", await loadSkills(fetchSkill)), models })
@@ -83,7 +84,7 @@ async function main() {
   for (const spec of cases) {
     const runs = [];
     for (let attempt = 1; attempt <= repeat; attempt += 1) {
-      const outcome = await runCase(spec, { modelClient, fetchSkill, getModels: () => models, reader });
+      const outcome = await runCase(spec, { modelClient, fetchSkill, getModels: () => models, reader, rates });
       const checks = checkCase(spec, outcome);
       const { result } = outcome;
       runs.push({

@@ -1,6 +1,6 @@
 // `services`: the only way for an agent tool to reach data (docs/AGENT_TOOLS.md, sections 1 and 6). It offers reading: the inbox
 // index, what is inside a file, the client's profile, chart, rules and rows, the intake context of the duplicate search, and
-// the vision call of extraction and the read-only preparer of import files; asking whether a declaration is open and
+// the vision call of extraction, the shekel value of a foreign document and the read-only preparer of import files; asking whether a declaration is open and
 // copying a table before the agent writes; and the few things the agent may write: a new open declaration, rows into an open one,
 // the image of those rows, and the move of an inbox original into the images of a declaration. Every write is refused unless it is
 // into the one client and month of the run (`scope`, step 9.6): the lowest layer holds the rule, whatever a tool asks. It has no operation that closes, reopens, deletes or archives anything; a test lists its keys and
@@ -14,6 +14,7 @@ import { loadIntakeContext } from "../intake-index.js";
 import { copyToDeclarationImages, moveOutOfInbox, readInboxFile, readInboxIndex } from "../inbox-store.js";
 import { readRules } from "../rules-store.js";
 import { readAliases } from "../aliases-store.js";
+import { inShekels } from "../currency.js";
 import { createDocumentReader } from "./adapters/documents.js";
 import { createImportReader } from "./adapters/imports.js";
 
@@ -25,8 +26,9 @@ import { createImportReader } from "./adapters/imports.js";
 // builtInChart(): { code: { name, type } } used when neither the client nor the root has a chart. reserved(): codes a chart may
 // not reuse. documents: reads inside files (adapters/documents.js). extraction: the vision call (adapters/extraction.js), or null.
 // imports: the read-only preparers of the import wizards (adapters/imports.js). scope: { clientId, month } of the month open in the
-// page, the only declaration a write may reach; null refuses every write.
-export function createServices({ getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), documents = createDocumentReader(), extraction = null, imports = createImportReader(), onDeclarationCreated = () => {}, scope = null }) {
+// page, the only declaration a write may reach; null refuses every write. rates: the representative rates (currency.js), or null:
+// a foreign document then stays as it is, marked.
+export function createServices({ getDataRoot, getClients, getLiveTable = () => null, builtInChart = () => ({}), reserved = () => ({}), documents = createDocumentReader(), extraction = null, imports = createImportReader(), onDeclarationCreated = () => {}, scope = null, rates = null }) {
   const homeClients = () => (getClients() ?? []).filter((client) => client.parent && client.entryName);
   const find = (clientId) => {
     const client = homeClients().find((item) => item.id === clientId);
@@ -63,6 +65,10 @@ export function createServices({ getDataRoot, getClients, getLiveTable = () => n
         if (!extraction) throw new Error("Extraction is not configured.");
         return extraction.run(entry, await readInboxFile(dataRoot(), entry), options);
       },
+    }),
+    rates: Object.freeze({
+      // The record in shekels at the representative rate of its day, or as it was (currency.js).
+      toShekels: (record) => inShekels(record, rates),
     }),
     clients: Object.freeze({
       // The client whose table is open in the page, or null.

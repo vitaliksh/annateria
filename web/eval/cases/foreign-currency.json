@@ -1,6 +1,6 @@
 {
   "name": "foreign-currency",
-  "about": "An invoice in a foreign currency is not ready.",
+  "about": "An invoice in a foreign currency is put into shekels at the representative rate of its day (USD 3.025 on 3 September 2026) and is an ordinary row.",
   "today": "2026-10-20",
   "open": {
     "client": "Levi",
@@ -95,8 +95,13 @@
     }
   ],
   "expect": {
-    "notReady": [
-      "US-551"
+    "rows": [
+      {
+        "reference": "US-551",
+        "account": "215",
+        "status": "ready",
+        "gross": "151.25"
+      }
     ],
     "filed": [
       "saas-sep.pdf"

@@ -55,7 +55,7 @@ test("`services` offers a fixed list of operations, none of which changes a decl
   const operations = Object.entries(services).flatMap(([group, members]) => Object.keys(members).map((name) => `${group}.${name}`));
   assert.deepEqual(operations.sort(), [
     "clients.aliases", "clients.chart", "clients.list", "clients.open", "clients.profile", "declarations.create", "declarations.state", "documents.inspect", "extraction.run",
-    "files.copyToDeclaration", "files.moveOutOfInbox", "imports.prepare", "inbox.readIndex", "intake.context", "rows.append", "rows.attachImage", "rows.list", "rules.read",
+    "files.copyToDeclaration", "files.moveOutOfInbox", "imports.prepare", "inbox.readIndex", "intake.context", "rates.toShekels", "rows.append", "rows.attachImage", "rows.list", "rules.read",
     "tables.copyBeforeAgent",
   ]);
   for (const operation of operations) assert.doesNotMatch(operation, FORBIDDEN_OPERATION, operation);
@@ -72,7 +72,7 @@ const PURE = [
   "row-builder.js", "rule-text.js", "client-alias.js", "lock-check.js",
 ];
 const ALLOWED_OUTSIDE = {
-  "agent/services.js": ["chart-of-accounts.js", "table-backup.js", "declaration-store.js", "inbox-store.js", "intake-facts.js", "intake-index.js", "rules-store.js", "aliases-store.js"],
+  "agent/services.js": ["chart-of-accounts.js", "table-backup.js", "declaration-store.js", "inbox-store.js", "intake-facts.js", "intake-index.js", "rules-store.js", "aliases-store.js", "currency.js"],
   "agent/handles.js": ["month-format.js"],
   "agent/fact-record.js": ["intake-facts.js", "workspace-core.js"],
   "agent/facts.js": ["intake-facts.js", "home-utilities.js", "pcn-review.js"],

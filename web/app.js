@@ -24,7 +24,7 @@ import { createExtractionAdapter } from "./agent/adapters/extraction.js";
 import { normalizeRecord } from "./agent/fact-record.js";
 import { fetchSkillFromSite, instructionFor, loadSkills } from "./agent/skills.js";
 import { pickRecord, recordFacts, rowFacts, saveRetakeImage } from "./retake-flow.js";
-import { RETAKE_TEXT } from "./row-builder.js";
+import { FOREIGN_PREFIX, foreignText, RETAKE_TEXT } from "./row-builder.js";
 import { addMovedLine, movedLine, removeMovedLine, vatMonths } from "./vat-move-flow.js";
 import { inspectImportTarget } from "./excel-import-store.js";
 import { createClientsHome } from "./clients-home.js";
@@ -44,6 +44,7 @@ import { setupBaton } from "./baton-ui.js";
 import { readSetting, writeSetting } from "./backup-handles.js";
 import { setupAccess } from "./access-ui.js";
 import { checkModelConnection, createModelClient } from "./model-client.js";
+import { createRatesClient, inShekels } from "./currency.js";
 import { setupTransfer } from "./transfer-ui.js";
 import { setupInbox } from "./inbox-ui.js";
 import { watchWizard } from "./import-card-flow.js";
@@ -742,7 +743,7 @@ async function readRetake(file, row) {
       return [];
     }
   });
-  return pickRecord(records, rowFacts(rowSnapshot(row)));
+  return inShekels(pickRecord(records, rowFacts(rowSnapshot(row))), rates);
 }
 // Fills the row from the new reading: date, supplier, numbers and amounts, with what it cannot read left empty and red. The account,
 // the percentages and the decisions of the row stay. The new photo becomes its original; the old one stays in the month.
@@ -763,6 +764,10 @@ async function applyRetake(row, file, record) {
   }
   if (next.unreadable.length) row.dataset.unreadable = next.unreadable.join(" ");
   else delete row.dataset.unreadable;
+  if (record.foreign) row.dataset.foreign = JSON.stringify(record.foreign);
+  else delete row.dataset.foreign;
+  const opinion = row.cells[14].textContent.split(" · ").filter((part) => part.trim() && !part.startsWith(FOREIGN_PREFIX));
+  row.cells[14].textContent = [...opinion, ...(record.foreign ? [foreignText(record.foreign)] : [])].join(" · ");
   if (!next.unreadable.includes("amounts")) {
     row.dataset.rawNet = (Number(next.gross) - Number(next.vat || 0)).toFixed(2);
     row.dataset.rawVat = Number(next.vat || 0).toFixed(2);
@@ -949,6 +954,7 @@ if (api) accessUi.ensureLoggedIn().then(() => baton.check()).catch(() => {});
 // The last copy also leaves when the tab is closed (not guaranteed: the browser may not wait for it).
 window.addEventListener("pagehide", () => { sync.push().catch(() => {}); });
 const modelClient = createModelClient({ api, access: accessUi.access, ensureLoggedIn: accessUi.ensureLoggedIn });
+const rates = createRatesClient({ api, access: accessUi.access });
 modelSettings = setupModelSettings({ container: document.querySelector("#settings-dialog"), getDataRoot: () => dataRoot, onError: showError });
 document.querySelector("#check-model").addEventListener("click", async () => {
   const result = document.querySelector("#model-check-result");
@@ -960,6 +966,7 @@ document.querySelector("#check-model").addEventListener("click", async () => {
 // button opens the existing reports. One run at a time; the stop button aborts it.
 const assistantFlow = createAssistantFlow({
   modelClient,
+  rates,
   getModels: () => modelSettings.getModels(),
   getDataRoot: () => dataRoot,
   getClients: () => workspaceControls?.getClients().active ?? [],
@@ -1973,6 +1980,7 @@ function rowSnapshot(row) {
     agent: row.dataset.agent ? JSON.parse(row.dataset.agent) : undefined,
     ...(row.dataset.unreadable ? { unreadable: row.dataset.unreadable.split(" ") } : {}),
     ...(row.dataset.previousImages ? { previousImages: JSON.parse(row.dataset.previousImages) } : {}),
+    ...(row.dataset.foreign ? { foreign: JSON.parse(row.dataset.foreign) } : {}),
     highlights: row.highlights || [],
     active: Boolean(row.cells[17].querySelector("input")?.checked),
     ...(row.dataset.booked ? { booked: true } : {}),
@@ -2017,6 +2025,7 @@ function restoreRow(saved, blob, { fresh = false } = {}) {
   row.highlights = Array.isArray(saved.highlights) ? saved.highlights : [];
   if (Array.isArray(saved.unreadable) && saved.unreadable.length) row.dataset.unreadable = saved.unreadable.join(" ");
   if (Array.isArray(saved.previousImages) && saved.previousImages.length) row.dataset.previousImages = JSON.stringify(saved.previousImages);
+  if (saved.foreign && typeof saved.foreign === "object") row.dataset.foreign = JSON.stringify(saved.foreign);
   if (saved.agent) row.dataset.agent = JSON.stringify(saved.agent);
   if (saved.booked) row.dataset.booked = "true";
   if (saved.vatMove) {

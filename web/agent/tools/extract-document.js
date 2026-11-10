@@ -78,6 +78,8 @@ export default {
       else skipped += 1;
     }
     if (!records.length && skipped) throw new ToolError("unavailable", "The answer of the model was not valid. Try again, or use the strong model.");
+    // A foreign currency is put into shekels by the code, at the representative rate of the document's day (currency.js).
+    for (const [index, record] of records.entries()) records[index] = await ctx.services.rates.toShekels(record);
 
     // Every page of a PDF must end as a row: the pages the model returned nothing for get a fact of their own (page_not_read).
     const unread = await pagesWithoutDocument(entry, records, ctx);
