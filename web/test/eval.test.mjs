@@ -49,6 +49,9 @@ const PLANS = {
   "licence-fee": { decision: "expense", account: "214" },
   "parking-fine": { decision: "not_expense" },
   "sports-gear": { decision: "expense", account: "200" },
+  course: { decision: "expense", account: "814" },
+  "work-shoes": { decision: "expense", account: "810" },
+  "driving-licence": { decision: "not_expense" },
   "close-month": { closing: "2026-09" },
 };
 const OPEN_CLIENT = "C1";

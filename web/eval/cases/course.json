@@ -1,0 +1,88 @@
+{
+  "name": "course",
+  "about": "A course of the client's profession goes to the training account (the bookkeeper's books, client B, 9-10/2026).",
+  "today": "2026-10-20",
+  "open": {
+    "client": "Studio",
+    "month": "2026-09"
+  },
+  "clients": [
+    {
+      "folder": "Studio",
+      "name": "Studio Pilates",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "sport and pilates lessons",
+      "chart": {
+        "110": {
+          "name": "הכנסה חייבת",
+          "type": "income"
+        },
+        "200": {
+          "name": "ציוד ספורט מתכלה",
+          "type": "expense"
+        },
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "203": {
+          "name": "אחזקה",
+          "type": "expense"
+        },
+        "214": {
+          "name": "רכב רשוי וביטוח",
+          "type": "expense"
+        },
+        "810": {
+          "name": "בגדי עבודה",
+          "type": "expense"
+        },
+        "814": {
+          "name": "השתלמויות וספרות מקצועית",
+          "type": "expense"
+        },
+        "900": {
+          "name": "רכישת ציוד/רכוש קבוע",
+          "type": "equipment"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    }
+  ],
+  "inbox": [
+    {
+      "name": "course.jpg",
+      "records": [
+        {
+          "supplier_name": "MNLP Studio",
+          "supplier_vat_id": "515300010",
+          "document_title": "חשבונית מס קבלה",
+          "document_number": "CRS-5423",
+          "date": "2026-09-12",
+          "currency": "ILS",
+          "net": 677.97,
+          "vat": 122.03,
+          "total": 800,
+          "vat_percent": 18,
+          "purpose": "קורס הסמכה",
+          "buyer_name": "Studio Pilates",
+          "buyer_vat_id": "037123452"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "filed": [
+      "course.jpg"
+    ],
+    "rows": [
+      {
+        "reference": "CRS-5423",
+        "account": "814"
+      }
+    ]
+  }
+}

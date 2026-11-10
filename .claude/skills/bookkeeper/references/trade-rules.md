@@ -93,6 +93,12 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
   and totals are not. Photographed ledgers happen. In such a list a line's amounts already include any recognised share.
 - **Pages without amounts** (advertising, a tear-off slip repeating the total) are no documents. This is a known weak spot from `ocr`.
 
+- **What Anna corrected in client B's 9-10/2026, SAMPLE (10 Nov 2026).** Her own copy, compared row by row with the agent's run:
+  a course to the training account ("השתלמויות", Rivhit 814) and an instructor's sports shoes to work clothes (810), even when the
+  client's own chart lacks them; software subscriptions (Apple, Google, Zoom, morning) to office (202); a person's driving licence
+  renewal off (classification v9); the water bill with its VAT (extraction v6 reads it now); Zoom in USD typed in shekels by her;
+  two small shop receipts turned off (private?, asked); the extra pages of a bill that hold no document left off.
+
 ## Months and periods
 
 - **A bad photo, OWNER (9 Nov 2026).** What the reading cannot see stays empty, never a guess; the row asks for a retake and is never ready.
@@ -103,6 +109,9 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
 - **Which month a document belongs to, ANNA (21 Oct 2026).** A yearly insurance: the month it was received. Electricity, telephone, water: the date of the invoice. A water bill that becomes a tax invoice only on payment: entered when received, and its six months run from the date of the invoice, standing order or not (7 Nov 2026). The agent does not move documents; these say what to mark when the open month differs.
 - **Dated after the month.** Written and marked: its VAT cannot be deducted before its date.
 - **Dated before the month.** Written and marked: that month is filed. **Earlier year:** excluded softly, the row stays.
+- **The VAT month of a later paper, SAMPLE (10 Nov 2026).** Anna moves the VAT of a paper dated in a later month to that month with the
+  "חודש מע״מ" column: October papers scanned into September, and November papers into October. She did it for some and not for others
+  of the same kind (asked). The column stays the user's (AGENTS.md); the app only marks such rows.
 - **Two-monthly client, SAMPLE (8 Nov 2026).** Papers of the second month of the period scanned with the first are in the same VAT report; they
   must not be entered again in the second month (the code finds such a copy in the earlier month since 8 Nov). Papers of the next period
   (November for a 9-10 filer) are marked "after the month" and wait for that period. Papers of the filed period (August) are late: Anna may

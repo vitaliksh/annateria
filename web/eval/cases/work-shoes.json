@@ -1,0 +1,88 @@
+{
+  "name": "work-shoes",
+  "about": "Sports shoes and clothes of an instructor go to the work clothes account (the bookkeeper's books, client B, 10/2026).",
+  "today": "2026-10-20",
+  "open": {
+    "client": "Studio",
+    "month": "2026-09"
+  },
+  "clients": [
+    {
+      "folder": "Studio",
+      "name": "Studio Pilates",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "sport and pilates lessons",
+      "chart": {
+        "110": {
+          "name": "הכנסה חייבת",
+          "type": "income"
+        },
+        "200": {
+          "name": "ציוד ספורט מתכלה",
+          "type": "expense"
+        },
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "203": {
+          "name": "אחזקה",
+          "type": "expense"
+        },
+        "214": {
+          "name": "רכב רשוי וביטוח",
+          "type": "expense"
+        },
+        "810": {
+          "name": "בגדי עבודה",
+          "type": "expense"
+        },
+        "814": {
+          "name": "השתלמויות וספרות מקצועית",
+          "type": "expense"
+        },
+        "900": {
+          "name": "רכישת ציוד/רכוש קבוע",
+          "type": "equipment"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    }
+  ],
+  "inbox": [
+    {
+      "name": "work-shoes.jpg",
+      "records": [
+        {
+          "supplier_name": "Runners Shop Ltd",
+          "supplier_vat_id": "515300010",
+          "document_title": "חשבונית מס קבלה",
+          "document_number": "SH-6531",
+          "date": "2026-09-12",
+          "currency": "ILS",
+          "net": 562.28,
+          "vat": 101.21,
+          "total": 663.49,
+          "vat_percent": 18,
+          "purpose": "נעלי ריצה",
+          "buyer_name": "Studio Pilates",
+          "buyer_vat_id": "037123452"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "filed": [
+      "work-shoes.jpg"
+    ],
+    "rows": [
+      {
+        "reference": "SH-6531",
+        "account": "810"
+      }
+    ]
+  }
+}

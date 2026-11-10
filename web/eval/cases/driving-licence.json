@@ -1,0 +1,86 @@
+{
+  "name": "driving-licence",
+  "about": "The renewal of a person's driving licence is not a business expense (the bookkeeper's books, client B, 9/2026).",
+  "today": "2026-10-20",
+  "open": {
+    "client": "Studio",
+    "month": "2026-09"
+  },
+  "clients": [
+    {
+      "folder": "Studio",
+      "name": "Studio Pilates",
+      "vatId": "037123452",
+      "kind": "home",
+      "activity": "sport and pilates lessons",
+      "chart": {
+        "110": {
+          "name": "הכנסה חייבת",
+          "type": "income"
+        },
+        "200": {
+          "name": "ציוד ספורט מתכלה",
+          "type": "expense"
+        },
+        "202": {
+          "name": "משרדיות",
+          "type": "expense"
+        },
+        "203": {
+          "name": "אחזקה",
+          "type": "expense"
+        },
+        "214": {
+          "name": "רכב רשוי וביטוח",
+          "type": "expense"
+        },
+        "810": {
+          "name": "בגדי עבודה",
+          "type": "expense"
+        },
+        "814": {
+          "name": "השתלמויות וספרות מקצועית",
+          "type": "expense"
+        },
+        "900": {
+          "name": "רכישת ציוד/רכוש קבוע",
+          "type": "equipment"
+        }
+      },
+      "months": {
+        "2026-09": []
+      }
+    }
+  ],
+  "inbox": [
+    {
+      "name": "driving-licence.jpg",
+      "records": [
+        {
+          "supplier_name": "משרד התחבורה",
+          "supplier_vat_id": null,
+          "document_title": "אישור תשלום אגרת רישיון נהיגה",
+          "document_number": "DL-4473",
+          "date": "2026-09-12",
+          "currency": "ILS",
+          "net": 602,
+          "vat": 0,
+          "total": 602,
+          "vat_percent": 0,
+          "purpose": "חידוש רישיון נהיגה",
+          "buyer_name": "Studio Pilates",
+          "buyer_vat_id": "037123452",
+          "kind": "payment_confirmation"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "filed": [
+      "driving-licence.jpg"
+    ],
+    "inactive": [
+      "DL-4473"
+    ]
+  }
+}
