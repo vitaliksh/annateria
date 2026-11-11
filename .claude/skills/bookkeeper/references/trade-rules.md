@@ -65,8 +65,8 @@ Income tax, WEB unless marked. Vehicle: the higher of the use value or 45% of ru
   (the transfer). This replaces "the date the invoice was received". Since 10 Nov 2026 (owner) the app converts by itself at the
   Bank of Israel representative rate ("שער יציג") of the document's date, the last published rate before a weekend or holiday
   (source: the Bank's series database EXR, RER_<CUR>_ILS, checked 10 Nov 2026). The row keeps the original amount and names the rate.
-  OPEN: in client B's October Anna entered Zoom USD 16.99 as 54.40, the rate of 25/10 gives 52.87 and no day of Oct-Nov gives 54.40;
-  probably the card's charge in shekels (with the card's fee). Asked Anna which one counts.
+  ANNA (11 Nov 2026, through the owner): the representative rate is the right one, not the card's charge in shekels (her October
+  entry of a USD subscription was the card's charge, with its fee; no day's rate gives it).
 - **A loose account fit is not ready, ANNA practice.** With no account of that kind, give the near one and mark it to review.
 
 ## Reading a document
