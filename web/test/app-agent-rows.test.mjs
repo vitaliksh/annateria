@@ -140,6 +140,15 @@ test("a checked old row without marked regions stays checked after reopening, an
   assert.equal(savedRowNeedsLook({ ...old, imageFile: "001.jpg", reviewedFrom: undefined }), true);
 });
 
+test("a row of an income report keeps the hash of its file across a save and a reopening", async () => {
+  const { app, rows } = await loadApp();
+  const { selected } = await openMonth();
+  await app.activateDeclaration(selected);
+  app.restoreRow({ ...snapshot(), agent: undefined, importHash: "b".repeat(64) }, null);
+  assert.equal(app.rowSnapshot(rows()[0]).importHash, "b".repeat(64));
+  assert.equal(rows()[0].cells[13].firstChild.textContent, "—", "no source button: the report is no spreadsheet");
+});
+
 test("a row of a closed month is not marked checked", async () => {
   const { app, rows } = await loadApp();
   const { selected } = await openMonth([{ ...snapshot({ document_number: "A-1" }, { needsReview: true, documentId: "a" }), imageFile: "001.jpg" }]);

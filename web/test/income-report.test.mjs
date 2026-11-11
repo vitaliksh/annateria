@@ -88,6 +88,12 @@ test("the income row uses the period end date, keeps no image and carries the ve
   assert.equal(row.statusClass, "ready");
 });
 
+test("the rows of a report keep the hash of its file, so that the file counts as imported only while they are there", () => {
+  const rows = buildIncomeRows(parseIncomeReport(sampleReport().pages), "110", { importHash: "a".repeat(64) });
+  assert.deepEqual(rows.map((row) => row.importHash), rows.map(() => "a".repeat(64)));
+  assert.equal("importHash" in buildIncomeRows(parseIncomeReport(sampleReport().pages), "110")[0], false);
+});
+
 test("the same report is not added twice to a declaration", () => {
   const [row] = buildIncomeRows(parseIncomeReport(sampleReport().pages), "110");
   assert.equal(hasIncomeRow([], row), false);

@@ -459,13 +459,43 @@ test("fileImportOriginal refuses a file that is not what the index says and leav
   assert.equal((await listPaths(root)).some((path) => path.startsWith("clients/Levi/imports/")), false);
 });
 
-test("a filed import original is a duplicate of the same bytes dropped again, and the answer says where it is", async () => {
+test("a filed import original is a duplicate of the same bytes dropped again while rows come from it, and the answer says where it is", async () => {
   const { root, entry, levi } = await importWorld();
   await fileImportOriginal(root, entry, levi);
+  const draft = { schemaVersion: 1, rows: [{ imageFile: "", sourceHash: sha("journal bytes"), active: true }] };
+  await putFile(root, "clients/Levi/declarations/2026-08/draft-table.json", bytesOf(JSON.stringify(draft)));
   const again = await addToInbox(root, [fileOf("copy.xlsx", "journal bytes")], { folder: "Levi", now: NOW });
   assert.equal(again.added.length, 0);
   assert.deepEqual(again.duplicates.map((item) => [item.name, item.reason, item.of]), [["copy.xlsx", "declaration", { client: "Levi", month: null, file: "journal.xlsx", imports: true }]]);
   assert.equal((await declarationImageHashes(root, new Set([13]))).get(sha("journal bytes")).imports, true);
+});
+
+// The owner, 11 November 2026: a PDF was imported for a month, the months were deleted, and the same file was refused as "already
+// there" until he deleted it from the client's folder by hand. An import original counts only while a row of the client comes from it.
+test("an import original whose rows are gone (the month deleted) can come in again; an income report row holds its file too", async () => {
+  const { root, entry, levi } = await importWorld();
+  await fileImportOriginal(root, entry, levi);
+  await putFile(root, "clients/Levi/declarations/2026-08/draft-table.json", bytesOf(JSON.stringify({ schemaVersion: 1, rows: [{ imageFile: "" }] })));
+  const again = await addToInbox(root, [fileOf("copy.xlsx", "journal bytes")], { folder: "Levi", now: NOW });
+  assert.deepEqual([again.added.map((item) => item.name), again.duplicates], [["copy.xlsx"], []]);
+
+  const income = binaryDirectory();
+  await putFile(income, "clients/Levi/imports/report.pdf", bytesOf("income report"));
+  const rows = { schemaVersion: 1, rows: [{ imageFile: "", importHash: sha("income report"), active: true }] };
+  await putFile(income, "clients/Levi/declarations/2026-08/draft-table.json", bytesOf(JSON.stringify(rows)));
+  const held = await addToInbox(income, [fileOf("report.pdf", "income report")], { folder: "Levi", now: NOW });
+  assert.deepEqual(held.duplicates.map((item) => item.of.file), ["report.pdf"]);
+  await (await (await (await income.getDirectoryHandle("clients")).getDirectoryHandle("Levi")).getDirectoryHandle("declarations")).removeEntry("2026-08", { recursive: true });
+  const freed = await addToInbox(income, [fileOf("report.pdf", "income report")], { folder: "Levi", now: NOW });
+  assert.deepEqual(freed.added.map((item) => item.name), ["report.pdf"]);
+});
+
+test("a table that cannot be read keeps every import original of its client counted, to be safe", async () => {
+  const { root, entry, levi } = await importWorld();
+  await fileImportOriginal(root, entry, levi);
+  await putFile(root, "clients/Levi/declarations/2026-08/draft-table.json", bytesOf("{ broken"));
+  const again = await addToInbox(root, [fileOf("copy.xlsx", "journal bytes")], { folder: "Levi", now: NOW });
+  assert.equal(again.added.length, 0);
 });
 
 test("step 9.4: a file added for a month records it; the counts tell each month; a month needs a client folder", async () => {

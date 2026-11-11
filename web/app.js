@@ -1039,8 +1039,8 @@ async function runAssistant(kind, text) {
 // The income report has no dialog and asks nothing (the owner, 10 November 2026: a question on the way made a report be missed): its rows
 // go into the open declaration at once; a report of another month is marked (step 9.7). After a run the page imports it by itself.
 const incomeReportImport = {
-  async openWith(file, { onCommitted } = {}) {
-    await importIncomeReportFile(file);
+  async openWith(file, { onCommitted, sourceHash } = {}) {
+    await importIncomeReportFile(file, null, { importHash: sourceHash });
     const filed = await onCommitted?.().catch((error) => `הקובץ לא הועבר מתיבת הקלט: ${error.message}`);
     if (filed) status.textContent = `${status.textContent} ${filed}`;
   },
@@ -1834,11 +1834,11 @@ async function showHeic(row, imageIndex, image, note) {
 }
 
 // Adds the rows of a periodic income report read from its text layer.
-async function importIncomeReportFile(file, report = null) {
+async function importIncomeReportFile(file, report = null, { importHash = "" } = {}) {
   if (!currentDeclarationDirectory || currentDeclaration?.status !== "open") throw new Error("יש לבחור הצהרה פתוחה.");
   report ??= await readIncomeReportFile(file);
   if (!report) throw new Error("הקובץ אינו דוח הכנסות תקופתי של חשבונית ירוקה (morning), או שאין בו שכבת טקסט.");
-  const rows = markOtherMonthRows(buildIncomeRows(report, await ensureIncomeClassification()), currentDeclaration.month);
+  const rows = markOtherMonthRows(buildIncomeRows(report, await ensureIncomeClassification(), { importHash }), currentDeclaration.month);
   const existing = [...records.querySelectorAll("tr[data-document-id]")].map(rowSnapshot);
   if (rows.some((row) => hasIncomeRow(existing, row))) throw new Error("דוח ההכנסות לתקופה זו כבר נמצא בהצהרה.");
   await saveSourceImage(currentDeclarationDirectory, pdfSourceFileName(new Date(), crypto.randomUUID()), file);
@@ -2017,6 +2017,7 @@ function rowSnapshot(row) {
     active: Boolean(row.cells[17].querySelector("input")?.checked),
     ...(row.dataset.booked ? { booked: true } : {}),
     ...(row.dataset.sourceHash ? { sourceHash: row.dataset.sourceHash } : {}),
+    ...(row.dataset.importHash ? { importHash: row.dataset.importHash } : {}),
     ...(row.dataset.vatMoveId ? { vatMove: { id: row.dataset.vatMoveId, month: row.dataset.vatMoveMonth } } : {}),
     ...(row.dataset.vatMovedId ? {
       vatMovedFrom: {
@@ -2047,6 +2048,7 @@ function restoreRow(saved, blob, { fresh = false } = {}) {
     values = Array.isArray(saved.values) ? saved.values : [];
   row.dataset.imageFile = saved.imageFile || "";
   if (saved.sourceHash) row.dataset.sourceHash = saved.sourceHash;
+  if (saved.importHash) row.dataset.importHash = saved.importHash;
   if (!blob) row.cells[13].replaceChildren(saved.sourceHash ? sourceButton(row) : "—");
   row.dataset.rawNet = String(saved.rawNet || 0);
   row.dataset.rawVat = String(saved.rawVat || 0);

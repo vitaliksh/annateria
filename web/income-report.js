@@ -200,7 +200,8 @@ export function describeIncomeReport(report) {
 
 // Draft-table rows (saved-snapshot format of app.js): one row for the taxable income and, only when there is exempt
 // income, a second row with zero VAT. The VAT is the report's own sum of the documents' VAT, never recomputed.
-export function buildIncomeRows(report, code, { now = new Date().toISOString(), makeId = () => crypto.randomUUID() } = {}) {
+// importHash: the SHA-256 of the report's file, so that the file counts as imported while its rows are there (inbox-store.js).
+export function buildIncomeRows(report, code, { now = new Date().toISOString(), makeId = () => crypto.randomUUID(), importHash = "" } = {}) {
   const note = describeIncomeReport(report);
   const make = (net, vat, label) => ({
     documentId: `income-${makeId()}`,
@@ -231,6 +232,7 @@ export function buildIncomeRows(report, code, { now = new Date().toISOString(), 
     confidence: "",
     statusText: report.verified ? "יובא מדוח הכנסות" : "נדרש עיון — ראה החלטת הסוכן",
     statusClass: report.verified ? "ready" : "review",
+    ...(importHash ? { importHash } : {}),
   });
   const rows = [];
   if (report.taxable || !report.exempt) rows.push(make(report.taxable, report.vat, report.exempt ? "הכנסות חייבות" : "הכנסות"));
