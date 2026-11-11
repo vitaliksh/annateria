@@ -103,19 +103,16 @@ test("the text layer of a PDF found by the document reader is sent along with th
   assert.ok(note.includes("Text layer of the PDF") && note.endsWith("TEXT LAYER OF THE POLICY"), note);
 });
 
-test("leftNote names the files the run did not file, and says nothing when none is left", async () => {
-  const { leftNote } = await import("../assistant-flow.js");
-  assert.equal(leftNote({ status: "completed" }), null);
-  assert.deepEqual(leftNote({ left: [{ name: "004.jpg", folder: "_unsorted" }, { name: "005.jpg", folder: "_unsorted" }] }), { kind: "note", text: "נשארו בתיבת הקלט 2 קבצים שלא טופלו: 004.jpg, 005.jpg" });
-  const many = leftNote({ left: Array.from({ length: 14 }, (_, n) => ({ name: `f${n}.jpg`, folder: "_unsorted" })) });
-  assert.match(many.text, /14 קבצים.*f11\.jpg ועוד$/);
-});
-
-test("keptNote says which originals the app filed itself and how many left-out documents became rows to look at", async () => {
-  const { keptNote } = await import("../assistant-flow.js");
-  assert.equal(keptNote({ status: "completed" }), null);
-  const note = keptNote({ filedByApp: [{ name: "scan.pdf", rows: 3, addedForReview: 2 }], leftOut: 2 });
-  assert.equal(note.kind, "note");
-  assert.match(note.text, /scan\.pdf/);
-  assert.match(note.text, /נוספו 2 שורות כבויות לבדיקה/);
+test("the end of a run: where the rows went, the files left, the left-out documents, and why a run stopped", async () => {
+  const { doneSummary } = await import("../assistant-flow.js");
+  const names = new Map([["c1", "Levi"]]);
+  const done = doneSummary({ status: "completed", added: [{ clientId: "c1", month: "2026-02", count: 3, review: 1 }], left: [{ name: "004.jpg" }], leftOut: 2 }, names);
+  assert.equal(done.title, "העוזר סיים");
+  assert.deepEqual(done.rows, [{ clientId: "c1", client: "Levi", month: "2026-02", count: 3, review: 1 }]);
+  assert.deepEqual(done.inbox, ["004.jpg"]);
+  assert.deepEqual(done.notes, ["נוספו 2 שורות כבויות לבדיקה עבור מסמכים שהעוזר לא קלט. יש לבדוק ולהפעיל את מה שנכון."]);
+  assert.deepEqual(doneSummary({ status: "completed" }), { title: "העוזר סיים", rows: [], inbox: [], notes: [] });
+  assert.deepEqual([doneSummary({ status: "cancelled" }).title, doneSummary({ status: "cancelled" }).notes], ["העוזר נעצר", ["הריצה הופסקה."]]);
+  assert.equal(doneSummary({ status: "limit_reached", reason: "time" }).title, "העוזר נעצר במגבלה");
+  assert.equal(doneSummary({ status: "failed", code: "busy" }).title, "העוזר נעצר בשגיאה");
 });

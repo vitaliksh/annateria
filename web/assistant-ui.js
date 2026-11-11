@@ -1,6 +1,8 @@
 // The assistant dock (#assistant, step 4.3): a bar that is always there (progress line, the quick buttons), and a body that opens
-// with the conversation: what the user asked, what the agent answered, question cards with buttons, proposal cards, notes. This file
-// only draws and reports clicks: what a button does (start a run, cancel, open a report) is decided by the caller through onCommand.
+// with the conversation: what the user asked and what the agent answered. The agent works quietly (the owner, 11 November 2026: cards
+// and buttons in the panel are not seen): a question or a suggestion of the agent, and the end of a run, are dialogs over the page, one
+// at a time. This file only draws and reports clicks: what a button does (start a run, cancel, open a report) is decided by the caller
+// through onCommand.
 // All text from the agent is put in with textContent; nothing it says is ever HTML.
 import { problemText } from "./excel-import-ui.js";
 import { formatMonth } from "./month-format.js";
@@ -117,13 +119,14 @@ function valueText(field, value) {
   return value === "" ? "(ריק)" : String(value);
 }
 
-// onCommand({ type: "process" | "left" | "report" | "cancel" | "text" | "open", text?, clientId?, month? }) is called for a click or a sent line.
+// onCommand({ type: "process" | "left" | "report" | "cancel" | "text" | "open" | "look" | "inbox", text?, clientId?, month? }) is called for a
+// click or a sent line ("look": the rows to look at of that month).
 // onApply(proposal, kept) is called when the user applies a proposal (kept: the numbers of the changes that stayed ticked); it resolves with
 // { applied, refused: [{ change, reason }] }. Without it a proposal card only shows the changes.
 // onRemember({ clientId, rule }) appends a confirmed rule to the client's rules.md and resolves with { added }; it is called only after
 // the user ticked "זכור ללקוח" and clicked the answer the rule belongs to.
-// onPending({ questions, imports }) is called whenever a question card or an import card opens or ends; reveal({ kind, index })
-// opens the panel at the first open question (kind "question") or at the index-th import card not done (kind "import").
+// onPending({ questions, imports }) is called whenever a question or an import file opens or ends; reveal({ kind, index }) shows the
+// open question (kind "question") or opens the wizard of the index-th import file not done (kind "import").
 export function setupAssistant({ root, onCommand, onApply = null, onRemember = null, onPending = () => {} }) {
   const part = (id) => root.querySelector(`#${id}`);
   const [toggle, progress, body, feed, form, input, sendButton, processButton, leftButton, reportButton, cancelButton, minimizeButton] = [
@@ -172,6 +175,49 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
   const scrollDown = () => { feed.scrollTop = feed.scrollHeight; };
   const add = (node) => { feed.append(node); scrollDown(); return node; };
   const lock = (box) => { for (const control of box.querySelectorAll("button, input, select")) control.disabled = true; };
+
+  // The dialog of the assistant: one question, suggestion or end of a run at a time, the others wait in turn. Esc does not close it:
+  // its buttons say what happens.
+  const dialog = element("dialog", "workspace-dialog assistant-dialog");
+  dialog.id = "assistant-dialog";
+  dialog.setAttribute("aria-labelledby", "assistant-dialog-title");
+  root.append(dialog);
+  dialog.addEventListener("cancel", (event) => event.preventDefault());
+  const dialogs = [];
+  let shownDialog = null;
+  function showDialog(title, box) {
+    const item = { title, box, closed: false };
+    item.close = () => {
+      if (item.closed) return;
+      item.closed = true;
+      if (shownDialog !== item) {
+        dialogs.splice(dialogs.indexOf(item), 1);
+        return;
+      }
+      if (typeof dialog.close === "function" && dialog.open) dialog.close();
+      dialog.removeAttribute("open");
+      dialog.replaceChildren();
+      shownDialog = null;
+      nextDialog();
+    };
+    dialogs.push(item);
+    nextDialog();
+    return item;
+  }
+  function nextDialog() {
+    if (shownDialog || !dialogs.length) return;
+    shownDialog = dialogs.shift();
+    const heading = element("h2", "", shownDialog.title);
+    heading.id = "assistant-dialog-title";
+    const header = element("header");
+    header.append(heading);
+    const body = element("div", "assistant-dialog-body");
+    body.append(header, shownDialog.box);
+    dialog.replaceChildren(body);
+    if (typeof dialog.showModal === "function" && !dialog.open) dialog.showModal();
+    else dialog.setAttribute("open", "");
+    shownDialog.box.querySelector("button:not(:disabled)")?.focus?.();
+  }
 
   function open(show = true) {
     root.dataset.open = String(show);
@@ -242,49 +288,49 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     return message;
   }
 
-  // What is left for the user after a run, built by the page from what the run did, not from the agent's words: the import cards of
-  // this run that are not done, the months with rows to look at, the files left in the inbox. Each line has the button that goes
-  // there. rows: [{ clientId, client, month, review }]; inbox: a number of files. Nothing to do: no card.
-  function showTodo({ rows = [], inbox = 0 } = {}) {
-    const imports = runImports.filter((entry) => entry.box.dataset.state !== "answered");
-    const reviewed = rows.filter((item) => item.review > 0);
-    if (!imports.length && !reviewed.length && !inbox) return null;
+  // The end of a run, built by the page from what the run did, not from the agent's words (the owner, 11 November 2026: it must be
+  // clear when the agent has finished): where the rows went and how many are to look at, the import files of the run still waiting
+  // (each with its wizard button), the files left in the inbox, and notes. rows: [{ clientId, client, month, count, review }];
+  // inbox: the names of the files left; notes: lines of text.
+  let doneDialog = null;
+  function showDone({ title, rows = [], inbox = [], notes = [] }) {
     const box = element("div", "assistant-card");
-    box.dataset.kind = "todo";
-    box.append(element("p", "card-text", "לטיפולך"));
+    box.dataset.kind = "done";
     const list = element("ul", "todo-list");
     const line = (text, label, onClick) => {
       const item = element("li");
-      const go = button(label, "small");
-      go.addEventListener("click", onClick);
-      item.append(text, go);
+      item.append(element("p", "", text));
+      if (label) {
+        const go = button(label, "small");
+        go.addEventListener("click", () => { doneDialog?.close(); onClick(); });
+        item.append(go);
+      }
       list.append(item);
-      return { item, go };
     };
-    for (const entry of imports) {
-      const text = isolated("", ["ייבוא ", { name: entry.card.file.name }, ` ל«${entry.card.client.name}» לא הושלם`]);
-      entry.todo = line(text, "בדיקה וייבוא", () => { entry.box.scrollIntoView?.({ block: "nearest" }); entry.wizard.click(); });
+    const placed = rows.filter((item) => item.count > 0);
+    if (!placed.length) line("לא נוספו שורות.");
+    for (const { clientId, client, month, count, review } of placed) {
+      const added = count === 1 ? "נוספה שורה אחת" : `נוספו ${count} שורות`;
+      const look = review ? ` · ${review === 1 ? "שורה אחת" : `${review} שורות`} לבדיקה` : "";
+      const label = review ? "הצגת השורות לבדיקה" : "";
+      line(`${added} ל-${formatMonth(month)}${client ? ` של «${client}»` : ""}${look}`, label, () => onCommand({ type: "look", clientId, month }));
     }
-    for (const { clientId, client, month, review } of reviewed) {
-      const count = review === 1 ? "שורה אחת" : `${review} שורות`;
-      line(element("p", "", `${count} לבדיקה ב-${formatMonth(month)} של «${client}»`), `פתיחת ${formatMonth(month)}`, () => onCommand({ type: "open", clientId, month }));
+    if (inbox.length) {
+      const count = inbox.length === 1 ? "קובץ אחד נשאר" : `${inbox.length} קבצים נשארו`;
+      const names = `${inbox.slice(0, 6).join(", ")}${inbox.length > 6 ? " ועוד" : ""}`;
+      line(`${count} בתיבת הקלט: ${names}`, "פתיחת תיבת הקלט", () => onCommand({ type: "inbox" }));
     }
-    if (inbox) {
-      const text = inbox === 1 ? "קובץ אחד נשאר בתיבת הקלט" : `${inbox} קבצים נשארו בתיבת הקלט`;
-      line(element("p", "", text), "פתיחת תיבת הקלט", () => onCommand({ type: "inbox" }));
-    }
+    for (const note of notes) line(note);
     box.append(list);
-    add(box);
-    open(true);
+    for (const entry of runImports.filter((item) => item.box.dataset.state !== "answered")) box.append(entry.box);
+    const actions = element("div", "dialog-actions");
+    const close = button("סגירה", "");
+    close.addEventListener("click", () => doneDialog?.close());
+    actions.append(close);
+    box.append(actions);
+    doneDialog = showDialog(title, box);
     return box;
   }
-  // A line of the card "לטיפולך" follows its import card: done there, done here.
-  const drawTodoLine = (entry) => {
-    if (!entry.todo || entry.box.dataset.state !== "answered") return;
-    entry.todo.item.dataset.state = "done";
-    entry.todo.go.disabled = true;
-    entry.todo.item.firstChild.replaceWith(isolated("", ["ייבוא ", { name: entry.card.file.name }, ` ל«${entry.card.client.name}» הושלם`]));
-  };
   // Every run draws its own card for a file still in the inbox; once one of them imported it, all of them are done (M2 exam,
   // 7 November 2026: "not done" stayed on every earlier card and line after the import).
   const sameFile = (a, b) => a.card.file.name === b.card.file.name && a.card.client.name === b.card.client.name && a.card.kind === b.card.kind;
@@ -292,7 +338,6 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     for (const other of allImports.filter((entry) => sameFile(entry, done))) {
       other.wizard.disabled = true;
       other.box.dataset.state = "answered";
-      drawTodoLine(other);
     }
   };
 
@@ -309,23 +354,7 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     return started;
   }
 
-  // Where the rows of a run went: one button per month that opens it. months: [{ clientId, month, count }].
-  function showPlaced(months) {
-    if (!months.length) return;
-    const box = element("div", "assistant-card");
-    box.dataset.kind = "placed";
-    box.append(element("p", "card-text", "נוספו שורות בחודשים:"));
-    const options = element("div", "card-options");
-    for (const { clientId, month, count } of months) {
-      const choice = button(`פתיחת ${formatMonth(month)} · ${count} שורות`, "small");
-      choice.addEventListener("click", () => onCommand({ type: "open", clientId, month }));
-      options.append(choice);
-    }
-    box.append(options);
-    add(box);
-  }
-
-  // A question of the agent: resolves with the answer of the user, never rejects. An aborted run only closes the card.
+  // A question of the agent, in the dialog: resolves with the answer of the user, never rejects. An aborted run only closes it.
   function ask(card, { signal } = {}) {
     return new Promise((resolve) => {
       const box = element("div", "assistant-card");
@@ -344,16 +373,16 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
       const saveRule = async (answer) => {
         if (!remember?.checked) return {};
         if (answer.type !== "option" || answer.id !== card.remember.option) {
-          box.append(element("p", "card-answer muted", "הכלל לא נשמר: נבחרה תשובה אחרת."));
+          addMessage("note", "הכלל לא נשמר: נבחרה תשובה אחרת.");
           return { remember: true, saved: false };
         }
         try {
           if (!onRemember) throw new Error("אין אפשרות לשמור כאן.");
           const { added } = await onRemember({ clientId: card.remember.clientId, rule: card.remember.rule });
-          box.append(element("p", "card-answer muted", added ? "הכלל נשמר בכללים של הלקוח." : "הכלל כבר רשום בכללים של הלקוח."));
+          addMessage("note", added ? "הכלל נשמר בכללים של הלקוח." : "הכלל כבר רשום בכללים של הלקוח.");
           return { remember: true, saved: true };
         } catch (error) {
-          box.append(element("p", "card-answer", `הכלל לא נשמר: ${error.message}`));
+          addMessage("error", `הכלל לא נשמר: ${error.message}`);
           return { remember: true, saved: false };
         }
       };
@@ -366,9 +395,9 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
         lock(box);
         box.dataset.state = "answered";
         box.append(element("p", "card-answer", `נבחר: ${shown}`));
+        shownQuestion.close();
         const saved = await saveRule(answer);
         resolve({ ...answer, ...(remember ? { remember: remember.checked, ...saved } : {}) });
-        scrollDown();
       };
       const options = element("div", "card-options");
       for (const option of card.options) {
@@ -398,17 +427,16 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
         notify();
         lock(box);
         box.dataset.state = "cancelled";
-        box.append(element("p", "card-answer muted", "הריצה הופסקה"));
+        shownQuestion.close();
       }, { once: true });
-      add(box);
+      const shownQuestion = showDialog("שאלה מהעוזר", box);
       openQuestions.add(box);
       notify();
-      open(true);
     });
   }
 
-  // A suggestion of the agent for existing rows, each with its row number (the # column of the table). With onApply the user keeps or
-  // unticks each change and applies the rest; the card then says what was done and what was refused, and why.
+  // A suggestion of the agent for existing rows, in the dialog, each with its row number (the # column of the table). With onApply the
+  // user keeps or unticks each change and applies the rest; the dialog then says what was done and what was refused, and why.
   function propose(proposal) {
     const box = element("div", "assistant-card");
     box.dataset.kind = "proposal";
@@ -429,11 +457,22 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
       list.append(item);
     }
     box.append(list);
+    let shownProposal = null;
+    const closing = element("div", "dialog-actions");
+    const close = button("סגירה", "");
+    close.addEventListener("click", () => shownProposal.close());
+    closing.append(close);
     if (onApply) {
       const actions = element("div", "card-options");
       const apply = button("החל", "small");
       const reject = button("דחה", "link small");
-      const finish = (text) => { lock(box); box.dataset.state = "answered"; status.textContent = text; };
+      const finish = (text) => {
+        lock(box);
+        box.dataset.state = "answered";
+        status.textContent = text;
+        box.append(closing);
+        close.focus?.();
+      };
       apply.addEventListener("click", async () => {
         const kept = ticks.flatMap((tick, index) => (tick.checked ? [index] : []));
         if (!kept.length) return;
@@ -446,20 +485,22 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
           return;
         }
         finish(`הוחלו ${result.applied.length} מתוך ${kept.length} שינויים`);
-        for (const { change, reason } of result.refused) box.append(element("p", "card-answer", `שורה ${change.position}: ${reason}`));
-        scrollDown();
+        for (const { change, reason } of result.refused) box.insertBefore(element("p", "card-answer", `שורה ${change.position}: ${reason}`), closing);
       });
-      reject.addEventListener("click", () => finish("ההצעה נדחתה"));
+      reject.addEventListener("click", () => {
+        finish("ההצעה נדחתה");
+        shownProposal.close();
+      });
       actions.append(apply, reject);
       box.append(actions);
-    }
-    add(box);
-    open(true);
+    } else box.append(closing);
+    shownProposal = showDialog("הצעה מהעוזר", box);
   }
 
-  // A file prepared by the agent. The button asks the page to open the wizard (onCommand type "import"); the page reports back what
-  // happened to the file through `report`. The card stays after the run, so the button can be pressed later. Its state (data-state)
-  // is waiting, opened, unfinished (the wizard was closed before it wrote) or answered (done).
+  // A file prepared by the agent. It is not drawn in the panel: the dialog at the end of the run shows the files still waiting, each
+  // with this box and its button, and the strip "ממתין לך" opens the wizard directly. The button asks the page to open the wizard
+  // (onCommand type "import"); the page reports back what happened to the file through `report`. Its state (data-state) is waiting,
+  // opened, unfinished (the wizard was closed before it wrote) or answered (done).
   function importCard(card) {
     const box = element("div", "assistant-card");
     box.dataset.kind = "import";
@@ -490,27 +531,25 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
     const status = element("p", "card-answer muted", "");
     const actions = element("div", "card-options");
     const wizard = button("בדיקה וייבוא", "small");
-    const entry = { card, box, wizard, todo: null };
+    const entry = { card, box, wizard };
     runImports.push(entry);
     allImports.push(entry);
     wizard.addEventListener("click", () => {
       if (busy) { status.textContent = "יש להמתין לסיום הריצה."; return; }
       status.textContent = "";
+      if (box.closest("dialog")) doneDialog?.close();
       onCommand({
         type: "import", card,
         report: ({ text, done = false, state = "" }) => {
           status.textContent = text;
           if (done) markDone(entry); else if (state) box.dataset.state = state;
-          drawTodoLine(entry);
           notify();
         },
       });
     });
     actions.append(wizard);
     box.append(actions, status);
-    add(box);
     notify();
-    open(true);
   }
 
   toggle.addEventListener("click", () => open(body.hidden));
@@ -537,16 +576,19 @@ export function setupAssistant({ root, onCommand, onApply = null, onRemember = n
 
   open(false);
   function reveal({ kind, index = 0 }) {
-    const box = kind === "question" ? [...openQuestions][0] : pendingImports()[index]?.box;
-    if (!box) return false;
-    open(true);
-    box.scrollIntoView?.({ block: "nearest" });
-    box.querySelector("button:not(:disabled)")?.focus();
+    if (kind === "question") {
+      const box = [...openQuestions][0];
+      box?.querySelector("button:not(:disabled)")?.focus();
+      return Boolean(box);
+    }
+    const entry = pendingImports()[index];
+    if (!entry || entry.wizard.disabled) return false;
+    entry.wizard.click();
     return true;
   }
 
   return {
-    open, setBusy, setWaiting, addMessage, trigger: start, setProgress, progressText: () => shown, showPlaced, showTodo, reveal, importPending,
+    open, setBusy, setWaiting, addMessage, trigger: start, setProgress, progressText: () => shown, showDone, reveal, importPending,
     ui: { ask, propose, importCard }, isBusy: () => busy,
   };
 }

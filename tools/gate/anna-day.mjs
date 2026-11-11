@@ -219,6 +219,16 @@ async function day(page, scanPath, log) {
   }, null, { timeout: 120000, polling: 500 });
   await page.waitForTimeout(500);
 
+  // The end of the run is a dialog over the page (the owner, 11 November 2026: it must be clear when the import ended).
+  step("read the dialog of the end of the run and close it");
+  const dialog = page.locator("#assistant-dialog[open]");
+  await dialog.waitFor({ state: "visible", timeout: 10000 });
+  const ended = await dialog.innerText();
+  await page.screenshot({ path: join(tmpdir(), "anna-day-done.png") }).catch(() => {});
+  await dialog.getByRole("button", { name: "סגירה", exact: true }).click();
+  await dialog.waitFor({ state: "hidden" });
+  const panelCards = await page.locator("#assistant-feed .assistant-card").count();
+
   step("look at the table and the feed");
   const rows = await page.locator("#journal-table tbody tr[data-document-id]").count();
   const table = await page.locator("#journal-table").innerText();
@@ -236,7 +246,7 @@ async function day(page, scanPath, log) {
   const checked = (await status.innerText()).trim();
   const after = await toLook();
   await page.screenshot({ path: join(tmpdir(), "anna-day-checked.png") }).catch(() => {});
-  return { rows, hasSupplier: table.includes(SUPPLIER.slice(0, 8)), feed, meter, checked, toLook: [before, after] };
+  return { rows, hasSupplier: table.includes(SUPPLIER.slice(0, 8)), feed, meter, checked, toLook: [before, after], ended, panelCards };
 }
 
 async function main() {
@@ -287,6 +297,8 @@ async function main() {
     // 8 November 2026).
     if (outcome.rows !== 2) problems.push(`the table has ${outcome.rows} rows, 2 expected (the invoice and the page without a document)`);
     if (!outcome.hasSupplier) problems.push("the row of the scanned invoice is not in the table");
+    if (!/העוזר סיים/.test(outcome.ended) || !/נוספו 2 שורות/.test(outcome.ended)) problems.push(`the end of the run is not said in a dialog: "${outcome.ended}"`);
+    if (outcome.panelCards) problems.push(`the panel still shows ${outcome.panelCards} cards`);
     if (outcome.checked !== "נבדק" || outcome.toLook[1] !== outcome.toLook[0] - 1) {
       problems.push(`a click on the status did not mark the row checked: "${outcome.checked}", rows to look at ${outcome.toLook.join(" -> ")}`);
     }

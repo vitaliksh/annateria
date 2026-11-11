@@ -178,10 +178,32 @@
   border-inline-start-color: var(--success);
 }
 
-/* "לטיפולך": what is left after a run, one line and one button each (C5). */
-.assistant-card[data-kind="todo"] {
-  border: 2px solid var(--accent);
-  background: var(--accent-soft);
+/* The dialog of the assistant (11 November 2026): a question, a suggestion or the end of a run, over the page. */
+.assistant-dialog {
+  width: min(600px, calc(100vw - 32px));
+}
+
+.assistant-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  max-height: min(80vh, 760px);
+  overflow-y: auto;
+  padding: var(--s5);
+}
+
+.assistant-dialog .assistant-card[data-kind="question"],
+.assistant-dialog .assistant-card[data-kind="proposal"],
+.assistant-dialog .assistant-card[data-kind="done"] {
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.assistant-dialog .assistant-card[data-kind="done"] .todo-list li {
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .todo-list {

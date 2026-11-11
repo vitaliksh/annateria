@@ -52,7 +52,7 @@ import { setupWaiting } from "./waiting-ui.js";
 import { reviewCounts } from "./review-counts.js";
 import { setupPhoneIntake } from "./phone-ui.js";
 import { progressLabel, progressMeter, setupAssistant } from "./assistant-ui.js";
-import { buildMessage, createAssistantFlow, keptNote, leftNote, resultNote } from "./assistant-flow.js";
+import { buildMessage, createAssistantFlow, doneSummary, resultNote } from "./assistant-flow.js";
 import { setupModelSettings } from "./model-settings-ui.js";
 import { applyProposal } from "./proposal-apply.js";
 import { appendRule } from "./rules-store.js";
@@ -1015,19 +1015,15 @@ async function runAssistant(kind, text) {
     assistant.addMessage(note.kind, note.text, { fold: note.kind === "assistant" });
     // An income report found by the run goes into the table at once, without a card to click (the owner, 10 November 2026).
     assistant.importPending(["income_report"]);
-    const unfiled = leftNote(result);
-    if (unfiled) assistant.addMessage(unfiled.kind, unfiled.text);
-    const kept = keptNote(result);
-    if (kept) assistant.addMessage(kept.kind, kept.text);
     if (result.status === "completed") assistantLastAnswer = result.text;
-    assistant.showPlaced(result.added ?? []);
     if (result.logError) assistant.addMessage("note", `לא ניתן לשמור את יומן הריצה: ${result.logError}`);
-    // The card "לטיפולך" comes last, so it is what the user sees when the run ends (C5).
+    // The end of a run that worked on documents is a dialog (the owner, 11 November 2026: it must be clear when the import ended);
+    // an answer to a question is only the line in the panel.
     const names = new Map((workspaceControls?.getClients().active ?? []).map((client) => [client.id, client.clientName]));
-    const rows = (result.added ?? []).map((item) => ({ ...item, client: names.get(item.clientId) ?? "" }));
-    assistant.showTodo({ rows, inbox: (result.left ?? []).length });
+    if (kind === "process" || (result.added ?? []).length) assistant.showDone(doneSummary(result, names));
   } catch (error) {
     assistant.addMessage("error", `העוזר נעצר: ${error.message}`);
+    if (kind === "process") assistant.showDone({ title: "העוזר נעצר בשגיאה", notes: [error.message] });
   } finally {
     assistantRun = null;
     assistant.setBusy(false);
@@ -1152,6 +1148,7 @@ const assistant = setupAssistant({
     else if (command.type === "import") openImportWizard(command);
     else if (command.type === "inbox") openInbox();
     else if (command.type === "process") processShownMonth();
+    else if (command.type === "look") openRowsToLook({ clientId: command.clientId, month: command.month }).catch((error) => showError(`לא ניתן לפתוח הצהרה: ${error.message}`));
     else if (command.type === "open") workspaceControls?.openDeclaration(command.clientId, command.month).catch((error) => showError(`לא ניתן לפתוח הצהרה: ${error.message}`));
     else runAssistant(command.type, command.text);
   },

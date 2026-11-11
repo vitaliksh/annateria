@@ -19,6 +19,9 @@ function setup({ onApply, onRemember } = {}) {
   return { window, root, assistant, commands, q, messages, click: (selector) => q(selector).click() };
 }
 const options = [{ id: "levi", label: "Levi" }, { id: "cohen", label: "Cohen" }];
+// The dialog of the assistant: open or not, and its title.
+const dialogOf = (root) => root.querySelector("#assistant-dialog");
+const isOpen = (root) => dialogOf(root).hasAttribute("open");
 const card = (extra = {}) => ({ id: "Q1", question: "Whose is this file?", options, allowOther: false, about: { files: [], rows: [] }, remember: null, ...extra });
 
 test("the page has the dock between the workspace and the status bar, with its own stylesheet", () => {
@@ -82,20 +85,36 @@ test("what the agent says is text, never HTML", () => {
   assert.equal(q(".assistant-message").textContent, '<img src=x onerror="alert(1)"> שלום');
 });
 
-test("a question card: question, files, buttons; a click answers once and locks the card", async () => {
+// The owner, 11 November 2026: the agent works quietly; a question is a dialog over the page, never a card in the panel.
+test("a question is a dialog: question, files, buttons; a click answers once and closes it", async () => {
   const { assistant, q, root } = setup();
   const pending = assistant.ui.ask(card({ about: { files: [{ file: "F1", name: "scan 1.jpg", folder: "_unsorted" }, { file: "F2", name: "scan 2.jpg", folder: "_unsorted" }], rows: [] } }));
-  assert.equal(q("#assistant-body").hidden, false);
-  assert.equal(q(".assistant-card .card-text").textContent, "Whose is this file?");
-  assert.equal(q(".card-about").textContent, "scan 1.jpg · scan 2.jpg");
-  const buttons = [...root.querySelectorAll(".card-options button")];
+  assert.equal(isOpen(root), true);
+  assert.equal(q("#assistant-dialog-title").textContent, "שאלה מהעוזר");
+  assert.equal(q("#assistant-feed .assistant-card"), null, "nothing in the panel");
+  assert.equal(q("#assistant-dialog .card-text").textContent, "Whose is this file?");
+  assert.equal(q("#assistant-dialog .card-about").textContent, "scan 1.jpg · scan 2.jpg");
+  const buttons = [...root.querySelectorAll("#assistant-dialog .card-options button")];
   assert.deepEqual(buttons.map((node) => node.textContent), ["Levi", "Cohen", "דלג"]);
   buttons[1].click();
   buttons[0].click();
   assert.deepEqual(await pending, { type: "option", id: "cohen" });
-  assert.deepEqual([q(".assistant-card").dataset.state, q(".card-answer").textContent], ["answered", "נבחר: Cohen"]);
-  assert.equal([...root.querySelectorAll(".assistant-card button")].every((node) => node.disabled), true);
-  assert.equal(root.querySelectorAll(".card-answer").length, 1);
+  assert.equal(isOpen(root), false, "answered: the dialog is closed");
+  assert.equal(q("#assistant-dialog .assistant-card"), null);
+});
+
+test("two questions wait in turn: the second opens when the first is answered", async () => {
+  const { assistant, q, root } = setup();
+  const first = assistant.ui.ask(card({ question: "ראשונה?" }));
+  const second = assistant.ui.ask(card({ question: "שנייה?" }));
+  assert.equal(q("#assistant-dialog .card-text").textContent, "ראשונה?");
+  root.querySelector("#assistant-dialog .card-options button").click();
+  assert.deepEqual(await first, { type: "option", id: "levi" });
+  assert.equal(isOpen(root), true);
+  assert.equal(q("#assistant-dialog .card-text").textContent, "שנייה?");
+  root.querySelectorAll("#assistant-dialog .card-options button")[1].click();
+  assert.deepEqual(await second, { type: "option", id: "cohen" });
+  assert.equal(isOpen(root), false);
 });
 
 test("a question can be skipped, or answered with another text by the button or by Enter; an empty text does nothing", async () => {
@@ -103,6 +122,7 @@ test("a question can be skipped, or answered with another text by the button or 
   const first = skipped.assistant.ui.ask(card({ allowOther: true }));
   skipped.root.querySelector(".card-options .link").click();
   assert.deepEqual(await first, { type: "dismissed" });
+  assert.equal(isOpen(skipped.root), false);
 
   const typed = setup();
   const second = typed.assistant.ui.ask(card({ allowOther: true }));
@@ -110,10 +130,10 @@ test("a question can be skipped, or answered with another text by the button or 
   typed.q(".card-other button").click();
   input.value = "   ";
   input.dispatchEvent(new typed.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  assert.equal(isOpen(typed.root), true, "an empty text does nothing");
   input.value = "  the tax office  ";
   input.dispatchEvent(new typed.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   assert.deepEqual(await second, { type: "other", text: "the tax office" });
-  assert.equal(typed.q(".card-answer").textContent, "נבחר: the tax office");
   assert.equal(setup().q(".card-other"), null);
   const without = setup();
   without.assistant.ui.ask(card());
@@ -162,19 +182,19 @@ test("remember for this client: the box shows the rule exactly; the page writes 
 });
 
 test("a run that is stopped closes its open question without answering it", async () => {
-  const { assistant, q, root } = setup();
+  const { assistant, root } = setup();
   const controller = new AbortController();
   let settled = false;
   assistant.ui.ask(card(), { signal: controller.signal }).then(() => { settled = true; });
+  const box = root.querySelector("#assistant-dialog .assistant-card");
   controller.abort();
-  root.querySelector(".card-options button").click();
   await tick();
-  assert.deepEqual([q(".assistant-card").dataset.state, settled, q(".card-answer").textContent], ["cancelled", false, "הריצה הופסקה"]);
-  assert.equal([...root.querySelectorAll(".assistant-card button, .assistant-card input")].every((node) => node.disabled), true);
+  assert.deepEqual([box.dataset.state, settled, isOpen(root)], ["cancelled", false, false]);
+  assert.equal([...box.querySelectorAll("button, input")].every((node) => node.disabled), true);
 });
 
-test("a proposal card lists the changes in Hebrew with the row number, the month and the reason, and says that nothing was applied", async () => {
-  const { assistant, q } = setup();
+test("a proposal is a dialog that lists the changes in Hebrew with the row number, the month and the reason, and says that nothing was applied", async () => {
+  const { assistant, q, root } = setup();
   await assistant.ui.propose({
     id: "P1", client: { id: "id-Levi", name: "Levi Plumbing" }, title: "תיקון תאריכים",
     changes: [
@@ -184,7 +204,9 @@ test("a proposal card lists the changes in Hebrew with the row number, the month
       { row: "R4", documentId: "d-4", month: "2026-02", position: 32, field: "allocation_number", value: "", reason: "מחיקה" },
     ],
   });
-  assert.equal(q(".assistant-card[data-kind='proposal'] .card-text").textContent, "תיקון תאריכים");
+  assert.equal(isOpen(root), true);
+  assert.equal(q("#assistant-dialog-title").textContent, "הצעה מהעוזר");
+  assert.equal(q("#assistant-dialog .assistant-card[data-kind='proposal'] .card-text").textContent, "תיקון תאריכים");
   assert.match(q(".card-about").textContent, /Levi Plumbing.*עדיין לא הוחלה/);
   assert.deepEqual([...q(".card-changes").children].map((item) => item.textContent), [
     "שורה 3 (02/2026) · תאריך: 2026-02-20 — התאריך בצילום שונה",
@@ -192,8 +214,10 @@ test("a proposal card lists the changes in Hebrew with the row number, the month
     "שורה 12 (02/2026) · חודש: 03/2026 — חודש אחר",
     "שורה 32 (02/2026) · מספר הקצאה: (ריק) — מחיקה",
   ]);
-  assert.equal(q("#assistant-body").hidden, false);
-  assert.equal(q(".assistant-card[data-kind='proposal'] button"), null, "without a handler the card only shows the changes");
+  const buttons = [...q(".assistant-card[data-kind='proposal']").querySelectorAll("button")];
+  assert.deepEqual(buttons.map((item) => item.textContent), ["סגירה"], "without a handler the dialog only shows the changes");
+  buttons[0].click();
+  assert.equal(isOpen(root), false);
 });
 
 test("the progress line names what the agent is doing and counts the documents read", () => {
@@ -250,49 +274,67 @@ test("the button of the dock says what it does and what it does not do", () => {
   assert.match(q("#assistant-process").title, /מוסיף שורות לטבלאות.*מתייק את המקורות.*שואל כשצריך/);
 });
 
-test("the card לטיפולך lists what is left after a run, each with its button, and follows the import card (C5)", () => {
+// The owner, 11 November 2026: it must be clear when the agent has finished; the end of a run is a dialog, not a card in the panel.
+test("the end of a run is a dialog: where the rows went, the rows to look at, the files left and the imports waiting, each with its button", () => {
   const { assistant, q, commands, root } = setup();
   assistant.setBusy(true);
   assistant.ui.importCard(importCard());
   assistant.setBusy(false);
-  const todo = assistant.showTodo({
-    rows: [{ clientId: "c1", client: "Levi", month: "2026-08", count: 5, review: 2 }, { clientId: "c1", client: "Levi", month: "2026-07", count: 3 }],
-    inbox: 1,
+  assert.equal(q("#assistant-feed .assistant-card"), null, "the import file is not drawn in the panel");
+  const done = assistant.showDone({
+    title: "העוזר סיים",
+    rows: [{ clientId: "c1", client: "Levi", month: "2026-08", count: 5, review: 2 }, { clientId: "c1", client: "Levi", month: "2026-07", count: 1, review: 0 }],
+    inbox: ["a.jpg"],
+    notes: ["נוספו 2 שורות כבויות לבדיקה"],
   });
-  assert.equal(root.querySelector("#assistant-feed").lastElementChild, todo, "it is the last thing in the feed");
-  assert.equal(todo.dataset.kind, "todo");
-  const lines = [...todo.querySelectorAll("li")];
+  assert.equal(isOpen(root), true);
+  assert.equal(q("#assistant-dialog-title").textContent, "העוזר סיים");
+  assert.equal(done.dataset.kind, "done");
+  const lines = [...done.querySelectorAll(".todo-list li")];
   assert.deepEqual(lines.map((line) => line.querySelector("p").textContent), [
-    "ייבוא journal-08.xlsx ל«Levi» לא הושלם", "2 שורות לבדיקה ב-08/2026 של «Levi»", "קובץ אחד נשאר בתיבת הקלט",
+    "נוספו 5 שורות ל-08/2026 של «Levi» · 2 שורות לבדיקה", "נוספה שורה אחת ל-07/2026 של «Levi»", "קובץ אחד נשאר בתיבת הקלט: a.jpg", "נוספו 2 שורות כבויות לבדיקה",
   ]);
-  assert.deepEqual(lines.map((line) => line.querySelector("button").textContent), ["בדיקה וייבוא", "פתיחת 08/2026", "פתיחת תיבת הקלט"]);
+  assert.deepEqual(lines.map((line) => line.querySelector("button")?.textContent ?? ""), ["הצגת השורות לבדיקה", "", "פתיחת תיבת הקלט", ""]);
+  const importBox = done.querySelector(".assistant-card[data-kind='import']");
+  assert.ok(importBox, "the import file of the run waits in the dialog with its own button");
   lines[0].querySelector("button").click();
-  assert.deepEqual([commands.at(-1).type, commands.at(-1).card.id], ["import", "I1"], "the same wizard as the card's own button");
+  assert.deepEqual(commands.at(-1), { type: "look", clientId: "c1", month: "2026-08" });
+  assert.equal(isOpen(root), false, "a button closes the dialog and goes there");
+});
+
+test("the end of a run without rows says so; its close button closes it; the wizard button of an import closes it too", () => {
+  const { assistant, q, commands, root } = setup();
+  const empty = assistant.showDone({ title: "העוזר סיים" });
+  assert.deepEqual([...empty.querySelectorAll(".todo-list li")].map((line) => line.textContent), ["לא נוספו שורות."]);
+  [...empty.querySelectorAll("button")].find((item) => item.textContent === "סגירה").click();
+  assert.equal(isOpen(root), false);
+  assistant.setBusy(true);
+  assistant.ui.importCard(importCard());
+  assistant.setBusy(false);
+  assistant.showDone({ title: "העוזר סיים" });
+  [...q("#assistant-dialog .assistant-card[data-kind='import']").querySelectorAll("button")].find((item) => item.textContent === "בדיקה וייבוא").click();
+  assert.deepEqual([commands.at(-1).type, commands.at(-1).card.id, isOpen(root)], ["import", "I1", false]);
   commands.at(-1).report({ text: "הייבוא בוצע.", done: true });
-  assert.deepEqual([lines[0].dataset.state, lines[0].querySelector("button").disabled], ["done", true]);
-  assert.equal(lines[0].querySelector("p").textContent, "ייבוא journal-08.xlsx ל«Levi» הושלם");
-  lines[1].querySelector("button").click();
-  lines[2].querySelector("button").click();
-  assert.deepEqual(commands.slice(-2), [{ type: "open", clientId: "c1", month: "2026-08" }, { type: "inbox" }]);
-  assert.ok(q("[data-kind='todo']"));
+  const after = assistant.showDone({ title: "העוזר סיים" });
+  assert.equal(after.querySelector(".assistant-card[data-kind='import']"), null, "an import already done is not listed");
 });
 
 // M2, D4: each run draws its own card for a file still in the inbox, and the strip "ממתין לך" showed the same import once per run.
-test("the same import from two runs waits once in the strip, and opens at the newer card", () => {
+// M2, D4: each run makes its own entry for a file still in the inbox, and the strip "ממתין לך" showed the same import once per run.
+test("the same import from two runs waits once in the strip, and the strip opens its wizard", () => {
   const told = [];
+  const commands = [];
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/annateria/" });
   const root = window.document.querySelector("#assistant");
-  const assistant = setupAssistant({ root, onCommand: () => {}, onPending: (pending) => told.push(pending) });
+  const assistant = setupAssistant({ root, onCommand: (command) => commands.push(command), onPending: (pending) => told.push(pending) });
   assistant.ui.importCard(importCard());
   assistant.ui.importCard(importCard());
   assert.deepEqual(told.at(-1).imports, [{ name: "journal-08.xlsx", client: "Levi", clientId: "c1", state: "waiting" }]);
-  const cards = root.querySelectorAll(".assistant-card[data-kind='import']");
-  assert.equal(cards.length, 2);
   assert.equal(assistant.reveal({ kind: "import", index: 0 }), true);
-  assert.equal(window.document.activeElement?.closest(".assistant-card"), cards[1]);
+  assert.deepEqual([commands.at(-1).type, commands.at(-1).card.id], ["import", "I1"]);
 });
 
-test("the panel tells the page what waits in its feed and opens at it on request (C6)", async () => {
+test("the panel tells the page what waits and opens it on request (C6)", async () => {
   const told = [];
   const { window } = new JSDOM(html, { url: "https://vitaliksh.github.io/annateria/" });
   const root = window.document.querySelector("#assistant");
@@ -304,35 +346,22 @@ test("the panel tells the page what waits in its feed and opens at it on request
   const controller = new AbortController();
   const answered = assistant.ui.ask(card(), { signal: controller.signal });
   assert.deepEqual(told.at(-1), { questions: 1, imports: pending("waiting") });
-  assistant.open(false);
   assert.equal(assistant.reveal({ kind: "question" }), true);
-  assert.equal(root.querySelector("#assistant-body").hidden, false, "the panel opens at the card");
-  [...root.querySelectorAll(".assistant-card[data-kind='question'] button")].find((item) => item.textContent === "Levi").click();
+  [...root.querySelectorAll("#assistant-dialog .card-options button")].find((item) => item.textContent === "Levi").click();
   await answered;
   assert.equal(told.at(-1).questions, 0);
   assert.equal(assistant.reveal({ kind: "question" }), false, "no open question any more");
   assert.equal(assistant.reveal({ kind: "import", index: 0 }), true);
-  [...root.querySelectorAll(".assistant-card[data-kind='import'] button")].find((item) => item.textContent === "בדיקה וייבוא").click();
+  assert.equal(commands.at(-1).type, "import");
   commands.at(-1).report({ text: "לא יובא", state: "unfinished" });
   assert.deepEqual(told.at(-1).imports, pending("unfinished"), "not finished still waits, and says so (red in the strip)");
   commands.at(-1).report({ text: "הייבוא בוצע.", done: true });
   assert.deepEqual(told.at(-1).imports, []);
+  assert.equal(assistant.reveal({ kind: "import", index: 0 }), false);
   const stopped = new AbortController();
   assistant.ui.ask(card(), { signal: stopped.signal });
   stopped.abort();
   assert.equal(told.at(-1).questions, 0, "a stopped run leaves no question waiting");
-});
-
-test("nothing left after a run: no card לטיפולך; an import already done is not listed", () => {
-  const { assistant, root, commands } = setup();
-  assert.equal(assistant.showTodo({ rows: [{ clientId: "c1", client: "Levi", month: "2026-08", count: 2 }] }), null);
-  assistant.setBusy(true);
-  assistant.ui.importCard(importCard());
-  assistant.setBusy(false);
-  [...root.querySelectorAll(".assistant-card[data-kind='import'] button")].find((item) => item.textContent === "בדיקה וייבוא").click();
-  commands.at(-1).report({ text: "הייבוא בוצע.", done: true });
-  assert.equal(assistant.showTodo({}), null);
-  assert.equal(root.querySelector("[data-kind='todo']"), null);
 });
 
 test("a long final answer is folded under a control that shows it all; a short one is not", () => {
@@ -377,7 +406,7 @@ const proposal = () => ({
   ],
 });
 
-test("a proposal with a handler: each change is ticked, apply sends the ticked ones and the card says what was done and what was refused", async () => {
+test("a proposal with a handler: each change is ticked, apply sends the ticked ones and the dialog says what was done and what was refused", async () => {
   const calls = [];
   const { assistant, q, root } = setup({ onApply: async (given, kept) => { calls.push([given.id, kept]); return { applied: [given.changes[kept[0]]], refused: [{ change: given.changes[kept[1]], reason: "הטבלה השתנתה" }] }; } });
   assistant.ui.propose(proposal());
@@ -392,10 +421,13 @@ test("a proposal with a handler: each change is ticked, apply sends the ticked o
   assert.deepEqual(calls, [["P1", [0, 1]]]);
   assert.match(q(".assistant-card[data-kind='proposal'] .card-about").textContent, /הוחלו 1 מתוך 2 שינויים/);
   assert.equal(q(".card-answer").textContent, "שורה 9: הטבלה השתנתה");
-  assert.equal([...root.querySelectorAll(".assistant-card button, .assistant-card input")].every((node) => node.disabled), true);
+  assert.equal([...root.querySelectorAll(".card-options button, .card-changes input")].every((node) => node.disabled), true);
   apply.click();
   await tick();
-  assert.equal(calls.length, 1, "a card is applied once");
+  assert.equal(calls.length, 1, "a proposal is applied once");
+  assert.equal(isOpen(root), true, "the result stays until the dialog is closed");
+  [...root.querySelectorAll("#assistant-dialog button")].find((item) => item.textContent === "סגירה").click();
+  assert.equal(isOpen(root), false);
 });
 
 test("a proposal can be turned down, applied with nothing ticked (nothing happens), or fail with a message", async () => {
@@ -403,7 +435,7 @@ test("a proposal can be turned down, applied with nothing ticked (nothing happen
   const rejected = setup({ onApply: async () => { called += 1; return { applied: [], refused: [] }; } });
   rejected.assistant.ui.propose(proposal());
   rejected.root.querySelector(".card-options .link").click();
-  assert.match(rejected.q(".card-about").textContent, /ההצעה נדחתה/);
+  assert.equal(isOpen(rejected.root), false, "turned down: the dialog closes");
   assert.equal(called, 0);
 
   const none = setup({ onApply: async () => { called += 1; return { applied: [], refused: [] }; } });
@@ -412,7 +444,7 @@ test("a proposal can be turned down, applied with nothing ticked (nothing happen
   none.root.querySelector(".card-options button").click();
   await tick();
   assert.equal(called, 0);
-  assert.equal(none.q(".assistant-card[data-kind='proposal'] button").disabled, false, "the card stays open");
+  assert.equal(none.q(".assistant-card[data-kind='proposal'] button").disabled, false, "the dialog stays open");
 
   const failing = setup({ onApply: async () => { throw new Error("disk full"); } });
   failing.assistant.ui.propose(proposal());
@@ -433,17 +465,6 @@ test("a clear button minimizes the open dock; it is there only while the dock is
   assert.equal(q("#assistant-minimize").hidden, false, "a question or a run opens it again with the button");
 });
 
-test("after a run the dock offers a button for each month that got rows; a click asks to open that month", () => {
-  const { assistant, commands, q } = setup();
-  assistant.showPlaced([]);
-  assert.equal(q(".assistant-card[data-kind='placed']"), null, "nothing was added: nothing to offer");
-  assistant.showPlaced([{ clientId: "id-Levi", month: "2026-01", count: 5 }, { clientId: "id-Levi", month: "2026-03", count: 1 }]);
-  const buttons = [...q(".assistant-card[data-kind='placed']").querySelectorAll("button")];
-  assert.deepEqual(buttons.map((button) => button.textContent), ["פתיחת 01/2026 · 5 שורות", "פתיחת 03/2026 · 1 שורות"]);
-  buttons[1].click();
-  assert.deepEqual(commands.at(-1), { type: "open", clientId: "id-Levi", month: "2026-03" });
-});
-
 // --- the card of an import file (prepare_import, step 4.7.2) ---
 const importCard = (extra = {}) => ({
   id: "I1", kind: "journal", reason: "זה יומן קליטה של ריבהיט", month: null, file: { name: "journal-08.xlsx", hash: "a".repeat(64), folder: "Levi" }, client: { id: "c1", name: "Levi" },
@@ -458,6 +479,8 @@ test("the card of an import file says what the file is, what was found and what 
     { code: "month_has_rows", severity: "warning", count: 3 },
     { code: "draft-rows", severity: "warning", count: 8 },
   ] }));
+  assert.equal(q(".assistant-card[data-kind='import']"), null, "not drawn in the panel");
+  assistant.showDone({ title: "העוזר סיים" });
   const card = q(".assistant-card[data-kind='import']");
   assert.ok(card);
   const text = card.textContent;
@@ -465,40 +488,44 @@ test("the card of an import file says what the file is, what was found and what 
   assert.match(text, /שגיאה: סכום «סה״כ מע״מ לחודש» בסוף הקובץ אינו תואם/);
   assert.match(text, /אזהרה: בחודש הזה כבר יש 3 שורות/);
   assert.match(text, /אזהרה: ל-8 שורות סטטוס «טיוטא»/);
-  assert.equal(q("#assistant-body").hidden, false, "the panel opens");
   assert.deepEqual(commands, [], "no wizard before the click");
 });
 
 test("the button of the card asks the page to open the wizard, and the page tells the card what happened", () => {
-  const { assistant, q, commands } = setup();
+  const { assistant, q, commands, root } = setup();
   const data = importCard();
   assistant.ui.importCard(data);
-  const button = [...q(".assistant-card[data-kind='import']").querySelectorAll("button")].find((item) => item.textContent === "בדיקה וייבוא");
+  assistant.showDone({ title: "העוזר סיים" });
+  const box = q(".assistant-card[data-kind='import']");
+  const button = [...box.querySelectorAll("button")].find((item) => item.textContent === "בדיקה וייבוא");
   button.click();
   assert.equal(commands.length, 1);
   assert.deepEqual([commands[0].type, commands[0].card.id, commands[0].card.file.hash], ["import", "I1", "a".repeat(64)]);
-  assert.equal(q(".assistant-card[data-kind='import']").dataset.state, "waiting");
+  assert.equal(box.dataset.state, "waiting");
+  assert.equal(isOpen(root), false, "the wizard is a dialog of its own: the end of the run closes first");
   commands[0].report({ text: "האשף נפתח.", state: "opened" });
-  assert.equal(q(".assistant-card[data-kind='import'] .card-answer").textContent, "האשף נפתח.");
-  assert.equal(q(".assistant-card[data-kind='import']").dataset.state, "opened");
+  assert.equal(box.querySelector(".card-answer").textContent, "האשף נפתח.");
+  assert.equal(box.dataset.state, "opened");
   commands[0].report({ text: "לא יובא: האשף נסגר לפני הסוף. הקובץ נשאר בתיבת הקלט.", state: "unfinished" });
-  assert.equal(q(".assistant-card[data-kind='import']").dataset.state, "unfinished");
-  assert.match(q(".assistant-card[data-kind='import'] .card-answer").textContent, /^לא יובא/);
+  assert.equal(box.dataset.state, "unfinished");
+  assert.match(box.querySelector(".card-answer").textContent, /^לא יובא/);
   assert.equal(button.disabled, false, "the wizard can be opened again if it was closed without writing");
   commands[0].report({ text: "הלקוח לא נמצא ברשימת הלקוחות." });
-  assert.equal(q(".assistant-card[data-kind='import']").dataset.state, "unfinished", "a report without a state keeps the state");
+  assert.equal(box.dataset.state, "unfinished", "a report without a state keeps the state");
   commands[0].report({ text: "הייבוא בוצע.", done: true });
   assert.equal(button.disabled, true);
-  assert.equal(q(".assistant-card[data-kind='import']").dataset.state, "answered");
+  assert.equal(box.dataset.state, "answered");
 });
 
 test("the button of the card waits while a run is on", () => {
   const { assistant, q, commands } = setup();
   assistant.ui.importCard(importCard());
+  assistant.showDone({ title: "העוזר סיים" });
+  const box = q(".assistant-card[data-kind='import']");
   assistant.setBusy(true);
-  [...q(".assistant-card[data-kind='import']").querySelectorAll("button")].find((item) => item.textContent === "בדיקה וייבוא").click();
+  [...box.querySelectorAll("button")].find((item) => item.textContent === "בדיקה וייבוא").click();
   assert.deepEqual(commands, []);
-  assert.match(q(".assistant-card[data-kind='import'] .card-answer").textContent, /להמתין לסיום הריצה/);
+  assert.match(box.querySelector(".card-answer").textContent, /להמתין לסיום הריצה/);
 });
 
 test("prepare_import has a label for the progress line", () => {
@@ -513,6 +540,7 @@ test("the card of a classification-codes ledger says how many codes and which im
     summary: { accounts: 42, had_own_chart: true, rows_to_remap: 7, months_to_remap: ["2026-01", "2026-03"], month: null },
     problems: [{ code: "replaces_own_chart", severity: "warning", count: 1 }, { code: "locked_months_not_remapped", severity: "warning", count: 2 }],
   }));
+  assistant.showDone({ title: "העוזר סיים" });
   const text = q(".assistant-card[data-kind='import']").textContent;
   for (const part of ["כרטסת קודי מיון (Rivhit)", "42 קודי מיון בכרטסת", "7 שורות שיובאו מ-Excel יקבלו את הקודים החדשים (01/2026, 03/2026)", "יוחלפו בקודים שבכרטסת", "ב-2 הצהרות נעולות"]) assert.ok(text.includes(part), part);
   assert.equal(text.includes("undefined"), false);
@@ -525,6 +553,7 @@ test("the card of an operations ledger says how many operations are in the table
     summary: { year: 2026, operations: 120, matched: 115, missing: 5, can_add: 3, months_created: 1, extra: 2, month: null },
     problems: [{ code: "operations_missing", severity: "warning", count: 5 }, { code: "missing_unknown_class", severity: "warning", count: 2 }, { code: "rows_not_in_ledger", severity: "warning", count: 2 }],
   }));
+  assistant.showDone({ title: "העוזר סיים" });
   const text = q(".assistant-card[data-kind='import']").textContent;
   for (const part of ["כרטסת עם פעולות (Rivhit)", "120 פעולות בכרטסת לשנת 2026: 115 קיימות בהצהרות, 5 חסרות", "3 מהחסרות אפשר להוסיף באשף (1 הצהרות ייווצרו)", "אין קוד מיון אצל הלקוח", "אין התאמה בכרטסת"]) assert.ok(text.includes(part), part);
   assert.equal(text.includes("undefined"), false);
@@ -536,6 +565,7 @@ test("an import card that may be of another client shows that first, as an error
     kind: "ledger_check", totals: null, summary: { year: 2026, operations: 224, matched: 14, missing: 210, can_add: 210, months_created: 2, extra: 42, month: null },
     problems: [{ code: "maybe_other_client", severity: "error", count: 1 }, { code: "operations_missing", severity: "warning", count: 210 }],
   }));
+  assistant.showDone({ title: "העוזר סיים" });
   const items = [...q(".assistant-card[data-kind='import'] .card-changes").children].map((item) => item.textContent);
   assert.match(items.find((item) => item.startsWith("שגיאה")), /ייתכן שהכרטסת של לקוח אחר/);
 });
@@ -547,26 +577,25 @@ test("the card of an income report says the period, the sums and where the rows 
     summary: { month: "2026-02", period_from: "2026-02-01", period_to: "2026-02-28", documents: 5, rows_to_add: 2, verified: true },
     problems: [{ code: "sum-differs", severity: "warning", count: 1, key: "vat" }, { code: "month_missing", severity: "error", count: 1 }],
   }));
+  assistant.showDone({ title: "העוזר סיים" });
   const text = q(".assistant-card[data-kind='import']").textContent;
   for (const part of ["דוח הכנסות תקופתי (חשבונית ירוקה)", "01/02/2026–28/02/2026: 5 מסמכים", "ללא מע״מ 250.50", "כולל 295.59", "שתי שורות (חייב ופטור) תתווסף להצהרה 02/2026; הפירוט תואם לסיכום", "סכום הפירוט שונה מהסיכום", "שגיאה: אין הצהרה לחודש של הדוח"]) assert.ok(text.includes(part), part);
   assert.equal(text.includes("undefined"), false);
 });
 
-test("a file imported from one run's card is done on the cards of every run, and on their lines", () => {
+test("a file imported from one run is done for every run that found it", () => {
   const { assistant, root, commands } = setup();
   for (let run = 0; run < 2; run += 1) {
     assistant.setBusy(true);
     assistant.ui.importCard(importCard());
     assistant.setBusy(false);
-    assistant.showTodo({});
   }
-  const wizards = [...root.querySelectorAll(".assistant-card[data-kind='import'] button")].filter((item) => item.textContent === "בדיקה וייבוא");
-  assert.equal(wizards.length, 2);
-  wizards[1].click();
+  assert.equal(assistant.reveal({ kind: "import", index: 0 }), true);
   commands.at(-1).report({ text: "הייבוא בוצע.", done: true });
-  assert.deepEqual(wizards.map((item) => item.disabled), [true, true]);
-  const lines = [...root.querySelectorAll("[data-kind='todo'] li")];
-  assert.deepEqual(lines.map((line) => line.querySelector("p").textContent), ["ייבוא journal-08.xlsx ל«Levi» הושלם", "ייבוא journal-08.xlsx ל«Levi» הושלם"]);
+  assert.equal(assistant.reveal({ kind: "import", index: 0 }), false, "nothing waits any more");
+  const done = assistant.showDone({ title: "העוזר סיים" });
+  assert.equal(done.querySelector(".assistant-card[data-kind='import']"), null);
+  assert.equal(root.querySelectorAll("#assistant-feed .assistant-card").length, 0);
 });
 
 // The owner, 8 November 2026: a thermometer of the run, the number of documents found and the name of the file worked on now.

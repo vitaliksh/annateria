@@ -86,6 +86,7 @@ One line each, newest first.
 | Date | Decision |
 | --- | --- |
 | 2026-11-08 | Owner: after M7, a batch import of Rivhit exports (journals, codes ledger) for all clients, current year only; Anna has the desktop Rivhit, whose data the Rivhit API does not reach. |
+| 2026-11-11 | Owner: the agent works quietly. No cards or buttons in the assistant panel: a question or a suggestion of the agent is a dialog, asked only when the work cannot go on; the end of a document run is a dialog that says what was done. A row's "to look at" is taken off by a click on its status. |
 | 2026-11-10 | Owner: the app converts a foreign currency itself, at the Bank of Israel representative rate of the document's date (through the Worker); the row keeps the original amount and names the rate. Replaces the decision of 8 November. |
 | 2026-11-08 | Anna (through the owner): foreign currency is always converted at the rate of the day of payment. |
 | 2026-11-08 | Owner: Anna will not keep double-entry books, so journal entry vouchers are not imported and PCN874 of such a client is not tested. |

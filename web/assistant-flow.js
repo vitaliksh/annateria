@@ -25,23 +25,6 @@ export function buildMessage({ kind, text = "", today, active = null, previous =
   return lines.join("\n\n");
 }
 
-// The files that the run did not file, from the run itself and not from what the model says (it may call everything processed).
-export function leftNote(result) {
-  const left = result.left ?? [];
-  if (!left.length) return null;
-  const names = left.slice(0, 12).map((file) => file.name).join(", ");
-  return { kind: "note", text: `נשארו בתיבת הקלט ${left.length} קבצים שלא טופלו: ${names}${left.length > 12 ? " ועוד" : ""}` };
-}
-
-// What the code did so that nothing that came in is lost: originals it filed itself and documents it added as rows to look at.
-export function keptNote(result) {
-  const filed = result.filedByApp ?? [];
-  const lines = [];
-  if (filed.length) lines.push(`המקור צורף לשורות על ידי האפליקציה (הסוכן לא העביר אותו): ${filed.map((file) => file.name).join(", ")}`);
-  if (result.leftOut) lines.push(`נוספו ${result.leftOut} שורות כבויות לבדיקה עבור מסמכים שהסוכן לא קלט. יש לבדוק ולהפעיל את מה שנכון.`);
-  return lines.length ? { kind: "note", text: lines.join("\n") } : null;
-}
-
 const LIMIT_TEXT = { turns: "הריצה הגיעה למספר הצעדים המרבי.", "tool calls": "הריצה הגיעה למספר הפעולות המרבי.", time: "הריצה נמשכה יותר מדי זמן ונעצרה." };
 
 // { kind: "assistant" | "note" | "error", text } for the end of a run.
@@ -56,6 +39,18 @@ export function resultNote(result) {
     case "blocked": return { kind: "error", text: "המודל סירב להשיב." };
     default: return { kind: "error", text: `הריצה נכשלה: ${MODEL_MESSAGES[result.code] ?? "אירעה שגיאה בהרצת העוזר."}` };
   }
+}
+
+// What the dialog at the end of a run says (assistant-ui.js, showDone), from the run itself and not from the model's words (it may call
+// everything processed): its title, where the rows went, the files left in the inbox, the documents the code added for the agent, and
+// why a run stopped. names: client id -> name.
+export function doneSummary(result, names = new Map()) {
+  const ended = { completed: "העוזר סיים", cancelled: "העוזר נעצר", limit_reached: "העוזר נעצר במגבלה" };
+  const rows = (result.added ?? []).map((item) => ({ ...item, client: names.get(item.clientId) ?? "" }));
+  const notes = [];
+  if (result.leftOut) notes.push(`נוספו ${result.leftOut} שורות כבויות לבדיקה עבור מסמכים שהעוזר לא קלט. יש לבדוק ולהפעיל את מה שנכון.`);
+  if (result.status !== "completed") notes.push(resultNote(result).text);
+  return { title: ended[result.status] ?? "העוזר נעצר בשגיאה", rows, inbox: (result.left ?? []).map((file) => file.name), notes };
 }
 
 // modelClient: createModelClient(...). getClients(), getDataRoot(), getLiveTable(): see agent/services.js. getModels(): the model of each role.
