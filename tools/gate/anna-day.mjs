@@ -251,7 +251,13 @@ async function day(page, scanPath, log) {
   const lookCount = Number(filterLabel.match(/(\d+)/)?.[1] ?? NaN);
   const monthCount = (await page.locator(".declaration-choice.active-declaration .month-count").textContent().catch(() => "")) ?? "";
   await page.screenshot({ path: join(tmpdir(), "anna-day-checked.png") }).catch(() => {});
-  return { rows, hasSupplier: table.includes(SUPPLIER.slice(0, 8)), feed, meter, checked, toLook: [before, after], ended, panelCards, monthCount, lookCount };
+  // The same scan again: a row came from it, so the inbox refuses it and says where it is (the owner, 11 November 2026).
+  step("bring the same scan again");
+  await click("#open-month-inbox");
+  await page.locator("#inbox-file").setInputFiles(scanPath);
+  await page.locator("#inbox-problems li").first().waitFor({ timeout: 20000 });
+  const again = (await page.locator("#inbox-problems").innerText()).trim();
+  return { rows, hasSupplier: table.includes(SUPPLIER.slice(0, 8)), feed, meter, checked, toLook: [before, after], ended, panelCards, monthCount, lookCount, again };
 }
 
 async function main() {
@@ -304,6 +310,7 @@ async function main() {
     if (!outcome.hasSupplier) problems.push("the row of the scanned invoice is not in the table");
     if (!/העוזר סיים/.test(outcome.ended) || !/נוספו 2 שורות/.test(outcome.ended)) problems.push(`the end of the run is not said in a dialog: "${outcome.ended}"`);
     if (outcome.monthCount.trim() !== `2 (${outcome.lookCount})`) problems.push(`the sidebar says "${outcome.monthCount}" beside the month, "2 (${outcome.lookCount})" expected`);
+    if (!/scan-big\.pdf: כבר קיים בהצהרה 01\/2026/.test(outcome.again)) problems.push(`the same scan again was not refused with its month: "${outcome.again}"`);
     if (outcome.panelCards) problems.push(`the panel still shows ${outcome.panelCards} cards`);
     if (outcome.checked !== "נבדק" || outcome.toLook[1] !== outcome.toLook[0] - 1) {
       problems.push(`a click on the status did not mark the row checked: "${outcome.checked}", rows to look at ${outcome.toLook.join(" -> ")}`);

@@ -128,7 +128,7 @@ export function setupInbox({
   const groupLabel = (folder, month) => (folder === UNSORTED ? folderLabel(folder) : `${folderLabel(folder)} · ${month ? formatMonth(month) : "ללא חודש"}`);
   const where = (of) => {
     if (of.folder) return `בתיבת הקלט (${groupLabel(of.folder, of.month)})`;
-    return of.imports ? `בקבצים שיובאו של «${of.client}»` : `בהצהרה ${of.month} של «${of.client}»`;
+    return `בהצהרה ${formatMonth(of.month)} של «${of.client}»`;
   };
 
   // The shown month first; then unassigned, then the clients in the order of the sidebar (without a month before their months,

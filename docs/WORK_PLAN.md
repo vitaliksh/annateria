@@ -86,6 +86,7 @@ One line each, newest first.
 | Date | Decision |
 | --- | --- |
 | 2026-11-08 | Owner: after M7, a batch import of Rivhit exports (journals, codes ledger) for all clients, current year only; Anna has the desktop Rivhit, whose data the Rivhit API does not reach. |
+| 2026-11-11 | Owner: one rule against a second import. Every row knows the file it came from (its SHA-256, not its name: names repeat); a file is refused in the inbox while any row of any month comes from it, and says where. A deleted month frees its files. Replaces the scans of month images and of imports/. |
 | 2026-11-11 | Owner: the sidebar shows beside every month, closed ones too, its total number of rows and, in brackets, the rows to look at (Anna read the old single number as the total). |
 | 2026-11-11 | Owner (a defect): a file imported into a month that was later deleted is refused as "already in the system" when it is brought in again; deleting a month must free its files for a new import, with no manual step. |
 | 2026-11-11 | Owner: the agent works quietly. No cards or buttons in the assistant panel: a question or a suggestion of the agent is a dialog, asked only when the work cannot go on; the end of a document run is a dialog that says what was done. A row's "to look at" is taken off by a click on its status. |

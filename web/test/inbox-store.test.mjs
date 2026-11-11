@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import {
-  UNSORTED, addToInbox, copyToClientImports, copyToDeclarationImages, declarationImageHashes, ensureInbox, fileImportOriginal, inboxCounts, isInboxFolder, moveOutOfInbox, moveToTrash, nextImageNumber, readInboxFile,
+  UNSORTED, addToInbox, copyToClientImports, copyToDeclarationImages, importedFiles, ensureInbox, fileImportOriginal, inboxCounts, isInboxFolder, moveOutOfInbox, moveToTrash, nextImageNumber, readInboxFile,
   readInboxIndex, reconcileInbox, refusalReason, safeFileName, sha256Hex, takeIntoMonth,
 } from "../inbox-store.js";
 import { binaryDirectory, listPaths, putFile, readFileBytes } from "./memory-binary-directory.mjs";
@@ -126,53 +126,48 @@ test("a path in the file name cannot leave the folder", async () => {
   assert.deepEqual(await listPaths(root), ["inbox/_unsorted/x.pdf", "inbox/index.json"]);
 });
 
-test("images of any declaration count as already seen; the same size with other bytes does not", async () => {
+// The owner, 11 November 2026: one rule against a second import. A file is already in while a row of any month of any client comes from
+// it (agent.file, sourceHash, importHash: the SHA-256 of the file), turned off or not, edited or not; a deleted month frees it.
+const putTable = (root, client, month, rows) => putFile(root, `clients/${client}/declarations/${month}/draft-table.json`, bytesOf(JSON.stringify({ schemaVersion: 1, rows })));
+
+test("a file is refused while a row of any month of any client comes from it, and the answer says where", async () => {
   const root = binaryDirectory();
-  await putFile(root, "clients/Levi/declarations/2026-08/images/photo-1.jpg", bytesOf("AAAA"));
-  await putFile(root, "clients/Cohen/declarations/2026-09/images/photo-2.jpg", bytesOf("BBBB"));
+  await putTable(root, "Levi", "2026-08", [{ imageFile: "001.pdf", active: false, agent: { run: "r1", file: sha("SCAN") } }]);
+  await putTable(root, "Cohen", "2026-09", [{ imageFile: "", sourceHash: sha("JOURNAL") }, { imageFile: "", importHash: sha("INCOME") }]);
   await putFile(root, "clients/Cohen/workspace.json", bytesOf("{}"));
-  const result = await addToInbox(root, [fileOf("x.jpg", "AAAA"), fileOf("y.jpg", "CCCC"), fileOf("z.jpg", "BBBB")], { folder: "Cohen", now: NOW });
-  assert.deepEqual(result.added.map((entry) => entry.name), ["y.jpg"]);
+  const files = [fileOf("scan.pdf", "SCAN"), fileOf("new.jpg", "NEW"), fileOf("j.xlsx", "JOURNAL"), fileOf("report.pdf", "INCOME")];
+  const result = await addToInbox(root, files, { folder: "Cohen", now: NOW });
+  assert.deepEqual(result.added.map((entry) => entry.name), ["new.jpg"]);
   assert.deepEqual(result.duplicates.map((item) => [item.name, item.reason, item.of]), [
-    ["x.jpg", "declaration", { client: "Levi", month: "2026-08", file: "photo-1.jpg" }],
-    ["z.jpg", "declaration", { client: "Cohen", month: "2026-09", file: "photo-2.jpg" }],
+    ["scan.pdf", "declaration", { client: "Levi", month: "2026-08" }],
+    ["j.xlsx", "declaration", { client: "Cohen", month: "2026-09" }],
+    ["report.pdf", "declaration", { client: "Cohen", month: "2026-09" }],
   ]);
 });
 
-// 26 October 2026: the owner deleted the rows of a scan and could not take the scan in again, because its PDF stayed in the images
-// of the month. A file of a month counts as seen only while a row of that month's table (active or not) uses it.
-test("an image of a month that no row of its table uses any more is not a duplicate; one that a row uses is", async () => {
+test("a file whose rows are gone comes in again: rows deleted, or the month deleted; its copy in the folders does not count", async () => {
   const root = binaryDirectory();
-  await putFile(root, "clients/Levi/declarations/2026-10/images/001.pdf", bytesOf("USED-PDF"));
-  await putFile(root, "clients/Levi/declarations/2026-10/images/002.pdf", bytesOf("GONE-PDF"));
-  await putFile(root, "clients/Levi/declarations/2026-10/images/003.jpg", bytesOf("OFF-ROW1"));
-  const draft = { schemaVersion: 1, rows: [{ imageFile: "001.pdf", active: true }, { imageFile: "003.jpg", active: false }, { imageFile: "" }] };
-  await putFile(root, "clients/Levi/declarations/2026-10/draft-table.json", bytesOf(JSON.stringify(draft)));
-  const result = await addToInbox(root, [fileOf("used.pdf", "USED-PDF"), fileOf("gone.pdf", "GONE-PDF"), fileOf("off.jpg", "OFF-ROW1")], { now: NOW });
-  assert.deepEqual(result.added.map((entry) => entry.name), ["gone.pdf"]);
-  assert.deepEqual(result.duplicates.map((item) => [item.name, item.of.file]), [["used.pdf", "001.pdf"], ["off.jpg", "003.jpg"]]);
+  await putFile(root, "clients/Levi/declarations/2026-10/images/001.pdf", bytesOf("OLD-SCAN"));
+  await putFile(root, "clients/Levi/imports/report.pdf", bytesOf("OLD-REPORT"));
+  await putTable(root, "Levi", "2026-10", [{ imageFile: "" }]);
+  const first = await addToInbox(root, [fileOf("scan.pdf", "OLD-SCAN"), fileOf("report.pdf", "OLD-REPORT")], { folder: "Levi", now: NOW });
+  assert.deepEqual([first.added.map((entry) => entry.name), first.duplicates], [["scan.pdf", "report.pdf"], []]);
+
+  const other = binaryDirectory();
+  await putTable(other, "Levi", "2026-09", [{ imageFile: "", importHash: sha("REPORT") }]);
+  assert.equal((await addToInbox(other, [fileOf("report.pdf", "REPORT")], { folder: "Levi", now: NOW })).added.length, 0);
+  await (await (await (await other.getDirectoryHandle("clients")).getDirectoryHandle("Levi")).getDirectoryHandle("declarations")).removeEntry("2026-09", { recursive: true });
+  assert.deepEqual((await addToInbox(other, [fileOf("report.pdf", "REPORT")], { folder: "Levi", now: NOW })).added.map((entry) => entry.name), ["report.pdf"]);
 });
 
-test("declarationImageHashes reads only files whose size can match", async () => {
+test("the same name with other bytes is another file; a table that cannot be read is skipped", async () => {
   const root = binaryDirectory();
-  await putFile(root, "clients/Levi/declarations/2026-08/images/a.jpg", bytesOf("12345"));
-  await putFile(root, "clients/Levi/declarations/2026-08/images/b.jpg", bytesOf("123456789"));
-  const levi = await (await root.getDirectoryHandle("clients")).getDirectoryHandle("Levi");
-  const images = await (await (await levi.getDirectoryHandle("declarations")).getDirectoryHandle("2026-08")).getDirectoryHandle("images");
-  const entries = images.entries.bind(images), reads = [];
-  images.entries = async function* () {
-    for await (const [name, handle] of entries()) {
-      const getFile = async () => {
-        const file = await handle.getFile();
-        return { ...file, arrayBuffer: async () => { reads.push(name); return file.arrayBuffer(); } };
-      };
-      yield [name, { ...handle, getFile }];
-    }
-  };
-  assert.deepEqual([...(await declarationImageHashes(root, new Set([5]))).keys()], [sha("12345")]);
-  assert.deepEqual(reads, ["a.jpg"]);
-  assert.equal((await declarationImageHashes(root, new Set([77]))).size, 0);
-  assert.equal((await declarationImageHashes(binaryDirectory(), new Set([5]))).size, 0);
+  await putTable(root, "Levi", "2026-08", [{ imageFile: "IMG_0001.jpg", agent: { file: sha("FIRST PHOTO") } }]);
+  await putFile(root, "clients/Levi/declarations/2026-09/draft-table.json", bytesOf("{ broken"));
+  const result = await addToInbox(root, [fileOf("IMG_0001.jpg", "SECOND PHOTO")], { folder: "Levi", now: NOW });
+  assert.deepEqual(result.added.map((entry) => entry.name), ["IMG_0001.jpg"]);
+  assert.deepEqual([...(await importedFiles(root)).keys()], [sha("FIRST PHOTO")]);
+  assert.equal((await importedFiles(binaryDirectory())).size, 0);
 });
 
 test("an empty file and a file that cannot be written fail alone; the rest of the batch goes on", async () => {
@@ -386,12 +381,13 @@ test("moveOutOfInbox takes the entry out of the index and the file out of the fo
   assert.deepEqual((await readInboxIndex(root)).files, []);
 });
 
-test("after the original moved to a declaration the same file cannot be added to the inbox again: it is a duplicate of that image", async () => {
+test("after the original moved to a declaration with its rows the same file cannot be added to the inbox again", async () => {
   const { root, entries, declaration } = await filedWorld();
   await copyToDeclarationImages(root, entries[0], declaration);
+  await putTable(root, "Levi", "2026-02", [{ imageFile: "001.jpg", agent: { run: "r1", file: entries[0].hash } }]);
   await moveOutOfInbox(root, entries[0]);
   const again = await addToInbox(root, [fileOf("scan again.jpg", "photo bytes")], { now: NOW });
-  assert.deepEqual([again.added.length, again.duplicates.map((item) => [item.reason, item.of.file])], [0, [["declaration", "001.jpg"]]]);
+  assert.deepEqual([again.added.length, again.duplicates.map((item) => [item.reason, item.of])], [0, [["declaration", { client: "Levi", month: "2026-02" }]]]);
 });
 
 test("calls made at the same time do not lose each other's changes: ten files leave the inbox together, two copies get two numbers", async () => {
@@ -457,45 +453,6 @@ test("fileImportOriginal refuses a file that is not what the index says and leav
   await assert.rejects(() => fileImportOriginal(root, entry, levi), /שונה ממה שנרשם/);
   assert.equal((await readInboxIndex(root)).files.length, 1);
   assert.equal((await listPaths(root)).some((path) => path.startsWith("clients/Levi/imports/")), false);
-});
-
-test("a filed import original is a duplicate of the same bytes dropped again while rows come from it, and the answer says where it is", async () => {
-  const { root, entry, levi } = await importWorld();
-  await fileImportOriginal(root, entry, levi);
-  const draft = { schemaVersion: 1, rows: [{ imageFile: "", sourceHash: sha("journal bytes"), active: true }] };
-  await putFile(root, "clients/Levi/declarations/2026-08/draft-table.json", bytesOf(JSON.stringify(draft)));
-  const again = await addToInbox(root, [fileOf("copy.xlsx", "journal bytes")], { folder: "Levi", now: NOW });
-  assert.equal(again.added.length, 0);
-  assert.deepEqual(again.duplicates.map((item) => [item.name, item.reason, item.of]), [["copy.xlsx", "declaration", { client: "Levi", month: null, file: "journal.xlsx", imports: true }]]);
-  assert.equal((await declarationImageHashes(root, new Set([13]))).get(sha("journal bytes")).imports, true);
-});
-
-// The owner, 11 November 2026: a PDF was imported for a month, the months were deleted, and the same file was refused as "already
-// there" until he deleted it from the client's folder by hand. An import original counts only while a row of the client comes from it.
-test("an import original whose rows are gone (the month deleted) can come in again; an income report row holds its file too", async () => {
-  const { root, entry, levi } = await importWorld();
-  await fileImportOriginal(root, entry, levi);
-  await putFile(root, "clients/Levi/declarations/2026-08/draft-table.json", bytesOf(JSON.stringify({ schemaVersion: 1, rows: [{ imageFile: "" }] })));
-  const again = await addToInbox(root, [fileOf("copy.xlsx", "journal bytes")], { folder: "Levi", now: NOW });
-  assert.deepEqual([again.added.map((item) => item.name), again.duplicates], [["copy.xlsx"], []]);
-
-  const income = binaryDirectory();
-  await putFile(income, "clients/Levi/imports/report.pdf", bytesOf("income report"));
-  const rows = { schemaVersion: 1, rows: [{ imageFile: "", importHash: sha("income report"), active: true }] };
-  await putFile(income, "clients/Levi/declarations/2026-08/draft-table.json", bytesOf(JSON.stringify(rows)));
-  const held = await addToInbox(income, [fileOf("report.pdf", "income report")], { folder: "Levi", now: NOW });
-  assert.deepEqual(held.duplicates.map((item) => item.of.file), ["report.pdf"]);
-  await (await (await (await income.getDirectoryHandle("clients")).getDirectoryHandle("Levi")).getDirectoryHandle("declarations")).removeEntry("2026-08", { recursive: true });
-  const freed = await addToInbox(income, [fileOf("report.pdf", "income report")], { folder: "Levi", now: NOW });
-  assert.deepEqual(freed.added.map((item) => item.name), ["report.pdf"]);
-});
-
-test("a table that cannot be read keeps every import original of its client counted, to be safe", async () => {
-  const { root, entry, levi } = await importWorld();
-  await fileImportOriginal(root, entry, levi);
-  await putFile(root, "clients/Levi/declarations/2026-08/draft-table.json", bytesOf("{ broken"));
-  const again = await addToInbox(root, [fileOf("copy.xlsx", "journal bytes")], { folder: "Levi", now: NOW });
-  assert.equal(again.added.length, 0);
 });
 
 test("step 9.4: a file added for a month records it; the counts tell each month; a month needs a client folder", async () => {

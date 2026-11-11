@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -129,14 +130,15 @@ test("a drop on the dialog but outside the zone is taken too, and a drag without
   assert.equal(text.defaultPrevented, false);
 });
 
-test("a file already stored among the images of a declaration is named as such", async () => {
+test("a file that rows of a declaration came from is named as such", async () => {
   const ui = setup();
-  await putFile(ui.root, "clients/Levi/declarations/2026-08/images/001.jpg", new TextEncoder().encode("photo"));
+  const hash = createHash("sha256").update("photo").digest("hex");
+  await putFile(ui.root, "clients/Levi/declarations/2026-08/draft-table.json", new TextEncoder().encode(JSON.stringify({ schemaVersion: 1, rows: [{ imageFile: "001.jpg", agent: { file: hash } }] })));
   await ui.inbox.open();
   await ui.pickFiles([file("copy.jpg", "photo")]);
   assert.match(ui.plate(), /לא נוספו קבצים · קובץ כפול דולג/);
   assert.equal(ui.q("#inbox-summary").className, "plate plate-info");
-  assert.deepEqual(ui.lines(), ["copy.jpg: כבר קיים בהצהרה 2026-08 של «Levi»"]);
+  assert.deepEqual(ui.lines(), ["copy.jpg: כבר קיים בהצהרה 08/2026 של «Levi»"]);
 });
 
 test("the zone opens the picker by click and by keyboard, and the button does not open it twice", async () => {

@@ -145,62 +145,32 @@ async function writeInboxIndex(inbox, index) {
   try { await writable.write(JSON.stringify(index, null, 2)); } finally { await writable.close(); }
 }
 
-// SHA-256 of the images of every declaration of every client, and of the import originals in clients/<client>/imports/ (step 4.7),
-// whose size is in `sizes`. Equal bytes mean equal size, so only files of a matching size are read. An image counts only while a row
-// of its declaration's table uses it (26 October 2026: rows deleted, the scan could not come in again), and an import original only
-// while a row of the client still comes from it (11 November 2026: months deleted, the income report could not come in again); a
-// declaration whose table cannot be read counts all its images and every import original of its client.
-// Returns Map(hash -> { client, month, file }); for an import original `month` is null and `imports` is true.
-// What the rows of a declaration's table use: { images, sources } (image files, hashes of import originals), or null when the table
-// cannot be read.
-async function usedByRows(declarationHandle) {
-  try {
-    const draft = JSON.parse(await (await (await declarationHandle.getFileHandle("draft-table.json")).getFile()).text());
-    if (!Array.isArray(draft?.rows)) return null;
-    return {
-      images: new Set(draft.rows.map((row) => row?.imageFile).filter(Boolean)),
-      sources: new Set(draft.rows.flatMap((row) => [row?.sourceHash, row?.importHash]).filter(Boolean)),
-    };
-  } catch {
-    return null;
-  }
-}
+// The files that rows came from: every row of every declaration of every client knows the SHA-256 of its file (agent.file for a row
+// of the agent, sourceHash for a journal row, importHash for an income report row). One rule against a second import (the owner,
+// 11 November 2026): a file is already in while a row comes from it, and free again once that month is deleted. The name of a file
+// is not used: names repeat (IMG_0001.jpg). A table that cannot be read is told where it is opened, and is skipped here.
+// Returns Map(hash -> { client, month }).
+export const rowSourceHashes = (row) => [row?.agent?.file, row?.sourceHash, row?.importHash].filter((hash) => typeof hash === "string" && hash);
 
-export async function declarationImageHashes(dataRoot, sizes) {
+export async function importedFiles(dataRoot) {
   const found = new Map();
   let clients;
   try { clients = await dataRoot.getDirectoryHandle("clients"); } catch (error) { if (error.name === "NotFoundError") return found; throw error; }
-  const child = async (directory, name) => {
-    try { return await directory.getDirectoryHandle(name); } catch (error) { if (error.name === "NotFoundError") return null; throw error; }
-  };
   for await (const [client, clientHandle] of clients.entries()) {
     if (clientHandle.kind !== "directory") continue;
-    const sources = new Set();
-    let unreadable = false;
-    const declarations = await child(clientHandle, "declarations");
-    for await (const [month, declarationHandle] of declarations ? declarations.entries() : []) {
+    let declarations;
+    try { declarations = await clientHandle.getDirectoryHandle("declarations"); } catch (error) { if (error.name === "NotFoundError") continue; throw error; }
+    for await (const [month, declarationHandle] of declarations.entries()) {
       if (declarationHandle.kind !== "directory") continue;
-      const used = await usedByRows(declarationHandle);
-      if (used) for (const hash of used.sources) sources.add(hash);
-      else unreadable = true;
-      const images = await child(declarationHandle, "images");
-      if (!images) continue;
-      for await (const [file, handle] of images.entries()) {
-        if (handle.kind !== "file" || (used && !used.images.has(file))) continue;
-        const source = await handle.getFile();
-        if (!sizes.has(source.size)) continue;
-        const hash = await sha256Hex(await source.arrayBuffer());
-        if (!found.has(hash)) found.set(hash, { client, month, file });
+      let rows;
+      try {
+        rows = JSON.parse(await (await (await declarationHandle.getFileHandle("draft-table.json")).getFile()).text())?.rows;
+      } catch {
+        continue;
       }
-    }
-    const imports = await child(clientHandle, "imports");
-    for await (const [file, handle] of imports ? imports.entries() : []) {
-      if (handle.kind !== "file") continue;
-      const source = await handle.getFile();
-      if (!sizes.has(source.size)) continue;
-      const hash = await sha256Hex(await source.arrayBuffer());
-      if (!unreadable && !sources.has(hash)) continue;
-      if (!found.has(hash)) found.set(hash, { client, month: null, file, imports: true });
+      for (const row of Array.isArray(rows) ? rows : []) {
+        for (const hash of rowSourceHashes(row)) if (!found.has(hash)) found.set(hash, { client, month });
+      }
     }
   }
   return found;
@@ -244,7 +214,7 @@ async function addToInboxNow(dataRoot, files, { folder = UNSORTED, month = null,
   const index = await readInboxIndex(dataRoot);
   await pruneMissing(inbox, index);
   const byHash = new Map(index.files.map((entry) => [entry.hash, entry]));
-  const declarationHashes = await declarationImageHashes(dataRoot, new Set(files.map((file) => file.size)));
+  const imported = await importedFiles(dataRoot);
   const taken = await directoryNames(directory), result = { added: [], duplicates: [], failed: [] };
   for (const file of files) {
     const name = String(file.name ?? "").trim() || "file";
@@ -252,7 +222,7 @@ async function addToInboxNow(dataRoot, files, { folder = UNSORTED, month = null,
       if (!file.size) throw new Error("הקובץ ריק.");
       const bytes = new Uint8Array(await file.arrayBuffer()), hash = await sha256Hex(bytes);
       if (byHash.has(hash)) { result.duplicates.push({ name, reason: "inbox", of: byHash.get(hash) }); continue; }
-      if (declarationHashes.has(hash)) { result.duplicates.push({ name, reason: "declaration", of: declarationHashes.get(hash) }); continue; }
+      if (imported.has(hash)) { result.duplicates.push({ name, reason: "declaration", of: imported.get(hash) }); continue; }
       const storedName = uniqueName(safeFileName(name), taken);
       await storeFile(directory, storedName, bytes);
       taken.add(storedName.toLowerCase());
