@@ -89,15 +89,19 @@ test("the sidebar list marks the active client, shows declarations of the expand
   assert.deepEqual(calls, [["declaration", "Alpha", "2026-01"], ["new", "Alpha"], ["menu", "Beta"], ["client", "Beta"]]);
 });
 
-test("a month with rows to look at shows their number beside it (C7)", () => {
+// The owner, 11 November 2026: Anna read the single number beside a month as its rows. Every month, closed ones too, shows its rows
+// and, in brackets, the rows to look at.
+test("every month shows its rows and, in brackets, the rows to look at, closed months too (C7)", () => {
   const container = root(), handlers = { onClient() {}, onMenu() {}, onDeclaration() {}, onNewDeclaration() {} };
   renderSidebarClients(container, {
-    clients: [client("Alpha", [declaration("2026-01"), declaration("2026-02")])], archivedMode: false, activeClientId: "Alpha", activeDeclarationId: null,
-    expandedClientId: "Alpha", reviewCounts: { "Alpha|2026-02": 3 },
+    clients: [client("Alpha", [declaration("2026-01", "closed"), declaration("2026-02"), declaration("2026-03")])], archivedMode: false, activeClientId: "Alpha",
+    activeDeclarationId: null, expandedClientId: "Alpha", monthCounts: { "Alpha|2026-02": { total: 37, review: 3 }, "Alpha|2026-01": { total: 20, review: 0 } },
   }, handlers);
   const choices = [...container.querySelectorAll(".declaration-choice")];
-  assert.deepEqual(choices.map((choice) => choice.querySelector(".waiting-count")?.textContent ?? ""), ["3", ""]);
-  assert.equal(choices[0].querySelector(".waiting-count").title, "שורות לבדיקה: 3");
+  assert.deepEqual(choices.map((choice) => choice.querySelector(".month-count")?.textContent ?? ""), ["", "37 (3)", "20 (0)"], "newest month first");
+  assert.equal(choices[1].querySelector(".month-count").title, "37 שורות בחודש, מתוכן 3 לבדיקה");
+  assert.deepEqual(choices.slice(1).map((choice) => choice.querySelector(".month-review").dataset.review), ["true", "false"]);
+  assert.equal(container.querySelector(".declaration-choice .waiting-count"), null, "rows to look at are no badge any more");
 });
 
 test("archived clients get no new-declaration button and an empty list explains itself", () => {
@@ -137,15 +141,16 @@ test("a client with an import closed before it finished gets a red badge; one no
   assert.equal(badges[1].title, "ייבוא שממתין: 1");
 });
 
-test("step 9.4: a month of the open client counts the files waiting in its inbox, beside its rows to look at", () => {
+test("step 9.4: a month of the open client counts the files waiting in its inbox in a badge of its own", () => {
   const container = root(), handlers = { onClient() {}, onMenu() {}, onDeclaration() {}, onNewDeclaration() {} };
   const clients = [{ ...client("Alpha", [declaration("2026-09"), declaration("2026-10")]), entryName: "Alpha dir" }];
   renderSidebarClients(container, {
     clients, archivedMode: false, activeClientId: null, activeDeclarationId: null, expandedClientId: "Alpha",
     inboxCounts: { "Alpha dir": 3 }, inboxMonthCounts: { "Alpha dir|2026-10": 2 }, reviewCounts: { "Alpha|2026-10": 1 },
+    monthCounts: { "Alpha|2026-10": { total: 5, review: 1 } },
   }, handlers);
   const months = [...container.querySelectorAll(".declaration-choice")].map((choice) => choice.querySelector(".waiting-count")?.title ?? null);
-  assert.deepEqual(months, ["קבצים בתיבת הקלט: 2 · שורות לבדיקה: 1", null], "newest month first");
+  assert.deepEqual(months, ["קבצים בתיבת הקלט: 2", null], "newest month first");
 });
 
 function fakeWindow(href) {

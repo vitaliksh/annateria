@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createDeclaration, loadDeclaration, saveDraft } from "../declaration-store.js";
 import { buildRowSnapshot } from "../row-builder.js";
 import { normalizeRecord } from "../agent/fact-record.js";
-import { reviewCounts, savedRowNeedsLook } from "../review-counts.js";
+import { reviewCounts, savedRowNeedsLook, tableCounts } from "../review-counts.js";
 import { loadApp } from "./app-harness.mjs";
 import { rawRecord } from "./agent-fixtures.mjs";
 import { binaryDirectory } from "./memory-binary-directory.mjs";
@@ -46,7 +46,7 @@ test("the saved count of a month equals what the page counts once the month is d
   assert.equal(shown, `לבדיקה · ${counted.count}`);
 });
 
-test("only open months that are not archived are read; a table that cannot be read is skipped; months come in order", async () => {
+test("every month that is not archived is counted, closed ones too; the open ones with rows to look at are the strip's", async () => {
   const read = [];
   const load = async (directory, month) => {
     read.push(`${directory}|${month}`);
@@ -58,6 +58,14 @@ test("only open months that are not archived are read; a table that cannot be re
     { id: "b", directory: "B", declarations: declarations([["2026-03"], ["2026-02", "closed"], ["2026-04"]]) },
     { id: "a", directory: "A", declarations: declarations([["2026-01"], ["2026-02"], ["2025-12", "open", true]]) },
   ];
+  const counted = await tableCounts(clients, { load });
+  const total = monthRows().length;
+  assert.deepEqual(counted, [
+    { clientId: "a", month: "2026-01", status: "open", total: 0, review: 0 },
+    { clientId: "b", month: "2026-02", status: "locked", total, review: 3 },
+    { clientId: "a", month: "2026-02", status: "open", total, review: 3 },
+    { clientId: "b", month: "2026-03", status: "open", total, review: 3 },
+  ]);
+  assert.deepEqual(read.sort(), ["A|2026-01", "A|2026-02", "B|2026-02", "B|2026-03", "B|2026-04"], "an archived month is not read; a broken one is skipped");
   assert.deepEqual(await reviewCounts(clients, { load }), [{ clientId: "a", month: "2026-02", count: 3 }, { clientId: "b", month: "2026-03", count: 3 }]);
-  assert.deepEqual(read.sort(), ["A|2026-01", "A|2026-02", "B|2026-03", "B|2026-04"]);
 });

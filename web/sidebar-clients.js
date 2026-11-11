@@ -29,11 +29,12 @@ function waitingBadge(root, parts) {
 
 // handlers: { onClient(client), onMenu(client), onDeclaration(client, month), onNewDeclaration(client) }
 // inboxCounts: files waiting in inbox/<client folder>/ by folder name; inboxMonthCounts: by "<folder>|<month>" (step 9.4). reviewCounts: rows to look at by "<client id>|<month>"
-// (review-counts.js). imports: [{ clientId, state }] of import cards not done. A client shows one badge with all it waits for;
-// a month, its rows to look at.
+// (review-counts.js). imports: [{ clientId, state }] of import cards not done. monthCounts: { total, review } by "<client id>|<month>".
+// A client shows one badge with all it waits for. A month shows its rows and, in brackets, the rows to look at, closed months too
+// (the owner, 11 November 2026: a single number was read as the rows of the month), and a badge of the files that wait for it.
 export function renderSidebarClients(root, {
   clients, archivedMode, activeClientId, activeDeclarationId, expandedClientId, inboxCounts = {}, inboxMonthCounts = {}, reviewCounts = {},
-  imports = [],
+  monthCounts = {}, imports = [],
 }, handlers) {
   root.replaceChildren();
   for (const client of clients) {
@@ -71,9 +72,17 @@ export function renderSidebarClients(root, {
         dot.dataset.state = declaration.status === "open" ? "open" : "locked";
         dot.title = declaration.status === "open" ? "פתוחה" : "נעולה";
         choice.append(node(root, "span", "label", formatMonth(declaration.month)), dot);
-        const review = reviewCounts[`${client.id}|${declaration.month}`] ?? 0;
+        const counts = monthCounts[`${client.id}|${declaration.month}`];
+        if (counts) {
+          const shown = node(root, "span", "month-count");
+          const look = node(root, "span", "month-review", `(${counts.review})`);
+          look.dataset.review = String(counts.review > 0);
+          shown.append(`${counts.total} `, look);
+          shown.title = `${counts.total} שורות בחודש, מתוכן ${counts.review} לבדיקה`;
+          choice.insertBefore(shown, dot);
+        }
         const files = inboxMonthCounts[`${client.entryName}|${declaration.month}`] ?? 0;
-        const mark = waitingBadge(root, [{ label: "קבצים בתיבת הקלט", count: files }, { label: "שורות לבדיקה", count: review }]);
+        const mark = waitingBadge(root, [{ label: "קבצים בתיבת הקלט", count: files }]);
         if (mark) choice.insertBefore(mark, dot);
         list.append(choice);
       }

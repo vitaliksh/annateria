@@ -49,7 +49,7 @@ import { setupTransfer } from "./transfer-ui.js";
 import { setupInbox } from "./inbox-ui.js";
 import { watchWizard } from "./import-card-flow.js";
 import { setupWaiting } from "./waiting-ui.js";
-import { reviewCounts } from "./review-counts.js";
+import { openReview as openMonthsToLook, tableCounts } from "./review-counts.js";
 import { setupPhoneIntake } from "./phone-ui.js";
 import { progressLabel, progressMeter, setupAssistant } from "./assistant-ui.js";
 import { buildMessage, createAssistantFlow, doneSummary, resultNote } from "./assistant-flow.js";
@@ -115,7 +115,9 @@ let dataRoot = null,
   inboxFileCounts = {},
   inboxMonthCounts = {}, // files waiting per "<client folder>|<month>" (step 9.4)
   reviewByMonth = [], // rows to look at in the open months of every client, from the saved tables (C7)
+  monthTotals = [], // rows and rows to look at of every month of every client, from the saved tables (tableCounts)
   openReview = 0, // rows to look at in the open month, the toolbar's live count
+  openTotal = 0, // rows of the open month, the toolbar's live count
   pendingImports = [], // import cards not done, from the panel: [{ name, client, clientId, state }]
   reviewTimer = null,
   reviewShape = "",
@@ -380,6 +382,7 @@ const workspaceControls = setupWorkspaceControls({
   getInboxCounts: () => inboxFileCounts,
   getInboxMonthCounts: () => inboxMonthCounts,
   getReviewCounts: () => Object.fromEntries(reviewList().map((item) => [`${item.clientId}|${item.month}`, item.count])),
+  getMonthCounts: monthCountsNow,
   getPendingImports: () => pendingImports,
   onClientsChanged: () => {
     clientsHome.refresh();
@@ -485,9 +488,19 @@ function scheduleReviewCounts() {
   reviewTimer = setTimeout(() => countReview().catch(() => {}), 1000);
 }
 async function countReview() {
-  reviewByMonth = await reviewCounts(workspaceControls?.getClients().active ?? []);
+  monthTotals = await tableCounts(workspaceControls?.getClients().active ?? []);
+  reviewByMonth = openMonthsToLook(monthTotals);
   workspaceControls?.renderSidebar?.();
   waiting.set("rows", rowsToLook());
+}
+// The rows and the rows to look at of every month, by "<client id>|<month>", for the sidebar; the month open in the page is counted live
+// (its table and its toolbar), the others from their saved tables.
+function monthCountsNow() {
+  const counts = Object.fromEntries(monthTotals.map(({ clientId, month, total, review }) => [`${clientId}|${month}`, { total, review }]));
+  if (committedWorkspace && currentDeclaration) {
+    counts[`${committedWorkspace.config.clientId}|${currentDeclaration.month}`] = { total: openTotal, review: openReview };
+  }
+  return counts;
 }
 // Rows to look at, one item per client and month: the open month first (the toolbar's live count), then the other open months
 // from the saved tables. It must not touch workspaceControls: the sidebar asks for it while that is being made.
@@ -525,8 +538,9 @@ const journalToolbar = setupJournalToolbar({
     ? { client: committedWorkspace.config.clientName, month: formatMonth(currentDeclaration.month) }
     : null),
   onCounts: (counts) => {
-    const changed = openReview !== counts.review;
+    const changed = openReview !== counts.review || openTotal !== counts.all;
     openReview = counts.review;
+    openTotal = counts.all;
     waiting.set("rows", rowsToLook());
     if (changed) workspaceControls?.renderSidebar?.();
   },

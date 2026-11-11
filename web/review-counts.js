@@ -1,5 +1,5 @@
-// Rows to look at in every open declaration of every client (docs/UI_REDESIGN_PROPOSAL.md, C7), read from the saved tables, so that
-// the clients home, the sidebar and the strip "ממתין לך" show them without opening each month. The rule is the toolbar's
+// Rows, and rows to look at, in every declaration of every client (docs/UI_REDESIGN_PROPOSAL.md, C7), read from the saved tables, so
+// that the clients home, the sidebar and the strip "ממתין לך" show them without opening each month. The rule is the toolbar's
 // (needsLook), applied to a saved row as the page would draw it (restoreRow in app.js).
 import { loadDeclaration } from "./declaration-store.js";
 import { needsLook } from "./journal-toolbar.js";
@@ -13,19 +13,28 @@ export function savedRowNeedsLook(saved) {
 }
 
 // clients: the active clients of the workspace ({ id, directory, declarations: [{ declaration }] }). Resolves with
-// [{ clientId, month, count }] of the open declarations that have rows to look at, by month. A table that cannot be read is skipped.
-export async function reviewCounts(clients, { load = loadDeclaration } = {}) {
+// [{ clientId, month, status, total, review }] of every declaration that is not archived, closed ones too: the rows of its table and
+// the rows to look at (the owner, 11 November 2026: the sidebar shows both beside every month). A table that cannot be read is skipped.
+export async function tableCounts(clients, { load = loadDeclaration } = {}) {
   const found = [];
   for (const client of clients ?? []) {
-    const open = (client.declarations ?? []).map((item) => item.declaration).filter((item) => item && item.status === "open" && !item.archived);
-    for (const { month } of open) {
+    const declarations = (client.declarations ?? []).map((item) => item.declaration).filter((item) => item && !item.archived);
+    for (const { month, status } of declarations) {
       try {
-        const count = ((await load(client.directory, month)).draft?.rows ?? []).filter(savedRowNeedsLook).length;
-        if (count) found.push({ clientId: client.id, month, count });
+        const rows = (await load(client.directory, month)).draft?.rows ?? [];
+        found.push({ clientId: client.id, month, status: status === "open" ? "open" : "locked", total: rows.length, review: rows.filter(savedRowNeedsLook).length });
       } catch {
         /* a broken table is told where it is opened */
       }
     }
   }
   return found.sort((a, b) => a.month.localeCompare(b.month));
+}
+
+// [{ clientId, month, count }] of the open declarations that have rows to look at, by month (the strip "ממתין לך" and the clients home).
+export const openReview = (counts) => counts.filter((item) => item.status === "open" && item.review > 0)
+  .map(({ clientId, month, review }) => ({ clientId, month, count: review }));
+
+export async function reviewCounts(clients, options = {}) {
+  return openReview(await tableCounts(clients, options));
 }

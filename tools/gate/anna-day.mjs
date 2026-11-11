@@ -245,8 +245,13 @@ async function day(page, scanPath, log) {
   await status.click();
   const checked = (await status.innerText()).trim();
   const after = await toLook();
+  // Beside the month: its rows and, in brackets, the rows to look at, by the rule of the filter "לבדיקה" (the owner, 11 November 2026).
+  await page.waitForTimeout(300);
+  const filterLabel = (await page.locator('#filter-menu .menu-panel button[data-filter="review"]').textContent()) ?? "";
+  const lookCount = Number(filterLabel.match(/(\d+)/)?.[1] ?? NaN);
+  const monthCount = (await page.locator(".declaration-choice.active-declaration .month-count").textContent().catch(() => "")) ?? "";
   await page.screenshot({ path: join(tmpdir(), "anna-day-checked.png") }).catch(() => {});
-  return { rows, hasSupplier: table.includes(SUPPLIER.slice(0, 8)), feed, meter, checked, toLook: [before, after], ended, panelCards };
+  return { rows, hasSupplier: table.includes(SUPPLIER.slice(0, 8)), feed, meter, checked, toLook: [before, after], ended, panelCards, monthCount, lookCount };
 }
 
 async function main() {
@@ -298,6 +303,7 @@ async function main() {
     if (outcome.rows !== 2) problems.push(`the table has ${outcome.rows} rows, 2 expected (the invoice and the page without a document)`);
     if (!outcome.hasSupplier) problems.push("the row of the scanned invoice is not in the table");
     if (!/העוזר סיים/.test(outcome.ended) || !/נוספו 2 שורות/.test(outcome.ended)) problems.push(`the end of the run is not said in a dialog: "${outcome.ended}"`);
+    if (outcome.monthCount.trim() !== `2 (${outcome.lookCount})`) problems.push(`the sidebar says "${outcome.monthCount}" beside the month, "2 (${outcome.lookCount})" expected`);
     if (outcome.panelCards) problems.push(`the panel still shows ${outcome.panelCards} cards`);
     if (outcome.checked !== "נבדק" || outcome.toLook[1] !== outcome.toLook[0] - 1) {
       problems.push(`a click on the status did not mark the row checked: "${outcome.checked}", rows to look at ${outcome.toLook.join(" -> ")}`);

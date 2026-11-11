@@ -212,6 +212,23 @@ body[data-view="clients"] #nav-clients {
   color: var(--accent);
 }
 
+/* Beside a month: its rows and, in brackets, the rows to look at (amber when there are any). */
+.month-count {
+  color: var(--text-muted);
+  font-size: var(--fs-sm, 0.85em);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.month-review[data-review="true"] {
+  color: var(--warning);
+  font-weight: 650;
+}
+
+.app-shell[data-sidebar="collapsed"] .month-count {
+  display: none;
+}
+
 .state-dot {
   flex: none;
   width: 8px;
