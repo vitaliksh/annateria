@@ -56,6 +56,9 @@ jobs:
       - id: deployment
         continue-on-error: true
         uses: actions/deploy-pages@v4
+      # 11 November 2026: both tries failed one right after the other; give GitHub a minute before the second.
+      - if: steps.deployment.outcome == 'failure'
+        run: sleep 60
       - id: retry
         if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
