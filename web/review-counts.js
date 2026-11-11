@@ -5,9 +5,9 @@ import { loadDeclaration } from "./declaration-store.js";
 import { needsLook } from "./journal-toolbar.js";
 
 // A saved row of draft-table.json. A row that is not the agent's, active and without marked regions is drawn "to look at"
-// ("מוכן, חסרים סימונים") whatever it saved; a possible duplicate is found only on drawing, so it is not counted here.
+// ("מוכן, חסרים סימונים") whatever it saved, unless the user marked it checked; a possible duplicate is found only on drawing, so it is not counted here.
 export function savedRowNeedsLook(saved) {
-  const needsMarks = Boolean(saved.active) && !(saved.highlights ?? []).length && !saved.agent;
+  const needsMarks = Boolean(saved.active) && !(saved.highlights ?? []).length && !saved.agent && !saved.reviewedFrom;
   const status = needsMarks ? "review" : saved.statusClass || (saved.active ? "ready" : "review");
   return needsLook({ flagged: status === "review", excluded: !saved.active, image: Boolean(saved.imageFile), leftOut: saved.agent?.leftOut === true });
 }

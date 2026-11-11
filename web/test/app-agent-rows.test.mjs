@@ -95,6 +95,59 @@ test("an old row is unchanged: an active row without marked regions still says t
   assert.deepEqual([rows()[0].cells[16].textContent, rows()[0].cells[16].className], ["מוכן, חסרים סימונים", "state review"]);
 });
 
+// The owner, 11 November 2026: Anna checked and fixed rows, and they stayed "to look at"; nothing could take the mark off.
+test("a click on the status of a row to look at marks it checked, a second click gives the status back, and the mark is kept", async () => {
+  const { app, rows, document } = await loadApp();
+  const { selected, client } = await openMonth();
+  await app.activateDeclaration(selected);
+  app.appendSnapshots([{ ...snapshot({ document_number: "A-1" }, { needsReview: true, documentId: "a" }), imageFile: "001.jpg" }, snapshot({ document_number: "A-2" }, { documentId: "b" })]);
+  const [looked, ready] = rows();
+  assert.equal(looked.cells[16].getAttribute("role"), "button");
+  assert.equal(ready.cells[16].hasAttribute("data-clickable"), false, "a ready row has nothing to take off");
+  const reviewCount = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 50)); // the toolbar counts after the table changed
+    return [...document.querySelectorAll("#filter-menu .menu-panel button")].map((button) => button.textContent).find((label) => label.startsWith("לבדיקה"));
+  };
+  assert.equal(await reviewCount(), "לבדיקה · 1");
+
+  looked.cells[16].click();
+  assert.deepEqual([looked.cells[16].textContent, looked.cells[16].className], ["נבדק", "state ready"]);
+  assert.equal(await reviewCount(), "לבדיקה · 0");
+  ready.cells[16].click();
+  assert.equal(ready.cells[16].textContent, "מוכן לייצוא", "a click on a ready row changes nothing");
+
+  await app.saveCurrentDraft();
+  const saved = (await loadDeclaration(client, "2026-02")).draft.rows[0];
+  assert.deepEqual([saved.statusText, saved.statusClass, saved.reviewedFrom], ["נבדק", "ready", { text: "נדרש עיון", state: "review" }]);
+  const again = await loadApp();
+  const reopened = await loadDeclaration(client, "2026-02");
+  await again.app.activateDeclaration({ ...selected, declaration: reopened.declaration, draft: reopened.draft, directory: reopened.directory });
+  const back = again.rows()[0];
+  assert.deepEqual([back.cells[16].textContent, back.cells[16].className], ["נבדק", "state ready"], "checked after the month is opened again");
+  back.cells[16].dispatchEvent(new again.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  assert.deepEqual([back.cells[16].textContent, back.cells[16].className, "reviewedFrom" in again.app.rowSnapshot(back)], ["נדרש עיון", "state review", false]);
+});
+
+test("a checked old row without marked regions stays checked after reopening, and the home counts agree", async () => {
+  const { app, rows } = await loadApp();
+  const { selected } = await openMonth();
+  await app.activateDeclaration(selected);
+  const old = { ...snapshot(), agent: undefined, statusText: "נבדק", statusClass: "ready", reviewedFrom: { text: "מוכן, חסרים סימונים", state: "review" } };
+  app.restoreRow(old, null);
+  assert.deepEqual([rows()[0].cells[16].textContent, rows()[0].cells[16].className], ["נבדק", "state ready"]);
+  const { savedRowNeedsLook } = await import("../review-counts.js");
+  assert.equal(savedRowNeedsLook({ ...old, imageFile: "001.jpg" }), false);
+  assert.equal(savedRowNeedsLook({ ...old, imageFile: "001.jpg", reviewedFrom: undefined }), true);
+});
+
+test("a row of a closed month is not marked checked", async () => {
+  const { app, rows } = await loadApp();
+  const { selected } = await openMonth([{ ...snapshot({ document_number: "A-1" }, { needsReview: true, documentId: "a" }), imageFile: "001.jpg" }]);
+  await app.activateDeclaration({ ...selected, declaration: { ...selected.declaration, status: "closed" } });
+  rows()[0].cells[16].click();
+  assert.equal(rows()[0].cells[16].textContent, "נדרש עיון");
+});
+
 test("the rows made from one file get its image: the button names the kind, the row remembers the file", async () => {
   const { app, rows } = await loadApp();
   const { selected, client } = await openMonth();

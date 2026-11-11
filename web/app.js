@@ -1301,10 +1301,44 @@ function refreshRows() {
   count.textContent = `שורות ביומן: ${recordCount}`;
   if (!recordCount) records.append(emptyRow);
 }
+// A status set by the code replaces a check of the user (a new photo, a copy found later).
 function setStatus(row, text, state = "") {
   const cell = row.cells[16];
   cell.replaceChildren(document.createTextNode(text));
   cell.className = `state ${state}`;
+  delete row.dataset.reviewedFrom;
+  markStatusClickable(row);
+}
+// "לבדיקה" is taken off by the user (the owner, 11 November 2026: Anna checked and fixed rows, and they stayed to look at): a click
+// on the status of a row to look at marks it checked; a second click gives the row its status back.
+const REVIEWED_TEXT = "נבדק";
+function markStatusClickable(row) {
+  const cell = row.cells[16];
+  const reviewed = Boolean(row.dataset.reviewedFrom);
+  const clickable = reviewed || cell.classList.contains("review");
+  cell.toggleAttribute("data-clickable", clickable);
+  if (clickable) {
+    cell.tabIndex = 0;
+    cell.setAttribute("role", "button");
+    cell.title = reviewed ? "לחיצה מחזירה את השורה לבדיקה" : "לחיצה מסמנת שהשורה נבדקה";
+  } else {
+    cell.removeAttribute("tabindex");
+    cell.removeAttribute("role");
+    cell.removeAttribute("title");
+  }
+}
+function toggleReviewed(row) {
+  if (currentDeclaration?.status !== "open") return showError("יש לפתוח את החודש («פתיחה מחדש») לפני סימון שורה כנבדקה.");
+  const cell = row.cells[16];
+  const before = row.dataset.reviewedFrom ? JSON.parse(row.dataset.reviewedFrom) : null;
+  if (before) setStatus(row, before.text, before.state);
+  else if (cell.classList.contains("review")) {
+    const previous = { text: cell.textContent.trim(), state: "review" };
+    setStatus(row, REVIEWED_TEXT, "ready");
+    row.dataset.reviewedFrom = JSON.stringify(previous);
+    markStatusClickable(row);
+  } else return;
+  queueDraftSave();
 }
 function percentSelect(value = 100, choices = [100, 25], role = "") {
   const select = document.createElement("select");
@@ -1981,6 +2015,7 @@ function rowSnapshot(row) {
     ...(row.dataset.unreadable ? { unreadable: row.dataset.unreadable.split(" ") } : {}),
     ...(row.dataset.previousImages ? { previousImages: JSON.parse(row.dataset.previousImages) } : {}),
     ...(row.dataset.foreign ? { foreign: JSON.parse(row.dataset.foreign) } : {}),
+    ...(row.dataset.reviewedFrom ? { reviewedFrom: JSON.parse(row.dataset.reviewedFrom) } : {}),
     highlights: row.highlights || [],
     active: Boolean(row.cells[17].querySelector("input")?.checked),
     ...(row.dataset.booked ? { booked: true } : {}),
@@ -2057,12 +2092,18 @@ function restoreRow(saved, blob, { fresh = false } = {}) {
   include.disabled = false;
   setExportIncluded(row, saved.active);
   // A row of the agent has no marked regions by design: its own status stands.
-  const needsMarks = saved.active && !row.highlights.length && !saved.agent && !saved.vatMovedFrom;
+  // A row the user marked checked stays checked.
+  const reviewed = saved.reviewedFrom && typeof saved.reviewedFrom === "object";
+  const needsMarks = saved.active && !row.highlights.length && !saved.agent && !saved.vatMovedFrom && !reviewed;
   setStatus(
     row,
     needsMarks ? "מוכן, חסרים סימונים" : saved.statusText || (saved.active ? "מוכן לייצוא" : "לא מיועד לייצוא"),
     needsMarks ? "review" : saved.statusClass || (saved.active ? "ready" : "review"),
   );
+  if (reviewed) {
+    row.dataset.reviewedFrom = JSON.stringify({ text: String(saved.reviewedFrom.text ?? ""), state: "review" });
+    markStatusClickable(row);
+  }
   if (fresh) updateDuplicateState(row);
   fillVatMonthCell(row);
   lockVatMovedRow(row);
@@ -2076,7 +2117,18 @@ records.addEventListener("input", (event) => {
   if (row?.dataset.documentId && column === 6) updateDuplicateState(row);
   queueDraftSave();
 });
+records.addEventListener("click", (event) => {
+  const cell = event.target.closest?.("td.state[data-clickable]");
+  const row = cell?.closest("tr[data-document-id]");
+  if (row && row.cells[16] === cell) toggleReviewed(row);
+});
 records.addEventListener("keydown", (event) => {
+  const status = event.target.closest?.("td.state[data-clickable]");
+  if (status && (event.key === "Enter" || event.key === " ") && status.closest("tr[data-document-id]")?.cells[16] === status) {
+    event.preventDefault();
+    toggleReviewed(status.closest("tr[data-document-id]"));
+    return;
+  }
   if (event.key === "Enter" && !event.isComposing && event.target.matches(".amount-cell input, .editable")) {
     event.preventDefault();
     event.target.blur();

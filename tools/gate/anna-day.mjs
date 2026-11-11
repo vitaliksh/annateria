@@ -226,7 +226,17 @@ async function day(page, scanPath, log) {
   // The thermometer of the run stays with its last state: the file filed, the documents found.
   const meter = (await page.locator("#assistant-meter").isVisible()) ? await page.locator("#assistant-meter").innerText() : "";
   await page.screenshot({ path: join(tmpdir(), "anna-day-after-run.png") }).catch(() => {});
-  return { rows, hasSupplier: table.includes(SUPPLIER.slice(0, 8)), feed, meter };
+
+  // Anna looked at a row to look at: a click on its status marks it checked (the owner, 11 November 2026).
+  step("mark a row to look at as checked");
+  const toLook = () => page.locator("#journal-table tbody tr[data-document-id] td.state.review").count();
+  const before = await toLook();
+  const status = await page.locator("#journal-table tbody tr[data-document-id] td.state.review[data-clickable]").first().elementHandle();
+  await status.click();
+  const checked = (await status.innerText()).trim();
+  const after = await toLook();
+  await page.screenshot({ path: join(tmpdir(), "anna-day-checked.png") }).catch(() => {});
+  return { rows, hasSupplier: table.includes(SUPPLIER.slice(0, 8)), feed, meter, checked, toLook: [before, after] };
 }
 
 async function main() {
@@ -277,6 +287,9 @@ async function main() {
     // 8 November 2026).
     if (outcome.rows !== 2) problems.push(`the table has ${outcome.rows} rows, 2 expected (the invoice and the page without a document)`);
     if (!outcome.hasSupplier) problems.push("the row of the scanned invoice is not in the table");
+    if (outcome.checked !== "נבדק" || outcome.toLook[1] !== outcome.toLook[0] - 1) {
+      problems.push(`a click on the status did not mark the row checked: "${outcome.checked}", rows to look at ${outcome.toLook.join(" -> ")}`);
+    }
     if (!/תויקו 1 מתוך 1/.test(outcome.meter)) problems.push(`the thermometer does not show the filed file: "${outcome.meter}"`);
     if (/שגיאה|נכשל|לא הצלחתי|is not defined|not allowed|נעול/.test(outcome.feed)) problems.push(`the feed reports a problem: ${outcome.feed.slice(-300)}`);
   }

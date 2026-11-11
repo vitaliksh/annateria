@@ -222,6 +222,23 @@ td .photo-button {
   font-weight: 650;
 }
 
+/* A status the user can click: "to look at" becomes "checked", and back. */
+.state[data-clickable] {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.state[data-clickable]:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.state[data-clickable]:hover,
+.state[data-clickable]:focus-visible {
+  background: var(--surface-hover);
+}
+
 .received,
 .ready {
   color: var(--success);
